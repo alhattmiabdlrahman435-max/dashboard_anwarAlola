@@ -1,0 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  /* Premium Brand HSL Colors (Light Mode) */
+  --color-primary-hsl: 224, 64%, 15%;
+  --color-primary: hsl(var(--color-primary-hsl));
+  --color-primary-dark: hsl(224, 70%, 9%);
+  --color-primary-ui: hsl(220, 90%, 46%);
+  --color-accent-hsl: 43, 90%, 54%;
+  --color-accent: hsl(var(--color-accent-hsl));
+  
+  /* Modern Premium Gradients */
+  --gradient-brand: linear-gradient(135deg, hsl(224, 64%, 15%) 0%, hsl(215, 85%, 38%) 100%);
+  --gradient-accent: linear-gradient(135deg, hsl(43, 95%, 55%) 0%, hsl(32, 95%, 48%) 100%);
+  --gradient-success: linear-gradient(135deg, hsl(150, 80%, 32%) 0%, hsl(150, 75%, 24%) 100%);
+  --gradient-warning: linear-gradient(135deg, hsl(38, 92%, 52%) 0%, hsl(28, 92%, 46%) 100%);
+  --gradient-error: linear-gradient(135deg, hsl(355, 78%, 52%) 0%, hsl(348, 85%, 42%) 100%);
+  --gradient-info: linear-gradient(135deg, hsl(200, 90%, 48%) 0%, hsl(210, 85%, 40%) 100%);
+
+  /* Semantic Colors */
+  --color-info: hsl(210, 85%, 45%);
+  --color-success: hsl(150, 75%, 26%);
+  --color-warning: hsl(38, 90%, 48%);
+  --color-error: hsl(352, 80%, 45%);
+  
+  /* Glassmorphic Base Styles (Light) */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-blur: 20px;
+  
+  /* Surfaces & Neutrals (Light Mode) */
+  --color-surface: hsl(218, 40%, 96.5%);
+  --color-surface-alt: hsl(0, 0%, 100%);
+  --color-neutral-warm: hsl(40, 20%, 94%);
+  --color-text-primary: hsl(224, 60%, 12%);
+  --color-text-secondary: hsl(220, 16%, 46%);
+  --color-border: hsl(220, 28%, 91%);
+  --color-shadow: 0 8px 30px rgba(15, 34, 64, 0.02), 0 2px 8px rgba(15, 34, 64, 0.01);
+  --color-shadow-hover: 0 20px 48px -4px rgba(15, 34, 64, 0.08), 0 6px 16px -2px rgba(15, 34, 64, 0.03);
+  --color-overlay: rgba(8, 18, 36, 0.35);
+  --color-focus-glow: 0 0 0 4px rgba(30, 80, 142, 0.12);
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-xxxl: 48px;
+
+  /* Font Families */
+  --font-arabic: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-english: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  /* Border Radii */
+  --radius-button: 16px;
+  --radius-button-elevated: 16px;
+  --radius-input: 14px;
+  --radius-chip: 12px;
+  --radius-card: 26px;
+  
+  /* Transitions (Sleek Spring Cubic-Bezier) */
+  --transition-fast: 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-normal: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-slow: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Dark Mode System Variables */
+:root.dark {
+  /* Brand HSL Colors (Dark Mode) */
+  --color-primary-hsl: 224, 45%, 12%;
+  --color-primary: hsl(var(--color-primary-hsl));
+  --color-primary-dark: hsl(224, 50%, 8%);
+  --color-primary-ui: hsl(205, 95%, 48%);
+  --color-accent: hsl(43, 95%, 52%);
+
+  --gradient-brand: linear-gradient(135deg, hsl(224, 45%, 10%) 0%, hsl(218, 60%, 18%) 100%);
+  
+  /* Semantic Colors (Dark) */
+  --color-info: hsl(200, 95%, 48%);
+  --color-success: hsl(150, 70%, 40%);
+  --color-warning: hsl(38, 90%, 48%);
+  --color-error: hsl(352, 85%, 50%);
+  
+  /* Glassmorphism Base Styles (Dark) */
+  --glass-bg: rgba(13, 23, 42, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  
+  /* Surfaces & Neutrals (Dark Mode) */
+  --color-surface: hsl(224, 52%, 6%);
+  --color-surface-alt: hsl(224, 40%, 11%);
+  --color-neutral-warm: hsl(224, 25%, 15%);
+  --color-text-primary: hsl(210, 40%, 97%);
+  --color-text-secondary: hsl(215, 20%, 70%);
+  --color-border: hsl(224, 25%, 17%);
+  --color-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.35);
+  --color-shadow-hover: 0 30px 60px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --color-overlay: rgba(0, 0, 0, 0.65);
+  --color-focus-glow: 0 0 0 4px rgba(56, 189, 248, 0.22);
+}
+
+/* Typography Scale */
+.display-large {
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.display-medium {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.headline-small {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.title-large {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.title-medium {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.body-large {
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.body-medium {
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.label-large {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+.label-medium {
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Global Reset Rules */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+  overflow: hidden;
+}
+
+body[dir="rtl"] {
+  font-family: var(--font-arabic);
+}
+
+body[dir="ltr"] {
+  font-family: var(--font-english);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-secondary);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Selection Highlight */
+::selection {
+  background-color: hsla(var(--color-primary-hsl), 0.15);
+  color: inherit;
+}
