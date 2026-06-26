@@ -586,11 +586,11 @@ const initialStudents = [
 ];
 
 const initialParentUsers = [
-  { nationalId: "1023948576", name: "محمد الرويلي", nameEn: "Mohammed Al-Ruwayli", phone: "554129930", username: "554129930", password: "parent_password123", photo: "🧔" },
-  { nationalId: "1098765432", name: "خالد العسيري", nameEn: "Khalid Al-Asiri", phone: "542331908", username: "542331908", password: "parent_password123", photo: "🧔" },
-  { nationalId: "1055443322", name: "فيصل الشمري", nameEn: "Faisal Al-Shammari", phone: "508129322", username: "508129322", password: "parent_password123", photo: "🧔" },
-  { nationalId: "1077665544", name: "عبدالله القحطاني", nameEn: "Abdullah Al-Qahtani", phone: "569940212", username: "569940212", password: "parent_password123", photo: "🧔" },
-  { nationalId: "1011223344", name: "عادل العتيبي", nameEn: "Adel Al-Otaibi", phone: "531204481", username: "531204481", password: "parent_password123", photo: "🧔" }
+  { nationalId: "1023948576", name: "محمد الرويلي", nameEn: "Mohammed Al-Ruwayli", phone: "554129930", username: "1023948576", password: "parent_password123", photo: "🧔" },
+  { nationalId: "1098765432", name: "خالد العسيري", nameEn: "Khalid Al-Asiri", phone: "542331908", username: "1098765432", password: "parent_password123", photo: "🧔" },
+  { nationalId: "1055443322", name: "فيصل الشمري", nameEn: "Faisal Al-Shammari", phone: "508129322", username: "1055443322", password: "parent_password123", photo: "🧔" },
+  { nationalId: "1077665544", name: "عبدالله القحطاني", nameEn: "Abdullah Al-Qahtani", phone: "569940212", username: "1077665544", password: "parent_password123", photo: "🧔" },
+  { nationalId: "1011223344", name: "عادل العتيبي", nameEn: "Adel Al-Otaibi", phone: "531204481", username: "1011223344", password: "parent_password123", photo: "🧔" }
 ];
 
 const initialTeachers = [
@@ -1082,6 +1082,42 @@ export const AppProvider = ({ children }) => {
   const [controlModulo, setControlModulo] = useState(10000);
 
   const t = dictionary[lang];
+
+  // Auto-login using saved Sanctum token
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      fetch('/api/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setIsAuthenticated(true);
+          // Convert from database fields to frontend structure if necessary
+          const mappedUser = {
+            id: data.user.id,
+            name: data.user.name,
+            name_ar: data.user.name_ar,
+            name_en: data.user.name_en,
+            username: data.user.username,
+            role: data.user.role,
+            photo: data.user.photo_url || 'أ ع',
+            email: data.user.email
+          };
+          setCurrentUser(mappedUser);
+        } else {
+          localStorage.removeItem('auth_token');
+        }
+      })
+      .catch(err => {
+        console.error('API Auto-Login error:', err);
+      });
+    }
+  }, []);
 
   // Set html page direction
   useEffect(() => {
@@ -1868,6 +1904,17 @@ export const AppProvider = ({ children }) => {
   };
 
   const handleLogoutAction = () => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      fetch('/api/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      }).catch(err => console.error('API Logout error:', err));
+    }
+    localStorage.removeItem('auth_token');
     setIsAuthenticated(false);
     setCurrentUser(null);
     setActiveTab('dashboard');

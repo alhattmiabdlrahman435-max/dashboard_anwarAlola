@@ -19,7 +19,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     if (e) e.preventDefault();
     setLoginError('');
 
@@ -31,44 +31,34 @@ export default function LoginScreen() {
       return;
     }
 
-    if (loginRole === 'admin') {
-      if (
-        (usernameTrimmed === 'admin' || usernameTrimmed === 'anwar-alola@edu.sa') && 
-        passwordTrimmed === 'admin123'
-      ) {
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          username: usernameTrimmed,
+          password: passwordTrimmed,
+          role: loginRole
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem('auth_token', data.token);
         setIsAuthenticated(true);
-        setCurrentUser({
-          username: 'admin',
-          role: 'admin',
-          name: 'مدير المدارس',
-          nameEn: 'Schools Director',
-          email: 'anwar-alola@edu.sa',
-          photo: 'أ ع'
-        });
-        setToastMessage(lang === 'ar' ? 'تم تسجيل الدخول بنجاح كمدير للمدرسة!' : 'Logged in successfully as Administrator!');
+        setCurrentUser(data.user);
+        setToastMessage(lang === 'ar' ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!');
         setTimeout(() => setToastMessage(''), 3000);
       } else {
-        setLoginError(t.invalidCredentials);
+        setLoginError(lang === 'ar' ? data.message : 'Invalid credentials');
       }
-    } else if (loginRole === 'supervisor') {
-      if (
-        (usernameTrimmed === 'supervisor' || usernameTrimmed === 'supervisor@anwaralola.edu.sa') && 
-        passwordTrimmed === 'super123'
-      ) {
-        setIsAuthenticated(true);
-        setCurrentUser({
-          username: 'supervisor',
-          role: 'supervisor',
-          name: 'مشرف النظام',
-          nameEn: 'System Supervisor',
-          email: 'supervisor@anwaralola.edu.sa',
-          photo: 'م ن'
-        });
-        setToastMessage(lang === 'ar' ? 'تم تسجيل الدخول بنجاح كمشرف للنظام!' : 'Logged in successfully as System Supervisor!');
-        setTimeout(() => setToastMessage(''), 3000);
-      } else {
-        setLoginError(t.invalidCredentials);
-      }
+    } catch (err) {
+      console.error(err);
+      setLoginError(lang === 'ar' ? 'خطأ في الاتصال بالسيرفر' : 'Server connection error');
     }
   };
 

@@ -53,7 +53,7 @@ export default function ParentsTab() {
       name: modalParentNameAr,
       nameEn: nameEn,
       phone: phoneDigits,
-      username: phoneDigits,
+      username: nationalIdDigits,
       password: modalParentPass,
       photo: '🧔'
     };
@@ -90,7 +90,7 @@ export default function ParentsTab() {
       name: modalParentNameAr,
       nameEn: nameEn,
       phone: phoneDigits,
-      username: phoneDigits,
+      username: modalParentNationalIdVal,
       password: modalParentPass,
       photo: '🧔'
     };

@@ -89,7 +89,7 @@ export default function StudentsTab() {
           name: parentNameVal,
           nameEn: nameEn,
           phone: parentPhoneVal,
-          username: parentPhoneVal,
+          username: parentNationalIdVal,
           password: 'parent_password123',
           photo: modalParentPhoto || '🧔'
         };
