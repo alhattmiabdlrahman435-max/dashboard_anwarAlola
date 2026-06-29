@@ -24,7 +24,7 @@ class TeacherController extends Controller
                 'name_en' => $t->name_en,
                 'phone' => $t->phone,
                 'photo_url' => $t->photo_url ?: '👨‍🏫',
-                'email' => $t->email,
+                'email' => null,
                 'assignments' => $t->teacherSubjects->map(function($sub) {
                     return [
                         'id' => $sub->id,
@@ -58,7 +58,6 @@ class TeacherController extends Controller
         return DB::transaction(function () use ($request) {
             $user = User::create([
                 'name' => $request->name_ar,
-                'email' => strtolower($request->job_id) . '@anwaralola.edu.sa',
                 'username' => $request->job_id,
                 'job_id' => $request->job_id,
                 'password' => Hash::make($request->password),
@@ -159,11 +158,11 @@ class TeacherController extends Controller
     public function getClasses(Request $request)
     {
         $user = $request->user();
-        if ($user->role === 'supervisor' || $user->role === 'admin') {
-            $classes = SchoolClass::all();
+        if ($user->role === 'supervisor' || $user->role === 'admin' || $user->role === 'preparation_supervisor') {
+            $classes = SchoolClass::withCount('students')->get();
         } else {
             $classIds = TeacherSubject::where('teacher_id', $user->id)->pluck('class_id')->unique();
-            $classes = SchoolClass::whereIn('id', $classIds)->get();
+            $classes = SchoolClass::whereIn('id', $classIds)->withCount('students')->get();
         }
 
         return response()->json([
@@ -204,10 +203,11 @@ class TeacherController extends Controller
     public function markAttendance(Request $request, $studentId)
     {
         // VERIFICATION: Check if user is a teacher. If yes, disallow (403 Forbidden).
-        if ($request->user()->role === 'teacher') {
+        // VERIFICATION: Only admin, supervisor, and preparation_supervisor can mark attendance
+        if (!in_array($request->user()->role, ['admin', 'supervisor', 'preparation_supervisor'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'المعلم لا يملك صلاحية تحضير الطلاب. التحضير من صلاحيات المشرفة فقط.'
+                'message' => 'غير مصرح لك بتحضير الطلاب. التحضير من صلاحيات الإدارة ومشرفة التحضير فقط.'
             ], 403);
         }
 
@@ -321,7 +321,7 @@ class TeacherController extends Controller
     public function getTeacherAttendanceHistory(Request $request)
     {
         $user = $request->user();
-        if ($user->role === 'supervisor' || $user->role === 'admin') {
+        if ($user->role === 'supervisor' || $user->role === 'admin' || $user->role === 'preparation_supervisor') {
             $classes = SchoolClass::all();
         } elseif ($user->role === 'teacher') {
             $classIds = TeacherSubject::where('teacher_id', $user->id)->pluck('class_id')->unique();
@@ -383,5 +383,69 @@ class TeacherController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * Get supervisor reports / stats dynamically from database.
+     */
+    public function getSupervisorReports(Request $request)
+    {
+        $today = now()->format('Y-m-d');
+        $totalStudents = Student::count();
+        
+        $presentToday = Attendance::where('record_date', $today)->where('status', 'present')->count();
+        $absentToday = Attendance::where('record_date', $today)->where('status', 'absent')->count();
+        $unmarkedToday = max(0, $totalStudents - ($presentToday + $absentToday));
+
+        // Average attendance calculation over all recorded days
+        $totalDays = Attendance::select('record_date')->distinct()->count();
+        if ($totalDays > 0) {
+            $totalPresent = Attendance::where('status', 'present')->count();
+            $totalPossible = $totalStudents * $totalDays;
+            $averageAttendance = $totalPossible > 0 ? round(($totalPresent / $totalPossible) * 100, 1) : 100.0;
+        } else {
+            $averageAttendance = 100.0;
+        }
+
+        // Weekly trend (last 5 days)
+        $weeklyTrend = [];
+        for ($i = 4; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            if ($date->isWeekend()) {
+                continue;
+            }
+            $dateStr = $date->toDateString();
+            $pCount = Attendance::where('record_date', $dateStr)->where('status', 'present')->count();
+            $pct = $totalStudents > 0 ? round(($pCount / $totalStudents) * 100, 1) : 100.0;
+            $weeklyTrend[] = [
+                'date' => $dateStr,
+                'attendancePercentage' => $pct
+            ];
+        }
+
+        // Student stats reports
+        $studentReports = [];
+        $students = Student::all();
+        foreach ($students as $student) {
+            $pCount = Attendance::where('student_id', $student->id)->where('status', 'present')->count();
+            $aCount = Attendance::where('student_id', $student->id)->where('status', 'absent')->count();
+            $studentReports[] = [
+                'name' => $student->name_ar ?? 'غير معروف',
+                'nameEn' => $student->name_en ?? '',
+                'civilId' => $student->student_code ?? '',
+                'presentCount' => $pCount,
+                'absentCount' => $aCount,
+            ];
+        }
+
+        return response()->json([
+            'totalStudents' => $totalStudents,
+            'presentToday' => $presentToday,
+            'absentToday' => $absentToday,
+            'unmarkedToday' => $unmarkedToday,
+            'averageAttendance' => $averageAttendance,
+            'weeklyTrend' => $weeklyTrend,
+            'studentReports' => $studentReports,
+        ]);
     }
 }

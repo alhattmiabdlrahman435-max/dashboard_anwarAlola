@@ -25,3 +25,6 @@ dist-ssr
 
 /vendor
 
+# Uploaded assets
+/public/uploads/assignments/*
+!/public/uploads/assignments/.gitkeep

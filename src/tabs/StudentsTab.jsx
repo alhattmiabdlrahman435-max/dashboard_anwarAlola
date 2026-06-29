@@ -175,13 +175,15 @@ export default function StudentsTab() {
           {lang === 'ar' ? 'سجل شؤون الطلاب والبطاقات الذكية' : 'Student Registry & Smart Cards'}
         </h3>
         
-        <button 
-          className="btn-accent"
-          onClick={() => setShowStudentModal(true)}
-        >
-          <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
-          {t.requestCardBtn}
-        </button>
+        {currentUser?.role === 'admin' && (
+          <button 
+            className="btn-accent"
+            onClick={() => setShowStudentModal(true)}
+          >
+            <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
+            {t.requestCardBtn}
+          </button>
+        )}
       </div>
 
       {/* Searching and Filter Chips */}
@@ -229,7 +231,6 @@ export default function StudentsTab() {
               <th>{t.grade}</th>
               <th>{t.section}</th>
               <th>{t.status}</th>
-              <th>{t.arrivalTime}</th>
               <th>{t.parentName}</th>
               <th className="no-print">{t.action}</th>
             </tr>
@@ -250,7 +251,6 @@ export default function StudentsTab() {
                       {(student.status === 'present' || student.status === 'late') ? t.present : t.absent}
                     </span>
                   </td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{student.time}</td>
                   <td>
                     <div style={{ fontWeight: '600' }}>{renderAvatar(student.parentPhoto, "🧔")} {lang === 'ar' ? student.parentName : student.parentNameEn}</div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>

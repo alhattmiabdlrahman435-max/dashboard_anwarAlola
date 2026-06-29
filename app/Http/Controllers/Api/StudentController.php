@@ -134,7 +134,7 @@ class StudentController extends Controller
     public function scanQr(Request $request, string $id)
     {
         // التحقق من الصلاحية (مشرف أو مدير فقط)
-        if ($request->user()->role !== 'supervisor' && $request->user()->role !== 'admin') {
+        if ($request->user()->role !== 'supervisor' && $request->user()->role !== 'admin' && $request->user()->role !== 'preparation_supervisor') {
             return response()->json([
                 'success' => false,
                 'message' => 'غير مصرح لك بتسجيل حضور الطالب'
@@ -166,7 +166,7 @@ class StudentController extends Controller
             'record_date' => $today,
             'status' => 'present',
             'arrival_time' => now()->format('H:i:s'),
-            'note' => 'تم تسجيل الحضور من قبل مشرفة التحضير: ' . $request->user()->name_ar,
+            'note' => 'تم تسجيل الحضور من قبل: ' . $request->user()->name_ar,
             'created_by' => $request->user()->id
         ]);
 

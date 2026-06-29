@@ -5,7 +5,7 @@ import { Search, X } from 'lucide-react';
 export default function ParentsTab() {
   const {
     lang, t, parentUsers, students,
-    handleAddParent, handleEditParent, renderAvatar
+    handleAddParent, handleEditParent, renderAvatar, currentUser
   } = useApp();
 
   // Local UI states
@@ -25,7 +25,7 @@ export default function ParentsTab() {
   const onAddSubmit = (e) => {
     e.preventDefault();
     setFormError('');
-    if (!modalParentNameAr.trim() || !modalParentPhoneNum.trim() || !modalParentNationalIdVal.trim() || !modalParentPass.trim()) {
+    if (!modalParentNameAr.trim() || !modalParentPhoneNum.trim() || !modalParentNationalIdVal.trim()) {
       setFormError(t.emptyError);
       return;
     }
@@ -54,7 +54,7 @@ export default function ParentsTab() {
       nameEn: nameEn,
       phone: phoneDigits,
       username: nationalIdDigits,
-      password: modalParentPass,
+      password: phoneDigits,
       photo: '🧔'
     };
 
@@ -72,7 +72,7 @@ export default function ParentsTab() {
   const onEditSubmit = (e) => {
     e.preventDefault();
     setFormError('');
-    if (!modalParentNameAr.trim() || !modalParentPhoneNum.trim() || !modalParentNationalIdVal.trim() || !modalParentPass.trim()) {
+    if (!modalParentNameAr.trim() || !modalParentPhoneNum.trim() || !modalParentNationalIdVal.trim()) {
       setFormError(t.emptyError);
       return;
     }
@@ -91,7 +91,7 @@ export default function ParentsTab() {
       nameEn: nameEn,
       phone: phoneDigits,
       username: modalParentNationalIdVal,
-      password: modalParentPass,
+      password: phoneDigits,
       photo: '🧔'
     };
 
@@ -120,21 +120,23 @@ export default function ParentsTab() {
           {t.parentsTitle}
         </h3>
         
-        <button 
-          className="btn-filled"
-          onClick={() => {
-            setFormError('');
-            setModalParentNameAr('');
-            setModalParentNameEn('');
-            setModalParentPhoneNum('');
-            setModalParentNationalIdVal('');
-            setModalParentPass('');
-            setShowAddParentModal(true);
-          }}
-          style={{ padding: '8px 16px', fontSize: '13px' }}
-        >
-          🧔 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent'}
-        </button>
+        {currentUser?.role === 'admin' && (
+          <button 
+            className="btn-filled"
+            onClick={() => {
+              setFormError('');
+              setModalParentNameAr('');
+              setModalParentNameEn('');
+              setModalParentPhoneNum('');
+              setModalParentNationalIdVal('');
+              setModalParentPass('');
+              setShowAddParentModal(true);
+            }}
+            style={{ padding: '8px 16px', fontSize: '13px' }}
+          >
+            🧔 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent'}
+          </button>
+        )}
       </div>
 
       {/* Search Box */}
@@ -159,11 +161,9 @@ export default function ParentsTab() {
               <th>{t.parentNationalIdShort}</th>
               <th>{t.parentName}</th>
               <th>{t.parentPhone}</th>
-              <th>{lang === 'ar' ? 'اسم المستخدم' : 'Username'}</th>
-              <th>{lang === 'ar' ? 'كلمة المرور' : 'Password'}</th>
               <th>{t.parentSonsCount}</th>
               <th>{t.parentSonsList}</th>
-              <th className="no-print">{t.action}</th>
+              {currentUser?.role === 'admin' && <th className="no-print">{t.action}</th>}
             </tr>
           </thead>
           <tbody>
@@ -178,8 +178,6 @@ export default function ParentsTab() {
                       {lang === 'ar' ? parent.name : (parent.nameEn || parent.name)}
                     </td>
                     <td style={{ fontFamily: 'var(--font-mono)' }}>+966 {parent.phone}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-primary-ui)' }}>{parent.username}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{parent.password}</td>
                     <td style={{ fontWeight: 'bold', textAlign: 'center' }}>{children.length}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -199,24 +197,26 @@ export default function ParentsTab() {
                         )}
                       </div>
                     </td>
-                    <td className="no-print">
-                      <button 
-                        className="btn-elevated"
-                        style={{ padding: '6px 12px', fontSize: '11px' }}
-                        onClick={() => {
-                          setFormError('');
-                          setSelectedParentIdForEdit(parent.nationalId);
-                          setModalParentNameAr(parent.name);
-                          setModalParentNameEn(parent.nameEn || '');
-                          setModalParentPhoneNum(parent.phone);
-                          setModalParentNationalIdVal(parent.nationalId);
-                          setModalParentPass(parent.password || '');
-                          setShowEditParentModal(true);
-                        }}
-                      >
-                        📝 {lang === 'ar' ? 'تعديل الحساب' : 'Edit Account'}
-                      </button>
-                    </td>
+                    {currentUser?.role === 'admin' && (
+                      <td className="no-print">
+                        <button 
+                          className="btn-elevated"
+                          style={{ padding: '6px 12px', fontSize: '11px' }}
+                          onClick={() => {
+                            setFormError('');
+                            setSelectedParentIdForEdit(parent.nationalId);
+                            setModalParentNameAr(parent.name);
+                            setModalParentNameEn(parent.nameEn || '');
+                            setModalParentPhoneNum(parent.phone);
+                            setModalParentNationalIdVal(parent.nationalId);
+                            setModalParentPass(parent.password || '');
+                            setShowEditParentModal(true);
+                          }}
+                        >
+                          📝 {lang === 'ar' ? 'تعديل الحساب' : 'Edit Account'}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })
@@ -270,10 +270,6 @@ export default function ParentsTab() {
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="5XXXXXXXX" required />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'كلمة المرور للدخول' : 'Access Password'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentPass} onChange={(e) => setModalParentPass(e.target.value)} required />
-                </div>
               </div>
               <footer className="modal-footer">
                 <button type="button" className="btn-elevated" onClick={() => setShowAddParentModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
@@ -322,10 +318,6 @@ export default function ParentsTab() {
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="5XXXXXXXX" required />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'كلمة المرور' : 'Password'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentPass} onChange={(e) => setModalParentPass(e.target.value)} required />
                 </div>
               </div>
               <footer className="modal-footer">

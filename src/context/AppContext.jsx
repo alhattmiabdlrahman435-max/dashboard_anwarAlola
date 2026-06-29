@@ -21,11 +21,11 @@ export const dictionary = {
     // Login Screen Keys
     loginTitle: "تسجيل الدخول للنظام",
     loginSubtitle: "لوحة التحكم والإدارة الرقمية لرياض ومدارس انوار العلى الدولية النموذجية",
-    usernameOrId: "اسم المستخدم أو البريد الإلكتروني",
+    usernameOrId: "اسم المستخدم أو الرقم الوظيفي",
     passwordLabel: "كلمة المرور",
     loginBtn: "دخول آمن",
     roleAdmin: "مدير النظام",
-    roleSupervisor: "مشرف النظام",
+    roleSupervisor: "وكيل المدرسة",
     invalidCredentials: "اسم المستخدم أو كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى",
     quickFill: "بيانات الدخول السريع للمحاكاة",
     rememberMe: "تذكرني على هذا الجهاز",
@@ -306,11 +306,11 @@ export const dictionary = {
     // Login Screen Keys
     loginTitle: "System Sign In",
     loginSubtitle: "Riyadh & Anwar Al-Ola International Model Schools Dashboard & Portal",
-    usernameOrId: "Username or Email",
+    usernameOrId: "Username or ID",
     passwordLabel: "Password",
     loginBtn: "Secure Sign In",
     roleAdmin: "System Administrator",
-    roleSupervisor: "System Supervisor",
+    roleSupervisor: "Vice Principal",
     invalidCredentials: "Invalid username or password, please try again",
     quickFill: "Quick Login Credentials for Demo",
     rememberMe: "Remember me on this device",
@@ -1012,8 +1012,13 @@ export const AppProvider = ({ children }) => {
   const [classes, setClasses] = useState(initialClasses);
   
   // Dynamic available classes and sections configuration
-  const [availableGrades, setAvailableGrades] = useState(['الصف الأول', 'الصف الثاني', 'الصف الثالث']);
-  const [availableSections, setAvailableSections] = useState(['أ', 'ب', 'ج']);
+  const [availableGrades, setAvailableGrades] = useState([
+    'تمهيدي أول', 'تمهيدي ثاني',
+    'الصف الأول', 'الصف الثاني', 'الصف الثالث', 'الصف الرابع', 'الصف الخامس', 'الصف السادس',
+    'الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط',
+    'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي'
+  ]);
+  const [availableSections, setAvailableSections] = useState(['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز']);
   
   // Standalone parent accounts database
   const [parentUsers, setParentUsers] = useState(initialParentUsers);
@@ -1106,7 +1111,7 @@ export const AppProvider = ({ children }) => {
             username: data.user.username,
             role: data.user.role,
             photo: data.user.photo_url || 'أ ع',
-            email: data.user.email
+            email: null
           };
           setCurrentUser(mappedUser);
         } else {

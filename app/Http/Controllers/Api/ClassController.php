@@ -20,8 +20,6 @@ class ClassController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name_ar' => 'required|string',
-            'name_en' => 'required|string',
             'grade_ar' => 'required|string',
             'grade_en' => 'required|string',
             'section_ar' => 'required|string',
@@ -29,7 +27,11 @@ class ClassController extends Controller
             'grade_level_id' => 'nullable|integer'
         ]);
 
-        $class = SchoolClass::create($request->all());
+        $class = SchoolClass::create($request->only([
+            'grade_ar', 'grade_en',
+            'section_ar', 'section_en',
+            'grade_level_id'
+        ]));
 
         return response()->json([
             'success' => true,
@@ -54,7 +56,19 @@ class ClassController extends Controller
             return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
         }
 
-        $class->update($request->all());
+        $request->validate([
+            'grade_ar' => 'nullable|string',
+            'grade_en' => 'nullable|string',
+            'section_ar' => 'nullable|string',
+            'section_en' => 'nullable|string',
+            'grade_level_id' => 'nullable|integer'
+        ]);
+
+        $class->update($request->only([
+            'grade_ar', 'grade_en',
+            'section_ar', 'section_en',
+            'grade_level_id'
+        ]));
 
         return response()->json([
             'success' => true,

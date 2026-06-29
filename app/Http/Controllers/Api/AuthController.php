@@ -21,12 +21,35 @@ class AuthController extends Controller
             'role'     => 'nullable|string',
         ]);
 
-        // البحث بالـ username أو email
-        $user = User::where('username', $request->username)
-                    ->orWhere('email', $request->username)
+        $inputUsername = trim($request->username);
+        $inputPassword = trim($request->password);
+
+        // تنظيف أرقام الجوال المدخلة (مثلاً إزالة 966 أو الصفر البادئ)
+        $phoneInputClean = preg_replace('/\D/', '', $inputPassword);
+        if (str_starts_with($phoneInputClean, '966')) {
+            $phoneInputClean = substr($phoneInputClean, 3);
+        }
+        if (str_starts_with($phoneInputClean, '05')) {
+            $phoneInputClean = substr($phoneInputClean, 1);
+        }
+
+        // 1. Search user by national_id or username
+        $user = User::where('national_id', $inputUsername)
+                    ->orWhere('username', $inputUsername)
                     ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'اسم المستخدم أو كلمة المرور غير صحيحة',
+            ], 401);
+        }
+
+        // 2. Check if password matches (either actual hashed password OR fallback phone number)
+        $passwordMatches = Hash::check($inputPassword, $user->password) || 
+                           ($user->phone && ($inputPassword === $user->phone || $phoneInputClean === $user->phone));
+
+        if (!$passwordMatches) {
             return response()->json([
                 'success' => false,
                 'message' => 'اسم المستخدم أو كلمة المرور غير صحيحة',
@@ -54,7 +77,7 @@ class AuthController extends Controller
                 'name'     => $user->name,
                 'name_ar'  => $user->name_ar,
                 'name_en'  => $user->name_en,
-                'email'    => $user->email,
+                'email'    => null,
                 'username' => $user->username,
                 'role'     => $user->role,
                 'photo'    => $user->photo_url,
@@ -83,6 +106,82 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'user'    => $request->user(),
+        ]);
+    }
+
+    /**
+     * تحديث صورة الملف الشخصي
+     */
+    public function updatePhoto(Request $request)
+    {
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = $request->user();
+
+        if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('uploads/avatars'), $filename);
+            
+            $url = asset('uploads/avatars/' . $filename);
+            
+            $user->update(['photo_url' => $url]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث الصورة بنجاح',
+                'photo_url' => $url
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'لم يتم العثور على ملف الصورة'
+        ], 400);
+    }
+
+    /**
+     * تغيير كلمة المرور
+     */
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:6',
+        ]);
+
+        $user = $request->user();
+
+        // Clean phone input for fallback check
+        $phoneInputClean = preg_replace('/\D/', '', $request->current_password);
+        if (str_starts_with($phoneInputClean, '966')) {
+            $phoneInputClean = substr($phoneInputClean, 3);
+        }
+        if (str_starts_with($phoneInputClean, '05')) {
+            $phoneInputClean = substr($phoneInputClean, 1);
+        }
+
+        // Check if current password matches (either actual hashed password OR fallback phone number)
+        $currentPasswordMatches = Hash::check($request->current_password, $user->password) || 
+                                  ($user->phone && ($request->current_password === $user->phone || $phoneInputClean === $user->phone));
+
+        if (!$currentPasswordMatches) {
+            return response()->json([
+                'success' => false,
+                'message' => 'كلمة المرور الحالية غير صحيحة'
+            ], 400);
+        }
+
+        // 2. Save the new password
+        $user->update([
+            'password' => Hash::make($request->new_password)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تغيير كلمة المرور بنجاح'
         ]);
     }
 }

@@ -102,49 +102,16 @@ export default function SettingsTab() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)', marginTop: 'var(--space-md)' }}>
             
             {/* Grades Manager */}
+            {/* Grades Manager (Read-Only) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <span className="body-medium" style={{ fontWeight: 'bold', color: 'var(--color-primary-ui)' }}>
-                🏫 {lang === 'ar' ? 'الصفوف الدراسية الفعالة' : 'Active Grade Levels'}
+                🏫 {lang === 'ar' ? 'الصفوف الدراسية (ثابتة)' : 'Grade Levels (Predefined)'}
               </span>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <input 
-                  type="text" 
-                  id="new-grade-input-box"
-                  className="text-field"
-                  placeholder={lang === 'ar' ? 'مثال: الصف الرابع' : 'e.g. Grade 4'}
-                  style={{ height: '38px', padding: '0 var(--space-md)', fontSize: '13px' }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddGrade(e.target.value);
-                      e.target.value = '';
-                    }
-                  }}
-                />
-                <button 
-                  className="btn-filled"
-                  style={{ height: '38px', padding: '0 16px', fontSize: '13px' }}
-                  onClick={() => {
-                    const inp = document.getElementById('new-grade-input-box');
-                    if (inp) {
-                      handleAddGrade(inp.value);
-                      inp.value = '';
-                    }
-                  }}
-                >
-                  {lang === 'ar' ? 'إضافة' : 'Add'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '160px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-chip)', padding: '8px', backgroundColor: 'var(--color-surface)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-chip)', padding: '8px', backgroundColor: 'var(--color-surface)' }}>
                 {availableGrades.map(g => (
-                  <div key={g} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', padding: '4px 8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                  <div key={g} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', padding: '6px 8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                     <span>{g}</span>
-                    <button 
-                      style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
-                      onClick={() => handleRemoveGrade(g)}
-                      title={lang === 'ar' ? 'حذف الصف' : 'Delete grade'}
-                    >
-                      ✗
-                    </button>
+                    <span style={{ fontSize: '11px', opacity: 0.5 }}>🔒 {lang === 'ar' ? 'ثابت' : 'Fixed'}</span>
                   </div>
                 ))}
               </div>

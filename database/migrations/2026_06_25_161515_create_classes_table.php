@@ -10,8 +10,6 @@ return new class extends Migration
     {
         Schema::create('classes', function (Blueprint $table) {
             $table->id();
-            $table->string('name_ar');         // "الصف الأول - أ"
-            $table->string('name_en');         // "Grade 1 - A"
             $table->string('grade_ar');        // "الصف الأول"
             $table->string('grade_en');        // "Grade 1"
             $table->string('section_ar', 10);  // "أ"

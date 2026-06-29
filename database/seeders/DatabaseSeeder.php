@@ -40,9 +40,9 @@ class DatabaseSeeder extends Seeder
         // 1. Users
         $adminId = DB::table('users')->insertGetId([
             'name' => 'admin',
-            'email' => 'anwar-alola@edu.sa',
             'username' => 'admin',
-            'password' => Hash::make('admin123'),
+            'national_id' => '1000000001',
+            'password' => Hash::make('500000001'),
             'role' => 'admin',
             'name_ar' => 'مدير المدارس',
             'name_en' => 'Schools Director',
@@ -55,14 +55,30 @@ class DatabaseSeeder extends Seeder
 
         $supervisorId = DB::table('users')->insertGetId([
             'name' => 'supervisor',
-            'email' => 'supervisor@anwaralola.edu.sa',
             'username' => 'supervisor',
-            'password' => Hash::make('super123'),
+            'national_id' => '1000000002',
+            'password' => Hash::make('500000002'),
             'role' => 'supervisor',
-            'name_ar' => 'مشرفة التحضير',
-            'name_en' => 'System Supervisor',
+            'name_ar' => 'وكيل المدرسة',
+            'name_en' => 'Vice Principal',
             'phone' => '500000002',
-            'photo_url' => 'م ن',
+            'photo_url' => 'و ك',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $prepSupervisorId = DB::table('users')->insertGetId([
+            'name' => 'prep_supervisor',
+            'username' => 'prep_supervisor',
+            'national_id' => '1000000101',
+            'job_id' => 'P101',
+            'password' => Hash::make('500000101'),
+            'role' => 'preparation_supervisor',
+            'name_ar' => 'أ. منى الحربي',
+            'name_en' => 'Ms. Mona Al-Harbi',
+            'phone' => '500000101',
+            'photo_url' => '👩‍🏫',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -70,20 +86,20 @@ class DatabaseSeeder extends Seeder
 
         // Teachers (Users)
         $teachersData = [
-            ['username' => 'T101', 'name' => 'الأستاذ فهد الهذلول', 'nameEn' => 'Mr. Fahad Al-Hathloul', 'phone' => '501111111'],
-            ['username' => 'T102', 'name' => 'الأستاذ سليمان الحربي', 'nameEn' => 'Mr. Sulaiman Al-Harbi', 'phone' => '502222222'],
-            ['username' => 'T103', 'name' => 'الأستاذ خالد الدوسري', 'nameEn' => 'Mr. Khalid Al-Dawsari', 'phone' => '503333333'],
-            ['username' => 'T104', 'name' => 'الأستاذ أحمد الشريف', 'nameEn' => 'Mr. Ahmed Al-Sharif', 'phone' => '504444444'],
+            ['username' => 'T101', 'nationalId' => '1011111111', 'name' => 'الأستاذ فهد الهذلول', 'nameEn' => 'Mr. Fahad Al-Hathloul', 'phone' => '501111111'],
+            ['username' => 'T102', 'nationalId' => '1022222222', 'name' => 'الأستاذ سليمان الحربي', 'nameEn' => 'Mr. Sulaiman Al-Harbi', 'phone' => '502222222'],
+            ['username' => 'T103', 'nationalId' => '1033333333', 'name' => 'الأستاذ خالد الدوسري', 'nameEn' => 'Mr. Khalid Al-Dawsari', 'phone' => '503333333'],
+            ['username' => 'T104', 'nationalId' => '1044444444', 'name' => 'الأستاذ أحمد الشريف', 'nameEn' => 'Mr. Ahmed Al-Sharif', 'phone' => '504444444'],
         ];
 
         $teacherUserIds = [];
         foreach ($teachersData as $tData) {
             $tUserId = DB::table('users')->insertGetId([
                 'name' => $tData['username'],
-                'email' => strtolower($tData['username']) . '@anwaralola.edu.sa',
                 'username' => $tData['username'],
+                'national_id' => $tData['nationalId'],
                 'job_id' => $tData['username'],
-                'password' => Hash::make('teacher_password123'),
+                'password' => Hash::make($tData['phone']),
                 'role' => 'teacher',
                 'name_ar' => $tData['name'],
                 'name_en' => $tData['nameEn'],
@@ -109,7 +125,6 @@ class DatabaseSeeder extends Seeder
         foreach ($parentsData as $pData) {
             $pUserId = DB::table('users')->insertGetId([
                 'name' => $pData['nationalId'],
-                'email' => $pData['nationalId'] . '@anwaralola.edu.sa',
                 'username' => $pData['nationalId'],
                 'national_id' => $pData['nationalId'],
                 'password' => Hash::make('parent_password123'),
@@ -127,20 +142,21 @@ class DatabaseSeeder extends Seeder
 
         // 2. Classes
         $classesData = [
-            ['name_ar' => 'الصف الأول - أ', 'name_en' => 'Grade 1 - A', 'grade_ar' => 'الصف الأول', 'grade_en' => 'Grade 1', 'section_ar' => 'أ', 'section_en' => 'A'],
-            ['name_ar' => 'الصف الثاني - أ', 'name_en' => 'Grade 2 - A', 'grade_ar' => 'الصف الثاني', 'grade_en' => 'Grade 2', 'section_ar' => 'أ', 'section_en' => 'A'],
-            ['name_ar' => 'الصف الثاني - ب', 'name_en' => 'Grade 2 - B', 'grade_ar' => 'الصف الثاني', 'grade_en' => 'Grade 2', 'section_ar' => 'ب', 'section_en' => 'B'],
-            ['name_ar' => 'الصف الثالث - أ', 'name_en' => 'Grade 3 - A', 'grade_ar' => 'الصف الثالث', 'grade_en' => 'Grade 3', 'section_ar' => 'أ', 'section_en' => 'A'],
-            ['name_ar' => 'الصف الثالث - ب', 'name_en' => 'Grade 3 - B', 'grade_ar' => 'Grade 3 - B', 'grade_ar' => 'الصف الثالث', 'grade_en' => 'Grade 3', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الأول', 'grade_en' => 'Grade 1', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثاني', 'grade_en' => 'Grade 2', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثاني', 'grade_en' => 'Grade 2', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الثالث', 'grade_en' => 'Grade 3', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثالث', 'grade_en' => 'Grade 3', 'section_ar' => 'ب', 'section_en' => 'B'],
         ];
 
         $classIds = [];
         foreach ($classesData as $cData) {
+            $name_ar = $cData['grade_ar'] . ' - ' . $cData['section_ar'];
             $cId = DB::table('classes')->insertGetId(array_merge($cData, [
                 'created_at' => now(),
                 'updated_at' => now()
             ]));
-            $classIds[$cData['name_ar']] = $cId;
+            $classIds[$name_ar] = $cId;
         }
 
         // 3. Subjects

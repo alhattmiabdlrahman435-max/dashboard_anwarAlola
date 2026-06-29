@@ -8,9 +8,25 @@ class SchoolClass extends Model
 {
     protected $table = 'classes';
     protected $guarded = [];
+    protected $appends = ['name_ar', 'name_en'];
+
+    public function getNameArAttribute()
+    {
+        return $this->grade_ar . ' - ' . $this->section_ar;
+    }
+
+    public function getNameEnAttribute()
+    {
+        return $this->grade_en . ' - ' . $this->section_en;
+    }
 
     public function students()
     {
         return $this->hasMany(Student::class, 'class_id');
+    }
+
+    public function gradeLevel()
+    {
+        return $this->belongsTo(GradeLevel::class, 'grade_level_id');
     }
 }

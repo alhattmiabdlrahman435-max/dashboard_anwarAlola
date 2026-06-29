@@ -27,15 +27,13 @@ class ParentController extends Controller
             'name_en' => 'nullable|string',
             'phone' => 'required|string',
             'photo_url' => 'nullable|string',
-            'password' => 'required|string',
         ]);
 
         $user = User::create([
             'name' => $request->name_ar,
-            'email' => $request->national_id . '@anwaralola.edu.sa',
             'username' => $request->national_id,
             'national_id' => $request->national_id,
-            'password' => Hash::make($request->password),
+            'password' => Hash::make($request->phone),
             'role' => 'parent',
             'name_ar' => $request->name_ar,
             'name_en' => $request->name_en,
@@ -79,6 +77,7 @@ class ParentController extends Controller
             'name_ar' => $request->name_ar,
             'name_en' => $request->name_en,
             'phone' => $request->phone,
+            'password' => Hash::make($request->phone),
             'photo_url' => $request->photo_url,
         ]);
 

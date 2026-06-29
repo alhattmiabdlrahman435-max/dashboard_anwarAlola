@@ -22,4 +22,9 @@ class Assignment extends Model
     {
         return $this->belongsTo(Subject::class, 'subject_id');
     }
+
+    public function submissions()
+    {
+        return $this->hasMany(AssignmentSubmission::class, 'assignment_id');
+    }
 }

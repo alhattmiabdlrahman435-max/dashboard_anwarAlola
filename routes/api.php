@@ -31,6 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/user/update-photo', [AuthController::class, 'updatePhoto']);
+    Route::post('/user/update-password', [AuthController::class, 'updatePassword']);
 
     // Dashboard - الرئيسية
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
@@ -106,5 +108,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/students/{studentId}/attendance', [TeacherController::class, 'markAttendance']);
         Route::get('/classes/{classId}/attendance-history', [TeacherController::class, 'getClassAttendanceHistory']);
         Route::get('/attendance-history', [TeacherController::class, 'getTeacherAttendanceHistory']);
+        Route::get('/reports', [TeacherController::class, 'getSupervisorReports']);
     });
 });

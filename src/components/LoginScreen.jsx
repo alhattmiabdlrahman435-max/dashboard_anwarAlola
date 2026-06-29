@@ -132,8 +132,8 @@ export default function LoginScreen() {
                   onChange={(e) => setLoginUsername(e.target.value)}
                   placeholder={
                     loginRole === 'admin' 
-                      ? (lang === 'ar' ? 'مثال: admin أو البريد الإلكتروني' : 'e.g. admin or email')
-                      : (lang === 'ar' ? 'مثال: supervisor أو البريد الإلكتروني' : 'e.g. supervisor or email')
+                      ? (lang === 'ar' ? 'مثال: admin' : 'e.g. admin')
+                      : (lang === 'ar' ? 'مثال: supervisor' : 'e.g. supervisor')
                   }
                   className="login-input"
                   dir={lang === 'ar' ? 'rtl' : 'ltr'}

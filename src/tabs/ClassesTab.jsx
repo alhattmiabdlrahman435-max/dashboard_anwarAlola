@@ -40,21 +40,20 @@ export default function ClassesTab() {
   const handleAddClass = (e) => {
     e.preventDefault();
     setFormError('');
-    if (!modalClassNameAr.trim() || !modalClassNameEn.trim()) {
-      setFormError(t.emptyError);
-      return;
-    }
     
+    const nameAr = `${modalClassGrade} - ${modalClassSection}`;
+    const nameEn = `${modalClassGradeEn} - ${modalClassSectionEn}`;
+
     // Check if name already exists
-    if (classes.some(c => c.name === modalClassNameAr.trim())) {
+    if (classes.some(c => c.name === nameAr)) {
       setFormError(lang === 'ar' ? 'هذا الفصل مسجل بالفعل!' : 'Class name already exists!');
       return;
     }
 
     const newClass = {
       id: 'cls-' + Date.now(),
-      name: modalClassNameAr.trim(),
-      nameEn: modalClassNameEn.trim(),
+      name: nameAr,
+      nameEn: nameEn,
       grade: modalClassGrade,
       gradeEn: modalClassGradeEn,
       section: modalClassSection,
@@ -71,8 +70,12 @@ export default function ClassesTab() {
   const handleEditClass = (e) => {
     e.preventDefault();
     setFormError('');
-    if (!modalClassNameAr.trim() || !modalClassNameEn.trim()) {
-      setFormError(t.emptyError);
+    
+    const nameAr = `${modalClassGrade} - ${modalClassSection}`;
+    const nameEn = `${modalClassGradeEn} - ${modalClassSectionEn}`;
+
+    if (classes.some(c => c.id !== selectedClassIdForEdit && c.name === nameAr)) {
+      setFormError(lang === 'ar' ? 'هذا الفصل مسجل بالفعل!' : 'Class name already exists!');
       return;
     }
 
@@ -80,8 +83,8 @@ export default function ClassesTab() {
       if (c.id === selectedClassIdForEdit) {
         return {
           ...c,
-          name: modalClassNameAr.trim(),
-          nameEn: modalClassNameEn.trim(),
+          name: nameAr,
+          nameEn: nameEn,
           grade: modalClassGrade,
           gradeEn: modalClassGradeEn,
           section: modalClassSection,
@@ -292,21 +295,7 @@ export default function ClassesTab() {
                     {formError}
                   </div>
                 )}
-                <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'اسم الفصل الدراسي' : 'Class Name'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input 
-                    type="text" 
-                    className="text-field"
-                    placeholder={lang === 'ar' ? 'مثال: الصف الأول - أ' : 'e.g. Grade 1 - A'}
-                    value={modalClassNameAr}
-                    onChange={(e) => {
-                      setModalClassNameAr(e.target.value);
-                      // Auto generate English name
-                      setModalClassNameEn(e.target.value.replace('الصف الأول', 'Grade 1').replace('الصف الثاني', 'Grade 2').replace('الصف الثالث', 'Grade 3').replace('أ', 'A').replace('ب', 'B').replace('ج', 'C'));
-                    }}
-                    required
-                  />
-                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
                     <label className="form-label">{lang === 'ar' ? 'الصف' : 'Grade'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
@@ -315,7 +304,22 @@ export default function ClassesTab() {
                       value={modalClassGrade} 
                       onChange={(e) => {
                         setModalClassGrade(e.target.value);
-                        const gradeMap = { 'الصف الأول': 'Grade 1', 'الصف الثاني': 'Grade 2', 'الصف الثالث': 'Grade 3' };
+                        const gradeMap = {
+                          'تمهيدي أول': 'KG1',
+                          'تمهيدي ثاني': 'KG2',
+                          'الصف الأول': 'Grade 1',
+                          'الصف الثاني': 'Grade 2',
+                          'الصف الثالث': 'Grade 3',
+                          'الصف الرابع': 'Grade 4',
+                          'الصف الخامس': 'Grade 5',
+                          'الصف السادس': 'Grade 6',
+                          'الصف الأول المتوسط': 'Grade 7',
+                          'الصف الثاني المتوسط': 'Grade 8',
+                          'الصف الثالث المتوسط': 'Grade 9',
+                          'الصف الأول الثانوي': 'Grade 10',
+                          'الصف الثاني الثانوي': 'Grade 11',
+                          'الصف الثالث الثانوي': 'Grade 12'
+                        };
                         setModalClassGradeEn(gradeMap[e.target.value] || 'Grade 1');
                       }}
                     >
@@ -331,7 +335,15 @@ export default function ClassesTab() {
                       value={modalClassSection} 
                       onChange={(e) => {
                         setModalClassSection(e.target.value);
-                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C' };
+                        const secMap = {
+                          'أ': 'A',
+                          'ب': 'B',
+                          'ج': 'C',
+                          'د': 'D',
+                          'هـ': 'E',
+                          'و': 'F',
+                          'ز': 'G'
+                        };
                         setModalClassSectionEn(secMap[e.target.value] || 'A');
                       }}
                     >
@@ -389,16 +401,7 @@ export default function ClassesTab() {
                     {formError}
                   </div>
                 )}
-                <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'اسم الفصل الدراسي' : 'Class Name'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input 
-                    type="text" 
-                    className="text-field"
-                    value={modalClassNameAr}
-                    onChange={(e) => setModalClassNameAr(e.target.value)}
-                    required
-                  />
-                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
                     <label className="form-label">{lang === 'ar' ? 'الصف' : 'Grade'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
@@ -407,7 +410,22 @@ export default function ClassesTab() {
                       value={modalClassGrade} 
                       onChange={(e) => {
                         setModalClassGrade(e.target.value);
-                        const gradeMap = { 'الصف الأول': 'Grade 1', 'الصف الثاني': 'Grade 2', 'الصف الثالث': 'Grade 3' };
+                        const gradeMap = {
+                          'تمهيدي أول': 'KG1',
+                          'تمهيدي ثاني': 'KG2',
+                          'الصف الأول': 'Grade 1',
+                          'الصف الثاني': 'Grade 2',
+                          'الصف الثالث': 'Grade 3',
+                          'الصف الرابع': 'Grade 4',
+                          'الصف الخامس': 'Grade 5',
+                          'الصف السادس': 'Grade 6',
+                          'الصف الأول المتوسط': 'Grade 7',
+                          'الصف الثاني المتوسط': 'Grade 8',
+                          'الصف الثالث المتوسط': 'Grade 9',
+                          'الصف الأول الثانوي': 'Grade 10',
+                          'الصف الثاني الثانوي': 'Grade 11',
+                          'الصف الثالث الثانوي': 'Grade 12'
+                        };
                         setModalClassGradeEn(gradeMap[e.target.value] || 'Grade 1');
                       }}
                     >
@@ -423,7 +441,15 @@ export default function ClassesTab() {
                       value={modalClassSection} 
                       onChange={(e) => {
                         setModalClassSection(e.target.value);
-                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C' };
+                        const secMap = {
+                          'أ': 'A',
+                          'ب': 'B',
+                          'ج': 'C',
+                          'د': 'D',
+                          'هـ': 'E',
+                          'و': 'F',
+                          'ز': 'G'
+                        };
                         setModalClassSectionEn(secMap[e.target.value] || 'A');
                       }}
                     >
