@@ -63,7 +63,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className={`login-page-container ${darkMode ? 'dark' : ''}`}>
+    <div className={`login-page-container animate-fade-in ${darkMode ? 'dark' : ''}`}>
       {/* Language & Theme Selectors */}
       <div className="login-top-actions no-print">
         <button className="login-action-btn" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}>
@@ -76,9 +76,9 @@ export default function LoginScreen() {
         </button>
       </div>
 
-      <div className="login-content">
+      <div className="login-content animate-slide-up">
         <div className="login-brand-section">
-          <div className="login-logo-container">
+          <div className="login-logo-container animate-pulse-soft">
             <img src={sloganLogo} alt="School Logo" className="login-logo" />
           </div>
           <h1 className="login-brand-title">{t.appName}</h1>
@@ -86,7 +86,7 @@ export default function LoginScreen() {
           <p className="login-brand-desc">{t.loginSubtitle}</p>
         </div>
 
-        <div className="login-card-wrapper">
+        <div className="login-card-wrapper glass-panel">
           <div className="login-card-header">
             <h3>{t.loginTitle}</h3>
           </div>
@@ -135,7 +135,7 @@ export default function LoginScreen() {
                       ? (lang === 'ar' ? 'مثال: admin' : 'e.g. admin')
                       : (lang === 'ar' ? 'مثال: supervisor' : 'e.g. supervisor')
                   }
-                  className="login-input"
+                  className="login-input focus-ring"
                   dir={lang === 'ar' ? 'rtl' : 'ltr'}
                 />
               </div>
@@ -152,7 +152,7 @@ export default function LoginScreen() {
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder={t.passwordPlaceholder}
-                  className="login-input"
+                  className="login-input focus-ring"
                   dir={lang === 'ar' ? 'rtl' : 'ltr'}
                 />
                 <button

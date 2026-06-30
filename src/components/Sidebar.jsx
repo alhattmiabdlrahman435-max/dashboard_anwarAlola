@@ -2,7 +2,8 @@ import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, GraduationCap, Users, BookOpen, School, Book, 
   Calendar, QrCode, ClipboardCheck, FileText, CalendarCheck, Award, 
-  DollarSign, Bell, ShieldAlert, BarChart3, Settings, ChevronLeft, ChevronRight, X 
+  DollarSign, Bell, ShieldAlert, BarChart3, Settings, ChevronLeft, ChevronRight, X,
+  UserCheck
 } from 'lucide-react';
 import sloganLogo from '../assets/slogan.jpeg';
 
@@ -84,6 +85,17 @@ export default function Sidebar() {
           >
             <Users />
             <span>{t.parents}</span>
+          </button>
+        )}
+
+        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+          <button 
+            className={`menu-item ${activeTab === 'prepSupervisors' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('prepSupervisors'); setIsMobileMenuOpen(false); }}
+            data-tooltip={t.prepSupervisors}
+          >
+            <UserCheck />
+            <span>{t.prepSupervisors}</span>
           </button>
         )}
 

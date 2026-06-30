@@ -44,6 +44,11 @@ class User extends Authenticatable
         return $query->where('role', 'supervisor');
     }
 
+    public function scopePreparationSupervisors($query)
+    {
+        return $query->where('role', 'preparation_supervisor');
+    }
+
     // العلاقات
     public function children()
     {
@@ -53,5 +58,10 @@ class User extends Authenticatable
     public function teacherSubjects()
     {
         return $this->hasMany(TeacherSubject::class, 'teacher_id');
+    }
+
+    public function supervisorClasses()
+    {
+        return $this->hasMany(SupervisorClass::class, 'supervisor_id');
     }
 }

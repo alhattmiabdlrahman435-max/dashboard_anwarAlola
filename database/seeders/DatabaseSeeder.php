@@ -15,11 +15,16 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Disable foreign keys check
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        if (config('database.default') === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        }
         
         // Truncate tables
         DB::table('users')->truncate();
         DB::table('classes')->truncate();
+        DB::table('supervisor_classes')->truncate();
         DB::table('subjects')->truncate();
         DB::table('students')->truncate();
         DB::table('teacher_subjects')->truncate();
@@ -35,14 +40,18 @@ class DatabaseSeeder extends Seeder
         DB::table('notifications')->truncate();
         DB::table('reports')->truncate();
         
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        if (config('database.default') === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = ON;');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
 
         // 1. Users
         $adminId = DB::table('users')->insertGetId([
             'name' => 'admin',
             'username' => 'admin',
             'national_id' => '1000000001',
-            'password' => Hash::make('500000001'),
+            'password' => Hash::make('admin123'),
             'role' => 'admin',
             'name_ar' => 'مدير المدارس',
             'name_en' => 'Schools Director',
@@ -57,7 +66,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'supervisor',
             'username' => 'supervisor',
             'national_id' => '1000000002',
-            'password' => Hash::make('500000002'),
+            'password' => Hash::make('super123'),
             'role' => 'supervisor',
             'name_ar' => 'وكيل المدرسة',
             'name_en' => 'Vice Principal',
@@ -158,6 +167,12 @@ class DatabaseSeeder extends Seeder
             ]));
             $classIds[$name_ar] = $cId;
         }
+
+        // Assign classes to preparation supervisor
+        DB::table('supervisor_classes')->insert([
+            ['supervisor_id' => $prepSupervisorId, 'class_id' => $classIds['الصف الأول - أ'], 'created_at' => now(), 'updated_at' => now()],
+            ['supervisor_id' => $prepSupervisorId, 'class_id' => $classIds['الصف الثاني - أ'], 'created_at' => now(), 'updated_at' => now()],
+        ]);
 
         // 3. Subjects
         $subjectsData = [

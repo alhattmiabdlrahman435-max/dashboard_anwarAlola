@@ -24,7 +24,8 @@ export default function StudentsTab() {
   const [modalStudentPhoto, setModalStudentPhoto] = useState('');
   const [modalParentPhoto, setModalParentPhoto] = useState('');
   const [formError, setFormError] = useState('');
-  const [selectedParentLinkOption, setSelectedParentLinkOption] = useState('new');
+  const [selectedParentLinkOption, setSelectedParentLinkOption] = useState('');
+  const [parentSearchText, setParentSearchText] = useState('');
 
   const handleNationalIdChange = (val) => {
     setModalParentNationalId(val);
@@ -43,58 +44,22 @@ export default function StudentsTab() {
     e.preventDefault();
     setFormError('');
 
-    let parentNameVal;
-    let parentPhoneVal;
-    let parentNationalIdVal;
-    let newParentObj = null;
-
-    if (selectedParentLinkOption !== 'new') {
-      const selectedParentObj = parentUsers.find(p => p.nationalId === selectedParentLinkOption);
-      if (selectedParentObj) {
-        parentNameVal = selectedParentObj.name;
-        parentPhoneVal = selectedParentObj.phone;
-        parentNationalIdVal = selectedParentObj.nationalId;
-      } else {
-        setFormError(lang === 'ar' ? 'فشل العثور على حساب ولي الأمر المحدد!' : 'Selected parent account not found!');
-        return;
-      }
-    } else {
-      // Validate inputs for new parent
-      if (!modalStudentName.trim() || !modalParentName.trim() || !modalPhone.trim() || !modalParentNationalId.trim()) {
-        setFormError(t.emptyError);
-        return;
-      }
-
-      const nationalIdDigits = modalParentNationalId.replace(/\D/g, '');
-      if (nationalIdDigits.length !== 10 || (!nationalIdDigits.startsWith('1') && !nationalIdDigits.startsWith('2'))) {
-        setFormError(t.nationalIdError);
-        return;
-      }
-
-      const phoneDigits = modalPhone.replace(/\D/g, '');
-      if (phoneDigits.length !== 9 || !phoneDigits.startsWith('5')) {
-        setFormError(t.phoneError);
-        return;
-      }
-
-      parentNationalIdVal = nationalIdDigits;
-      parentPhoneVal = phoneDigits;
-      parentNameVal = modalParentName;
-
-      // If parent does not exist, prepare parent info to add
-      if (!parentUsers.some(p => p.nationalId === parentNationalIdVal)) {
-        const nameEn = modalParentName.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
-        newParentObj = {
-          nationalId: parentNationalIdVal,
-          name: parentNameVal,
-          nameEn: nameEn,
-          phone: parentPhoneVal,
-          username: parentNationalIdVal,
-          password: 'parent_password123',
-          photo: modalParentPhoto || '🧔'
-        };
-      }
+    if (!selectedParentLinkOption) {
+      setFormError(lang === 'ar' ? 'الرجاء اختيار ولي أمر الطالب أولاً' : 'Please select the student\'s parent first');
+      return;
     }
+
+    const selectedParentObj = parentUsers.find(p => p.nationalId === selectedParentLinkOption);
+    if (!selectedParentObj) {
+      setFormError(lang === 'ar' ? 'فشل العثور على حساب ولي الأمر المحدد!' : 'Selected parent account not found!');
+      return;
+    }
+
+    const parentNameVal = selectedParentObj.name;
+    const parentPhoneVal = selectedParentObj.phone;
+    const parentNationalIdVal = selectedParentObj.nationalId;
+    const parentPhotoVal = selectedParentObj.photo || '🧔';
+    const newParentObj = null;
 
     if (!modalStudentName.trim()) {
       setFormError(t.emptyError);
@@ -125,7 +90,7 @@ export default function StudentsTab() {
       time: '--:--',
       qrCode: `ANWAR-${newId}`,
       photo: modalStudentPhoto,
-      parentPhoto: modalParentPhoto || '🧔'
+      parentPhoto: parentPhotoVal
     };
 
     const calculatedNumericPart = newId * Number(controlMultiplier) + Number(controlOffset);
@@ -152,7 +117,8 @@ export default function StudentsTab() {
     setModalPhone('');
     setModalStudentPhoto('');
     setModalParentPhoto('');
-    setSelectedParentLinkOption('new');
+    setSelectedParentLinkOption('');
+    setParentSearchText('');
   };
 
   const filteredStudents = students.filter(student => {
@@ -168,118 +134,137 @@ export default function StudentsTab() {
     return matchesSearch && matchesFilter;
   });
 
+  const filteredParentUsers = parentUsers.filter(p => {
+    const term = parentSearchText.trim().toLowerCase();
+    if (!term) return true;
+    return p.name.toLowerCase().includes(term) || p.nationalId.includes(term);
+  });
+
   return (
-    <div className="section-card">
-      <div className="section-card-header no-print">
-        <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
-          {lang === 'ar' ? 'سجل شؤون الطلاب والبطاقات الذكية' : 'Student Registry & Smart Cards'}
-        </h3>
-        
-        {currentUser?.role === 'admin' && (
-          <button 
-            className="btn-accent"
-            onClick={() => setShowStudentModal(true)}
-          >
-            <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
-            {t.requestCardBtn}
-          </button>
-        )}
-      </div>
-
-      {/* Searching and Filter Chips */}
-      <div className="students-controls no-print">
-        <div className="search-box">
-          <Search size={18} />
-          <input 
-            type="text"
-            className="text-field"
-            placeholder={lang === 'ar' ? 'البحث باسم الطالب أو الرقم الأكاديمي...' : 'Search by name or student number...'}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+    <>
+      <div className="section-card">
+        <div className="section-card-header no-print">
+          <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
+            {lang === 'ar' ? 'سجل شؤون الطلاب والبطاقات الذكية' : 'Student Registry & Smart Cards'}
+          </h3>
+          
+          {currentUser?.role === 'admin' && (
+            <button 
+              className="btn-accent"
+              onClick={() => {
+                setFormError('');
+                setModalStudentName('');
+                setModalParentNationalId('');
+                setModalParentName('');
+                setModalPhone('');
+                setModalStudentPhoto('');
+                setModalParentPhoto('');
+                setSelectedParentLinkOption('');
+                setParentSearchText('');
+                setShowStudentModal(true);
+              }}
+            >
+              <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
+              {t.requestCardBtn}
+            </button>
+          )}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button 
-            className={`chip ${statusFilter === 'all' ? 'selected' : ''}`}
-            onClick={() => setStatusFilter('all')}
-          >
-            {t.filterAll}
-          </button>
-          <button 
-            className={`chip ${statusFilter === 'present' ? 'selected' : ''}`}
-            onClick={() => setStatusFilter('present')}
-          >
-            {t.present}
-          </button>
-          <button 
-            className={`chip ${statusFilter === 'absent' ? 'selected' : ''}`}
-            onClick={() => setStatusFilter('absent')}
-          >
-            {t.absent}
-          </button>
-        </div>
-      </div>
+        {/* Searching and Filter Chips */}
+        <div className="students-controls no-print">
+          <div className="search-box">
+            <Search size={18} />
+            <input 
+              type="text"
+              className="text-field"
+              placeholder={lang === 'ar' ? 'البحث باسم الطالب أو الرقم الأكاديمي...' : 'Search by name or student number...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-      {/* Students Data Grid Table */}
-      <div className="students-table-container">
-        <table className="students-table">
-          <thead>
-            <tr>
-              <th>{t.studentId}</th>
-              <th>{t.studentName}</th>
-              <th>{t.grade}</th>
-              <th>{t.section}</th>
-              <th>{t.status}</th>
-              <th>{t.parentName}</th>
-              <th className="no-print">{t.action}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStudents.length > 0 ? (
-              filteredStudents.map((student) => (
-                <tr key={student.id}>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{student.id}</td>
-                  <td style={{ fontWeight: '600' }}>
-                    {renderAvatar(student.photo, "👨‍🎓")}
-                    {lang === 'ar' ? student.name : student.nameEn}
-                  </td>
-                  <td>{lang === 'ar' ? student.grade : student.gradeEn}</td>
-                  <td>{lang === 'ar' ? student.section : student.sectionEn}</td>
-                  <td>
-                    <span className={`badge-status ${student.status === 'present' || student.status === 'late' ? 'checked-in' : 'absent'}`}>
-                      {(student.status === 'present' || student.status === 'late') ? t.present : t.absent}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: '600' }}>{renderAvatar(student.parentPhoto, "🧔")} {lang === 'ar' ? student.parentName : student.parentNameEn}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      ID: {student.parentNationalId}
-                    </div>
-                  </td>
-                  <td className="no-print">
-                    <button 
-                      className="btn-elevated"
-                      style={{ padding: '6px 12px', fontSize: '12px' }}
-                      onClick={() => {
-                        setSelectedStudentForCard(student);
-                        setShowCardVisualizerModal(true);
-                      }}
-                    >
-                      🪪 {t.viewCard}
-                    </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button 
+              className={`chip ${statusFilter === 'all' ? 'selected' : ''}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              {t.filterAll}
+            </button>
+            <button 
+              className={`chip ${statusFilter === 'present' ? 'selected' : ''}`}
+              onClick={() => setStatusFilter('present')}
+            >
+              {t.present}
+            </button>
+            <button 
+              className={`chip ${statusFilter === 'absent' ? 'selected' : ''}`}
+              onClick={() => setStatusFilter('absent')}
+            >
+              {t.absent}
+            </button>
+          </div>
+        </div>
+
+        {/* Students Data Grid Table */}
+        <div className="students-table-container">
+          <table className="students-table">
+            <thead>
+              <tr>
+                <th>{t.studentId}</th>
+                <th>{t.studentName}</th>
+                <th>{t.grade}</th>
+                <th>{t.section}</th>
+                <th>{t.status}</th>
+                <th>{t.parentName}</th>
+                <th className="no-print">{t.action}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredStudents.length > 0 ? (
+                filteredStudents.map((student) => (
+                  <tr key={student.id}>
+                    <td style={{ fontFamily: 'var(--font-mono)' }}>{student.id}</td>
+                    <td style={{ fontWeight: '600' }}>
+                      {renderAvatar(student.photo, "👨‍🎓")}
+                      {lang === 'ar' ? student.name : student.nameEn}
+                    </td>
+                    <td>{lang === 'ar' ? student.grade : student.gradeEn}</td>
+                    <td>{lang === 'ar' ? student.section : student.sectionEn}</td>
+                    <td>
+                      <span className={`badge-status ${student.status === 'present' || student.status === 'late' ? 'checked-in' : 'absent'}`}>
+                        {(student.status === 'present' || student.status === 'late') ? t.present : t.absent}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: '600' }}>{renderAvatar(student.parentPhoto, "🧔")} {lang === 'ar' ? student.parentName : student.parentNameEn}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                        {lang === 'ar' ? 'الرقم الوطني: ' : 'National ID: '}{student.parentNationalId}
+                      </div>
+                    </td>
+                    <td className="no-print">
+                      <button 
+                        className="btn-elevated"
+                        style={{ padding: '6px 12px', fontSize: '12px' }}
+                        onClick={() => {
+                          setSelectedStudentForCard(student);
+                          setShowCardVisualizerModal(true);
+                        }}
+                      >
+                        🪪 {t.viewCard}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)' }}>
+                    {lang === 'ar' ? 'لا يوجد نتائج تطابق البحث' : 'No matching results found'}
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)' }}>
-                  {lang === 'ar' ? 'لا يوجد نتائج تطابق البحث' : 'No matching results found'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* MODAL DIALOG 1: REGISTER STUDENT FORM */}
@@ -354,20 +339,29 @@ export default function StudentsTab() {
 
                 <div className="form-group" style={{ borderTop: '1px dashed var(--color-border)', paddingTop: 'var(--space-md)', marginTop: 'var(--space-md)' }}>
                   <label className="form-label">{lang === 'ar' ? 'ربط بحساب ولي أمر' : 'Link to Parent Account'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  
+                  {/* Parent Search Input */}
+                  <input
+                    type="text"
+                    className="text-field"
+                    style={{ marginBottom: '8px' }}
+                    placeholder={lang === 'ar' ? '🔍 اكتب اسم ولي الأمر أو الرقم الوطني للبحث...' : '🔍 Type parent name or national ID to search...'}
+                    value={parentSearchText}
+                    onChange={(e) => setParentSearchText(e.target.value)}
+                  />
+
                   <select
                     className="text-field"
                     value={selectedParentLinkOption}
                     onChange={(e) => {
                       const opt = e.target.value;
                       setSelectedParentLinkOption(opt);
-                      if (opt !== 'new') {
-                        const parent = parentUsers.find(p => p.nationalId === opt);
-                        if (parent) {
-                          setModalParentNationalId(parent.nationalId);
-                          setModalParentName(parent.name);
-                          setModalPhone(parent.phone);
-                          setModalParentPhoto(parent.photo || '🧔');
-                        }
+                      const parent = parentUsers.find(p => p.nationalId === opt);
+                      if (parent) {
+                        setModalParentNationalId(parent.nationalId);
+                        setModalParentName(parent.name);
+                        setModalPhone(parent.phone);
+                        setModalParentPhoto(parent.photo || '🧔');
                       } else {
                         setModalParentNationalId('');
                         setModalParentName('');
@@ -375,9 +369,10 @@ export default function StudentsTab() {
                         setModalParentPhoto('');
                       }
                     }}
+                    required
                   >
-                    <option value="new">{lang === 'ar' ? '➕ تسجيل حساب ولي أمر جديد...' : '➕ Register New Parent...'}</option>
-                    {parentUsers.map(p => (
+                    <option value="">{lang === 'ar' ? '-- اختر ولي الأمر --' : '-- Select Parent --'}</option>
+                    {filteredParentUsers.map(p => (
                       <option key={p.nationalId} value={p.nationalId}>
                         {p.name} ({p.nationalId})
                       </option>
@@ -385,64 +380,33 @@ export default function StudentsTab() {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">{t.formParentNationalId} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input 
-                    type="text" 
-                    className="text-field"
-                    placeholder="1XXXXXXXXX"
-                    value={modalParentNationalId}
-                    onChange={(e) => handleNationalIdChange(e.target.value)}
-                    maxLength={10}
-                    disabled={selectedParentLinkOption !== 'new'}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">{t.formParentName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input 
-                    type="text" 
-                    className="text-field"
-                    placeholder="مثال: فهد العتيبي"
-                    value={modalParentName}
-                    onChange={(e) => setModalParentName(e.target.value)}
-                    disabled={selectedParentLinkOption !== 'new'}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">{t.formParentPhone} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{
-                      position: 'absolute',
-                      left: lang === 'en' ? '16px' : 'auto',
-                      right: lang === 'ar' ? '16px' : 'auto',
-                      color: 'var(--color-text-secondary)',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      pointerEvents: 'none'
-                    }}>
-                      +966
-                    </span>
-                    <input 
-                      type="tel"
-                      className="text-field"
-                      style={{
-                        paddingLeft: lang === 'en' ? '64px' : 'var(--space-lg)',
-                        paddingRight: lang === 'ar' ? '64px' : 'var(--space-lg)'
-                      }}
-                      placeholder="5XXXXXXXX"
-                      value={modalPhone}
-                      onChange={(e) => setModalPhone(e.target.value)}
-                      disabled={selectedParentLinkOption !== 'new'}
-                      required
-                    />
+                {selectedParentLinkOption && (
+                  <div style={{ 
+                    padding: '14px', 
+                    background: 'rgba(30, 80, 142, 0.03)', 
+                    border: '1px solid var(--color-border)', 
+                    borderRadius: '16px', 
+                    marginBottom: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {renderAvatar(modalParentPhoto, "🧔")}
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{modalParentName}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                          {lang === 'ar' ? 'الرقم الوطني لولي الأمر: ' : 'National ID: '}{modalParentNationalId}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      📞 {lang === 'ar' ? 'رقم الجوال: ' : 'Phone Number: '} +966 {modalPhone}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
                     <label className="form-label">{t.formPhoto} (Student) <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -468,34 +432,6 @@ export default function StudentsTab() {
                       )}
                     </div>
                   </div>
-
-                  {selectedParentLinkOption === 'new' && (
-                    <div className="form-group">
-                      <label className="form-label">{t.formPhoto} (Parent) <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          id="parent-photo-input"
-                          onChange={(e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => setModalParentPhoto(reader.result);
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                          style={{ display: 'none' }}
-                        />
-                        <label htmlFor="parent-photo-input" className="btn-elevated" style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer' }}>
-                          📁 {t.uploadPhoto}
-                        </label>
-                        {modalParentPhoto && (
-                          <img src={modalParentPhoto} alt="" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -520,6 +456,6 @@ export default function StudentsTab() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

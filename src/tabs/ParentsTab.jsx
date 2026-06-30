@@ -43,7 +43,7 @@ export default function ParentsTab() {
     }
 
     if (parentUsers.some(p => p.nationalId === nationalIdDigits)) {
-      setFormError(lang === 'ar' ? 'رقم الهوية الوطنية مسجل مسبقاً لولي أمر آخر!' : 'National ID already registered!');
+      setFormError(lang === 'ar' ? 'الرقم الوطني مسجل مسبقاً لولي أمر آخر!' : 'National ID already registered!');
       return;
     }
 
@@ -263,7 +263,7 @@ export default function ParentsTab() {
                   <input type="text" className="text-field" value={modalParentNameEn} onChange={(e) => setModalParentNameEn(e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'رقم الهوية الوطنية (10 أرقام)' : 'National ID (10 digits)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label className="form-label">{lang === 'ar' ? 'الرقم الوطني (10 أرقام)' : 'National ID (10 digits)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input type="text" className="text-field" value={modalParentNationalIdVal} onChange={(e) => setModalParentNationalIdVal(e.target.value)} maxLength={10} required />
                 </div>
                 <div className="form-group">
@@ -312,7 +312,7 @@ export default function ParentsTab() {
                   <input type="text" className="text-field" value={modalParentNameEn} onChange={(e) => setModalParentNameEn(e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'رقم الهوية الوطنية (لا يمكن تعديله)' : 'National ID (Cannot be modified)'}</label>
+                  <label className="form-label">{lang === 'ar' ? 'الرقم الوطني (لا يمكن تعديله)' : 'National ID (Cannot be modified)'}</label>
                   <input type="text" className="text-field" value={modalParentNationalIdVal} disabled />
                 </div>
                 <div className="form-group">

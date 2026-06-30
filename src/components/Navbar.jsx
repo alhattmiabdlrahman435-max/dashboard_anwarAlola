@@ -49,9 +49,15 @@ export default function Navbar() {
 
         {/* Breadcrumbs Navigation */}
         <div className="header-breadcrumbs">
-          <span className="breadcrumb-sub">{lang === 'ar' ? 'الرئيسية' : 'Main'}</span>
-          <span className="breadcrumb-separator">/</span>
-          <span className="breadcrumb-active">{getTabLabel()}</span>
+          {activeTab !== 'dashboard' ? (
+            <>
+              <span className="breadcrumb-sub">{lang === 'ar' ? 'الرئيسية' : 'Main'}</span>
+              <span className="breadcrumb-separator">/</span>
+              <span className="breadcrumb-active">{getTabLabel()}</span>
+            </>
+          ) : (
+            <span className="breadcrumb-active">{lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}</span>
+          )}
         </div>
 
         {/* School Official Badge */}
@@ -96,7 +102,7 @@ export default function Navbar() {
 
           {/* Notifications Dropdown Panel */}
           {showNotificationsDropdown && (
-            <div className="notifications-dropdown-container">
+            <div className="notifications-dropdown-container glass-panel animate-scale-up">
               <div className="dropdown-header">
                 <span>{lang === 'ar' ? 'الإشعارات وتنبيهات النظام' : 'Notifications & Alerts'}</span>
                 {smsLogs.length > 0 && (
@@ -154,7 +160,7 @@ export default function Navbar() {
           </button>
           
           {showProfileDropdown && (
-            <div className="profile-dropdown-container">
+            <div className="profile-dropdown-container glass-panel animate-scale-up">
               <div className="profile-dropdown-header">
                 <div className="header-avatar large">{currentUser?.photo || 'أ ع'}</div>
                 <div className="profile-info">
