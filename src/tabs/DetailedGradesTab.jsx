@@ -406,7 +406,43 @@ export default function DetailedGradesTab() {
               /* Dynamic controls based on data-print-mode */
               body[data-print-mode="subject"] .print-subject-only-content {
                 display: block !important;
+                visibility: visible !important;
               }
+              body[data-print-mode="subject"] .print-subject-only-content * {
+                visibility: visible !important;
+              }
+              body[data-print-mode="subject"] .print-term-full-report,
+              body[data-print-mode="subject"] .print-month-full-report,
+              body[data-print-mode="subject"] .print-class-report {
+                display: none !important;
+              }
+
+              body[data-print-mode="month"] .print-month-full-report {
+                display: block !important;
+                visibility: visible !important;
+              }
+              body[data-print-mode="month"] .print-month-full-report * {
+                visibility: visible !important;
+              }
+              body[data-print-mode="month"] .print-subject-only-content,
+              body[data-print-mode="month"] .print-term-full-report,
+              body[data-print-mode="month"] .print-class-report {
+                display: none !important;
+              }
+
+              body[data-print-mode="term"] .print-term-full-report {
+                display: block !important;
+                visibility: visible !important;
+              }
+              body[data-print-mode="term"] .print-term-full-report * {
+                visibility: visible !important;
+              }
+              body[data-print-mode="term"] .print-subject-only-content,
+              body[data-print-mode="term"] .print-month-full-report,
+              body[data-print-mode="term"] .print-class-report {
+                display: none !important;
+              }
+
               body[data-print-mode="class"] .print-class-report {
                 display: block !important;
                 visibility: visible !important;
