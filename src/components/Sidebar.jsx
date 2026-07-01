@@ -189,15 +189,6 @@ export default function Sidebar() {
               <CalendarCheck />
               <span>{t.examSchedulesBuilder}</span>
             </button>
-          </>
-        )}
-
-        {/* Group 3: Administration */}
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
-          <>
-            <div className="sidebar-category-header">
-              <span>{lang === 'ar' ? 'الإدارة والمالية' : 'Management'}</span>
-            </div>
 
             <button 
               className={`menu-item ${activeTab === 'detailedGrades' ? 'active' : ''}`}
@@ -207,6 +198,15 @@ export default function Sidebar() {
               <Award />
               <span>{t.detailedGrades}</span>
             </button>
+          </>
+        )}
+
+        {/* Group 3: Administration */}
+        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+          <>
+            <div className="sidebar-category-header">
+              <span>{lang === 'ar' ? 'الإدارة والمالية' : 'Management'}</span>
+            </div>
 
             <button 
               className={`menu-item ${activeTab === 'finance' ? 'active' : ''}`}
