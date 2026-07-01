@@ -361,12 +361,20 @@ export default function DetailedGradesTab() {
           <style dangerouslySetInnerHTML={{__html: `
             @media print {
               @page {
-                size: portrait;
-                margin: 1.5cm;
+                size: A4 portrait;
+                margin: 0.8cm;
               }
               body {
                 background: #ffffff !important;
                 color: #000000 !important;
+              }
+              body[data-print-mode] .printable-area {
+                margin: 0 !important;
+                padding: 16px !important;
+                border: 2px double #0f766e !important;
+                border-radius: 6px !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
               }
               .section-card {
                 border: none !important;
@@ -897,21 +905,21 @@ export default function DetailedGradesTab() {
                             <th>#</th>
                             <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                             <th>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
-                            <th>{t.hwLabel} (15)</th>
-                            <th>{t.attLabel} (15)</th>
-                            <th>{t.behLabel} (10)</th>
-                            <th>{t.oralLabel} (10)</th>
-                            <th>{t.wrtLabel} (50)</th>
-                            <th>{t.monthTotalLabel} (100)</th>
+                            <th>{t.hwLabel}</th>
+                            <th>{t.attLabel}</th>
+                            <th>{t.behLabel}</th>
+                            <th>{t.oralLabel}</th>
+                            <th>{t.wrtLabel}</th>
+                            <th>{t.monthTotalLabel}</th>
                           </tr>
                         ) : classPeriod === 'termTotal' ? (
                           <tr>
                             <th>#</th>
                             <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                             <th>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
-                            <th>{t.termAverageLabel} (20)</th>
-                            <th>{t.finalExamLabel} (30)</th>
-                            <th>{t.termTotalLabel} (50)</th>
+                            <th>{t.termAverageLabel}</th>
+                            <th>{t.finalExamLabel}</th>
+                            <th>{t.termTotalLabel}</th>
                           </tr>
                         ) : (
                           <tr>
@@ -920,7 +928,7 @@ export default function DetailedGradesTab() {
                             <th>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
                             <th>{lang === 'ar' ? 'الفصل الدراسي الأول (٥٠)' : 'Term 1 (50)'}</th>
                             <th>{lang === 'ar' ? 'الفصل الدراسي الثاني (٥٠)' : 'Term 2 (50)'}</th>
-                            <th>{t.yearlyTotalLabel} (100)</th>
+                            <th>{t.yearlyTotalLabel}</th>
                           </tr>
                         )}
                       </thead>
@@ -1846,6 +1854,8 @@ export default function DetailedGradesTab() {
             <PrintHeader 
               title={classSubject === 'all' 
                 ? `كشف درجات طلاب الفصل - ${selectedClass}`
+                : classSubject === 'detailed'
+                ? `كشف رصد درجات الفصل التفصيلي (لجميع المواد) - ${selectedClass}`
                 : `كشف رصد درجات الفصل التفصيلي (${classSubject}) - ${selectedClass}`
               }
               subtitle={lang === 'ar' 
@@ -1878,7 +1888,12 @@ export default function DetailedGradesTab() {
                 <span style={{ margin: '0 8px', color: '#94a3b8' }}>|</span>
                 <span>التقرير: </span>
                 <span style={{ fontWeight: 'normal' }}>
-                  {classSubject === 'all' ? 'كشف رصد درجات الفصل العام' : `كشف رصد تفصيلي لمادة ${classSubject}`}
+                  {classSubject === 'all' 
+                    ? 'كشف رصد درجات الفصل العام' 
+                    : classSubject === 'detailed'
+                    ? 'كشف رصد تفصيلي لجميع المواد'
+                    : `كشف رصد تفصيلي لمادة ${classSubject}`
+                  }
                 </span>
               </div>
             </div>
@@ -1937,21 +1952,21 @@ export default function DetailedGradesTab() {
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>#</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.hwLabel} (15)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.attLabel} (15)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.behLabel} (10)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.oralLabel} (10)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.wrtLabel} (50)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.monthTotalLabel} (100)</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.hwLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.attLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.behLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.oralLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.wrtLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.monthTotalLabel}</th>
                     </tr>
                   ) : classPeriod === 'termTotal' ? (
                     <tr style={{ background: '#f1f5f9' }}>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>#</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.termAverageLabel} (20)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.finalExamLabel} (30)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.termTotalLabel} (50)</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.termAverageLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.finalExamLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.termTotalLabel}</th>
                     </tr>
                   ) : (
                     <tr style={{ background: '#f1f5f9' }}>
@@ -1960,7 +1975,7 @@ export default function DetailedGradesTab() {
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{lang === 'ar' ? 'الترم الأول (٥٠)' : 'Term 1 (50)'}</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{lang === 'ar' ? 'الترم الثاني (٥٠)' : 'Term 2 (50)'}</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.yearlyTotalLabel} (100)</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.yearlyTotalLabel}</th>
                     </tr>
                   )}
                 </thead>
@@ -2051,20 +2066,20 @@ export default function DetailedGradesTab() {
                     <tr style={{ background: '#f1f5f9' }}>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>#</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.hwLabel} (15)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.attLabel} (15)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.behLabel} (10)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.oralLabel} (10)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.wrtLabel} (50)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.monthTotalLabel} (100)</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.hwLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.attLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.behLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.oralLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.wrtLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.monthTotalLabel}</th>
                     </tr>
                   ) : classPeriod === 'termTotal' ? (
                     <tr style={{ background: '#f1f5f9' }}>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>#</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.termAverageLabel} (20)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.finalExamLabel} (30)</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.termTotalLabel} (50)</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.termAverageLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.finalExamLabel}</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.termTotalLabel}</th>
                     </tr>
                   ) : (
                     <tr style={{ background: '#f1f5f9' }}>
@@ -2072,7 +2087,7 @@ export default function DetailedGradesTab() {
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{lang === 'ar' ? 'الترم الأول (٥٠)' : 'Term 1 (50)'}</th>
                       <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{lang === 'ar' ? 'الترم الثاني (٥٠)' : 'Term 2 (50)'}</th>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.yearlyTotalLabel} (100)</th>
+                      <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{t.yearlyTotalLabel}</th>
                     </tr>
                   )}
                 </thead>
