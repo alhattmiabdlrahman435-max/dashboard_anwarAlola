@@ -23,6 +23,7 @@ import FinanceTab from './tabs/FinanceTab';
 import CommunicationsTab from './tabs/CommunicationsTab';
 import ControlTab from './tabs/ControlTab';
 import ReportsTab from './tabs/ReportsTab';
+import TeacherReportsTab from './tabs/TeacherReportsTab';
 import SettingsTab from './tabs/SettingsTab';
 
 import './App.css';
@@ -87,6 +88,8 @@ function DashboardShell() {
         return <ControlTab />;
       case 'reports':
         return <ReportsTab />;
+      case 'teacherReports':
+        return <TeacherReportsTab />;
       case 'settings':
         return <SettingsTab />;
       default:

@@ -10,7 +10,7 @@ class ClassController extends Controller
 {
     public function index()
     {
-        $classes = SchoolClass::with('gradeLevel')->get();
+        $classes = SchoolClass::with(['gradeLevel', 'subjects'])->get();
         return response()->json([
             'success' => true,
             'classes' => $classes

@@ -2,7 +2,7 @@ import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, GraduationCap, Users, BookOpen, School, Book, 
   Calendar, QrCode, ClipboardCheck, FileText, CalendarCheck, Award, 
-  DollarSign, Bell, ShieldAlert, BarChart3, Settings, ChevronLeft, ChevronRight, X 
+  DollarSign, Bell, ShieldAlert, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X 
 } from 'lucide-react';
 import sloganLogo from '../assets/slogan.jpeg';
 
@@ -12,7 +12,7 @@ export default function Sidebar() {
     activeTab, setActiveTab,
     isSidebarCollapsed, setIsSidebarCollapsed,
     isMobileMenuOpen, setIsMobileMenuOpen,
-    currentUser, absenceRequests
+    currentUser, absenceRequests, teacherReports
   } = useApp();
 
   return (
@@ -230,6 +230,21 @@ export default function Sidebar() {
             >
               <BarChart3 />
               <span>{t.reports}</span>
+            </button>
+
+            <button 
+              className={`menu-item ${activeTab === 'teacherReports' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('teacherReports'); setIsMobileMenuOpen(false); }}
+              data-tooltip={t.teacherReports}
+              style={{ position: 'relative' }}
+            >
+              <FileWarning />
+              <span>{t.teacherReports}</span>
+              {(teacherReports || []).filter(r => r.status === 'pending').length > 0 && (
+                <span className="menu-item-badge">
+                  {(teacherReports || []).filter(r => r.status === 'pending').length}
+                </span>
+              )}
             </button>
           </>
         )}

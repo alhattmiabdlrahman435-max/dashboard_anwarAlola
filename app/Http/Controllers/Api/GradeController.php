@@ -221,4 +221,60 @@ class GradeController extends Controller
             'message' => 'تم توليد وتطبيق الأرقام السرية بنجاح لجميع الطلاب'
         ]);
     }
+
+    /**
+     * جلب درجات صف دراسي لمادة معينة
+     */
+    public function getByClassAndSubject(string $classId, string $subjectId)
+    {
+        $students = Student::where('class_id', $classId)->get();
+
+        $grades = $students->map(function($student) use ($subjectId) {
+            $dbGrades = Grade::where('student_id', $student->id)
+                ->where('subject_id', $subjectId)
+                ->where('is_control', false)
+                ->get();
+
+            $termRecords = [];
+            for ($term = 1; $term <= 2; $term++) {
+                $termGrades = $dbGrades->where('term', $term);
+                
+                $months = [];
+                for ($month = 1; $month <= 3; $month++) {
+                    $mGrade = $termGrades->where('month', $month)->first();
+                    $months[] = [
+                        'monthIndex' => $month,
+                        'attendance' => $mGrade ? (float) $mGrade->attendance : 0.0,
+                        'behavior' => $mGrade ? (float) $mGrade->behavior : 0.0,
+                        'oral' => $mGrade ? (float) $mGrade->oral : 0.0,
+                        'homework' => $mGrade ? (float) $mGrade->homework : 0.0,
+                        'written' => $mGrade ? (float) $mGrade->written : 0.0,
+                    ];
+                }
+
+                $finalGrade = $termGrades->where('month', 0)->first();
+                $termRecords[$term] = [
+                    'termIndex' => $term,
+                    'months' => $months,
+                    'finalExam' => $finalGrade ? (float) $finalGrade->final_exam : 0.0,
+                ];
+            }
+
+            return [
+                'studentId' => (string) $student->id,
+                'studentName' => $student->name_ar ?? $student->name ?? 'غير معروف',
+                'subjectId' => (string) $subjectId,
+                'firstTerm' => $termRecords[1],
+                'secondTerm' => $termRecords[2],
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'classId' => (string) $classId,
+            'subjectId' => (string) $subjectId,
+            'grades' => $grades,
+        ]);
+    }
 }
+

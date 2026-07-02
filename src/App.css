@@ -3203,3 +3203,11 @@ body[dir="rtl"] .login-password-toggle {
 .login-page-container.dark .login-input {
   border-color: var(--glass-border);
 }
+
+.main-content-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

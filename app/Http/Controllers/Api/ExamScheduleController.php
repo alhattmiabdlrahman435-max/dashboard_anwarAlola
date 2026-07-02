@@ -12,7 +12,7 @@ class ExamScheduleController extends Controller
 {
     public function index()
     {
-        $schedules = ExamSchedule::with('examSubjects.subject')->orderBy('created_at', 'desc')->get()->map(function($sch) {
+        $schedules = ExamSchedule::with(['examSubjects.subject', 'schoolClass'])->orderBy('created_at', 'desc')->get()->map(function($sch) {
             $subjectsArray = $sch->examSubjects->map(function($item) {
                 return [
                     'id' => $item->id,
@@ -29,6 +29,7 @@ class ExamScheduleController extends Controller
                 'id' => $sch->id,
                 'title' => $sch->title,
                 'class_id' => $sch->class_id,
+                'class' => $sch->schoolClass,
                 'term' => $sch->term,
                 'created_by' => $sch->created_by,
                 'subjects' => $subjectsArray,

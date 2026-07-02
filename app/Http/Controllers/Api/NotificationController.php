@@ -116,4 +116,14 @@ class NotificationController extends Controller
             ]
         ], 201);
     }
+
+    public function read($id)
+    {
+        $notif = Notification::findOrFail($id);
+        $notif->update(['is_read' => true]);
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديث حالة قراءة الإشعار'
+        ]);
+    }
 }

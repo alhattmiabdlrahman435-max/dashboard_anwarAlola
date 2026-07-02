@@ -33,6 +33,7 @@ class FinanceController extends Controller
                 'total_fees' => $totalFees,
                 'paid_fees' => $paid,
                 'remaining_fees' => $remaining,
+                'payments' => $student->payments,
             ];
         });
 

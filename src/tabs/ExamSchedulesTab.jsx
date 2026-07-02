@@ -12,7 +12,9 @@ export default function ExamSchedulesTab() {
     setExamSchedules,
     setToastMessage,
     students,
-    setSmsLogs
+    setSmsLogs,
+    handlePublishExamSchedule: publishExamSchedule,
+    handleDeleteExamSchedule
   } = useApp();
 
   // Modal visibility
@@ -69,27 +71,9 @@ export default function ExamSchedulesTab() {
       subjects: modalExamSubjects
     };
 
-    setExamSchedules(prev => [newSchedule, ...prev]);
+    publishExamSchedule(newSchedule);
     setModalExamSubjects([]);
     setShowExamScheduleModal(false);
-    setToastMessage(lang === 'ar' ? 'تم نشر جدول الاختبارات بنجاح!' : 'Exam schedule published successfully!');
-    setTimeout(() => setToastMessage(''), 3000);
-
-    // SMS alert to parents
-    const classStudents = students.filter(s => s.grade === modalExamGrade && s.section === modalExamSection);
-    classStudents.forEach(student => {
-      const smsText = lang === 'ar'
-        ? `تم نشر جدول اختبارات جديد (${modalExamPeriod} - ${modalExamTerm}) للصف ${modalExamGrade}. يرجى مراجعته في تطبيق ولي الأمر.`
-        : `New exam schedule published (${newSchedule.periodEn} - ${newSchedule.termEn}) for ${modalExamGrade}. Please review it in the Parent App.`;
-      setSmsLogs(logs => [{
-        id: Date.now() + Math.random(),
-        studentId: student.id,
-        recipient: `+966 ${student.phone}`,
-        text: smsText,
-        time: "15:00",
-        type: 'present'
-      }, ...logs]);
-    });
   };
 
   return (
@@ -141,7 +125,17 @@ export default function ExamSchedulesTab() {
                       {lang === 'ar' ? sched.term : sched.termEn} - {lang === 'ar' ? sched.period : sched.periodEn}
                     </div>
                   </div>
-                  <span style={{ fontSize: '20px' }}>📅</span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button 
+                      type="button" 
+                      className="btn-elevated no-print" 
+                      style={{ color: 'var(--color-error)', borderColor: 'rgba(220, 38, 38, 0.2)', padding: '2px 8px', fontSize: '10px' }}
+                      onClick={() => handleDeleteExamSchedule(sched.id)}
+                    >
+                      {lang === 'ar' ? 'حذف' : 'Delete'}
+                    </button>
+                    <span style={{ fontSize: '20px' }}>📅</span>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

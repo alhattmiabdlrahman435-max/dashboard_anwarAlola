@@ -178,10 +178,11 @@ class TeacherController extends Controller
     {
         $classroom = SchoolClass::findOrFail($classId);
         $students = Student::where('class_id', $classId)->get();
+        $date = $request->input('date', today()->toDateString());
 
-        $result = $students->map(function($student) {
+        $result = $students->map(function($student) use ($date) {
             $attendance = Attendance::where('student_id', $student->id)
-                ->where('record_date', today()->toDateString())
+                ->where('record_date', $date)
                 ->first();
 
             return [
@@ -190,7 +191,7 @@ class TeacherController extends Controller
                 'parentName' => $student->parentUser ? $student->parentUser->name_ar : 'غير محدد',
                 'parentPhone' => $student->parentUser ? $student->parentUser->phone : 'غير محدد',
                 'photoUrl' => $student->photo_url,
-                'status' => $attendance ? $attendance->status : 'absent',
+                'status' => $attendance ? $attendance->status : 'pending',
             ];
         });
 
@@ -446,6 +447,26 @@ class TeacherController extends Controller
             'averageAttendance' => $averageAttendance,
             'weeklyTrend' => $weeklyTrend,
             'studentReports' => $studentReports,
+        ]);
+    }
+
+    /**
+     * جلب المواد التي يدرسها المعلم لصف دراسي محدد
+     */
+    public function getSubjectsByClass(Request $request, $classId)
+    {
+        $user = $request->user();
+        
+        $subjectIds = TeacherSubject::where('teacher_id', $user->id)
+            ->where('class_id', $classId)
+            ->pluck('subject_id')
+            ->unique();
+            
+        $subjects = \App\Models\Subject::whereIn('id', $subjectIds)->get();
+
+        return response()->json([
+            'success' => true,
+            'subjects' => $subjects
         ]);
     }
 }

@@ -8,13 +8,19 @@ export default function DashboardTab() {
     teachers,
     tuitionFees,
     grades,
-    currentUser
+    currentUser,
+    dashboardStats
   } = useApp();
 
-  // Calculate school aggregates dynamically
-  const presentCount = students.filter(s => s.status === 'present').length;
-  const totalStudents = students.length;
-  const attendanceRate = totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 100;
+  // Calculate school aggregates dynamically or use API stats
+  const totalStudents = dashboardStats ? dashboardStats.total_students : students.length;
+  const activeTeachers = dashboardStats ? dashboardStats.total_teachers : teachers.length;
+
+  const presentCount = dashboardStats ? dashboardStats.present_today : students.filter(s => s.status === 'present').length;
+  const dynamicTotalStudents = students.length;
+  const attendanceRate = dashboardStats 
+    ? (dashboardStats.total_students > 0 ? Math.round((dashboardStats.present_today / dashboardStats.total_students) * 100) : 100)
+    : (dynamicTotalStudents > 0 ? Math.round((students.filter(s => s.status === 'present').length / dynamicTotalStudents) * 100) : 100);
 
   const totalTuitionRequired = students.reduce((sum, s) => sum + (tuitionFees.baseFees[s.grade] || 0), 0);
   const totalTuitionPaid = tuitionFees.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -49,7 +55,7 @@ export default function DashboardTab() {
             <User size={24} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{teachers.length}</div>
+            <div className="stat-value">{activeTeachers}</div>
             <div className="stat-label">{lang === 'ar' ? 'أعضاء هيئة التدريس' : 'Active Teachers'}</div>
           </div>
         </div>

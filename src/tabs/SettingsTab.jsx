@@ -1,4 +1,3 @@
-import React from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function SettingsTab() {
@@ -10,8 +9,6 @@ export default function SettingsTab() {
     setDarkMode,
     availableGrades,
     availableSections,
-    handleAddGrade,
-    handleRemoveGrade,
     handleAddSection,
     handleRemoveSection
   } = useApp();

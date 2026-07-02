@@ -1,0 +1,184 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Notification;
+use App\Models\Report;
+use Illuminate\Http\Request;
+
+class ReportController extends Controller
+{
+    public function index(Request $request)
+    {
+        $user = $request->user();
+
+        $query = Report::with(['student.schoolClass', 'teacher']);
+
+        // المعلم يرى بلاغاته فقط، الإدارة والمشرف يرون الكل
+        if ($user->role === 'teacher') {
+            $query->where('teacher_id', $user->id);
+        }
+
+        $reports = $query->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($report) {
+                return [
+                    'id'          => (string) $report->id,
+                    'studentId'   => (string) $report->student_id,
+                    'studentName' => $report->student->name_ar ?? $report->student->name ?? 'غير معروف',
+                    'className'   => $report->student->schoolClass
+                        ? ($report->student->schoolClass->name_ar ?? $report->student->schoolClass->name ?? '')
+                        : '',
+                    'teacherName' => $report->teacher->name_ar ?? $report->teacher->name ?? 'غير معروف',
+                    'type'        => $report->type,
+                    'description' => $report->description,
+                    'imageUrl'    => $report->image_url,
+                    'status'      => $report->status,
+                    'createdAt'   => $report->created_at->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'reports' => $reports,
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'student_id'  => 'required|integer',
+            'type'        => 'required|string|in:academic,behavioral,homework,psychological',
+            'description' => 'required|string',
+            'image'       => 'nullable|image|max:2048',
+        ]);
+
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $file     = $request->file('image');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('uploads/reports'), $filename);
+            $imageUrl = asset('uploads/reports/' . $filename);
+        }
+
+        $report = Report::create([
+            'student_id'  => $request->student_id,
+            'teacher_id'  => $request->user()->id,
+            'type'        => $request->type,
+            'description' => $request->description,
+            'image_url'   => $imageUrl,
+            'status'      => 'pending',
+        ]);
+
+        $report->load(['student.schoolClass', 'teacher']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم إرسال البلاغ بنجاح وهو قيد الانتظار للموافقة من الإدارة.',
+            'report'  => [
+                'id'          => (string) $report->id,
+                'studentId'   => (string) $report->student_id,
+                'studentName' => $report->student->name_ar ?? $report->student->name ?? 'غير معروف',
+                'className'   => $report->student->schoolClass
+                    ? ($report->student->schoolClass->name_ar ?? $report->student->schoolClass->name ?? '')
+                    : '',
+                'teacherName' => $report->teacher->name_ar ?? $report->teacher->name ?? 'غير معروف',
+                'type'        => $report->type,
+                'description' => $report->description,
+                'imageUrl'    => $report->image_url,
+                'status'      => $report->status,
+                'createdAt'   => $report->created_at->toIso8601String(),
+            ],
+        ], 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,approved,rejected,reviewed,archived',
+        ]);
+
+        $report    = Report::findOrFail($id);
+        $oldStatus = $report->status;
+        $report->status = $request->status;
+        $report->save();
+
+        // تحميل العلاقات للاستخدام في الإشعارات
+        $report->load(['student', 'teacher']);
+
+        $typeLabels = [
+            'academic'      => 'أكاديمي',
+            'behavioral'    => 'سلوكي',
+            'homework'      => 'واجبات',
+            'psychological' => 'نفسي',
+        ];
+
+        $typeLabel   = $typeLabels[$report->type] ?? $report->type;
+        $studentName = $report->student->name_ar ?? $report->student->name ?? 'الطالب';
+        $teacherName = $report->teacher->name_ar ?? $report->teacher->name ?? 'المعلم';
+        $teacherId   = $report->teacher_id;
+
+        // ✅ الموافقة على البلاغ
+        if ($request->status === 'approved' && $oldStatus !== 'approved') {
+
+            // 1) إشعار للمعلم: تمت الموافقة على بلاغك
+            Notification::create([
+                'title'      => "✅ تمت الموافقة على بلاغك بشأن {$studentName}",
+                'content'    => "قامت الإدارة بمراجعة البلاغ {$typeLabel} الذي قدمته بشأن الطالب {$studentName} والموافقة عليه.\nسيتم إبلاغ ولي الأمر بالتفاصيل فوراً.",
+                'type'       => 'alert',
+                'is_read'    => false,
+                'student_id' => null,
+                'class_id'   => null,
+                'teacher_id' => $teacherId,
+            ]);
+
+            // 2) إشعار لولي الأمر: بنفس محتوى البلاغ الذي كتبه المعلم
+            $parentContent = "تفيدكم إدارة المدرسة بأنه تم رصد الملاحظة التالية من قِبَل معلم {$typeLabel} بشأن ابنكم {$studentName}:\n\n";
+            $parentContent .= $report->description;
+
+            if ($report->image_url) {
+                $parentContent .= "\n\nملاحظة: يوجد مرفق صورة إثبات مع هذا البلاغ يمكن الاطلاع عليه في التطبيق.";
+            }
+
+            $parentContent .= "\n\nيرجى التواصل مع إدارة المدرسة لمتابعة هذا الأمر.";
+
+            Notification::create([
+                'title'      => "📋 إشعار من الإدارة: بلاغ {$typeLabel} بشأن {$studentName}",
+                'content'    => $parentContent,
+                'type'       => 'alert',
+                'is_read'    => false,
+                'student_id' => $report->student_id, // يصل لولي الأمر عبر معرف الطالب
+                'class_id'   => null,
+                'teacher_id' => null,
+            ]);
+        }
+
+        // ❌ رفض البلاغ
+        if ($request->status === 'rejected' && $oldStatus !== 'rejected') {
+
+            // إشعار للمعلم فقط: تم رفض بلاغك نهائياً
+            Notification::create([
+                'title'      => "❌ تم رفض البلاغ بشأن {$studentName}",
+                'content'    => "تم مراجعة البلاغ {$typeLabel} الذي قدمته بشأن الطالب {$studentName} من قِبَل الإدارة، وتقرر رفض البلاغ نهائياً كإجراء رسمي ولا يمكن التعديل عليه.",
+                'type'       => 'info',
+                'is_read'    => false,
+                'student_id' => null,
+                'class_id'   => null,
+                'teacher_id' => $teacherId,
+            ]);
+        }
+
+        $message = match ($request->status) {
+            'approved' => 'تمت الموافقة على البلاغ وتم إرسال إشعار للمعلم ولولي الأمر.',
+            'rejected' => 'تم رفض البلاغ وتم إرسال إشعار للمعلم.',
+            default    => 'تم تحديث حالة البلاغ بنجاح.',
+        };
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'report'  => $report,
+        ]);
+    }
+}

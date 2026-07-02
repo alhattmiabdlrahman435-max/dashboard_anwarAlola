@@ -19,7 +19,6 @@ export default function ParentsTab() {
   const [modalParentNameEn, setModalParentNameEn] = useState('');
   const [modalParentPhoneNum, setModalParentPhoneNum] = useState('');
   const [modalParentNationalIdVal, setModalParentNationalIdVal] = useState('');
-  const [modalParentPass, setModalParentPass] = useState('');
   const [formError, setFormError] = useState('');
 
   const onAddSubmit = (e) => {
@@ -66,7 +65,6 @@ export default function ParentsTab() {
     setModalParentNameEn('');
     setModalParentPhoneNum('');
     setModalParentNationalIdVal('');
-    setModalParentPass('');
   };
 
   const onEditSubmit = (e) => {

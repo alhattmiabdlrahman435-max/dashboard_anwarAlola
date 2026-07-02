@@ -15,6 +15,10 @@ use App\Http\Controllers\Api\ExamScheduleController;
 use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\ContactMessageController;
+use App\Http\Controllers\Api\ScheduleController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -75,12 +79,23 @@ Route::middleware('auth:sanctum')->group(function () {
     // Grades - الدرجات
     Route::get('/grades/detailed/{studentId}', [GradeController::class, 'detailed']);
     Route::post('/grades/detailed', [GradeController::class, 'saveDetailed']);
+    Route::get('/grades/class/{classId}/subject/{subjectId}', [GradeController::class, 'getByClassAndSubject']);
     Route::get('/grades/control', [GradeController::class, 'control']);
     Route::put('/grades/control/{studentId}', [GradeController::class, 'updateControl']);
     Route::post('/grades/generate-codes', [GradeController::class, 'generateSecretCodes']);
 
+    // Reports - البلاغات والتقارير
+    Route::apiResource('reports', ReportController::class);
+
+    // Contact Messages - اتصل بنا
+    Route::post('/contact-messages', [ContactMessageController::class, 'store']);
+
     // Exam Schedules - جداول الاختبارات
     Route::apiResource('exam-schedules', ExamScheduleController::class);
+
+    // Weekly Schedules - الجداول الدراسية الأسبوعية
+    Route::get('/schedules', [ScheduleController::class, 'index']);
+    Route::post('/schedules', [ScheduleController::class, 'store']);
 
     // Finance - المالية
     Route::get('/finance/students', [FinanceController::class, 'index']);
@@ -91,10 +106,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Notifications - الإشعارات
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/send', [NotificationController::class, 'send']);
+    Route::put('/notifications/{id}/read', [NotificationController::class, 'read']);
 
     // --- المعلم (Teacher) ---
     Route::group(['prefix' => 'teacher'], function () {
         Route::get('/classes', [TeacherController::class, 'getClasses']);
+        Route::get('/classes/{classId}/subjects', [TeacherController::class, 'getSubjectsByClass']);
         Route::get('/classes/{classId}/students', [TeacherController::class, 'getStudents']);
         Route::put('/students/{studentId}/attendance', [TeacherController::class, 'markAttendance']);
         Route::get('/classes/{classId}/attendance-history', [TeacherController::class, 'getClassAttendanceHistory']);

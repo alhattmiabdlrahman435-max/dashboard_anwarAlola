@@ -29,4 +29,9 @@ class SchoolClass extends Model
     {
         return $this->belongsTo(GradeLevel::class, 'grade_level_id');
     }
+
+    public function subjects()
+    {
+        return $this->belongsToMany(Subject::class, 'teacher_subjects', 'class_id', 'subject_id')->distinct();
+    }
 }
