@@ -158,8 +158,11 @@ class TeacherController extends Controller
     public function getClasses(Request $request)
     {
         $user = $request->user();
-        if ($user->role === 'supervisor' || $user->role === 'admin' || $user->role === 'preparation_supervisor') {
+        if ($user->role === 'supervisor' || $user->role === 'admin') {
             $classes = SchoolClass::withCount('students')->get();
+        } elseif ($user->role === 'preparation_supervisor') {
+            $classIds = \App\Models\SupervisorClass::where('supervisor_id', $user->id)->pluck('class_id')->unique();
+            $classes = SchoolClass::whereIn('id', $classIds)->withCount('students')->get();
         } else {
             $classIds = TeacherSubject::where('teacher_id', $user->id)->pluck('class_id')->unique();
             $classes = SchoolClass::whereIn('id', $classIds)->withCount('students')->get();

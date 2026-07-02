@@ -111,6 +111,7 @@ body[dir="rtl"] .sidebar-toggle-btn {
   letter-spacing: -0.5px;
   background: linear-gradient(120deg, #ffffff 40%, #ffe699 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   white-space: nowrap;
 }
@@ -424,6 +425,14 @@ body[dir="rtl"] .sidebar.collapsed .menu-item::after {
   overflow: hidden;
 }
 
+.main-content-layout {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .app-header {
   height: 72px;
   background-color: var(--glass-bg);
@@ -721,6 +730,7 @@ body[dir="rtl"] .notifications-dropdown-container {
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1031,8 +1041,6 @@ body[dir="rtl"] .profile-dropdown-container {
 
 .section-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-card);
   padding: var(--space-xl);
@@ -1850,7 +1858,7 @@ body[dir="rtl"] input:checked + .slider:before {
   background-color: var(--color-overlay);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  z-index: 100;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3210,4 +3218,360 @@ body[dir="rtl"] .login-password-toggle {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* ==========================================================================
+   Dashboard Tab - Advanced UI/UX Redesign
+   ========================================================================== */
+.sparkline-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  opacity: 0.15;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+
+.stat-card:hover .sparkline-wrapper {
+  opacity: 0.35;
+}
+
+.donut-chart-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: var(--space-lg);
+  padding: var(--space-md) 0;
+}
+
+.donut-graphic {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.donut-text {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  direction: ltr;
+}
+
+.donut-percentage {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+
+.donut-label {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  margin-top: 1px;
+}
+
+.attendance-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  flex-grow: 1;
+}
+
+.attendance-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background-color: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.attendance-history-card {
+  border-top: 1px dashed var(--color-border);
+  padding-top: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.academic-bars-grid {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 200px;
+  padding: var(--space-lg) var(--space-xl) var(--space-sm) var(--space-xl);
+  position: relative;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.academic-grid-lines {
+  position: absolute;
+  inset: 0 0 2px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.academic-grid-line {
+  border-top: 1px dashed var(--color-border);
+  width: 100%;
+  position: relative;
+}
+
+.academic-grid-line::after {
+  content: attr(data-value);
+  position: absolute;
+  top: -8px;
+  left: -32px;
+  font-size: 9px;
+  color: var(--color-text-secondary);
+  font-weight: bold;
+}
+
+[dir="rtl"] .academic-grid-line::after {
+  left: auto;
+  right: -32px;
+}
+
+.academic-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  z-index: 2;
+  width: 60px;
+}
+
+.academic-bar {
+  width: 28px;
+  border-radius: 14px 14px 0 0;
+  position: relative;
+  transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.academic-bar:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+.academic-bar-tooltip {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.8);
+  background-color: var(--color-primary-dark);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: bold;
+  opacity: 0;
+  transition: all var(--transition-fast);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--color-shadow);
+}
+
+.academic-bar:hover .academic-bar-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.academic-bar-label {
+  font-size: 11px;
+  margin-top: 8px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   UI/UX Overhaul Enhancements & Visual Polish
+   ========================================================================== */
+
+/* Glassmorphic Section Cards */
+.section-card.glass-panel,
+.login-card-wrapper.glass-panel,
+.modal-container.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--color-shadow);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal), border-color var(--transition-normal);
+}
+
+.section-card.glass-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--color-shadow-hover);
+}
+
+/* Sidebar Active Indicator Glow & Capsule shape */
+.menu-item.active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.03) 100%) !important;
+  color: var(--color-accent) !important;
+  font-weight: 750;
+  box-shadow: 0 4px 20px -2px rgba(251, 191, 36, 0.25), inset 4px 0 0 var(--color-accent) !important;
+}
+
+body[dir="rtl"] .menu-item.active {
+  background: linear-gradient(-135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.03) 100%) !important;
+  box-shadow: 0 4px 20px -2px rgba(251, 191, 36, 0.25), inset -4px 0 0 var(--color-accent) !important;
+}
+
+.menu-item:hover svg {
+  transform: scale(1.15) rotate(-3deg);
+}
+
+/* Top actions in header */
+.action-btn:hover,
+.lang-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: var(--color-primary-ui);
+}
+
+/* Soft transition for modal overlays */
+.modal-overlay {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background-color: rgba(8, 18, 36, 0.45) !important;
+  transition: opacity 0.3s ease;
+}
+
+/* Stat card float hover animations */
+.stat-card.glass-panel {
+  transition: all var(--transition-normal);
+  border: 1px solid var(--color-border);
+}
+
+.stat-card.glass-panel:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--color-shadow-hover);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar-thumb {
+  background: hsla(var(--color-primary-hsl), 0.12);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsla(var(--color-primary-hsl), 0.25);
+}
+
+/* Credentials Quickchips */
+.demo-credential-chip {
+  position: relative;
+  overflow: hidden;
+}
+.demo-credential-chip::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  transform: translateX(-100%);
+}
+.demo-credential-chip:hover::after {
+  transform: translateX(100%);
+  transition: transform 0.8s ease-in-out;
+}
+
+/* ==========================================================================
+   Header UI/UX Overhaul & Bug Fixes
+   ========================================================================== */
+
+/* Offset to prevent toggle button overlap in RTL & LTR */
+.app-header {
+  padding-inline-start: 46px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+/* Header Buttons styling */
+.app-header .action-btn, 
+.app-header .lang-btn {
+  border: 1px solid var(--color-border) !important;
+  background-color: var(--glass-bg) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.app-header .action-btn:hover, 
+.app-header .lang-btn:hover {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-primary-ui) !important;
+  color: var(--color-primary-ui) !important;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(30, 80, 142, 0.1) !important;
+}
+
+/* Redesign Header Avatar */
+.header-avatar {
+  background: linear-gradient(135deg, var(--color-primary-ui) 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  font-weight: 750 !important;
+  border: 2.5px solid var(--color-surface-alt) !important;
+  box-shadow: 0 4px 10px rgba(30, 80, 142, 0.15) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.profile-btn:hover .header-avatar {
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(30, 80, 142, 0.3) !important;
+  border-color: var(--color-accent) !important;
+}
+
+/* Header Breadcrumbs styling */
+.header-breadcrumbs {
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-active {
+  background-color: rgba(30, 80, 142, 0.05) !important;
+  color: var(--color-primary-ui) !important;
+  padding: 4px 10px !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+  border: 1px solid rgba(30, 80, 142, 0.1) !important;
+  transition: all var(--transition-fast);
+}
+
+:root.dark .breadcrumb-active {
+  background-color: rgba(56, 189, 248, 0.08) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.15) !important;
+}
+
+/* Live School Badge Pulse dot */
+.header-school-badge {
+  background-color: rgba(30, 80, 142, 0.03) !important;
+  border: 1px solid rgba(30, 80, 142, 0.06) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01) !important;
+}
+
+/* Contrasting floating sidebar collapse toggle button */
+.sidebar-toggle-btn {
+  border: 2px solid var(--color-surface-alt) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }

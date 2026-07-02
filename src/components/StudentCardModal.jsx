@@ -37,8 +37,8 @@ export default function StudentCardModal() {
     <>
       {/* MODAL DIALOG 2: SMART QR CARD VISUALIZER */}
       {showCardVisualizerModal && selectedStudentForCard && (
-        <div className="modal-overlay">
-          <div className="modal-container" style={{ maxWidth: '380px' }}>
+        <div className="modal-overlay no-print animate-fade-in">
+          <div className="modal-container glass-panel animate-scale-up" style={{ maxWidth: '380px' }}>
             <header className="modal-header no-print">
               <h3 className="modal-title">🪪 {t.viewCard}</h3>
               <button 
@@ -181,9 +181,9 @@ export default function StudentCardModal() {
 
       {/* ===== PRINT OPTIONS MODAL ===== */}
       {showPrintModal && (
-        <div className="modal-overlay no-print" style={{ zIndex: 99999 }} onClick={() => setShowPrintModal(false)}>
+        <div className="modal-overlay no-print animate-fade-in" style={{ zIndex: 99999 }} onClick={() => setShowPrintModal(false)}>
           <div 
-            className="modal-container print-options-modal" 
+            className="modal-container glass-panel print-options-modal animate-scale-up" 
             onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: '560px', width: '100%', padding: 0, overflow: 'hidden' }}
           >

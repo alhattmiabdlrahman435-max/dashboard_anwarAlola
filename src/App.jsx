@@ -25,6 +25,9 @@ import ControlTab from './tabs/ControlTab';
 import ReportsTab from './tabs/ReportsTab';
 import TeacherReportsTab from './tabs/TeacherReportsTab';
 import SettingsTab from './tabs/SettingsTab';
+import PrepSupervisorsTab from './tabs/PrepSupervisorsTab';
+
+import ConfirmModal from './components/ConfirmModal';
 
 import './App.css';
 
@@ -62,6 +65,8 @@ function DashboardShell() {
         return <StudentsTab />;
       case 'parents':
         return <ParentsTab />;
+      case 'prepSupervisors':
+        return <PrepSupervisorsTab />;
       case 'teachers':
         return <TeachersTab />;
       case 'classes':
@@ -109,6 +114,7 @@ function DashboardShell() {
         </main>
       </div>
       <StudentCardModal />
+      <ConfirmModal />
       <Toast />
     </div>
   );

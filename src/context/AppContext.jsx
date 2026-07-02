@@ -15,6 +15,7 @@ export const dictionary = {
     appSubtitle: "الدولية النموذجية",
     dashboard: "الرئيسية",
     students: "الطلاب",
+    prepSupervisors: "مشرفو التحضير",
     teachers: "المعلمون",
     classes: "الفصول الدراسية",
     subjects: "المواد الدراسية",
@@ -71,8 +72,7 @@ export const dictionary = {
     formParentPhone: "رقم هاتف ولي الأمر",
     emptyError: "الرجاء تعبئة جميع الحقول المطلوبة",
     phoneError: "الرجاء إدخال رقم جوال صحيح (9 أرقام يبدأ بـ 5)",
-    nationalIdError:
-      "الرجاء إدخال رقم هوية وطنية صحيح لولي الأمر (10 أرقام تبدأ بـ 1 أو 2)",
+    nationalIdError: "الرجاء إدخال رقم هوية وطنية صحيح لولي الأمر (10 أرقام تبدأ بـ 1 أو 2)",
     siblings: "الأبناء المسجلون في المدرسة",
     formPhoto: "صورة شخصية",
     required: "إجباري",
@@ -176,13 +176,13 @@ export const dictionary = {
     closeBtn: "إغلاق",
     parents: "أولياء الأمور",
     parentsTitle: "سجل أولياء الأمور وبيانات الاتصال الأسرية",
-    parentNationalIdShort: "رقم الهوية لولي الأمر",
+    parentNationalIdShort: "الرقم الوطني لولي الأمر",
     parentSonsCount: "عدد الأبناء المسجلين",
     parentSonsList: "الأبناء في المدرسة",
-    searchParentPlaceholder: "البحث باسم ولي الأمر أو رقم الهوية...",
+    searchParentPlaceholder: "البحث باسم ولي الأمر أو الرقم الوطني...",
     assignmentsHub: "منصة الواجبات",
     absenceRequests: "طلبات الغياب",
-    detailedGrades: "الرصد التفصيلي",
+    detailedGrades: "الدرجات",
     examSchedulesBuilder: "جداول الاختبارات",
     finance: "المالية والرسوم",
     communications: "الإشعارات",
@@ -312,6 +312,7 @@ export const dictionary = {
     appSubtitle: "Int. Model Schools",
     dashboard: "Home",
     students: "Students",
+    prepSupervisors: "Prep Supervisors",
     teachers: "Teachers",
     classes: "Classes",
     subjects: "Subjects",
@@ -478,7 +479,7 @@ export const dictionary = {
     searchParentPlaceholder: "Search by parent name or National ID...",
     assignmentsHub: "Assignments Hub",
     absenceRequests: "Absence Requests",
-    detailedGrades: "Detailed Grading",
+    detailedGrades: "Grades",
     examSchedulesBuilder: "Exam Schedules",
     finance: "Finance & Fees",
     communications: "Notifications",
@@ -764,6 +765,19 @@ const initialParentUsers = [
     password: "parent_password123",
     photo: "🧔",
   },
+];
+
+const initialSupervisors = [
+  { 
+    id: 301, 
+    jobId: "P101", 
+    password: "500000101", 
+    name: "أ. منى الحربي", 
+    nameEn: "Ms. Mona Al-Harbi", 
+    classes: ["الصف الأول - أ", "الصف الثاني - أ"], 
+    photo: "👩‍🏫",
+    phone: "500000101"
+  }
 ];
 
 const initialTeachers = [
@@ -1565,6 +1579,7 @@ export const AppProvider = ({ children }) => {
 
   // School core data states
   const [students, setStudents] = useState(initialStudents);
+  const [supervisors, setSupervisors] = useState(initialSupervisors);
   const [teachers, setTeachers] = useState(initialTeachers);
   const [schedules, setSchedules] = useState(initialSchedule);
   const [grades, setGrades] = useState(initialGrades);
@@ -1614,6 +1629,29 @@ export const AppProvider = ({ children }) => {
 
   const [toastMessage, setToastMessage] = useState("");
 
+  const [confirmState, setConfirmState] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null
+  });
+
+  const triggerConfirm = ({ title, message, onConfirm, onCancel }) => {
+    setConfirmState({
+      isOpen: true,
+      title: title || (lang === 'ar' ? 'تأكيد الإجراء' : 'Confirm Action'),
+      message,
+      onConfirm: () => {
+        if (onConfirm) onConfirm();
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+      },
+      onCancel: () => {
+        if (onCancel) onCancel();
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
   // Gate Scanner Simulator states
   const [smsLogs, setSmsLogs] = useState([]);
   const [selectedAttendanceMonth, setSelectedAttendanceMonth] =
@@ -2596,6 +2634,24 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToastMessage(""), 4000);
   };
 
+  const handleAddSupervisorAction = (newSupervisor) => {
+    setSupervisors(prev => [...prev, newSupervisor]);
+    setToastMessage(lang === 'ar' ? 'تم تسجيل مشرف التحضير بنجاح!' : 'Prep supervisor added successfully!');
+    setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const handleEditSupervisorAction = (updatedSupervisor, supervisorId) => {
+    setSupervisors(prev => prev.map(s => s.id === supervisorId ? updatedSupervisor : s));
+    setToastMessage(lang === 'ar' ? 'تم تحديث بيانات المشرف بنجاح!' : 'Supervisor details updated successfully!');
+    setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const handleDeleteSupervisorAction = (supervisorId) => {
+    setSupervisors(prev => prev.filter(s => s.id !== supervisorId));
+    setToastMessage(lang === 'ar' ? 'تم حذف المشرف بنجاح!' : 'Supervisor deleted successfully!');
+    setTimeout(() => setToastMessage(''), 4000);
+  };
+
   const handleAddClassAction = (newClass) => {
     setClasses((prev) => [...prev, newClass]);
     setToastMessage(
@@ -3434,38 +3490,36 @@ export const AppProvider = ({ children }) => {
 
   const handleDeleteExamScheduleAction = (id) => {
     const token = localStorage.getItem("auth_token");
-    if (
-      window.confirm(
-        lang === "ar"
-          ? "هل أنت متأكد من حذف هذا الجدول؟"
-          : "Are you sure you want to delete this schedule?",
-      )
-    ) {
-      setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
-      setToastMessage(
-        lang === "ar"
-          ? "تم حذف جدول الاختبارات بنجاح"
-          : "Exam schedule deleted successfully",
-      );
-      setTimeout(() => setToastMessage(""), 3000);
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف جدول الاختبارات' : 'Delete Exam Schedule',
+      message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الجدول نهائياً؟' : 'Are you sure you want to permanently delete this schedule?',
+      onConfirm: () => {
+        setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
+        setToastMessage(
+          lang === "ar"
+            ? "تم حذف جدول الاختبارات بنجاح"
+            : "Exam schedule deleted successfully",
+        );
+        setTimeout(() => setToastMessage(""), 3000);
 
-      if (token) {
-        fetch(`/api/exam-schedules/${id}`, {
-          method: "DELETE",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (!data.success) {
-              console.error("Failed to delete exam schedule from backend:", data.message);
-            }
+        if (token) {
+          fetch(`/api/exam-schedules/${id}`, {
+            method: "DELETE",
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           })
-          .catch((err) => console.error("Error deleting exam schedule:", err));
+            .then((res) => res.json())
+            .then((data) => {
+              if (!data.success) {
+                console.error("Failed to delete exam schedule from backend:", data.message);
+              }
+            })
+            .catch((err) => console.error("Error deleting exam schedule:", err));
+        }
       }
-    }
+    });
   };
 
   const handleAddPaymentAction = (newPayment) => {
@@ -4061,6 +4115,8 @@ export const AppProvider = ({ children }) => {
         setStudents,
         teachers,
         setTeachers,
+        supervisors,
+        setSupervisors,
         schedules,
         setSchedules,
         grades,
@@ -4091,6 +4147,8 @@ export const AppProvider = ({ children }) => {
         setTeacherReports,
         toastMessage,
         setToastMessage,
+        confirmState,
+        triggerConfirm,
         smsLogs,
         setSmsLogs,
         attendanceRecords,
@@ -4120,6 +4178,9 @@ export const AppProvider = ({ children }) => {
         handleAddParent: handleAddParentAction,
         handleEditParent: handleEditParentAction,
         handleEditTeacher: handleEditTeacherAction,
+        handleAddSupervisor: handleAddSupervisorAction,
+        handleEditSupervisor: handleEditSupervisorAction,
+        handleDeleteSupervisor: handleDeleteSupervisorAction,
         handleAddClass: handleAddClassAction,
         handleEditClass: handleEditClassAction,
         handleDeleteClass: handleDeleteClassAction,

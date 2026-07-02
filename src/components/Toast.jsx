@@ -6,7 +6,7 @@ export default function Toast() {
   if (!toastMessage) return null;
 
   return (
-    <div style={{
+    <div className="animate-slide-up" style={{
       position: 'fixed',
       top: '24px',
       right: '24px',

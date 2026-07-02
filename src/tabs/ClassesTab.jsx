@@ -13,7 +13,8 @@ export default function ClassesTab() {
     subjects,
     availableGrades,
     availableSections,
-    setToastMessage
+    setToastMessage,
+    triggerConfirm
   } = useApp();
 
   // Local state for searching & modals
@@ -101,15 +102,20 @@ export default function ClassesTab() {
   };
 
   const handleDeleteClass = (id) => {
-    if (window.confirm(lang === 'ar' ? 'هل أنت متأكد من حذف هذا الفصل؟' : 'Are you sure you want to delete this class?')) {
-      setClasses(prev => prev.filter(c => c.id !== id));
-      setToastMessage(lang === 'ar' ? 'تم حذف الفصل بنجاح' : 'Class deleted successfully');
-      setTimeout(() => setToastMessage(''), 3000);
-    }
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف الفصل الدراسي' : 'Delete Class',
+      message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الفصل؟ سيتم فصل طلابه وتكليفات المعلمين المرتبطة به.' : 'Are you sure you want to delete this class? Connected students and teacher assignments will be unlinked.',
+      onConfirm: () => {
+        setClasses(prev => prev.filter(c => c.id !== id));
+        setToastMessage(lang === 'ar' ? 'تم حذف الفصل بنجاح' : 'Class deleted successfully');
+        setTimeout(() => setToastMessage(''), 3000);
+      }
+    });
   };
 
   return (
-    <div className="section-card">
+    <>
+      <div className="section-card">
       <div className="section-card-header no-print">
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           {lang === 'ar' ? 'سجل الفصول الدراسية والشُعب' : 'Classes & Sections Registry'}
@@ -276,6 +282,7 @@ export default function ClassesTab() {
               </div>
             );
           })}
+      </div>
       </div>
 
       {/* MODAL DIALOG: ADD CLASS */}
@@ -623,6 +630,6 @@ export default function ClassesTab() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

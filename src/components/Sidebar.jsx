@@ -2,7 +2,7 @@ import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, GraduationCap, Users, BookOpen, School, Book, 
   Calendar, QrCode, ClipboardCheck, FileText, CalendarCheck, Award, 
-  DollarSign, Bell, ShieldAlert, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X 
+  DollarSign, Bell, ShieldAlert, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X, UserCheck
 } from 'lucide-react';
 import sloganLogo from '../assets/slogan.jpeg';
 
@@ -84,6 +84,17 @@ export default function Sidebar() {
           >
             <Users />
             <span>{t.parents}</span>
+          </button>
+        )}
+
+        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+          <button 
+            className={`menu-item ${activeTab === 'prepSupervisors' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('prepSupervisors'); setIsMobileMenuOpen(false); }}
+            data-tooltip={t.prepSupervisors}
+          >
+            <UserCheck />
+            <span>{t.prepSupervisors}</span>
           </button>
         )}
 
@@ -177,15 +188,6 @@ export default function Sidebar() {
               <CalendarCheck />
               <span>{t.examSchedulesBuilder}</span>
             </button>
-          </>
-        )}
-
-        {/* Group 3: Administration */}
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
-          <>
-            <div className="sidebar-category-header">
-              <span>{lang === 'ar' ? 'الإدارة والمالية' : 'Management'}</span>
-            </div>
 
             <button 
               className={`menu-item ${activeTab === 'detailedGrades' ? 'active' : ''}`}
@@ -195,6 +197,15 @@ export default function Sidebar() {
               <Award />
               <span>{t.detailedGrades}</span>
             </button>
+          </>
+        )}
+
+        {/* Group 3: Administration */}
+        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+          <>
+            <div className="sidebar-category-header">
+              <span>{lang === 'ar' ? 'الإدارة والمالية' : 'Management'}</span>
+            </div>
 
             <button 
               className={`menu-item ${activeTab === 'finance' ? 'active' : ''}`}

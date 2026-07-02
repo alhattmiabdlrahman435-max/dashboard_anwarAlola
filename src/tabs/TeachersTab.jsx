@@ -5,7 +5,8 @@ import { Plus, X, Trash2 } from 'lucide-react';
 export default function TeachersTab() {
   const {
     lang, t, teachers, subjects, classes,
-    handleAddTeacher, handleEditTeacher, renderAvatar
+    handleAddTeacher, handleEditTeacher, renderAvatar,
+    setToastMessage
   } = useApp();
 
   // Local UI states
@@ -109,12 +110,14 @@ export default function TeachersTab() {
 
   const addAssignmentRow = () => {
     if (!modalTeacherAssignmentSubject || !modalTeacherAssignmentClass) {
-      alert(lang === 'ar' ? 'يرجى اختيار المادة والفصل معاً!' : 'Please select both subject and class!');
+      setToastMessage(lang === 'ar' ? '⚠️ يرجى اختيار المادة والفصل معاً!' : '⚠️ Please select both subject and class!');
+      setTimeout(() => setToastMessage(''), 3000);
       return;
     }
     // Check duplicate
     if (modalTeacherAssignments.some(a => a.subject === modalTeacherAssignmentSubject && a.class === modalTeacherAssignmentClass)) {
-      alert(lang === 'ar' ? 'هذا التكليف مضاف بالفعل!' : 'This assignment is already added!');
+      setToastMessage(lang === 'ar' ? '⚠️ هذا التكليف مضاف بالفعل!' : '⚠️ This assignment is already added!');
+      setTimeout(() => setToastMessage(''), 3000);
       return;
     }
 

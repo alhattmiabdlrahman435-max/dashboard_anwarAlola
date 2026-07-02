@@ -12,7 +12,8 @@ export default function SubjectsTab() {
     setTeachers,
     subjects,
     setSubjects,
-    setToastMessage
+    setToastMessage,
+    triggerConfirm
   } = useApp();
 
   // Local state for searching & modals
@@ -139,20 +140,25 @@ export default function SubjectsTab() {
   const handleDeleteSubject = (id) => {
     const sub = subjects.find(s => s.id === id);
     if (!sub) return;
-    if (window.confirm(lang === 'ar' ? `هل أنت متأكد من حذف مادة ${sub.name}؟ سيتم إزالتها من جميع الفصول.` : `Are you sure you want to delete ${sub.nameEn}? It will be removed from all classes.`)) {
-      setSubjects(prev => prev.filter(s => s.id !== id));
-      // Remove this subject from all classes
-      setClasses(prev => prev.map(c => ({
-        ...c,
-        subjects: c.subjects.filter(s => s !== sub.name)
-      })));
-      setToastMessage(lang === 'ar' ? 'تم حذف المادة بنجاح' : 'Subject deleted successfully');
-      setTimeout(() => setToastMessage(''), 3000);
-    }
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف المادة الدراسية' : 'Delete Subject',
+      message: lang === 'ar' ? `هل أنت متأكد من حذف مادة ${sub.name}؟ سيتم إزالتها من جميع الفصول وتكليفات المعلمين.` : `Are you sure you want to delete ${sub.nameEn}? It will be removed from all classes and teacher assignments.`,
+      onConfirm: () => {
+        setSubjects(prev => prev.filter(s => s.id !== id));
+        // Remove this subject from all classes
+        setClasses(prev => prev.map(c => ({
+          ...c,
+          subjects: c.subjects.filter(s => s !== sub.name)
+        })));
+        setToastMessage(lang === 'ar' ? 'تم حذف المادة بنجاح' : 'Subject deleted successfully');
+        setTimeout(() => setToastMessage(''), 3000);
+      }
+    });
   };
 
   return (
-    <div className="section-card">
+    <>
+      <div className="section-card">
       <div className="section-card-header no-print">
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           {lang === 'ar' ? 'سجل المواد الدراسية والمناهج' : 'Subjects & Curriculum Registry'}
@@ -299,6 +305,7 @@ export default function SubjectsTab() {
               </div>
             );
           })}
+      </div>
       </div>
 
       {/* MODAL DIALOG: ADD SUBJECT */}
@@ -555,6 +562,6 @@ export default function SubjectsTab() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
