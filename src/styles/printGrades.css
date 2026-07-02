@@ -1,0 +1,101 @@
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0.8cm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  body[data-print-mode] .printable-area {
+    margin: 0 !important;
+    padding: 16px !important;
+    border: 2px double #0f766e !important;
+    border-radius: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .section-card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  .control-grade-table th {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+    border-bottom: 2px solid #0f172a !important;
+    font-weight: bold !important;
+  }
+  .control-grade-table td, .control-grade-table th {
+    border-color: #cbd5e1 !important;
+    padding: 10px !important;
+    font-size: 11px !important;
+  }
+  .print-only-grade-value {
+    display: inline !important;
+    font-weight: bold !important;
+  }
+  .printable-only-header,
+  .printable-only-metadata,
+  .printable-only-signatures {
+    display: flex !important;
+  }
+  
+  /* Dynamic controls based on data-print-mode */
+  body[data-print-mode="subject"] .print-subject-only-content {
+    display: block !important;
+    visibility: visible !important;
+  }
+  body[data-print-mode="subject"] .print-subject-only-content * {
+    visibility: visible !important;
+  }
+  body[data-print-mode="subject"] .print-term-full-report,
+  body[data-print-mode="subject"] .print-month-full-report,
+  body[data-print-mode="subject"] .print-class-report {
+    display: none !important;
+  }
+
+  body[data-print-mode="month"] .print-month-full-report {
+    display: block !important;
+    visibility: visible !important;
+  }
+  body[data-print-mode="month"] .print-month-full-report * {
+    visibility: visible !important;
+  }
+  body[data-print-mode="month"] .print-subject-only-content,
+  body[data-print-mode="month"] .print-term-full-report,
+  body[data-print-mode="month"] .print-class-report {
+    display: none !important;
+  }
+
+  body[data-print-mode="term"] .print-term-full-report {
+    display: block !important;
+    visibility: visible !important;
+  }
+  body[data-print-mode="term"] .print-term-full-report * {
+    visibility: visible !important;
+  }
+  body[data-print-mode="term"] .print-subject-only-content,
+  body[data-print-mode="term"] .print-month-full-report,
+  body[data-print-mode="term"] .print-class-report {
+    display: none !important;
+  }
+
+  body[data-print-mode="class"] .print-class-report {
+    display: block !important;
+    visibility: visible !important;
+  }
+  body[data-print-mode="class"] .print-class-report * {
+    visibility: visible !important;
+  }
+  body[data-print-mode="class"] .print-subject-only-content,
+  body[data-print-mode="class"] .print-term-full-report,
+  body[data-print-mode="class"] .print-month-full-report,
+  body[data-print-mode="class"] .no-print,
+  body[data-print-mode="class"] .section-card-header,
+  body[data-print-mode="class"] .sidebar,
+  body[data-print-mode="class"] .navbar {
+    display: none !important;
+  }
+}
