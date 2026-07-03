@@ -1627,6 +1627,39 @@ export const AppProvider = ({ children }) => {
   const [notifications, setNotifications] = useState(initialNotifications);
   const [teacherReports, setTeacherReports] = useState([]);
 
+  // Vice Principals (Supervisors) state
+  const [vicePrincipals, setVicePrincipals] = useState([]);
+
+  // Permission helper: check if user has view access to a module
+  const hasPermission = useCallback((module) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    if (currentUser.role !== 'supervisor') return false;
+    const perms = currentUser.permissions;
+    if (!perms) return false;
+    if (perms.full_access) return true;
+    if (!perms[module]) return false;
+    const mp = perms[module];
+    if (Array.isArray(mp) && !mp.actions) return mp.includes('view');
+    if (mp.actions) return mp.actions.includes('view');
+    return false;
+  }, [currentUser]);
+
+  // Permission helper: check if user can perform a specific action on a module
+  const canAction = useCallback((module, action) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    if (currentUser.role !== 'supervisor') return false;
+    const perms = currentUser.permissions;
+    if (!perms) return false;
+    if (perms.full_access) return true;
+    if (!perms[module]) return false;
+    const mp = perms[module];
+    if (Array.isArray(mp) && !mp.actions) return mp.includes(action);
+    if (mp.actions) return mp.actions.includes(action);
+    return false;
+  }, [currentUser]);
+
   const [toastMessage, setToastMessage] = useState("");
 
   const [confirmState, setConfirmState] = useState({
@@ -2256,6 +2289,21 @@ export const AppProvider = ({ children }) => {
       })
       .catch((err) => console.error("Error fetching teachers:", err));
   };
+  const fetchSupervisors = (token) => {
+    fetch("/api/supervisors", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setSupervisors(data.supervisors);
+        }
+      })
+      .catch((err) => console.error("Error fetching supervisors:", err));
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -2263,6 +2311,7 @@ export const AppProvider = ({ children }) => {
       if (token) {
         fetchNotifications(token);
         fetchTeachers(token);
+        fetchSupervisors(token);
         fetchSubjects(token);
         fetchClasses(token);
         fetchStudents(token);
@@ -2635,21 +2684,93 @@ export const AppProvider = ({ children }) => {
   };
 
   const handleAddSupervisorAction = (newSupervisor) => {
+    const token = localStorage.getItem("auth_token");
     setSupervisors(prev => [...prev, newSupervisor]);
     setToastMessage(lang === 'ar' ? 'تم تسجيل مشرف التحضير بنجاح!' : 'Prep supervisor added successfully!');
     setTimeout(() => setToastMessage(''), 4000);
+
+    if (token) {
+      fetch("/api/supervisors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          jobId: newSupervisor.jobId,
+          name: newSupervisor.name,
+          phone: newSupervisor.phone,
+          password: newSupervisor.password,
+          classes: newSupervisor.classes
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setSupervisors(prev => prev.map(s => s.jobId === newSupervisor.jobId ? data.supervisor : s));
+        } else {
+          console.error("Failed to save supervisor:", data.message);
+        }
+      })
+      .catch(err => console.error("Error saving supervisor:", err));
+    }
   };
 
   const handleEditSupervisorAction = (updatedSupervisor, supervisorId) => {
+    const token = localStorage.getItem("auth_token");
     setSupervisors(prev => prev.map(s => s.id === supervisorId ? updatedSupervisor : s));
     setToastMessage(lang === 'ar' ? 'تم تحديث بيانات المشرف بنجاح!' : 'Supervisor details updated successfully!');
     setTimeout(() => setToastMessage(''), 4000);
+
+    if (token) {
+      fetch(`/api/supervisors/${supervisorId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          jobId: updatedSupervisor.jobId,
+          name: updatedSupervisor.name,
+          phone: updatedSupervisor.phone,
+          password: updatedSupervisor.password !== "teacher_password123" ? updatedSupervisor.password : undefined,
+          classes: updatedSupervisor.classes
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          console.error("Failed to update supervisor:", data.message);
+        }
+      })
+      .catch(err => console.error("Error updating supervisor:", err));
+    }
   };
 
   const handleDeleteSupervisorAction = (supervisorId) => {
+    const token = localStorage.getItem("auth_token");
     setSupervisors(prev => prev.filter(s => s.id !== supervisorId));
     setToastMessage(lang === 'ar' ? 'تم حذف المشرف بنجاح!' : 'Supervisor deleted successfully!');
     setTimeout(() => setToastMessage(''), 4000);
+
+    if (token) {
+      fetch(`/api/supervisors/${supervisorId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          console.error("Failed to delete supervisor:", data.message);
+        }
+      })
+      .catch(err => console.error("Error deleting supervisor:", err));
+    }
   };
 
   const handleAddClassAction = (newClass) => {
@@ -4230,6 +4351,16 @@ export const AppProvider = ({ children }) => {
         setSelectedGradeSubject,
         printStudentObject,
         setPrintStudentObject,
+        // Vice Principals & Permissions
+        vicePrincipals,
+        setVicePrincipals,
+        hasPermission,
+        canAction,
+        // Refresh functions
+        fetchStudents,
+        fetchParents,
+        fetchTeachers,
+        fetchControlGrades,
       }}
     >
       {children}

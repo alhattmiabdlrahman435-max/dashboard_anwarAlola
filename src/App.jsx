@@ -26,6 +26,7 @@ import ReportsTab from './tabs/ReportsTab';
 import TeacherReportsTab from './tabs/TeacherReportsTab';
 import SettingsTab from './tabs/SettingsTab';
 import PrepSupervisorsTab from './tabs/PrepSupervisorsTab';
+import SupervisorsTab from './tabs/SupervisorsTab';
 
 import ConfirmModal from './components/ConfirmModal';
 
@@ -97,6 +98,8 @@ function DashboardShell() {
         return <TeacherReportsTab />;
       case 'settings':
         return <SettingsTab />;
+      case 'supervisors':
+        return <SupervisorsTab />;
       default:
         return <DashboardTab />;
     }

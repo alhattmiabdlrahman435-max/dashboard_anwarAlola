@@ -12,8 +12,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 
-class TeacherController extends Controller
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class TeacherController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:teachers,view', only: ['index', 'show']),
+            new Middleware('check.permission:teachers,create', only: ['store']),
+            new Middleware('check.permission:teachers,update', only: ['update']),
+            new Middleware('check.permission:teachers,delete', only: ['destroy']),
+        ];
+    }
+
     public function index()
     {
         $teachers = User::teachers()->with('teacherSubjects.subject', 'teacherSubjects.schoolClass')->get()->map(function($t) {
@@ -60,6 +73,7 @@ class TeacherController extends Controller
                 'name' => $request->name_ar,
                 'username' => $request->job_id,
                 'job_id' => $request->job_id,
+                'national_id' => $request->job_id,
                 'password' => Hash::make($request->password),
                 'role' => 'teacher',
                 'name_ar' => $request->name_ar,

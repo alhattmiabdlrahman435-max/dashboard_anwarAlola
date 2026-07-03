@@ -73,15 +73,16 @@ class DatabaseSeeder extends Seeder
             'phone' => '500000002',
             'photo_url' => 'و ك',
             'is_active' => true,
+            'permissions' => json_encode(['full_access' => true]),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $prepSupervisorId = DB::table('users')->insertGetId([
             'name' => 'prep_supervisor',
-            'username' => 'prep_supervisor',
+            'username' => '1000000101',
             'national_id' => '1000000101',
-            'job_id' => 'P101',
+            'job_id' => '1000000101',
             'password' => Hash::make('500000101'),
             'role' => 'preparation_supervisor',
             'name_ar' => 'أ. منى الحربي',
@@ -95,10 +96,10 @@ class DatabaseSeeder extends Seeder
 
         // Teachers (Users)
         $teachersData = [
-            ['username' => 'T101', 'nationalId' => '1011111111', 'name' => 'الأستاذ فهد الهذلول', 'nameEn' => 'Mr. Fahad Al-Hathloul', 'phone' => '501111111'],
-            ['username' => 'T102', 'nationalId' => '1022222222', 'name' => 'الأستاذ سليمان الحربي', 'nameEn' => 'Mr. Sulaiman Al-Harbi', 'phone' => '502222222'],
-            ['username' => 'T103', 'nationalId' => '1033333333', 'name' => 'الأستاذ خالد الدوسري', 'nameEn' => 'Mr. Khalid Al-Dawsari', 'phone' => '503333333'],
-            ['username' => 'T104', 'nationalId' => '1044444444', 'name' => 'الأستاذ أحمد الشريف', 'nameEn' => 'Mr. Ahmed Al-Sharif', 'phone' => '504444444'],
+            ['username' => '1011111111', 'nationalId' => '1011111111', 'name' => 'الأستاذ فهد الهذلول', 'nameEn' => 'Mr. Fahad Al-Hathloul', 'phone' => '501111111'],
+            ['username' => '1022222222', 'nationalId' => '1022222222', 'name' => 'الأستاذ سليمان الحربي', 'nameEn' => 'Mr. Sulaiman Al-Harbi', 'phone' => '502222222'],
+            ['username' => '1033333333', 'nationalId' => '1033333333', 'name' => 'الأستاذ خالد الدوسري', 'nameEn' => 'Mr. Khalid Al-Dawsari', 'phone' => '503333333'],
+            ['username' => '1044444444', 'nationalId' => '1044444444', 'name' => 'الأستاذ أحمد الشريف', 'nameEn' => 'Mr. Ahmed Al-Sharif', 'phone' => '504444444'],
         ];
 
         $teacherUserIds = [];

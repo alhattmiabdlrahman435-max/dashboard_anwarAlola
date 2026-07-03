@@ -8,8 +8,21 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
-class ParentController extends Controller
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class ParentController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:parents,view', only: ['index', 'show']),
+            new Middleware('check.permission:parents,create', only: ['store']),
+            new Middleware('check.permission:parents,update', only: ['update']),
+            new Middleware('check.permission:parents,delete', only: ['destroy']),
+        ];
+    }
+
     public function index()
     {
         $parents = User::parents()->get();

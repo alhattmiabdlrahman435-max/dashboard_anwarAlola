@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, X } from 'lucide-react';
+import { Search, X, Download, Upload } from 'lucide-react';
 
 export default function ParentsTab() {
   const {
     lang, t, parentUsers, students,
-    handleAddParent, handleEditParent, renderAvatar, currentUser
+    handleAddParent, handleEditParent, renderAvatar, currentUser,
+    canAction, fetchParents, setToastMessage
   } = useApp();
 
   // Local UI states
@@ -105,6 +106,78 @@ export default function ParentsTab() {
     setSelectedParentIdForEdit('');
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch('/api/parents/export', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'parents_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/parents/import', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setToastMessage(data.message);
+        fetchParents(localStorage.getItem('auth_token'));
+      } else {
+        alert(data.message || (lang === 'ar' ? 'حدث خطأ أثناء الاستيراد' : 'Error importing'));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/api/parents/template', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        }
+      });
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'parents_template.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const filteredParents = parentUsers.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.nameEn && p.nameEn.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -118,23 +191,43 @@ export default function ParentsTab() {
           {t.parentsTitle}
         </h3>
         
-        {currentUser?.role === 'admin' && (
-          <button 
-            className="btn-filled"
-            onClick={() => {
-              setFormError('');
-              setModalParentNameAr('');
-              setModalParentNameEn('');
-              setModalParentPhoneNum('');
-              setModalParentNationalIdVal('');
-              setModalParentPass('');
-              setShowAddParentModal(true);
-            }}
-            style={{ padding: '8px 16px', fontSize: '13px' }}
-          >
-            🧔 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent'}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {canAction('parents', 'export') && (
+            <button className="btn-secondary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 16px', fontSize: '13px' }}>
+              <Download size={16} />
+              {lang === 'ar' ? 'تصدير' : 'Export'}
+            </button>
+          )}
+          {canAction('parents', 'import') && (
+            <>
+              <button className="btn-secondary" onClick={handleDownloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 16px', fontSize: '13px' }} title={lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}>
+                {lang === 'ar' ? 'النموذج' : 'Template'}
+              </button>
+              <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0, padding: '8px 16px', fontSize: '13px' }}>
+                <Upload size={16} />
+                {lang === 'ar' ? 'استيراد' : 'Import'}
+                <input type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} />
+              </label>
+            </>
+          )}
+          {canAction('parents', 'create') && (
+            <button 
+              className="btn-filled"
+              onClick={() => {
+                setFormError('');
+                setModalParentNameAr('');
+                setModalParentNameEn('');
+                setModalParentPhoneNum('');
+                setModalParentNationalIdVal('');
+                setModalParentPass('');
+                setShowAddParentModal(true);
+              }}
+              style={{ padding: '8px 16px', fontSize: '13px' }}
+            >
+              🧔 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search Box */}

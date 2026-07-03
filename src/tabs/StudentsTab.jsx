@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X, Download, Upload } from 'lucide-react';
 
 export default function StudentsTab() {
   const {
     lang, t, students, parentUsers, availableGrades, availableSections,
     setSelectedStudentForCard, setShowCardVisualizerModal,
-    handleAddStudent, renderAvatar, currentUser, controlMultiplier, controlOffset
+    handleAddStudent, renderAvatar, currentUser, controlMultiplier, controlOffset,
+    canAction, fetchStudents, setToastMessage
   } = useApp();
 
   // Local UI states
@@ -121,6 +122,78 @@ export default function StudentsTab() {
     setParentSearchText('');
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch('/api/students/export', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'students_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/students/import', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setToastMessage(data.message);
+        fetchStudents(localStorage.getItem('auth_token'));
+      } else {
+        alert(data.message || (lang === 'ar' ? 'حدث خطأ أثناء الاستيراد' : 'Error importing'));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/api/students/template', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        }
+      });
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'students_template.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const filteredStudents = students.filter(student => {
     if (currentUser?.role === 'parent' && student.parentNationalId !== currentUser.username) {
       return false;
@@ -148,26 +221,46 @@ export default function StudentsTab() {
             {lang === 'ar' ? 'سجل شؤون الطلاب والبطاقات الذكية' : 'Student Registry & Smart Cards'}
           </h3>
           
-          {currentUser?.role === 'admin' && (
-            <button 
-              className="btn-accent"
-              onClick={() => {
-                setFormError('');
-                setModalStudentName('');
-                setModalParentNationalId('');
-                setModalParentName('');
-                setModalPhone('');
-                setModalStudentPhoto('');
-                setModalParentPhoto('');
-                setSelectedParentLinkOption('');
-                setParentSearchText('');
-                setShowStudentModal(true);
-              }}
-            >
-              <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
-              {t.requestCardBtn}
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {canAction('students', 'export') && (
+              <button className="btn-secondary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Download size={16} />
+                {lang === 'ar' ? 'تصدير' : 'Export'}
+              </button>
+            )}
+            {canAction('students', 'import') && (
+              <>
+                <button className="btn-secondary" onClick={handleDownloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}>
+                  {lang === 'ar' ? 'النموذج' : 'Template'}
+                </button>
+                <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0 }}>
+                  <Upload size={16} />
+                  {lang === 'ar' ? 'استيراد' : 'Import'}
+                  <input type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} />
+                </label>
+              </>
+            )}
+            {canAction('students', 'create') && (
+              <button 
+                className="btn-accent"
+                onClick={() => {
+                  setFormError('');
+                  setModalStudentName('');
+                  setModalParentNationalId('');
+                  setModalParentName('');
+                  setModalPhone('');
+                  setModalStudentPhoto('');
+                  setModalParentPhoto('');
+                  setSelectedParentLinkOption('');
+                  setParentSearchText('');
+                  setShowStudentModal(true);
+                }}
+              >
+                <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
+                {t.requestCardBtn}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Searching and Filter Chips */}

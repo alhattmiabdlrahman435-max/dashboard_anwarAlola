@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, X, Trash2 } from 'lucide-react';
+import { Plus, X, Trash2, Download, Upload } from 'lucide-react';
 
 export default function TeachersTab() {
   const {
     lang, t, teachers, subjects, classes,
     handleAddTeacher, handleEditTeacher, renderAvatar,
-    setToastMessage
+    setToastMessage, canAction, fetchTeachers
   } = useApp();
 
   // Local UI states
@@ -135,29 +135,123 @@ export default function TeachersTab() {
     setModalTeacherAssignments(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch('/api/teachers/export', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'teachers_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/teachers/import', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setToastMessage(data.message);
+        fetchTeachers(localStorage.getItem('auth_token'));
+      } else {
+        alert(data.message || (lang === 'ar' ? 'حدث خطأ أثناء الاستيراد' : 'Error importing'));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/api/teachers/template', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        }
+      });
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'teachers_template.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="section-card">
       <div className="section-card-header no-print">
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           {t.teachersTitle}
         </h3>
-        <button 
-          className="btn-accent"
-          onClick={() => {
-            setFormError('');
-            setModalTeacherName('');
-            setModalTeacherAssignments([]);
-            setModalTeacherPhoto('');
-            setModalTeacherJobId('');
-            setModalTeacherPassword('');
-            setModalTeacherAssignmentSubject('');
-            setModalTeacherAssignmentClass('');
-            setShowTeacherModal(true);
-          }}
-        >
-          <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
-          {t.addTeacherBtn}
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {canAction('teachers', 'export') && (
+            <button className="btn-secondary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Download size={16} />
+              {lang === 'ar' ? 'تصدير' : 'Export'}
+            </button>
+          )}
+          {canAction('teachers', 'import') && (
+            <>
+              <button className="btn-secondary" onClick={handleDownloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}>
+                {lang === 'ar' ? 'النموذج' : 'Template'}
+              </button>
+              <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0 }}>
+                <Upload size={16} />
+                {lang === 'ar' ? 'استيراد' : 'Import'}
+                <input type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} />
+              </label>
+            </>
+          )}
+          {canAction('teachers', 'create') && (
+            <button 
+              className="btn-accent"
+              onClick={() => {
+                setFormError('');
+                setModalTeacherName('');
+                setModalTeacherAssignments([]);
+                setModalTeacherPhoto('');
+                setModalTeacherJobId('');
+                setModalTeacherPassword('');
+                setModalTeacherAssignmentSubject('');
+                setModalTeacherAssignmentClass('');
+                setShowTeacherModal(true);
+              }}
+            >
+              <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
+              {t.addTeacherBtn}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="students-table-container">

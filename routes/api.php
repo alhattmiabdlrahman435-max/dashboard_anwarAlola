@@ -18,6 +18,9 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\ScheduleController;
+use App\Http\Controllers\Api\PrepSupervisorController;
+use App\Http\Controllers\Api\VicePrincipalController;
+use App\Http\Controllers\Api\ExportImportController;
 
 
 /*
@@ -31,6 +34,14 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // ===== Protected Routes - مسارات محمية (تحتاج Token) =====
 Route::middleware('auth:sanctum')->group(function () {
+
+    // Export / Import - استيراد وتصدير البيانات (MUST BE BEFORE RESOURCES)
+    Route::get('/{module}/export', [ExportImportController::class, 'export'])
+        ->where('module', 'students|teachers|parents|grades');
+    Route::post('/{module}/import', [ExportImportController::class, 'import'])
+        ->where('module', 'students|teachers|parents');
+    Route::get('/{module}/template', [ExportImportController::class, 'template'])
+        ->where('module', 'students|teachers|parents');
 
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -48,6 +59,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Teachers - المعلمون
     Route::apiResource('teachers', TeacherController::class);
+
+    // Prep Supervisors - مشرفو التحضير
+    Route::apiResource('supervisors', PrepSupervisorController::class);
 
     // Parents - أولياء الأمور
     Route::apiResource('parents', ParentController::class);
@@ -127,4 +141,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/attendance-history', [TeacherController::class, 'getTeacherAttendanceHistory']);
         Route::get('/reports', [TeacherController::class, 'getSupervisorReports']);
     });
+
+    // Vice Principals (Supervisors) - وكلاء المدرسة
+    Route::apiResource('vice-principals', VicePrincipalController::class);
 });

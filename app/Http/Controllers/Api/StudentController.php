@@ -7,11 +7,33 @@ use App\Models\Student;
 use App\Models\Attendance;
 use Illuminate\Http\Request;
 
-class StudentController extends Controller
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
+
+class StudentController extends Controller implements HasMiddleware
 {
-    public function index()
+    public static function middleware(): array
     {
-        $students = Student::with(['schoolClass', 'parentUser'])->get()->map(function($student) {
+        return [
+            new Middleware('check.permission:students,view', only: ['index', 'show']),
+            new Middleware('check.permission:students,create', only: ['store']),
+            new Middleware('check.permission:students,update', only: ['update']),
+            new Middleware('check.permission:students,delete', only: ['destroy']),
+        ];
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
+
+        $query = Student::query();
+        if ($scopedClassIds !== null) {
+            $query->whereIn('class_id', $scopedClassIds);
+        }
+
+        $students = $query->with(['schoolClass', 'parentUser'])->get()->map(function($student) {
             // Get today's attendance
             $attendance = Attendance::where('student_id', $student->id)
                 ->where('record_date', today()->toDateString())

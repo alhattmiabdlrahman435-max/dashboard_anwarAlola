@@ -7,8 +7,19 @@ use App\Models\Grade;
 use App\Models\Student;
 use Illuminate\Http\Request;
 
-class GradeController extends Controller
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
+
+class GradeController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:grades,view', only: ['detailed', 'control', 'getByClassAndSubject']),
+            new Middleware('check.permission:grades,update', only: ['saveDetailed', 'updateControl', 'generateSecretCodes']),
+        ];
+    }
     /**
      * جلب الدرجات التفصيلية لطالب
      */
@@ -102,9 +113,17 @@ class GradeController extends Controller
     /**
      * جلب درجات الكنترول العام
      */
-    public function control()
+    public function control(Request $request)
     {
-        $students = Student::with(['grades' => function($q) {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+
+        $query = Student::query();
+        if ($scopedClassIds !== null) {
+            $query->whereIn('class_id', $scopedClassIds);
+        }
+
+        $students = $query->with(['grades' => function($q) {
             $q->where('is_control', true)->where('month', 0);
         }])->get();
 
@@ -222,11 +241,18 @@ class GradeController extends Controller
         ]);
     }
 
-    /**
-     * جلب درجات صف دراسي لمادة معينة
-     */
-    public function getByClassAndSubject(string $classId, string $subjectId)
+    public function getByClassAndSubject(Request $request, string $classId, string $subjectId)
     {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+
+        if ($scopedClassIds !== null && !in_array((int)$classId, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بالوصول لدرجات هذا الفصل.'
+            ], 403);
+        }
+
         $students = Student::where('class_id', $classId)->get();
 
         $grades = $students->map(function($student) use ($subjectId) {

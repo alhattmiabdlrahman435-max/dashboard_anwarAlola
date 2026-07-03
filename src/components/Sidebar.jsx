@@ -2,7 +2,7 @@ import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, GraduationCap, Users, BookOpen, School, Book, 
   Calendar, QrCode, ClipboardCheck, FileText, CalendarCheck, Award, 
-  DollarSign, Bell, ShieldAlert, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X, UserCheck
+  DollarSign, Bell, ShieldAlert, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X, UserCheck, UserCog
 } from 'lucide-react';
 import sloganLogo from '../assets/slogan.jpeg';
 
@@ -12,8 +12,11 @@ export default function Sidebar() {
     activeTab, setActiveTab,
     isSidebarCollapsed, setIsSidebarCollapsed,
     isMobileMenuOpen, setIsMobileMenuOpen,
-    currentUser, absenceRequests, teacherReports
+    currentUser, absenceRequests, teacherReports,
+    hasPermission
   } = useApp();
+
+  const isAdmin = currentUser?.role === 'admin';
 
   return (
     <aside className={`sidebar no-print ${isSidebarCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
@@ -65,7 +68,7 @@ export default function Sidebar() {
           <span>{t.dashboard}</span>
         </button>
 
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+        {hasPermission('students') && (
           <button 
             className={`menu-item ${activeTab === 'students' ? 'active' : ''}`}
             onClick={() => { setActiveTab('students'); setIsMobileMenuOpen(false); }}
@@ -76,7 +79,7 @@ export default function Sidebar() {
           </button>
         )}
 
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+        {hasPermission('parents') && (
           <button 
             className={`menu-item ${activeTab === 'parents' ? 'active' : ''}`}
             onClick={() => { setActiveTab('parents'); setIsMobileMenuOpen(false); }}
@@ -87,7 +90,7 @@ export default function Sidebar() {
           </button>
         )}
 
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+        {hasPermission('prepSupervisors') && (
           <button 
             className={`menu-item ${activeTab === 'prepSupervisors' ? 'active' : ''}`}
             onClick={() => { setActiveTab('prepSupervisors'); setIsMobileMenuOpen(false); }}
@@ -98,7 +101,7 @@ export default function Sidebar() {
           </button>
         )}
 
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+        {hasPermission('teachers') && (
           <button 
             className={`menu-item ${activeTab === 'teachers' ? 'active' : ''}`}
             onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }}
@@ -109,7 +112,7 @@ export default function Sidebar() {
           </button>
         )}
 
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+        {hasPermission('classes') && (
           <button 
             className={`menu-item ${activeTab === 'classes' ? 'active' : ''}`}
             onClick={() => { setActiveTab('classes'); setIsMobileMenuOpen(false); }}
@@ -120,7 +123,7 @@ export default function Sidebar() {
           </button>
         )}
 
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+        {hasPermission('subjects') && (
           <button 
             className={`menu-item ${activeTab === 'subjects' ? 'active' : ''}`}
             onClick={() => { setActiveTab('subjects'); setIsMobileMenuOpen(false); }}
@@ -132,140 +135,171 @@ export default function Sidebar() {
         )}
 
         {/* Group 2: Academic */}
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+        {(hasPermission('schedule') || hasPermission('scanner') || hasPermission('absenceRequests') || hasPermission('assignments') || hasPermission('examSchedules') || hasPermission('detailedGrades')) && (
           <>
             <div className="sidebar-category-header">
               <span>{lang === 'ar' ? 'التعليم الأكاديمي' : 'Academic'}</span>
             </div>
 
-            <button 
-              className={`menu-item ${activeTab === 'schedule' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('schedule'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.schedule}
-            >
-              <Calendar />
-              <span>{t.schedule}</span>
-            </button>
+            {hasPermission('schedule') && (
+              <button 
+                className={`menu-item ${activeTab === 'schedule' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('schedule'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.schedule}
+              >
+                <Calendar />
+                <span>{t.schedule}</span>
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'scanner' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('scanner'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.qrScanner}
-            >
-              <QrCode />
-              <span>{t.qrScanner}</span>
-            </button>
+            {hasPermission('scanner') && (
+              <button 
+                className={`menu-item ${activeTab === 'scanner' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('scanner'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.qrScanner}
+              >
+                <QrCode />
+                <span>{t.qrScanner}</span>
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'absenceRequests' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('absenceRequests'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.absenceRequests}
-              style={{ position: 'relative' }}
-            >
-              <ClipboardCheck />
-              <span>{t.absenceRequests}</span>
-              {absenceRequests.filter(r => r.status === 'pending').length > 0 && (
-                <span className="menu-item-badge">
-                  {absenceRequests.filter(r => r.status === 'pending').length}
-                </span>
-              )}
-            </button>
+            {hasPermission('absenceRequests') && (
+              <button 
+                className={`menu-item ${activeTab === 'absenceRequests' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('absenceRequests'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.absenceRequests}
+                style={{ position: 'relative' }}
+              >
+                <ClipboardCheck />
+                <span>{t.absenceRequests}</span>
+                {absenceRequests.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="menu-item-badge">
+                    {absenceRequests.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'assignments' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('assignments'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.assignmentsHub}
-            >
-              <FileText />
-              <span>{t.assignmentsHub}</span>
-            </button>
+            {hasPermission('assignments') && (
+              <button 
+                className={`menu-item ${activeTab === 'assignments' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('assignments'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.assignmentsHub}
+              >
+                <FileText />
+                <span>{t.assignmentsHub}</span>
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'examSchedules' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('examSchedules'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.examSchedulesBuilder}
-            >
-              <CalendarCheck />
-              <span>{t.examSchedulesBuilder}</span>
-            </button>
+            {hasPermission('examSchedules') && (
+              <button 
+                className={`menu-item ${activeTab === 'examSchedules' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('examSchedules'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.examSchedulesBuilder}
+              >
+                <CalendarCheck />
+                <span>{t.examSchedulesBuilder}</span>
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'detailedGrades' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('detailedGrades'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.detailedGrades}
-            >
-              <Award />
-              <span>{t.detailedGrades}</span>
-            </button>
+            {hasPermission('detailedGrades') && (
+              <button 
+                className={`menu-item ${activeTab === 'detailedGrades' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('detailedGrades'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.detailedGrades}
+              >
+                <Award />
+                <span>{t.detailedGrades}</span>
+              </button>
+            )}
           </>
         )}
 
         {/* Group 3: Administration */}
-        {(currentUser?.role === 'admin' || currentUser?.role === 'supervisor') && (
+        {(hasPermission('finance') || hasPermission('communications') || hasPermission('control') || hasPermission('reports') || hasPermission('teacherReports')) && (
           <>
             <div className="sidebar-category-header">
               <span>{lang === 'ar' ? 'الإدارة والمالية' : 'Management'}</span>
             </div>
 
-            <button 
-              className={`menu-item ${activeTab === 'finance' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('finance'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.finance}
-            >
-              <DollarSign />
-              <span>{t.finance}</span>
-            </button>
+            {hasPermission('finance') && (
+              <button 
+                className={`menu-item ${activeTab === 'finance' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('finance'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.finance}
+              >
+                <DollarSign />
+                <span>{t.finance}</span>
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'communications' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('communications'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.communications}
-            >
-              <Bell />
-              <span>{t.communications}</span>
-            </button>
+            {hasPermission('communications') && (
+              <button 
+                className={`menu-item ${activeTab === 'communications' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('communications'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.communications}
+              >
+                <Bell />
+                <span>{t.communications}</span>
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'control' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('control'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.control}
-            >
-              <ShieldAlert />
-              <span>{t.control}</span>
-            </button>
+            {hasPermission('control') && (
+              <button 
+                className={`menu-item ${activeTab === 'control' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('control'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.control}
+              >
+                <ShieldAlert />
+                <span>{t.control}</span>
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'reports' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.reports}
-            >
-              <BarChart3 />
-              <span>{t.reports}</span>
-            </button>
+            {hasPermission('reports') && (
+              <button 
+                className={`menu-item ${activeTab === 'reports' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.reports}
+              >
+                <BarChart3 />
+                <span>{t.reports}</span>
+              </button>
+            )}
 
-            <button 
-              className={`menu-item ${activeTab === 'teacherReports' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('teacherReports'); setIsMobileMenuOpen(false); }}
-              data-tooltip={t.teacherReports}
-              style={{ position: 'relative' }}
-            >
-              <FileWarning />
-              <span>{t.teacherReports}</span>
-              {(teacherReports || []).filter(r => r.status === 'pending').length > 0 && (
-                <span className="menu-item-badge">
-                  {(teacherReports || []).filter(r => r.status === 'pending').length}
-                </span>
-              )}
-            </button>
+            {hasPermission('teacherReports') && (
+              <button 
+                className={`menu-item ${activeTab === 'teacherReports' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('teacherReports'); setIsMobileMenuOpen(false); }}
+                data-tooltip={t.teacherReports}
+                style={{ position: 'relative' }}
+              >
+                <FileWarning />
+                <span>{t.teacherReports}</span>
+                {(teacherReports || []).filter(r => r.status === 'pending').length > 0 && (
+                  <span className="menu-item-badge">
+                    {(teacherReports || []).filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+            )}
           </>
         )}
 
-        {/* Group 4: System */}
-        {currentUser?.role === 'admin' && (
+        {/* Group 4: System (Admin Only) */}
+        {isAdmin && (
           <>
             <div className="sidebar-category-header">
               <span>{lang === 'ar' ? 'النظام' : 'System'}</span>
             </div>
+
+            <button 
+              className={`menu-item ${activeTab === 'supervisors' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('supervisors'); setIsMobileMenuOpen(false); }}
+              data-tooltip={lang === 'ar' ? 'إدارة الوكلاء' : 'Vice Principals'}
+            >
+              <UserCog />
+              <span>{lang === 'ar' ? 'إدارة الوكلاء' : 'Vice Principals'}</span>
+            </button>
 
             <button 
               className={`menu-item ${activeTab === 'settings' ? 'active' : ''}`}

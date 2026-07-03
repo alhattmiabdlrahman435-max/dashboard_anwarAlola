@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import PrintHeader from '../components/PrintHeader';
+import { Download } from 'lucide-react';
 
 const defaultDetailedGradeObj = (hw, att, beh, oral, wrt, final) => ({
   m1: { homework: hw, attendance: att, behavior: beh, oral: oral, written: wrt },
@@ -23,6 +24,7 @@ export default function DetailedGradesTab() {
     setSelectedGradeStudentId,
     selectedGradeTerm,
     setSelectedGradeTerm,
+    canAction,
     selectedGradeSubject,
     setSelectedGradeSubject,
     setShowPrintModal,
@@ -54,6 +56,31 @@ export default function DetailedGradesTab() {
   // Outcome calculation (Term Average out of 20)
   const monthsAverage = parseFloat(((m1_total + m2_total + m3_total) / 15).toFixed(2));
   const termTotal = parseFloat((monthsAverage + (gradesData.finalExam || 0)).toFixed(2));
+
+  const handleExportGrades = async () => {
+    try {
+      const res = await fetch('/api/grades/export', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        alert(lang === 'ar' ? 'فشل تصدير درجات الطلاب' : 'Failed to export student grades');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'grades_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Get grade for a specific subject, term, and period
   const getSubjectPeriodGrade = (studentId, subject, term, period) => {
@@ -120,23 +147,35 @@ export default function DetailedGradesTab() {
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px', margin: 0 }}>
           📊 {t.detailedGradesTitle}
         </h3>
-        {viewMode === 'class' ? (
-          <button 
-            className="btn-elevated"
-            onClick={handlePrintClass}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            🖨️ {lang === 'ar' ? 'طباعة كشف درجات الفصل' : 'Print Class Grades'}
-          </button>
-        ) : (
-          <button 
-            className="btn-elevated"
-            onClick={() => setShowPrintModal(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            🖨️ {lang === 'ar' ? 'طباعة كشف الدرجات' : 'Print Report Card'}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {canAction('grades', 'export') && (
+            <button 
+              className="btn-secondary"
+              onClick={handleExportGrades}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Download size={16} />
+              {lang === 'ar' ? 'تصدير الدرجات' : 'Export Grades'}
+            </button>
+          )}
+          {viewMode === 'class' ? (
+            <button 
+              className="btn-elevated"
+              onClick={handlePrintClass}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              🖨️ {lang === 'ar' ? 'طباعة كشف درجات الفصل' : 'Print Class Grades'}
+            </button>
+          ) : (
+            <button 
+              className="btn-elevated"
+              onClick={() => setShowPrintModal(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              🖨️ {lang === 'ar' ? 'طباعة كشف الدرجات' : 'Print Report Card'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Segmented Control / View Mode Tabs */}

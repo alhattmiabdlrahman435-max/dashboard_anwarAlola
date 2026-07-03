@@ -33,9 +33,10 @@ class AuthController extends Controller
             $phoneInputClean = substr($phoneInputClean, 1);
         }
 
-        // 1. Search user by national_id or username
+        // 1. Search user by national_id, username, or job_id
         $user = User::where('national_id', $inputUsername)
                     ->orWhere('username', $inputUsername)
+                    ->orWhere('job_id', $inputUsername)
                     ->first();
 
         if (!$user) {

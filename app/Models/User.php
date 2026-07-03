@@ -18,6 +18,7 @@ class User extends Authenticatable
         'name_ar', 'name_en',
         'phone', 'photo_url',
         'is_active', 'last_login',
+        'permissions',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -26,6 +27,7 @@ class User extends Authenticatable
         'last_login' => 'datetime',
         'is_active' => 'boolean',
         'password' => 'hashed',
+        'permissions' => 'array',
     ];
 
     // Scopes
