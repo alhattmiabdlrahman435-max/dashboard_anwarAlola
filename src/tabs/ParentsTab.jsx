@@ -37,7 +37,7 @@ export default function ParentsTab() {
     }
 
     const phoneDigits = modalParentPhoneNum.replace(/\D/g, '');
-    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('5')) {
+    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('7')) {
       setFormError(t.phoneError);
       return;
     }
@@ -77,7 +77,7 @@ export default function ParentsTab() {
     }
 
     const phoneDigits = modalParentPhoneNum.replace(/\D/g, '');
-    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('5')) {
+    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('7')) {
       setFormError(t.phoneError);
       return;
     }
@@ -266,7 +266,7 @@ export default function ParentsTab() {
                       {renderAvatar(parent.photo, "🧔")} 
                       {lang === 'ar' ? parent.name : (parent.nameEn || parent.name)}
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>+966 {parent.phone}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)' }}>+967 {parent.phone}</td>
                     <td style={{ fontWeight: 'bold', textAlign: 'center' }}>{children.length}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -356,7 +356,7 @@ export default function ParentsTab() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="5XXXXXXXX" required />
+                  <input type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="7XXXXXXXX" required />
                 </div>
               </div>
               <footer className="modal-footer">
@@ -405,7 +405,7 @@ export default function ParentsTab() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="5XXXXXXXX" required />
+                  <input type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="7XXXXXXXX" required />
                 </div>
               </div>
               <footer className="modal-footer">

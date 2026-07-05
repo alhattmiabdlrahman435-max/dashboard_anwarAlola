@@ -71,7 +71,7 @@ export const dictionary = {
     formParentName: "اسم ولي الأمر",
     formParentPhone: "رقم هاتف ولي الأمر",
     emptyError: "الرجاء تعبئة جميع الحقول المطلوبة",
-    phoneError: "الرجاء إدخال رقم جوال صحيح (9 أرقام يبدأ بـ 5)",
+    phoneError: "الرجاء إدخال رقم جوال صحيح (9 أرقام يبدأ بـ 7)",
     nationalIdError: "الرجاء إدخال رقم هوية وطنية صحيح لولي الأمر (10 أرقام تبدأ بـ 1 أو 2)",
     siblings: "الأبناء المسجلون في المدرسة",
     formPhoto: "صورة شخصية",
@@ -368,7 +368,7 @@ export const dictionary = {
     formParentName: "Parent Name",
     formParentPhone: "Parent Phone Number",
     emptyError: "Please fill all required fields",
-    phoneError: "Please enter a valid phone number (9 digits starting with 5)",
+    phoneError: "Please enter a valid phone number (9 digits starting with 7)",
     nationalIdError:
       "Please enter a valid Parent National ID (10 digits starting with 1 or 2)",
     siblings: "Registered Siblings at School",
@@ -2281,7 +2281,7 @@ export const AppProvider = ({ children }) => {
           const newSms = {
             id: Date.now() + student.id,
             studentId: student.id,
-            recipient: `+966 ${student.phone}`,
+            recipient: `+967 ${student.phone}`,
             text: smsText,
             time: "10:00",
             type: "absent",
@@ -3024,7 +3024,7 @@ export const AppProvider = ({ children }) => {
               {
                 id: Date.now(),
                 studentId: req.studentId,
-                recipient: `+966 ${student?.phone}`,
+                recipient: `+967 ${student?.phone}`,
                 text: smsText,
                 time: "08:30",
                 type: "present",
@@ -3041,7 +3041,7 @@ export const AppProvider = ({ children }) => {
               {
                 id: Date.now(),
                 studentId: req.studentId,
-                recipient: `+966 ${student?.phone}`,
+                recipient: `+967 ${student?.phone}`,
                 text: smsText,
                 time: "08:30",
                 type: "absent",
@@ -3127,7 +3127,7 @@ export const AppProvider = ({ children }) => {
         {
           id: Date.now() + Math.random(),
           studentId: student.id,
-          recipient: `+966 ${student.phone}`,
+          recipient: `+967 ${student.phone}`,
           text: smsText,
           time: "14:30",
           type: "present",
@@ -3409,7 +3409,7 @@ export const AppProvider = ({ children }) => {
         {
           id: Date.now() + Math.random(),
           studentId: student.id,
-          recipient: `+966 ${student.phone}`,
+          recipient: `+967 ${student.phone}`,
           text: smsText,
           time: "15:00",
           type: "present",
@@ -3562,7 +3562,7 @@ export const AppProvider = ({ children }) => {
       {
         id: Date.now(),
         studentId: newPayment.studentId,
-        recipient: `+966 ${student?.phone}`,
+        recipient: `+967 ${student?.phone}`,
         text: smsText,
         time: "11:30",
         type: "present",
@@ -4087,7 +4087,7 @@ export const AppProvider = ({ children }) => {
     const newSms = {
       id: Date.now(),
       studentId: scannedStudentId,
-      recipient: `+966 ${student.phone}`,
+      recipient: `+967 ${student.phone}`,
       text: smsText,
       time: arrivalTime,
       type: finalStatus,

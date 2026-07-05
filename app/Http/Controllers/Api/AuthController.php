@@ -24,12 +24,16 @@ class AuthController extends Controller
         $inputUsername = trim($request->username);
         $inputPassword = trim($request->password);
 
-        // تنظيف أرقام الجوال المدخلة (مثلاً إزالة 966 أو الصفر البادئ)
+        // تنظيف أرقام الجوال المدخلة (مثلاً إزالة 966 أو 967 أو الصفر البادئ)
         $phoneInputClean = preg_replace('/\D/', '', $inputPassword);
-        if (str_starts_with($phoneInputClean, '966')) {
+        if (str_starts_with($phoneInputClean, '967')) {
+            $phoneInputClean = substr($phoneInputClean, 3);
+        } elseif (str_starts_with($phoneInputClean, '966')) {
             $phoneInputClean = substr($phoneInputClean, 3);
         }
-        if (str_starts_with($phoneInputClean, '05')) {
+        if (str_starts_with($phoneInputClean, '07')) {
+            $phoneInputClean = substr($phoneInputClean, 1);
+        } elseif (str_starts_with($phoneInputClean, '05')) {
             $phoneInputClean = substr($phoneInputClean, 1);
         }
 
@@ -157,10 +161,14 @@ class AuthController extends Controller
 
         // Clean phone input for fallback check
         $phoneInputClean = preg_replace('/\D/', '', $request->current_password);
-        if (str_starts_with($phoneInputClean, '966')) {
+        if (str_starts_with($phoneInputClean, '967')) {
+            $phoneInputClean = substr($phoneInputClean, 3);
+        } elseif (str_starts_with($phoneInputClean, '966')) {
             $phoneInputClean = substr($phoneInputClean, 3);
         }
-        if (str_starts_with($phoneInputClean, '05')) {
+        if (str_starts_with($phoneInputClean, '07')) {
+            $phoneInputClean = substr($phoneInputClean, 1);
+        } elseif (str_starts_with($phoneInputClean, '05')) {
             $phoneInputClean = substr($phoneInputClean, 1);
         }
 

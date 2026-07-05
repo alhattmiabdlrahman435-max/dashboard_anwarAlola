@@ -76,7 +76,7 @@ export default function CommunicationsTab() {
         extraLogs.push({
           id: Date.now(),
           studentId: targetStudent.id,
-          recipient: `+966 ${targetStudent.phone}`,
+          recipient: `+967 ${targetStudent.phone}`,
           text: smsText,
           time: nowStr.split(' ')[1],
           type: 'present'
@@ -91,7 +91,7 @@ export default function CommunicationsTab() {
         extraLogs.push({
           id: Date.now() + Math.random() + idx,
           studentId: student.id,
-          recipient: `+966 ${student.phone}`,
+          recipient: `+967 ${student.phone}`,
           text: smsText,
           time: nowStr.split(' ')[1],
           type: 'present'
@@ -105,7 +105,7 @@ export default function CommunicationsTab() {
         extraLogs.push({
           id: Date.now() + Math.random() + idx,
           studentId: student.id,
-          recipient: `+966 ${student.phone}`,
+          recipient: `+967 ${student.phone}`,
           text: smsText,
           time: nowStr.split(' ')[1],
           type: 'present'

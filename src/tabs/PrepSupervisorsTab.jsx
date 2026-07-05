@@ -283,7 +283,7 @@ export default function PrepSupervisorsTab() {
                     <input 
                       type="text" 
                       className="text-field"
-                      placeholder="05xxxxxxxx"
+                      placeholder="7xxxxxxxx"
                       value={modalPhone}
                       onChange={(e) => setModalPhone(e.target.value)}
                       required
