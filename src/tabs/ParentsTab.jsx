@@ -102,7 +102,6 @@ export default function ParentsTab() {
     setModalParentNameEn('');
     setModalParentPhoneNum('');
     setModalParentNationalIdVal('');
-    setModalParentPass('');
     setSelectedParentIdForEdit('');
   };
 
@@ -219,12 +218,11 @@ export default function ParentsTab() {
                 setModalParentNameEn('');
                 setModalParentPhoneNum('');
                 setModalParentNationalIdVal('');
-                setModalParentPass('');
                 setShowAddParentModal(true);
               }}
               style={{ padding: '8px 16px', fontSize: '13px' }}
             >
-              🧔 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent'}
+              👨🏼‍💼 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent'}
             </button>
           )}
         </div>
@@ -300,7 +298,6 @@ export default function ParentsTab() {
                             setModalParentNameEn(parent.nameEn || '');
                             setModalParentPhoneNum(parent.phone);
                             setModalParentNationalIdVal(parent.nationalId);
-                            setModalParentPass(parent.password || '');
                             setShowEditParentModal(true);
                           }}
                         >
@@ -327,7 +324,7 @@ export default function ParentsTab() {
         <div className="modal-overlay no-print">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
-              <h3 className="modal-title">🧔 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent Account'}</h3>
+              <h3 className="modal-title">👨🏼‍💼 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent Account'}</h3>
               <button 
                 className="modal-close-btn" 
                 onClick={() => {
@@ -376,7 +373,7 @@ export default function ParentsTab() {
         <div className="modal-overlay no-print">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
-              <h3 className="modal-title">🧔 {lang === 'ar' ? 'تعديل حساب ولي الأمر / إعادة تعيين كلمة المرور' : 'Edit Parent / Reset Password'}</h3>
+              <h3 className="modal-title">👨🏼‍💼 {lang === 'ar' ? 'تعديل حساب ولي الأمر / إعادة تعيين كلمة المرور' : 'Edit Parent / Reset Password'}</h3>
               <button 
                 className="modal-close-btn" 
                 onClick={() => {
