@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Edit3, Trash2, Copy, Shield, ShieldCheck, ChevronDown, Search } from 'lucide-react';
+import { Plus, Edit3, Trash2, Copy, Shield, ShieldCheck, ChevronDown, Search, X } from 'lucide-react';
 
 const ALL_MODULES = [
   { key: 'students', labelAr: 'الطلاب', labelEn: 'Students', actions: ['view', 'create', 'update', 'delete', 'export', 'import'] },
@@ -47,6 +47,48 @@ const AVAILABLE_GRADES = [
   'الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط',
   'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي',
 ];
+
+const MODULE_CATEGORIES = [
+  {
+    id: 'users',
+    titleAr: 'المستفيدون وطاقم العمل',
+    titleEn: 'Users & Staff',
+    icon: '👥',
+    modules: ['students', 'parents', 'teachers', 'prepSupervisors']
+  },
+  {
+    id: 'academics',
+    titleAr: 'الشؤون التعليمية والأكاديمية',
+    titleEn: 'Academics & School Work',
+    icon: '📖',
+    modules: ['classes', 'subjects', 'schedule', 'assignments', 'examSchedules', 'detailedGrades']
+  },
+  {
+    id: 'operations',
+    titleAr: 'المتابعة والعمليات اليومية',
+    titleEn: 'Daily Operations & Attendance',
+    icon: '⚙️',
+    modules: ['scanner', 'absenceRequests', 'teacherReports', 'communications']
+  },
+  {
+    id: 'administration',
+    titleAr: 'الشؤون الإدارية والمالية والرقابة',
+    titleEn: 'Administration, Finance & Control',
+    icon: '💼',
+    modules: ['finance', 'control', 'reports']
+  }
+];
+
+const actionStyles = {
+  view: { bg: 'rgba(37, 99, 235, 0.08)', border: '#2563eb', text: '#2563eb' },
+  create: { bg: 'rgba(22, 163, 74, 0.08)', border: '#16a34a', text: '#16a34a' },
+  update: { bg: 'rgba(217, 119, 6, 0.08)', border: '#d97706', text: '#d97706' },
+  delete: { bg: 'rgba(220, 38, 38, 0.08)', border: '#dc2626', text: '#dc2626' },
+  export: { bg: 'rgba(79, 70, 229, 0.08)', border: '#4f46e5', text: '#4f46e5' },
+  import: { bg: 'rgba(13, 148, 136, 0.08)', border: '#0d9488', text: '#0d9488' },
+  approve: { bg: 'rgba(16, 185, 129, 0.08)', border: '#10b981', text: '#10b981' },
+  reject: { bg: 'rgba(225, 29, 72, 0.08)', border: '#e11d48', text: '#e11d48' },
+};
 
 export default function SupervisorsTab() {
   const { lang, currentUser, vicePrincipals, setVicePrincipals, classes, setToastMessage, triggerConfirm } = useApp();
@@ -351,12 +393,60 @@ export default function SupervisorsTab() {
                   </span>
                 </td>
                 <td>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button className="btn-icon" onClick={() => openEditModal(vp)} title={lang === 'ar' ? 'تعديل' : 'Edit'}>
-                      <Edit3 size={16} />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      onClick={() => openEditModal(vp)} 
+                      title={lang === 'ar' ? 'تعديل' : 'Edit'}
+                      style={{
+                        background: 'rgba(37, 99, 235, 0.06)',
+                        border: '1px solid rgba(37, 99, 235, 0.15)',
+                        color: '#2563eb',
+                        borderRadius: '8px',
+                        width: '32px',
+                        height: '32px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseOver={e => {
+                        e.currentTarget.style.background = 'rgba(37, 99, 235, 0.12)';
+                        e.currentTarget.style.borderColor = '#2563eb';
+                      }}
+                      onMouseOut={e => {
+                        e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
+                        e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.15)';
+                      }}
+                    >
+                      <Edit3 size={15} />
                     </button>
-                    <button className="btn-icon btn-danger-icon" onClick={() => handleDelete(vp)} title={lang === 'ar' ? 'حذف' : 'Delete'}>
-                      <Trash2 size={16} />
+                    <button 
+                      onClick={() => handleDelete(vp)} 
+                      title={lang === 'ar' ? 'حذف' : 'Delete'}
+                      style={{
+                        background: 'rgba(220, 38, 38, 0.06)',
+                        border: '1px solid rgba(220, 38, 38, 0.15)',
+                        color: '#dc2626',
+                        borderRadius: '8px',
+                        width: '32px',
+                        height: '32px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseOver={e => {
+                        e.currentTarget.style.background = 'rgba(220, 38, 38, 0.12)';
+                        e.currentTarget.style.borderColor = '#dc2626';
+                      }}
+                      onMouseOut={e => {
+                        e.currentTarget.style.background = 'rgba(220, 38, 38, 0.06)';
+                        e.currentTarget.style.borderColor = 'rgba(220, 38, 38, 0.15)';
+                      }}
+                    >
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 </td>
@@ -369,49 +459,78 @@ export default function SupervisorsTab() {
       {/* Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '780px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 className="modal-title">
-              {editingVP ? (lang === 'ar' ? '✏️ تعديل بيانات وكيل' : '✏️ Edit Vice Principal') : (lang === 'ar' ? '➕ إضافة وكيل جديد' : '➕ Add Vice Principal')}
-            </h3>
+          <div className="modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '820px', width: '90%', maxHeight: '90vh' }}>
+            <header className="modal-header">
+              <h3 className="modal-title" style={{ fontSize: '15px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                {editingVP ? (lang === 'ar' ? '✏️ تعديل بيانات وصلاحيات الوكيل' : '✏️ Edit Vice Principal Details') : (lang === 'ar' ? '➕ إضافة وكيل جديد وتحديد الصلاحيات' : '➕ Add New Vice Principal')}
+              </h3>
+              <button 
+                className="modal-close-btn" 
+                onClick={() => setShowModal(false)}
+                style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </header>
 
-            {formError && (
-              <div style={{ padding: 'var(--space-md)', backgroundColor: 'rgba(220, 38, 38, 0.1)', color: 'var(--color-error)', borderRadius: 'var(--radius-chip)', fontSize: '13px', fontWeight: '600', marginBottom: '12px' }}>
-                {formError}
-              </div>
-            )}
+            <div className="modal-body" style={{ overflowY: 'auto' }}>
+              {formError && (
+                <div style={{ padding: 'var(--space-md)', backgroundColor: 'rgba(220, 38, 38, 0.1)', color: 'var(--color-error)', borderRadius: 'var(--radius-chip)', fontSize: '13px', fontWeight: '600', marginBottom: '12px' }}>
+                  {formError}
+                </div>
+              )}
 
             {/* Basic Info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: '16px' }}>
-              <div className="form-group">
-                <label className="form-label">{lang === 'ar' ? 'اسم الوكيل' : 'Name'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <input type="text" className="text-field" value={formName} onChange={e => setFormName(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <input type="text" className="text-field" value={formJobId} onChange={e => setFormJobId(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone'}</label>
-                <input type="text" className="text-field" value={formPhone} onChange={e => setFormPhone(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">{lang === 'ar' ? 'كلمة المرور' : 'Password'} {!editingVP && <span style={{ color: 'var(--color-error)' }}>*</span>}</label>
-                <input type="text" className="text-field" value={formPassword} onChange={e => setFormPassword(e.target.value)} placeholder={editingVP ? (lang === 'ar' ? 'اتركه فارغاً للإبقاء' : 'Leave empty to keep') : ''} />
+            <div style={{
+              background: 'var(--color-surface, #ffffff)',
+              border: '1.5px solid var(--color-border)',
+              borderRadius: '16px',
+              padding: '18px',
+              marginBottom: '20px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.01)'
+            }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-primary-ui)', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 14px 0', borderBottom: '1px solid var(--color-border-light)', paddingBottom: '8px' }}>
+                👤 {lang === 'ar' ? 'البيانات الأساسية للوكيل' : 'Basic Information'}
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-md)' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'اسم الوكيل الكامل' : 'Full Name'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input type="text" className="text-field" value={formName} onChange={e => setFormName(e.target.value)} style={{ height: '42px', borderRadius: '10px' }} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input type="text" className="text-field" value={formJobId} onChange={e => setFormJobId(e.target.value)} style={{ height: '42px', borderRadius: '10px' }} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'}</label>
+                  <input type="text" className="text-field" value={formPhone} onChange={e => setFormPhone(e.target.value)} style={{ height: '42px', borderRadius: '10px' }} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'كلمة المرور' : 'Password'} {!editingVP && <span style={{ color: 'var(--color-error)' }}>*</span>}</label>
+                  <input type="text" className="text-field" value={formPassword} onChange={e => setFormPassword(e.target.value)} placeholder={editingVP ? (lang === 'ar' ? 'اتركه فارغاً للإبقاء كما هو' : 'Leave empty to keep current') : ''} style={{ height: '42px', borderRadius: '10px' }} />
+                </div>
               </div>
             </div>
 
             {/* Permissions Section */}
-            <div style={{ padding: '16px', background: 'rgba(30, 80, 142, 0.03)', border: '1px solid var(--color-border)', borderRadius: '16px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--color-primary-ui)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Shield size={18} /> {lang === 'ar' ? 'إدارة الصلاحيات' : 'Permissions Management'}
+            <div style={{
+              background: 'var(--color-surface, #ffffff)',
+              border: '1.5px solid var(--color-border)',
+              borderRadius: '16px',
+              padding: '18px',
+              marginBottom: '20px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.01)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--color-border-light)', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-primary-ui)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                  <Shield size={18} /> {lang === 'ar' ? 'إدارة الصلاحيات والأدوار' : 'Permissions & Roles Management'}
                 </h4>
 
                 {/* Copy Permissions Button */}
                 {vicePrincipals.length > 0 && (
                   <div style={{ position: 'relative' }}>
-                    <button className="btn-secondary" onClick={() => setShowCopyDropdown(!showCopyDropdown)} style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Copy size={14} /> {lang === 'ar' ? 'نسخ صلاحيات من...' : 'Copy from...'}
+                    <button className="btn-secondary" onClick={() => setShowCopyDropdown(!showCopyDropdown)} style={{ fontSize: '11px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '8px', height: '32px' }}>
+                      <Copy size={13} /> {lang === 'ar' ? 'نسخ صلاحيات من وكيل آخر...' : 'Copy from another...'}
                     </button>
                     {showCopyDropdown && (
                       <div style={{ position: 'absolute', top: '100%', left: lang === 'ar' ? 'auto' : 0, right: lang === 'ar' ? 0 : 'auto', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '200px', marginTop: '4px' }}>
@@ -429,90 +548,270 @@ export default function SupervisorsTab() {
               </div>
 
               {/* Full Access Toggle */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: fullAccess ? 'rgba(34, 197, 94, 0.08)' : 'var(--color-surface)', border: `1.5px solid ${fullAccess ? '#22c55e' : 'var(--color-border)'}`, borderRadius: '12px', cursor: 'pointer', marginBottom: '14px', transition: 'all 0.2s ease' }}>
-                <input type="checkbox" checked={fullAccess} onChange={e => setFullAccess(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: '#22c55e' }} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: fullAccess ? 'rgba(34, 197, 94, 0.08)' : 'rgba(100, 116, 139, 0.02)', border: `1.5px solid ${fullAccess ? '#22c55e' : 'var(--color-border)'}`, borderRadius: '12px', cursor: 'pointer', marginBottom: '14px', transition: 'all 0.2s ease', boxShadow: fullAccess ? '0 2px 10px rgba(34, 197, 94, 0.05)' : 'none' }}>
+                <input type="checkbox" checked={fullAccess} onChange={e => setFullAccess(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: '#22c55e', cursor: 'pointer' }} />
                 <ShieldCheck size={20} style={{ color: fullAccess ? '#22c55e' : 'var(--color-text-secondary)' }} />
                 <div>
                   <div style={{ fontWeight: '700', fontSize: '13px', color: fullAccess ? '#16a34a' : 'var(--color-text-primary)' }}>
-                    {lang === 'ar' ? 'كامل الصلاحيات (Full Access)' : 'Full Access'}
+                    {lang === 'ar' ? 'كامل الصلاحيات (مدير النظام - Full Access)' : 'Full Access (Administrator)'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                    {lang === 'ar' ? 'يمنح الوكيل جميع صلاحيات المدير بالكامل' : 'Grants all admin permissions'}
+                    {lang === 'ar' ? 'يمنح هذا الخيار الوكيل جميع الصلاحيات بالكامل على كافة الأقسام تلقائياً' : 'Automatically grants all admin permissions on all modules'}
                   </div>
                 </div>
               </label>
 
-              {/* Detailed Permissions Table */}
+              {/* Detailed Permissions restructured */}
               {!fullAccess && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ background: 'var(--color-surface)' }}>
-                        <th style={{ padding: '10px', textAlign: lang === 'ar' ? 'right' : 'left', borderBottom: '1px solid var(--color-border)', fontWeight: '700', minWidth: '140px' }}>
-                          {lang === 'ar' ? 'القسم' : 'Module'}
-                        </th>
-                        {['view', 'create', 'update', 'delete', 'export', 'import', 'approve', 'reject'].map(action => (
-                          <th key={action} style={{ padding: '10px 6px', textAlign: 'center', borderBottom: '1px solid var(--color-border)', fontWeight: '600', fontSize: '11px' }}>
-                            {t[action]}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ALL_MODULES.map(mod => {
-                        const mp = modulePerms[mod.key] || { actions: [], scope: 'all', scope_ids: [] };
-                        return (
-                          <tr key={mod.key} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                            <td style={{ padding: '8px 10px', fontWeight: '600' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <input type="checkbox" checked={mod.actions.every(a => mp.actions.includes(a))} onChange={() => handleToggleAllActions(mod.key, mod.actions)} style={{ accentColor: 'var(--color-primary-ui)' }} />
-                                {lang === 'ar' ? mod.labelAr : mod.labelEn}
-                              </div>
-                              {/* Scope selector for grades */}
-                              {mod.hasScope && mp.actions.length > 0 && (
-                                <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--color-border)' }}>
-                                  <select className="text-field" value={mp.scope} onChange={e => handleScopeChange(mod.key, e.target.value)} style={{ fontSize: '11px', padding: '4px 8px', marginBottom: '4px' }}>
-                                    {SCOPE_OPTIONS.map(opt => (
-                                      <option key={opt.value} value={opt.value}>{lang === 'ar' ? opt.labelAr : opt.labelEn}</option>
-                                    ))}
-                                  </select>
-                                  {mp.scope !== 'all' && (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
-                                      {getScopeValueOptions(mod.key, mp.scope).map(opt => (
-                                        <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', padding: '2px 6px', borderRadius: '6px', background: mp.scope_ids.includes(opt.id) ? 'rgba(30, 80, 142, 0.1)' : 'transparent', cursor: 'pointer' }}>
-                                          <input type="checkbox" checked={mp.scope_ids.includes(opt.id)} onChange={() => handleScopeIdsToggle(mod.key, opt.id)} style={{ width: '12px', height: '12px' }} />
-                                          {lang === 'ar' ? opt.labelAr : opt.labelEn}
-                                        </label>
-                                      ))}
-                                    </div>
-                                  )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
+                  {MODULE_CATEGORIES.map(category => {
+                    const categoryModules = ALL_MODULES.filter(m => category.modules.includes(m.key));
+                    return (
+                      <div key={category.id} style={{
+                        border: '1.5px solid var(--color-border)',
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        background: 'var(--color-surface)',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.01)'
+                      }}>
+                        {/* Category Header */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 14px',
+                          background: 'rgba(30, 80, 142, 0.04)',
+                          borderBottom: '1px solid var(--color-border)',
+                          fontWeight: 'bold',
+                          color: 'var(--color-primary-ui)',
+                          fontSize: '13px'
+                        }}>
+                          <span style={{ fontSize: '15px' }}>{category.icon}</span>
+                          <span>{lang === 'ar' ? category.titleAr : category.titleEn}</span>
+                        </div>
+
+                        {/* Category Body / Module Rows */}
+                        <div style={{ padding: '4px 14px' }}>
+                          {categoryModules.map(mod => {
+                            const mp = modulePerms[mod.key] || { actions: [], scope: 'all', scope_ids: [] };
+                            const isEnabled = mp.actions.length > 0;
+                            return (
+                              <div key={mod.key} style={{
+                                padding: '12px 0',
+                                borderBottom: '1px solid var(--color-border-light, #f1f5f9)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
+                              }}>
+                                {/* Row Header */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', color: 'var(--color-text-primary)' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={mod.actions.every(a => mp.actions.includes(a)) && mp.actions.length > 0} 
+                                      onChange={() => handleToggleAllActions(mod.key, mod.actions)} 
+                                      style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary-ui)', cursor: 'pointer' }} 
+                                    />
+                                    <span>{lang === 'ar' ? mod.labelAr : mod.labelEn}</span>
+                                  </label>
+
+                                  {/* State Indicator Badge */}
+                                  <span style={{
+                                    fontSize: '9px',
+                                    fontWeight: 'bold',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    background: isEnabled ? 'rgba(34, 197, 94, 0.1)' : 'rgba(100, 116, 139, 0.08)',
+                                    color: isEnabled ? '#16a34a' : '#64748b'
+                                  }}>
+                                    {isEnabled 
+                                      ? (lang === 'ar' ? `مفعّل (${mp.actions.length} صلاحيات)` : `Active (${mp.actions.length} perms)`)
+                                      : (lang === 'ar' ? 'معطّل' : 'Disabled')}
+                                  </span>
                                 </div>
-                              )}
-                            </td>
-                            {['view', 'create', 'update', 'delete', 'export', 'import', 'approve', 'reject'].map(action => (
-                              <td key={action} style={{ padding: '8px 6px', textAlign: 'center' }}>
-                                {mod.actions.includes(action) ? (
-                                  <input type="checkbox" checked={mp.actions.includes(action)} onChange={() => handleToggleModuleAction(mod.key, action)} style={{ width: '16px', height: '16px', accentColor: 'var(--color-primary-ui)', cursor: 'pointer' }} />
-                                ) : (
-                                  <span style={{ color: 'var(--color-text-secondary)', fontSize: '10px' }}>—</span>
+
+                                {/* Row Body - Actions list */}
+                                <div style={{
+                                  display: 'flex',
+                                  flexWrap: 'wrap',
+                                  gap: '6px',
+                                  paddingInlineStart: '23px'
+                                }}>
+                                  {['view', 'create', 'update', 'delete', 'export', 'import', 'approve', 'reject'].map(action => {
+                                    return mod.actions.includes(action) && (
+                                      <label key={action} style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '5px 10px',
+                                        borderRadius: '16px',
+                                        border: `1.5px solid ${mp.actions.includes(action) ? actionStyles[action].border : 'var(--color-border)'}`,
+                                        background: mp.actions.includes(action) ? actionStyles[action].bg : 'var(--color-surface)',
+                                        color: mp.actions.includes(action) ? actionStyles[action].text : 'var(--color-text-secondary)',
+                                        fontSize: '11px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        transition: 'all 0.15s ease',
+                                        boxShadow: mp.actions.includes(action) ? '0 1px 3px rgba(0,0,0,0.02)' : 'none'
+                                      }}
+                                        onMouseOver={e => { if(!mp.actions.includes(action)) e.currentTarget.style.borderColor = 'var(--color-primary-light)' }}
+                                        onMouseOut={e => { if(!mp.actions.includes(action)) e.currentTarget.style.borderColor = 'var(--color-border)' }}
+                                      >
+                                        <input 
+                                          type="checkbox" 
+                                          checked={mp.actions.includes(action)} 
+                                          onChange={() => handleToggleModuleAction(mod.key, action)} 
+                                          style={{ display: 'none' }}
+                                        />
+                                        <span>{mp.actions.includes(action) ? '✓ ' : ''}{t[action]}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Scope Settings */}
+                                {mod.hasScope && isEnabled && (
+                                  <div style={{
+                                    marginInlineStart: '23px',
+                                    padding: '10px',
+                                    background: 'rgba(30, 80, 142, 0.02)',
+                                    border: '1px dashed var(--color-border)',
+                                    borderRadius: '10px',
+                                    marginTop: '4px'
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                      <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                                        {lang === 'ar' ? 'نطاق الصلاحية للدرجات:' : 'Scope of Access for Grades:'}
+                                      </span>
+                                      <select 
+                                        className="text-field" 
+                                        value={mp.scope} 
+                                        onChange={e => handleScopeChange(mod.key, e.target.value)} 
+                                        style={{ fontSize: '11px', padding: '2px 6px', height: '26px', width: 'auto', display: 'inline-block' }}
+                                      >
+                                        {SCOPE_OPTIONS.map(opt => (
+                                          <option key={opt.value} value={opt.value}>{lang === 'ar' ? opt.labelAr : opt.labelEn}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    {mp.scope !== 'all' && (
+                                      <div style={{
+                                        display: 'flex',
+                                        flexDirection: mp.scope === 'class' ? 'column' : 'row',
+                                        flexWrap: 'wrap',
+                                        gap: mp.scope === 'class' ? '12px' : '6px',
+                                        background: 'var(--color-surface)',
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--color-border-light)',
+                                        alignItems: mp.scope === 'class' ? 'stretch' : 'center'
+                                      }}>
+                                        {mp.scope === 'class' ? (() => {
+                                          // Group classes by grade name
+                                          const classesByGrade = {};
+                                          (classes || []).forEach(c => {
+                                            const gradeKey = lang === 'ar' ? c.grade : c.gradeEn;
+                                            if (!classesByGrade[gradeKey]) classesByGrade[gradeKey] = [];
+                                            classesByGrade[gradeKey].push(c);
+                                          });
+
+                                          return Object.keys(classesByGrade).map(gradeName => (
+                                            <div key={gradeName} style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '12px',
+                                              paddingBottom: '8px',
+                                              borderBottom: '1px dashed var(--color-border-light)',
+                                              width: '100%',
+                                              flexWrap: 'wrap'
+                                            }}>
+                                              <span style={{ fontSize: '11px', fontWeight: 'bold', minWidth: '110px', color: 'var(--color-text-primary)' }}>
+                                                {gradeName}
+                                              </span>
+                                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                {classesByGrade[gradeName].map(c => {
+                                                  const isSelected = mp.scope_ids.includes(c.id);
+                                                  return (
+                                                    <label key={c.id} style={{
+                                                      display: 'inline-flex',
+                                                      alignItems: 'center',
+                                                      gap: '4px',
+                                                      fontSize: '11px',
+                                                      padding: '3px 8px',
+                                                      borderRadius: '12px',
+                                                      border: `1px solid ${isSelected ? 'var(--color-primary-light)' : 'var(--color-border)'}`,
+                                                      background: isSelected ? 'rgba(30, 80, 142, 0.08)' : 'transparent',
+                                                      color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                                                      cursor: 'pointer',
+                                                      transition: 'all 0.15s ease',
+                                                      userSelect: 'none'
+                                                    }}>
+                                                      <input 
+                                                        type="checkbox" 
+                                                        checked={isSelected} 
+                                                        onChange={() => handleScopeIdsToggle(mod.key, c.id)} 
+                                                        style={{ width: '12px', height: '12px', accentColor: 'var(--color-primary-ui)' }} 
+                                                      />
+                                                      <span>{lang === 'ar' ? c.section : c.sectionEn}</span>
+                                                    </label>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          ));
+                                        })() : (
+                                          getScopeValueOptions(mod.key, mp.scope).map(opt => {
+                                            const isSelected = mp.scope_ids.includes(opt.id);
+                                            return (
+                                              <label key={opt.id} style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                fontSize: '11px',
+                                                padding: '3px 8px',
+                                                borderRadius: '12px',
+                                                border: `1px solid ${isSelected ? 'var(--color-primary-light)' : 'var(--color-border)'}`,
+                                                background: isSelected ? 'rgba(30, 80, 142, 0.08)' : 'transparent',
+                                                color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s ease',
+                                                userSelect: 'none'
+                                              }}>
+                                                <input 
+                                                  type="checkbox" 
+                                                  checked={isSelected} 
+                                                  onChange={() => handleScopeIdsToggle(mod.key, opt.id)} 
+                                                  style={{ width: '12px', height: '12px', accentColor: 'var(--color-primary-ui)' }} 
+                                                />
+                                                <span>{lang === 'ar' ? opt.labelAr : opt.labelEn}</span>
+                                              </label>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
+            
+            </div>
 
             {/* Actions */}
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button className="btn-secondary" onClick={() => setShowModal(false)}>
+            <div className="modal-footer">
+              <button className="btn-elevated" onClick={() => setShowModal(false)}>
                 {lang === 'ar' ? 'إلغاء' : 'Cancel'}
               </button>
-              <button className="btn-primary" onClick={handleSubmit}>
+              <button className="btn-filled" onClick={handleSubmit}>
                 {editingVP ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes') : (lang === 'ar' ? 'إنشاء الحساب' : 'Create Account')}
               </button>
             </div>

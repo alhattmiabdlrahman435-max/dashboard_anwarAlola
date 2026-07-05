@@ -7,12 +7,13 @@ export default function StudentsTab() {
     lang, t, students, parentUsers, availableGrades, availableSections,
     setSelectedStudentForCard, setShowCardVisualizerModal,
     handleAddStudent, renderAvatar, currentUser, controlMultiplier, controlOffset,
-    canAction, fetchStudents, setToastMessage
+    canAction, fetchStudents, setToastMessage, classes
   } = useApp();
 
   // Local UI states
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [classFilter, setClassFilter] = useState('all');
   const [showStudentModal, setShowStudentModal] = useState(false);
 
   // Student Form states
@@ -207,7 +208,11 @@ export default function StudentsTab() {
       : student.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || student.id.toString().includes(searchQuery);
     
     const matchesFilter = statusFilter === 'all' || student.status === statusFilter;
-    return matchesSearch && matchesFilter;
+
+    const studentClass = `${student.grade} - ${student.section}`;
+    const matchesClass = classFilter === 'all' || studentClass === classFilter;
+    
+    return matchesSearch && matchesFilter && matchesClass;
   });
 
   const filteredParentUsers = parentUsers.filter(p => {
@@ -226,17 +231,17 @@ export default function StudentsTab() {
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {canAction('students', 'export') && (
-              <button className="btn-secondary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button className="btn-elevated" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Download size={16} />
                 {lang === 'ar' ? 'تصدير' : 'Export'}
               </button>
             )}
             {canAction('students', 'import') && (
               <>
-                <button className="btn-secondary" onClick={handleDownloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}>
+                <button className="btn-elevated" onClick={handleDownloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}>
                   {lang === 'ar' ? 'النموذج' : 'Template'}
                 </button>
-                <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0 }}>
+                <label className="btn-elevated" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0 }}>
                   <Upload size={16} />
                   {lang === 'ar' ? 'استيراد' : 'Import'}
                   <input type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} />
@@ -267,16 +272,33 @@ export default function StudentsTab() {
         </div>
 
         {/* Searching and Filter Chips */}
-        <div className="students-controls no-print">
-          <div className="search-box">
-            <Search size={18} />
-            <input 
-              type="text"
+        <div className="students-controls no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
+            <div className="search-box" style={{ margin: 0, minWidth: '280px' }}>
+              <Search size={18} />
+              <input 
+                type="text"
+                className="text-field"
+                placeholder={lang === 'ar' ? 'البحث باسم الطالب أو الرقم الأكاديمي...' : 'Search by name or student number...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Class Filter Dropdown */}
+            <select 
               className="text-field"
-              placeholder={lang === 'ar' ? 'البحث باسم الطالب أو الرقم الأكاديمي...' : 'Search by name or student number...'}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              style={{ fontSize: '13px', padding: '0 12px', height: '42px', width: 'auto', minWidth: '180px', borderRadius: '10px' }}
+            >
+              <option value="all">{lang === 'ar' ? '🔍 كل الفصول' : '🔍 All Classes'}</option>
+              {(classes || []).map(cls => (
+                <option key={cls.id} value={cls.name}>
+                  🏫 {lang === 'ar' ? cls.name : cls.nameEn}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
