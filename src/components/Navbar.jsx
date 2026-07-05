@@ -9,7 +9,7 @@ export default function Navbar() {
     isMobileMenuOpen, setIsMobileMenuOpen,
     showNotificationsDropdown, setShowNotificationsDropdown,
     showProfileDropdown, setShowProfileDropdown,
-    currentUser, smsLogs, notifications, handleLogout
+    currentUser, smsLogs, notifications, handleLogout, handleMarkNotificationAsRead
   } = useApp();
 
   const getTabLabel = () => {
@@ -96,8 +96,10 @@ export default function Navbar() {
           >
             <Bell />
           </button>
-          {smsLogs.length > 0 && (
-            <span className="badge-dot-notification pulsing"></span>
+          {notifications.filter(n => !n.isRead).length > 0 && (
+            <span className="badge-count-notification">
+              {notifications.filter(n => !n.isRead).length}
+            </span>
           )}
 
           {/* Notifications Dropdown Panel */}
@@ -111,12 +113,21 @@ export default function Navbar() {
               </div>
               <div className="dropdown-body">
                 {notifications.slice(0, 3).map((notif) => (
-                  <div className="dropdown-item" key={notif.id}>
+                  <div 
+                    className={`dropdown-item ${notif.isRead ? 'read' : 'unread'}`} 
+                    key={notif.id}
+                    onClick={() => {
+                      if (!notif.isRead) {
+                        handleMarkNotificationAsRead(notif.id);
+                      }
+                    }}
+                    style={{ opacity: notif.isRead ? 0.6 : 1, transition: 'all 0.3s' }}
+                  >
                     <div className="item-icon-wrapper info">
                       <Bell size={14} />
                     </div>
                     <div className="item-content">
-                      <div className="item-title">{notif.title}</div>
+                      <div className="item-title" style={{ fontWeight: notif.isRead ? 'normal' : 'bold' }}>{notif.title}</div>
                       <div className="item-desc">{notif.content}</div>
                       <div className="item-time">{notif.date}</div>
                     </div>

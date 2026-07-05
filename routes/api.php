@@ -48,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/user/update-photo', [AuthController::class, 'updatePhoto']);
     Route::post('/user/update-password', [AuthController::class, 'updatePassword']);
+    Route::post('/user/fcm-token', [AuthController::class, 'updateFcmToken']);
 
     // Dashboard - الرئيسية
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
@@ -130,6 +131,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/students/{studentId}/attendance', [TeacherController::class, 'markAttendance']);
         Route::get('/classes/{classId}/attendance-history', [TeacherController::class, 'getClassAttendanceHistory']);
         Route::get('/attendance-history', [TeacherController::class, 'getTeacherAttendanceHistory']);
+        Route::get('/schedule', [TeacherController::class, 'getSchedule']);
     });
 
     // --- مشرفة الأدوار (Floor Supervisor) ---

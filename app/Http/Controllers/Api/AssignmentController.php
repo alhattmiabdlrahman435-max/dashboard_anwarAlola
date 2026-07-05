@@ -16,6 +16,11 @@ class AssignmentController extends Controller
         
         if ($user && $user->role === 'teacher') {
             $query->where('teacher_id', $user->id);
+        } elseif ($user && $user->role === 'parent') {
+            $studentIds = \App\Models\Student::where('parent_id', $user->id)->pluck('id');
+            $query->whereHas('submissions', function ($q) use ($studentIds) {
+                $q->whereIn('student_id', $studentIds);
+            });
         }
         
         $assignments = $query->orderBy('created_at', 'desc')->get();
@@ -59,13 +64,37 @@ class AssignmentController extends Controller
         ]);
 
         // Auto-populate submissions for all students in the class
-        $students = \App\Models\Student::where('class_id', $request->input('class_id'))->get();
+        $students = \App\Models\Student::with('parentUser')->where('class_id', $request->input('class_id'))->get();
         foreach ($students as $student) {
             \App\Models\AssignmentSubmission::create([
                 'assignment_id' => $assignment->id,
                 'student_id' => $student->id,
                 'status' => 'pending',
             ]);
+        }
+
+        // Send notifications to parents of the class
+        \App\Models\Notification::create([
+            'title' => 'واجب مدرسي جديد',
+            'content' => 'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
+            'type' => 'general',
+            'is_read' => false,
+            'class_id' => $assignment->class_id,
+        ]);
+
+        $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
+        foreach ($parentUsers as $parentUser) {
+            if ($parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification(
+                    $parentUser->fcm_token,
+                    'واجب مدرسي جديد 📝',
+                    'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
+                    [
+                        'type' => 'assignment',
+                        'class_id' => (string)$assignment->class_id
+                    ]
+                );
+            }
         }
 
         return response()->json([

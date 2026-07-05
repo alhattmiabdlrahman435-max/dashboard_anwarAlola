@@ -180,6 +180,20 @@ class TeacherController extends Controller implements HasMiddleware
         } else {
             $classIds = TeacherSubject::where('teacher_id', $user->id)->pluck('class_id')->unique();
             $classes = SchoolClass::whereIn('id', $classIds)->withCount('students')->get();
+            
+            foreach ($classes as $class) {
+                $subjectNames = TeacherSubject::where('teacher_id', $user->id)
+                    ->where('class_id', $class->id)
+                    ->with('subject')
+                    ->get()
+                    ->pluck('subject.name_ar')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->toArray();
+                
+                $class->subjects_list = $subjectNames;
+            }
         }
 
         return response()->json([
@@ -263,6 +277,16 @@ class TeacherController extends Controller implements HasMiddleware
                 'is_read' => false,
                 'student_id' => $student->id,
             ]);
+
+            // Load parent relation to get the token
+            $student->load('parentUser');
+            $parentUser = $student->parentUser;
+            if ($parentUser && $parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+                    'type' => 'attendance',
+                    'student_id' => $student->id
+                ]);
+            }
         }
 
         return response()->json([
@@ -484,6 +508,75 @@ class TeacherController extends Controller implements HasMiddleware
         return response()->json([
             'success' => true,
             'subjects' => $subjects
+        ]);
+    }
+
+    /**
+     * جلب الجدول الدراسي الأسبوعي للمعلم
+     */
+    public function getSchedule(Request $request)
+    {
+        $user = $request->user();
+        
+        // Find teacher's assigned subjects and classes
+        $assignments = TeacherSubject::where('teacher_id', $user->id)->get();
+        $classIds = $assignments->pluck('class_id')->unique()->toArray();
+        $subjectIds = $assignments->pluck('subject_id')->unique()->toArray();
+        
+        // Fetch all schedules matching the classes
+        $schedules = \App\Models\Schedule::with(['schoolClass', 'subject'])
+            ->whereIn('class_id', $classIds)
+            ->whereIn('subject_id', $subjectIds)
+            ->get();
+            
+        $days = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday'];
+        $scheduleData = [];
+        
+        foreach ($days as $day) {
+            $scheduleData[$day] = array_fill(0, 6, [
+                'subject_name' => '',
+                'class_name' => '',
+                'startTime' => '',
+                'endTime' => '',
+            ]);
+        }
+        
+        $defaultTimings = [
+            ['start' => '08:00', 'end' => '08:45'],
+            ['start' => '08:45', 'end' => '09:30'],
+            ['start' => '09:45', 'end' => '10:30'],
+            ['start' => '10:30', 'end' => '11:15'],
+            ['start' => '11:30', 'end' => '12:15'],
+            ['start' => '12:15', 'end' => '01:00'],
+        ];
+        
+        foreach ($schedules as $sch) {
+            $day = strtolower($sch->day_of_week);
+            $periodIdx = $sch->period - 1; // 0-indexed
+            
+            if (isset($scheduleData[$day]) && $periodIdx >= 0 && $periodIdx < 6) {
+                $hasAssignment = $assignments->where('class_id', $sch->class_id)
+                                             ->where('subject_id', $sch->subject_id)
+                                             ->isNotEmpty();
+                                             
+                if ($hasAssignment) {
+                    $timings = $periodIdx < count($defaultTimings) 
+                        ? $defaultTimings[$periodIdx] 
+                        : ['start' => '00:00', 'end' => '00:00'];
+                        
+                    $scheduleData[$day][$periodIdx] = [
+                        'subject_name' => $sch->subject ? $sch->subject->name_ar : '',
+                        'class_name' => $sch->schoolClass ? ($sch->schoolClass->grade_ar . ' - ' . $sch->schoolClass->section_ar) : '',
+                        'startTime' => $timings['start'],
+                        'endTime' => $timings['end'],
+                    ];
+                }
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'schedule' => $scheduleData
         ]);
     }
 }

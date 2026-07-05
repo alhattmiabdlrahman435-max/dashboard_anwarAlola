@@ -137,7 +137,7 @@ class DatabaseSeeder extends Seeder
                 'name' => $pData['nationalId'],
                 'username' => $pData['nationalId'],
                 'national_id' => $pData['nationalId'],
-                'password' => Hash::make('parent_password123'),
+                'password' => Hash::make($pData['phone']),
                 'role' => 'parent',
                 'name_ar' => $pData['name'],
                 'name_en' => $pData['nameEn'],

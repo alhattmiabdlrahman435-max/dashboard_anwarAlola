@@ -133,6 +133,18 @@ class ReportController extends Controller
                 'teacher_id' => $teacherId,
             ]);
 
+            if ($report->teacher && $report->teacher->fcm_token) {
+                \App\Services\FcmService::sendNotification(
+                    $report->teacher->fcm_token,
+                    "✅ تمت الموافقة على بلاغك بشأن {$studentName}",
+                    "قامت الإدارة بمراجعة البلاغ {$typeLabel} الذي قدمته بشأن الطالب {$studentName} والموافقة عليه.",
+                    [
+                        'type' => 'report_status',
+                        'report_id' => (string)$report->id
+                    ]
+                );
+            }
+
             // 2) إشعار لولي الأمر: بنفس محتوى البلاغ الذي كتبه المعلم
             $parentContent = "تفيدكم إدارة المدرسة بأنه تم رصد الملاحظة التالية من قِبَل معلم {$typeLabel} بشأن ابنكم {$studentName}:\n\n";
             $parentContent .= $report->description;
@@ -151,7 +163,21 @@ class ReportController extends Controller
                 'student_id' => $report->student_id, // يصل لولي الأمر عبر معرف الطالب
                 'class_id'   => null,
                 'teacher_id' => null,
+                'attachment_url' => $report->image_url,
             ]);
+
+            $parentUser = $report->student ? $report->student->parentUser : null;
+            if ($parentUser && $parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification(
+                    $parentUser->fcm_token,
+                    "📋 إشعار من الإدارة: بلاغ {$typeLabel} بشأن {$studentName}",
+                    $parentContent,
+                    [
+                        'type' => 'report',
+                        'report_id' => (string)$report->id
+                    ]
+                );
+            }
         }
 
         // ❌ رفض البلاغ
@@ -167,6 +193,18 @@ class ReportController extends Controller
                 'class_id'   => null,
                 'teacher_id' => $teacherId,
             ]);
+
+            if ($report->teacher && $report->teacher->fcm_token) {
+                \App\Services\FcmService::sendNotification(
+                    $report->teacher->fcm_token,
+                    "❌ تم رفض البلاغ بشأن {$studentName}",
+                    "تم مراجعة البلاغ {$typeLabel} الذي قدمته بشأن الطالب {$studentName} من قِبَل الإدارة، وتقرر رفض البلاغ نهائياً.",
+                    [
+                        'type' => 'report_status',
+                        'report_id' => (string)$report->id
+                    ]
+                );
+            }
         }
 
         $message = match ($request->status) {

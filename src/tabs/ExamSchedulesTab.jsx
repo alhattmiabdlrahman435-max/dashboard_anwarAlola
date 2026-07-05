@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { X } from 'lucide-react';
 
@@ -9,16 +9,16 @@ export default function ExamSchedulesTab() {
     availableGrades,
     availableSections,
     examSchedules,
-    setExamSchedules,
     setToastMessage,
-    students,
-    setSmsLogs,
     handlePublishExamSchedule: publishExamSchedule,
+    handleUpdateExamSchedule,
     handleDeleteExamSchedule
   } = useApp();
 
-  // Modal visibility
+  // Modal visibility & Edit State
   const [showExamScheduleModal, setShowExamScheduleModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingScheduleId, setEditingScheduleId] = useState(null);
 
   // Form Fields
   const [modalExamGrade, setModalExamGrade] = useState('الصف الأول');
@@ -53,6 +53,23 @@ export default function ExamSchedulesTab() {
     setModalExamSubNote('');
   };
 
+  const handleStartEdit = (sched) => {
+    setIsEditing(true);
+    setEditingScheduleId(sched.id);
+    setModalExamGrade(sched.grade);
+    setModalExamSection(sched.section);
+    setModalExamTerm(sched.term);
+    setModalExamPeriod(sched.period);
+    setModalExamSubjects(sched.subjects.map(s => ({
+      id: s.id || Date.now() + Math.random(),
+      subjectName: s.subjectName,
+      date: s.date,
+      time: s.time,
+      note: s.note || ''
+    })));
+    setShowExamScheduleModal(true);
+  };
+
   const handlePublishExamSchedule = () => {
     if (modalExamSubjects.length === 0) {
       setToastMessage(lang === 'ar' ? 'الرجاء إضافة مادة واحدة على الأقل للجدول' : 'Please add at least one subject to the schedule');
@@ -60,8 +77,8 @@ export default function ExamSchedulesTab() {
       return;
     }
 
-    const newSchedule = {
-      id: Date.now(),
+    const scheduleData = {
+      id: isEditing ? editingScheduleId : Date.now(),
       grade: modalExamGrade,
       section: modalExamSection,
       term: modalExamTerm,
@@ -71,9 +88,16 @@ export default function ExamSchedulesTab() {
       subjects: modalExamSubjects
     };
 
-    publishExamSchedule(newSchedule);
+    if (isEditing) {
+      handleUpdateExamSchedule(editingScheduleId, scheduleData);
+    } else {
+      publishExamSchedule(scheduleData);
+    }
+    
     setModalExamSubjects([]);
     setShowExamScheduleModal(false);
+    setIsEditing(false);
+    setEditingScheduleId(null);
   };
 
   return (
@@ -85,7 +109,12 @@ export default function ExamSchedulesTab() {
         
         <button 
           className="btn-accent"
-          onClick={() => setShowExamScheduleModal(true)}
+          onClick={() => {
+            setIsEditing(false);
+            setEditingScheduleId(null);
+            setModalExamSubjects([]);
+            setShowExamScheduleModal(true);
+          }}
         >
           ➕ {t.addExamScheduleBtn}
         </button>
@@ -126,6 +155,14 @@ export default function ExamSchedulesTab() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button 
+                      type="button" 
+                      className="btn-elevated no-print" 
+                      style={{ color: 'var(--color-primary-ui)', borderColor: 'rgba(6, 42, 90, 0.2)', padding: '2px 8px', fontSize: '10px' }}
+                      onClick={() => handleStartEdit(sched)}
+                    >
+                      {lang === 'ar' ? 'تعديل' : 'Edit'}
+                    </button>
                     <button 
                       type="button" 
                       className="btn-elevated no-print" 
@@ -176,7 +213,9 @@ export default function ExamSchedulesTab() {
         <div className="modal-overlay no-print">
           <div className="modal-container" style={{ maxWidth: '700px' }}>
             <header className="modal-header">
-              <h3 className="modal-title">📅 {t.addExamScheduleBtn}</h3>
+              <h3 className="modal-title">
+                📅 {isEditing ? (lang === 'ar' ? 'تعديل جدول الاختبارات' : 'Edit Exam Schedule') : t.addExamScheduleBtn}
+              </h3>
               <button 
                 className="modal-close-btn" 
                 onClick={() => {
@@ -337,7 +376,7 @@ export default function ExamSchedulesTab() {
                 className="btn-filled"
                 onClick={handlePublishExamSchedule}
               >
-                📢 {lang === 'ar' ? 'نشر الجدول نهائياً' : 'Publish Timetable'}
+                📢 {isEditing ? (lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes') : (lang === 'ar' ? 'نشر الجدول نهائياً' : 'Publish Timetable')}
               </button>
             </footer>
           </div>

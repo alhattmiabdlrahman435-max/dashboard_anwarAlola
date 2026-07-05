@@ -12,7 +12,7 @@ export default function Sidebar() {
     activeTab, setActiveTab,
     isSidebarCollapsed, setIsSidebarCollapsed,
     isMobileMenuOpen, setIsMobileMenuOpen,
-    currentUser, absenceRequests, teacherReports,
+    currentUser, absenceRequests, teacherReports, notifications,
     hasPermission
   } = useApp();
 
@@ -238,9 +238,15 @@ export default function Sidebar() {
                 className={`menu-item ${activeTab === 'communications' ? 'active' : ''}`}
                 onClick={() => { setActiveTab('communications'); setIsMobileMenuOpen(false); }}
                 data-tooltip={t.communications}
+                style={{ position: 'relative' }}
               >
                 <Bell />
                 <span>{t.communications}</span>
+                {notifications.filter(n => !n.isRead).length > 0 && (
+                  <span className="menu-item-badge">
+                    {notifications.filter(n => !n.isRead).length}
+                  </span>
+                )}
               </button>
             )}
 

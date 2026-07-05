@@ -58,6 +58,7 @@ class StudentController extends Controller implements HasMiddleware
                 'qrCode' => $student->qr_code,
                 'photo' => $student->photo_url ?: '👨‍🎓',
                 'secret_code' => $student->secret_code,
+                'tuition_fee' => (float)($student->tuition_fee ?? 10000.00),
                 'is_active' => $student->is_active,
             ];
         });
@@ -79,6 +80,7 @@ class StudentController extends Controller implements HasMiddleware
             'photo_url' => 'nullable|string',
             'qr_code' => 'nullable|string|unique:students,qr_code',
             'secret_code' => 'nullable|string',
+            'tuition_fee' => 'nullable|numeric',
         ]);
 
         $student = Student::create([
@@ -90,6 +92,7 @@ class StudentController extends Controller implements HasMiddleware
             'photo_url' => $request->photo_url ?: '👨‍🎓',
             'qr_code' => $request->qr_code ?: ('ANWAR-' . rand(100000, 999999)),
             'secret_code' => $request->secret_code,
+            'tuition_fee' => $request->tuition_fee ?? 10000.00,
             'is_active' => true,
         ]);
 

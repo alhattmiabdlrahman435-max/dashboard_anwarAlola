@@ -25,6 +25,34 @@ class GradeController extends Controller implements HasMiddleware
      */
     public function detailed(string $studentId)
     {
+        $user = request()->user();
+        $student = Student::find($studentId);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الطالب غير موجود.'
+            ], 404);
+        }
+
+        // Access Control
+        if ($user && $user->role === 'parent') {
+            if ($student->parent_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض درجات هذا الطالب.'
+                ], 403);
+            }
+        } elseif ($user && $user->role === 'supervisor') {
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+            if ($scopedClassIds !== null && !in_array((int)$student->class_id, $scopedClassIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض درجات هذا الطالب.'
+                ], 403);
+            }
+        }
+
         $grades = Grade::with('subject')->where('student_id', $studentId)->get()->map(function($grade) {
             // Map term and month to frontend keys if necessary
             $termKey = $grade->term === 1 ? 'term1' : 'term2';
@@ -102,6 +130,35 @@ class GradeController extends Controller implements HasMiddleware
                 'final_exam' => $request->final_exam,
             ]
         );
+
+        // Send Notification to Parent
+        $student = \App\Models\Student::with('parentUser')->find($request->student_id);
+        if ($student) {
+            $subject = \App\Models\Subject::find($request->subject_id);
+            $subjectName = $subject ? $subject->name_ar : 'المادة';
+            
+            // Create database notification record
+            \App\Models\Notification::create([
+                'title' => 'رصد درجات جديدة',
+                'content' => 'تم رصد درجات ابنكم ' . ($student->name_ar ?? '') . ' في مادة ' . $subjectName,
+                'type' => 'general',
+                'is_read' => false,
+                'student_id' => $student->id,
+            ]);
+
+            // Send FCM
+            if ($student->parentUser && $student->parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification(
+                    $student->parentUser->fcm_token,
+                    'رصد درجات جديدة 📊',
+                    'تم رصد درجات ابنكم ' . ($student->name_ar ?? '') . ' في مادة ' . $subjectName . '.',
+                    [
+                        'type' => 'grade',
+                        'student_id' => (string)$student->id
+                    ]
+                );
+            }
+        }
 
         return response()->json([
             'success' => true,

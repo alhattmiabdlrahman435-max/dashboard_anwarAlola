@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
         $query = Notification::orderBy('created_at', 'desc');
@@ -38,7 +38,7 @@ class NotificationController extends Controller
             });
         }
 
-        $notifications = $query->get()->map(function($notif) {
+        $notifications = $query->get()->map(function($notif) use ($request) {
             // Map back to legacy target_type format to support frontend if it inspects them
             $targetType = 'all_parents';
             $targetId = null;
@@ -54,6 +54,12 @@ class NotificationController extends Controller
                 $targetId = $notif->teacher_id;
             }
 
+            $attachmentUrl = $notif->attachment_url;
+            if ($attachmentUrl) {
+                $requestHost = $request->headers->get('host') ?: '192.168.8.188:8000';
+                $attachmentUrl = str_replace(['127.0.0.1:8000', 'localhost:8000'], $requestHost, $attachmentUrl);
+            }
+
             return [
                 'id' => $notif->id,
                 'title' => $notif->title,
@@ -62,6 +68,7 @@ class NotificationController extends Controller
                 'is_read' => $notif->is_read,
                 'target_type' => $targetType,
                 'target_id' => $targetId,
+                'attachment_url' => $attachmentUrl,
                 'created_at' => $notif->created_at,
             ];
         });

@@ -10,9 +10,16 @@ use Carbon\Carbon;
 
 class AbsenceRequestController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $requests = AbsenceRequest::with(['student', 'parentUser'])->orderBy('created_at', 'desc')->get()->map(function($req) {
+        $user = $request->user();
+        $query = AbsenceRequest::with(['student', 'parentUser']);
+
+        if ($user && $user->role === 'parent') {
+            $query->where('parent_id', $user->id);
+        }
+
+        $requests = $query->orderBy('created_at', 'desc')->get()->map(function($req) {
             return [
                 'id' => $req->id,
                 'student_id' => $req->student_id,
@@ -42,23 +49,26 @@ class AbsenceRequestController extends Controller
     {
         $request->validate([
             'student_id' => 'required|integer',
-            'parent_id' => 'required|integer',
+            'parent_id'  => 'nullable|integer',
             'start_date' => 'required|date',
-            'end_date' => 'nullable|date',
-            'reason_ar' => 'required|string',
-            'reason_en' => 'nullable|string',
+            'end_date'   => 'nullable|date',
+            'reason_ar'  => 'required|string',
+            'reason_en'  => 'nullable|string',
             'attachment_url' => 'nullable|string',
         ]);
 
+        // Use authenticated user ID if parent_id is not provided in body
+        $parentId = $request->parent_id ?: auth()->id();
+
         $absenceRequest = AbsenceRequest::create([
-            'student_id' => $request->student_id,
-            'parent_id' => $request->parent_id,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date ?: $request->start_date,
-            'reason_ar' => $request->reason_ar,
-            'reason_en' => $request->reason_en,
+            'student_id'     => $request->student_id,
+            'parent_id'      => $parentId,
+            'start_date'     => $request->start_date,
+            'end_date'       => $request->end_date ?: $request->start_date,
+            'reason_ar'      => $request->reason_ar,
+            'reason_en'      => $request->reason_en,
             'attachment_url' => $request->attachment_url,
-            'status' => 'pending'
+            'status'         => 'pending'
         ]);
 
         return response()->json([
@@ -108,7 +118,7 @@ class AbsenceRequestController extends Controller
      */
     public function approve(Request $request, string $id)
     {
-        $absenceRequest = AbsenceRequest::find($id);
+        $absenceRequest = AbsenceRequest::with(['student', 'parentUser'])->find($id);
         if (!$absenceRequest) {
             return response()->json(['success' => false, 'message' => 'الطلب غير موجود'], 404);
         }
@@ -137,6 +147,33 @@ class AbsenceRequestController extends Controller
             );
         }
 
+        // Send notifications
+        $studentName = $absenceRequest->student ? ($absenceRequest->student->name_ar ?? $absenceRequest->student->name ?? '') : '';
+        $startStr = Carbon::parse($absenceRequest->start_date)->toDateString();
+        $endStr = Carbon::parse($absenceRequest->end_date ?: $absenceRequest->start_date)->toDateString();
+        $statusTitle = 'قبول طلب الغياب 🟢';
+        $statusBody = 'تم قبول طلب الغياب المقدم للابن ' . $studentName . ' للفترة من ' . $startStr . ' إلى ' . $endStr;
+
+        \App\Models\Notification::create([
+            'title' => $statusTitle,
+            'content' => $statusBody,
+            'type' => 'general',
+            'is_read' => false,
+            'student_id' => $absenceRequest->student_id,
+        ]);
+
+        if ($absenceRequest->parentUser && $absenceRequest->parentUser->fcm_token) {
+            \App\Services\FcmService::sendNotification(
+                $absenceRequest->parentUser->fcm_token,
+                $statusTitle,
+                $statusBody,
+                [
+                    'type' => 'absence_request',
+                    'request_id' => (string)$absenceRequest->id
+                ]
+            );
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'تمت الموافقة على طلب العذر بنجاح وتحديث حضور الطالب',
@@ -149,7 +186,7 @@ class AbsenceRequestController extends Controller
      */
     public function reject(Request $request, string $id)
     {
-        $absenceRequest = AbsenceRequest::find($id);
+        $absenceRequest = AbsenceRequest::with(['student', 'parentUser'])->find($id);
         if (!$absenceRequest) {
             return response()->json(['success' => false, 'message' => 'الطلب غير موجود'], 404);
         }
@@ -160,6 +197,33 @@ class AbsenceRequestController extends Controller
             'reviewed_at' => now(),
             'admin_note_ar' => $request->admin_note_ar ?: 'تم رفض العذر المرفق لعدم كفاية البيانات',
         ]);
+
+        // Send notifications
+        $studentName = $absenceRequest->student ? ($absenceRequest->student->name_ar ?? $absenceRequest->student->name ?? '') : '';
+        $startStr = Carbon::parse($absenceRequest->start_date)->toDateString();
+        $endStr = Carbon::parse($absenceRequest->end_date ?: $absenceRequest->start_date)->toDateString();
+        $statusTitle = 'رفض طلب الغياب 🔴';
+        $statusBody = 'تم رفض طلب الغياب المقدم للابن ' . $studentName . ' للفترة من ' . $startStr . ' إلى ' . $endStr;
+
+        \App\Models\Notification::create([
+            'title' => $statusTitle,
+            'content' => $statusBody,
+            'type' => 'general',
+            'is_read' => false,
+            'student_id' => $absenceRequest->student_id,
+        ]);
+
+        if ($absenceRequest->parentUser && $absenceRequest->parentUser->fcm_token) {
+            \App\Services\FcmService::sendNotification(
+                $absenceRequest->parentUser->fcm_token,
+                $statusTitle,
+                $statusBody,
+                [
+                    'type' => 'absence_request',
+                    'request_id' => (string)$absenceRequest->id
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,

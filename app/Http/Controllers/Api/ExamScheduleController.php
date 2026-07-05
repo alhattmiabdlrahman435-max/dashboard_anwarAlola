@@ -70,6 +70,29 @@ class ExamScheduleController extends Controller
                 ]);
             }
 
+            // Create notification for parents in the class
+            if ($schedule->class_id) {
+                \App\Models\Notification::create([
+                    'title' => 'جدول اختبارات جديد',
+                    'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title,
+                    'type' => 'general',
+                    'is_read' => false,
+                    'class_id' => $schedule->class_id,
+                ]);
+
+                $this->notifyParentsOfClass(
+                    $schedule->class_id,
+                    'جدول اختبارات جديد 📋',
+                    'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title
+                );
+
+                $this->notifyTeachersOfClass(
+                    $schedule->class_id,
+                    'جدول اختبارات جديد 📋',
+                    'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $schedule->title
+                );
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إنشاء جدول الاختبارات بنجاح',
@@ -147,6 +170,29 @@ class ExamScheduleController extends Controller
                 ]);
             }
 
+            // Create notification for parents in the class
+            if ($schedule->class_id) {
+                \App\Models\Notification::create([
+                    'title' => 'تعديل جدول اختبارات',
+                    'content' => 'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title,
+                    'type' => 'general',
+                    'is_read' => false,
+                    'class_id' => $schedule->class_id,
+                ]);
+
+                $this->notifyParentsOfClass(
+                    $schedule->class_id,
+                    'تعديل جدول اختبارات 📋',
+                    'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title
+                );
+
+                $this->notifyTeachersOfClass(
+                    $schedule->class_id,
+                    'تعديل جدول اختبارات 📋',
+                    'تم تعديل جدول اختبارات لفصل تدرسه: ' . $schedule->title
+                );
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث جدول الاختبارات بنجاح',
@@ -166,5 +212,64 @@ class ExamScheduleController extends Controller
             'success' => true,
             'message' => 'تم حذف جدول الاختبارات بنجاح'
         ]);
+    }
+
+    /**
+     * إرسال إشعارات فورية لجميع أولياء أمور الفصل الدراسي
+     */
+    private function notifyParentsOfClass($classId, $title, $content)
+    {
+        if (!$classId) return;
+
+        $students = \App\Models\Student::with('parentUser')->where('class_id', $classId)->get();
+        $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
+
+        foreach ($parentUsers as $parentUser) {
+            if ($parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification(
+                    $parentUser->fcm_token,
+                    $title,
+                    $content,
+                    [
+                        'type' => 'exam_schedule',
+                        'class_id' => (string)$classId
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * إرسال إشعارات فورية لجميع معلمي الفصل الدراسي
+     */
+    private function notifyTeachersOfClass($classId, $title, $content)
+    {
+        if (!$classId) return;
+
+        $teacherIds = \App\Models\TeacherSubject::where('class_id', $classId)->pluck('teacher_id')->filter()->unique();
+        foreach ($teacherIds as $teacherId) {
+            $teacherUser = \App\Models\User::find($teacherId);
+            if ($teacherUser) {
+                \App\Models\Notification::create([
+                    'title' => $title,
+                    'content' => $content,
+                    'type' => 'general',
+                    'is_read' => false,
+                    'teacher_id' => $teacherId,
+                ]);
+
+                if ($teacherUser->fcm_token) {
+                    \App\Services\FcmService::sendNotification(
+                        $teacherUser->fcm_token,
+                        $title,
+                        $content,
+                        [
+                            'type' => 'exam_schedule',
+                            'class_id' => (string)$classId
+                        ]
+                    );
+                }
+            }
+        }
     }
 }

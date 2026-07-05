@@ -71,17 +71,28 @@ class AttendanceController extends Controller
         );
 
         // Notify parent
-        $student = Student::find($request->student_id);
+        $student = Student::with('parentUser')->find($request->student_id);
         if ($student && $student->parent_id) {
             $statusAr = $request->status === 'present' ? 'حاضراً' : 'غائباً';
+            $title = 'تحديث سجل الحضور المدرسي';
+            $content = "تم تسجيل الطالب {$student->name_ar} {$statusAr} اليوم.";
 
             Notification::create([
-                'title' => 'تحديث سجل الحضور المدرسي',
-                'content' => "تم تسجيل الطالب {$student->name_ar} {$statusAr} اليوم.",
+                'title' => $title,
+                'content' => $content,
                 'type' => 'attendance',
                 'is_read' => false,
                 'student_id' => $student->id,
             ]);
+
+            // Send FCM Push Notification
+            $parentUser = $student->parentUser;
+            if ($parentUser && $parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+                    'type' => 'attendance',
+                    'student_id' => $student->id
+                ]);
+            }
         }
 
         return response()->json([
@@ -119,17 +130,28 @@ class AttendanceController extends Controller
         ]);
 
         // Notify parent
-        $student = Student::find($attendance->student_id);
+        $student = Student::with('parentUser')->find($attendance->student_id);
         if ($student && $student->parent_id) {
             $statusAr = $request->status === 'present' ? 'حاضراً' : 'غائباً';
+            $title = 'تحديث سجل الحضور المدرسي';
+            $content = "تم تعديل حالة حضور الطالب {$student->name_ar} إلى {$statusAr} اليوم.";
 
             Notification::create([
-                'title' => 'تحديث سجل الحضور المدرسي',
-                'content' => "تم تعديل حالة حضور الطالب {$student->name_ar} إلى {$statusAr} اليوم.",
+                'title' => $title,
+                'content' => $content,
                 'type' => 'attendance',
                 'is_read' => false,
                 'student_id' => $student->id,
             ]);
+
+            // Send FCM Push Notification
+            $parentUser = $student->parentUser;
+            if ($parentUser && $parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+                    'type' => 'attendance',
+                    'student_id' => $student->id
+                ]);
+            }
         }
 
         return response()->json([

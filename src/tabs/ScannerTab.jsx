@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import PrintHeader from '../components/PrintHeader';
+import { X } from 'lucide-react';
 
 export default function ScannerTab() {
   const {
@@ -23,6 +24,14 @@ export default function ScannerTab() {
   const [attendanceMonthGrade, setAttendanceMonthGrade] = useState('الصف الأول');
   const [attendanceMonthSection, setAttendanceMonthSection] = useState('أ');
   const [attendanceSearchQuery, setAttendanceSearchQuery] = useState('');
+  
+  // Quick Attendance Modal States
+  const [showQuickAttendanceModal, setShowQuickAttendanceModal] = useState(false);
+  const [quickGrade, setQuickGrade] = useState('الصف الأول');
+  const [quickSection, setQuickSection] = useState('أ');
+  const [quickStudentId, setQuickStudentId] = useState('');
+  const [quickDate, setQuickDate] = useState(new Date().toISOString().substring(0, 10));
+  const [quickStatus, setQuickStatus] = useState('present');
 
   const handleToggleDayAttendance = (studentId, dayNum) => {
     const dateStr = `${selectedAttendanceMonth}-${String(dayNum).padStart(2, '0')}`;
@@ -148,6 +157,23 @@ export default function ScannerTab() {
             >
               🖨️ {lang === 'ar' ? 'طباعة كشف الفصل' : 'Print Class Sheet'}
             </button>
+
+            <button 
+              type="button"
+              className="btn-accent"
+              onClick={() => {
+                const initialStudents = students.filter(s => s.grade === attendanceMonthGrade && s.section === attendanceMonthSection);
+                setQuickGrade(attendanceMonthGrade);
+                setQuickSection(attendanceMonthSection);
+                setQuickStudentId(initialStudents.length > 0 ? initialStudents[0].id : '');
+                setQuickDate(new Date().toISOString().substring(0, 10));
+                setQuickStatus('present');
+                setShowQuickAttendanceModal(true);
+              }}
+              style={{ height: '36px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              ⏱️ {lang === 'ar' ? 'تحضير سريع (منفرد)' : 'Quick Attendance'}
+            </button>
           </div>
 
           {/* Monthly Sheet Matrix Table */}
@@ -160,7 +186,7 @@ export default function ScannerTab() {
             const getDayOfWeek = (day) => new Date(yearNum, monthNum - 1, day).getDay();
             const checkIsWeekend = (day) => {
               const dow = getDayOfWeek(day);
-              return dow === 4 || dow === 5; // Thursday and Friday
+              return dow === 5 || dow === 6; // Friday and Saturday
             };
             const getDayLetter = (day) => {
               const dow = getDayOfWeek(day);
@@ -436,6 +462,144 @@ export default function ScannerTab() {
               </>
             );
           })()}
+        </div>
+      )}
+      {/* QUICK ATTENDANCE POPUP MODAL */}
+      {showQuickAttendanceModal && (
+        <div className="modal-overlay no-print">
+          <div className="modal-container" style={{ maxWidth: '450px' }}>
+            <header className="modal-header">
+              <h3 className="modal-title">⏱️ {lang === 'ar' ? 'تسجيل حضور سريع' : 'Quick Attendance Entry'}</h3>
+              <button 
+                className="modal-close-btn" 
+                onClick={() => setShowQuickAttendanceModal(false)}
+                aria-label="Close Quick Attendance Dialog"
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </header>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!quickStudentId) return;
+              handleCellAttendanceChange(Number(quickStudentId), quickDate, quickStatus);
+              setShowQuickAttendanceModal(false);
+            }}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formGrade}</label>
+                    <select 
+                      className="text-field"
+                      value={quickGrade} 
+                      onChange={(e) => {
+                        const newGrade = e.target.value;
+                        setQuickGrade(newGrade);
+                        const filtered = students.filter(s => s.grade === newGrade && s.section === quickSection);
+                        setQuickStudentId(filtered.length > 0 ? filtered[0].id : '');
+                      }}
+                      style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+                    >
+                      {availableGrades.map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formSection}</label>
+                    <select 
+                      className="text-field"
+                      value={quickSection} 
+                      onChange={(e) => {
+                        const newSec = e.target.value;
+                        setQuickSection(newSec);
+                        const filtered = students.filter(s => s.grade === quickGrade && s.section === newSec);
+                        setQuickStudentId(filtered.length > 0 ? filtered[0].id : '');
+                      }}
+                      style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+                    >
+                      {availableSections.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</label>
+                  <select 
+                    className="text-field"
+                    value={quickStudentId} 
+                    onChange={(e) => setQuickStudentId(e.target.value)}
+                    required
+                    style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+                  >
+                    <option value="">{lang === 'ar' ? '-- اختر الطالب --' : '-- Select Student --'}</option>
+                    {students.filter(s => s.grade === quickGrade && s.section === quickSection).map(student => (
+                      <option key={student.id} value={student.id}>{lang === 'ar' ? student.name : student.nameEn}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'تاريخ التحضير' : 'Attendance Date'}</label>
+                  <input 
+                    type="date" 
+                    className="text-field"
+                    value={quickDate} 
+                    onChange={(e) => setQuickDate(e.target.value)}
+                    required
+                    style={{ height: '36px', padding: '0 12px', fontSize: '12px' }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'الحالة' : 'Status'}</label>
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                      <input 
+                        type="radio" 
+                        name="quickStatus" 
+                        value="present" 
+                        checked={quickStatus === 'present'} 
+                        onChange={() => setQuickStatus('present')} 
+                      />
+                      <span>🟢 {lang === 'ar' ? 'حاضر' : 'Present'}</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                      <input 
+                        type="radio" 
+                        name="quickStatus" 
+                        value="absent" 
+                        checked={quickStatus === 'absent'} 
+                        onChange={() => setQuickStatus('absent')} 
+                      />
+                      <span>🔴 {lang === 'ar' ? 'غائب' : 'Absent'}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <footer className="modal-footer" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button 
+                  type="button" 
+                  className="btn-elevated"
+                  onClick={() => setShowQuickAttendanceModal(false)}
+                  style={{ height: '38px', fontSize: '12px' }}
+                >
+                  {t.cancel}
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn-filled"
+                  style={{ height: '38px', fontSize: '12px' }}
+                >
+                  {t.submit}
+                </button>
+              </footer>
+            </form>
+          </div>
         </div>
       )}
     </div>

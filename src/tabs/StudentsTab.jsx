@@ -24,6 +24,7 @@ export default function StudentsTab() {
   const [modalPhone, setModalPhone] = useState('');
   const [modalStudentPhoto, setModalStudentPhoto] = useState('');
   const [modalParentPhoto, setModalParentPhoto] = useState('');
+  const [modalTuitionFee, setModalTuitionFee] = useState('10000');
   const [formError, setFormError] = useState('');
   const [selectedParentLinkOption, setSelectedParentLinkOption] = useState('');
   const [parentSearchText, setParentSearchText] = useState('');
@@ -91,7 +92,8 @@ export default function StudentsTab() {
       time: '--:--',
       qrCode: `ANWAR-${newId}`,
       photo: modalStudentPhoto,
-      parentPhoto: parentPhotoVal
+      parentPhoto: parentPhotoVal,
+      tuitionFee: Number(modalTuitionFee || 10000)
     };
 
     const calculatedNumericPart = newId * Number(controlMultiplier) + Number(controlOffset);
@@ -118,6 +120,7 @@ export default function StudentsTab() {
     setModalPhone('');
     setModalStudentPhoto('');
     setModalParentPhoto('');
+    setModalTuitionFee('10000');
     setSelectedParentLinkOption('');
     setParentSearchText('');
   };
@@ -428,6 +431,18 @@ export default function StudentsTab() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.س)' : 'Annual Tuition Fee (SAR)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input 
+                    type="number" 
+                    className="text-field"
+                    placeholder="10000"
+                    value={modalTuitionFee}
+                    onChange={(e) => setModalTuitionFee(e.target.value)}
+                    required
+                  />
                 </div>
 
                 <div className="form-group" style={{ borderTop: '1px dashed var(--color-border)', paddingTop: 'var(--space-md)', marginTop: 'var(--space-md)' }}>

@@ -21,6 +21,16 @@ class PermissionService
             return true;
         }
 
+        // Parents can view grades and assignments
+        if ($user->role === 'parent' && $action === 'view') {
+            return true;
+        }
+
+        // Teachers can view and update grades/assignments
+        if ($user->role === 'teacher' && ($action === 'view' || $action === 'update')) {
+            return true;
+        }
+
         // Only supervisors can have custom permissions
         if ($user->role !== 'supervisor') {
             return false;

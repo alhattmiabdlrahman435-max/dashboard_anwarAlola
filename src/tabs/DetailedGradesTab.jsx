@@ -1,6 +1,5 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import PrintHeader from '../components/PrintHeader';
 import { Download } from 'lucide-react';
 import '../styles/printGrades.css';
 

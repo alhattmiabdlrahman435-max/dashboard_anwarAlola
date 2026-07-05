@@ -10,15 +10,12 @@ use Illuminate\Support\Facades\DB;
 
 class FinanceController extends Controller
 {
-    /**
-     * قائمة الطلاب والرسوم المالية
-     */
     public function index()
     {
         $students = Student::with('payments')->get();
         
         $records = $students->map(function($student) {
-            $totalFees = 10000.00; // Constant tuition fee
+            $totalFees = (float)($student->tuition_fee ?? 10000.00);
             $paid = $student->payments->sum('amount');
             $remaining = $totalFees - $paid;
 
@@ -49,7 +46,7 @@ class FinanceController extends Controller
     public function show(string $studentId)
     {
         $student = Student::with('payments')->findOrFail($studentId);
-        $totalFees = 10000.00;
+        $totalFees = (float)($student->tuition_fee ?? 10000.00);
         $paid = $student->payments->sum('amount');
         $remaining = $totalFees - $paid;
 
@@ -101,9 +98,8 @@ class FinanceController extends Controller
      */
     public function stats()
     {
-        $studentsCount = Student::count();
-        $totalRequired = $studentsCount * 10000.00;
-        $totalPaid = Payment::sum('amount');
+        $totalRequired = (float)Student::sum('tuition_fee');
+        $totalPaid = (float)Payment::sum('amount');
         $totalRemaining = $totalRequired - $totalPaid;
 
         return response()->json([

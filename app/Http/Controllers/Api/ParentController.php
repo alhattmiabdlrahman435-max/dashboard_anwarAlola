@@ -122,7 +122,7 @@ class ParentController extends Controller implements HasMiddleware
             return response()->json(['success' => false, 'message' => 'ولي الأمر غير موجود'], 404);
         }
 
-        $students = Student::where('parent_id', $parent->id)->get();
+        $students = Student::where('parent_id', $parent->id)->with('schoolClass')->get();
 
         return response()->json([
             'success' => true,

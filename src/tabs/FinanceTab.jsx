@@ -62,14 +62,14 @@ export default function FinanceTab() {
 
   // Calculate aggregates
   const parentStudentIds = parentStudents.map(s => s.id);
-  const globalRequired = parentStudents.reduce((sum, s) => sum + (tuitionFees.baseFees[s.grade] || 0), 0);
+  const globalRequired = parentStudents.reduce((sum, s) => sum + (s.tuition_fee ?? s.tuitionFee ?? 10000), 0);
   const globalPaid = tuitionFees.payments
     .filter(p => parentStudentIds.includes(p.studentId))
     .reduce((sum, p) => sum + p.amount, 0);
   const globalRemaining = globalRequired - globalPaid;
 
   const selectedStudent = students.find(s => s.id === selectedFinanceStudentId);
-  const selectedRequired = selectedStudent ? (tuitionFees.baseFees[selectedStudent.grade] || 0) : 0;
+  const selectedRequired = selectedStudent ? (selectedStudent.tuition_fee ?? selectedStudent.tuitionFee ?? 10000) : 0;
   const selectedPayments = selectedStudent
     ? tuitionFees.payments.filter(p => p.studentId === selectedStudent.id)
     : [];
@@ -137,7 +137,7 @@ export default function FinanceTab() {
               </thead>
               <tbody>
                 {parentStudents.map(s => {
-                  const required = tuitionFees.baseFees[s.grade] || 0;
+                  const required = s.tuition_fee ?? s.tuitionFee ?? 10000;
                   const paid = tuitionFees.payments.filter(p => p.studentId === s.id).reduce((sum, p) => sum + p.amount, 0);
                   const remaining = required - paid;
                   const isSelected = selectedFinanceStudentId === s.id;

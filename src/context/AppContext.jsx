@@ -107,6 +107,7 @@ export const dictionary = {
     scheduleTitle: "إدارة وتعديل الجداول الدراسية الأسبوعية",
     selectGrade: "اختر الصف الدراسي",
     day: "اليوم / الحصة",
+    saturday: "السبت",
     sunday: "الأحد",
     monday: "الاثنين",
     tuesday: "الثلاثاء",
@@ -404,6 +405,7 @@ export const dictionary = {
     scheduleTitle: "Manage & Edit Weekly Academic Timetable",
     selectGrade: "Select Grade Level",
     day: "Day / Period",
+    saturday: "Saturday",
     sunday: "Sunday",
     monday: "Monday",
     tuesday: "Tuesday",
@@ -953,23 +955,23 @@ const initialClasses = [
 
 const initialSchedule = {
   "الصف الأول - أ": {
-    sunday: [
+    saturday: [
       "الرياضيات",
       "اللغة العربية",
       "التربية الإسلامية",
       "العلوم",
       "اللغة الإنجليزية",
       "التربية البدنية",
+    ],
+    sunday: [
+      "اللغة العربية",
+      "الرياضيات",
+      "العلوم",
+      "التربية الإسلامية",
+      "اللغة الإنجليزية",
+      "الرسم الفني",
     ],
     monday: [
-      "اللغة العربية",
-      "الرياضيات",
-      "العلوم",
-      "التربية الإسلامية",
-      "اللغة الإنجليزية",
-      "الرسم الفني",
-    ],
-    tuesday: [
       "التربية الإسلامية",
       "اللغة العربية",
       "الرياضيات",
@@ -977,7 +979,7 @@ const initialSchedule = {
       "اللغة الإنجليزية",
       "التربية البدنية",
     ],
-    wednesday: [
+    tuesday: [
       "العلوم",
       "الرياضيات",
       "اللغة العربية",
@@ -985,7 +987,7 @@ const initialSchedule = {
       "الرسم الفني",
       "اللغة الإنجليزية",
     ],
-    thursday: [
+    wednesday: [
       "الرياضيات",
       "اللغة العربية",
       "التربية الإسلامية",
@@ -995,23 +997,23 @@ const initialSchedule = {
     ],
   },
   "الصف الأول - ب": {
-    sunday: [
+    saturday: [
       "اللغة العربية",
       "الرياضيات",
       "التربية الإسلامية",
       "العلوم",
       "اللغة الإنجليزية",
       "الرسم الفني",
+    ],
+    sunday: [
+      "الرياضيات",
+      "اللغة العربية",
+      "العلوم",
+      "التربية الإسلامية",
+      "اللغة الإنجليزية",
+      "التربية البدنية",
     ],
     monday: [
-      "الرياضيات",
-      "اللغة العربية",
-      "العلوم",
-      "التربية الإسلامية",
-      "اللغة الإنجليزية",
-      "التربية البدنية",
-    ],
-    tuesday: [
       "العلوم",
       "اللغة العربية",
       "الرياضيات",
@@ -1019,7 +1021,7 @@ const initialSchedule = {
       "اللغة الإنجليزية",
       "الرسم الفني",
     ],
-    wednesday: [
+    tuesday: [
       "التربية الإسلامية",
       "الرياضيات",
       "اللغة العربية",
@@ -1027,7 +1029,7 @@ const initialSchedule = {
       "اللغة الإنجليزية",
       "التربية البدنية",
     ],
-    thursday: [
+    wednesday: [
       "اللغة العربية",
       "الرياضيات",
       "التربية الإسلامية",
@@ -1037,23 +1039,23 @@ const initialSchedule = {
     ],
   },
   "الصف الثاني - أ": {
-    sunday: [
+    saturday: [
       "اللغة العربية",
       "الرياضيات",
       "العلوم",
       "التربية الإسلامية",
       "اللغة الإنجليزية",
       "الرسم الفني",
+    ],
+    sunday: [
+      "الرياضيات",
+      "اللغة العربية",
+      "التربية الإسلامية",
+      "العلوم",
+      "اللغة الإنجليزية",
+      "التربية البدنية",
     ],
     monday: [
-      "الرياضيات",
-      "اللغة العربية",
-      "التربية الإسلامية",
-      "العلوم",
-      "اللغة الإنجليزية",
-      "التربية البدنية",
-    ],
-    tuesday: [
       "العلوم",
       "الرياضيات",
       "اللغة العربية",
@@ -1061,7 +1063,7 @@ const initialSchedule = {
       "الرسم الفني",
       "اللغة الإنجليزية",
     ],
-    wednesday: [
+    tuesday: [
       "التربية الإسلامية",
       "اللغة العربية",
       "الرياضيات",
@@ -1069,7 +1071,7 @@ const initialSchedule = {
       "اللغة الإنجليزية",
       "التربية البدنية",
     ],
-    thursday: [
+    wednesday: [
       "اللغة العربية",
       "الرياضيات",
       "العلوم",
@@ -1079,23 +1081,23 @@ const initialSchedule = {
     ],
   },
   "الصف الثاني - ب": {
-    sunday: [
+    saturday: [
       "الرياضيات",
       "اللغة العربية",
       "العلوم",
       "التربية الإسلامية",
       "اللغة الإنجليزية",
       "التربية البدنية",
+    ],
+    sunday: [
+      "اللغة العربية",
+      "الرياضيات",
+      "التربية الإسلامية",
+      "العلوم",
+      "اللغة الإنجليزية",
+      "الرسم الفني",
     ],
     monday: [
-      "اللغة العربية",
-      "الرياضيات",
-      "التربية الإسلامية",
-      "العلوم",
-      "اللغة الإنجليزية",
-      "الرسم الفني",
-    ],
-    tuesday: [
       "التربية الإسلامية",
       "الرياضيات",
       "اللغة العربية",
@@ -1103,7 +1105,7 @@ const initialSchedule = {
       "اللغة الإنجليزية",
       "التربية البدنية",
     ],
-    wednesday: [
+    tuesday: [
       "العلوم",
       "اللغة العربية",
       "الرياضيات",
@@ -1111,7 +1113,7 @@ const initialSchedule = {
       "الرسم الفني",
       "اللغة الإنجليزية",
     ],
-    thursday: [
+    wednesday: [
       "الرياضيات",
       "اللغة العربية",
       "العلوم",
@@ -1121,23 +1123,23 @@ const initialSchedule = {
     ],
   },
   "الصف الثالث - أ": {
-    sunday: [
+    saturday: [
       "العلوم",
       "اللغة العربية",
       "الرياضيات",
       "التربية الإسلامية",
       "اللغة الإنجليزية",
       "التربية البدنية",
+    ],
+    sunday: [
+      "اللغة العربية",
+      "العلوم",
+      "الرياضيات",
+      "التربية الإسلامية",
+      "اللغة الإنجليزية",
+      "الرسم الفني",
     ],
     monday: [
-      "اللغة العربية",
-      "العلوم",
-      "الرياضيات",
-      "التربية الإسلامية",
-      "اللغة الإنجليزية",
-      "الرسم الفني",
-    ],
-    tuesday: [
       "الرياضيات",
       "اللغة العربية",
       "التربية الإسلامية",
@@ -1145,7 +1147,7 @@ const initialSchedule = {
       "اللغة الإنجليزية",
       "التربية البدنية",
     ],
-    wednesday: [
+    tuesday: [
       "التربية الإسلامية",
       "اللغة العربية",
       "الرياضيات",
@@ -1153,7 +1155,7 @@ const initialSchedule = {
       "اللغة الإنجليزية",
       "الرسم الفني",
     ],
-    thursday: [
+    wednesday: [
       "الرياضيات",
       "العلوم",
       "اللغة العربية",
@@ -1217,47 +1219,7 @@ const initialGrades = [
   },
 ];
 
-const initialAbsenceRequests = [
-  {
-    id: 1,
-    studentId: 202604,
-    studentName: "عبدالعزيز بن عبدالله القحطاني",
-    requestedDate: "2026-06-16",
-    reason: "زيارة مستشفى قوى الأمن لوجود حالة طارئة للفحص الطبي",
-    reasonEn:
-      "Appointment at Security Forces Hospital for an emergency check-up",
-    status: "pending",
-    attachment: "medical_report_yasser.pdf",
-    createdAt: "2026-06-15T08:30:00Z",
-  },
-  {
-    id: 2,
-    studentId: 202602,
-    studentName: "عبدالرحمن بن خالد العسيري",
-    requestedDate: "2026-06-14",
-    reason: "السفر مع الأسرة لظرف عائلي طارئ خارج المدينة",
-    reasonEn: "Traveling with family due to an emergency family circumstance",
-    status: "approved",
-    attachment: "travel_permit_abdulrahman.png",
-    adminNote: "تم قبول الإذن وتعديل سجل الحضور ليكون غياباً بعذر",
-    adminNoteEn: "Request approved. Attendance updated to excused absence.",
-    createdAt: "2026-06-13T10:15:00Z",
-  },
-  {
-    id: 3,
-    studentId: 202603,
-    studentName: "مازن بن فيصل الشمري",
-    requestedDate: "2026-06-10",
-    reason: "وعكة صحية حادة (نزلة برد شديدة)",
-    reasonEn: "Severe flu and cold",
-    status: "rejected",
-    attachment: null,
-    adminNote: "الرجاء إرفاق تقرير طبي معتمد ليتم تحويل الغياب بعذر",
-    adminNoteEn:
-      "Please attach a certified medical report to excuse the absence.",
-    createdAt: "2026-06-09T07:45:00Z",
-  },
-];
+const initialAbsenceRequests = [];
 
 const initialAssignments = [
   {
@@ -1446,115 +1408,19 @@ const initialDetailedGrades = [
   },
 ];
 
-const initialExamSchedules = [
-  {
-    id: 801,
-    grade: "الصف الأول",
-    section: "أ",
-    term: "الفصل الأول",
-    termEn: "First Term",
-    period: "الشهر الأول",
-    periodEn: "Month 1",
-    subjects: [
-      {
-        id: 1,
-        subjectName: "اللغة العربية",
-        date: "2026-10-18",
-        time: "08:00 - 09:30 ص",
-        note: "حروف (أ، ب، ت، ث)",
-      },
-      {
-        id: 2,
-        subjectName: "الرياضيات",
-        date: "2026-10-19",
-        time: "08:00 - 09:30 ص",
-        note: "العد حتى رقم ١٠ والأشكال الهندسية",
-      },
-    ],
-  },
-  {
-    id: 802,
-    grade: "الصف الثاني",
-    section: "أ",
-    term: "الفصل الأول",
-    termEn: "First Term",
-    period: "اختبار نهاية الترم",
-    periodEn: "Final Term Exam",
-    subjects: [
-      {
-        id: 1,
-        subjectName: "العلوم والفيزياء",
-        date: "2026-11-20",
-        time: "08:00 - 10:00 ص",
-        note: "الوحدة الأولى والثانية بالكامل",
-      },
-      {
-        id: 2,
-        subjectName: "اللغة الإنجليزية",
-        date: "2026-11-22",
-        time: "08:00 - 10:00 ص",
-        note: "الوحدات من ١ إلى ٣",
-      },
-    ],
-  },
-];
-
-const initialTuitionFees = {
-  baseFees: {
-    "الصف الأول": 5000,
-    "الصف الثاني": 5500,
-    "الصف الثالث": 6000,
-  },
-  payments: [
-    {
-      id: 901,
-      studentId: 202601,
-      amount: 2000,
-      paymentDate: "2026-05-15",
-      referenceNo: "REC-94827",
-      status: "completed",
-    },
-    {
-      id: 902,
-      studentId: 202601,
-      amount: 1500,
-      paymentDate: "2026-06-01",
-      referenceNo: "REC-95012",
-      status: "completed",
-    },
-    {
-      id: 903,
-      studentId: 202602,
-      amount: 5500,
-      paymentDate: "2026-05-10",
-      referenceNo: "REC-10294",
-      status: "completed",
-    },
-    {
-      id: 904,
-      studentId: 202603,
-      amount: 3000,
-      paymentDate: "2026-05-20",
-      referenceNo: "REC-20391",
-      status: "completed",
-    },
-    {
-      id: 905,
-      studentId: 202605,
-      amount: 5000,
-      paymentDate: "2026-05-25",
-      referenceNo: "REC-30912",
-      status: "completed",
-    },
-  ],
-};
-
 const initialNotifications = [];
 
 export const AppProvider = ({ children }) => {
   const [lang, setLang] = useState("ar");
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("active_tab") || "dashboard";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("active_tab", activeTab);
+  }, [activeTab]);
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showNotificationsDropdown, setShowNotificationsDropdown] =
@@ -1622,8 +1488,8 @@ export const AppProvider = ({ children }) => {
   );
   const [assignments, setAssignments] = useState(initialAssignments);
   const [detailedGrades, setDetailedGrades] = useState(initialDetailedGrades);
-  const [examSchedules, setExamSchedules] = useState(initialExamSchedules);
-  const [tuitionFees, setTuitionFees] = useState(initialTuitionFees);
+  const [examSchedules, setExamSchedules] = useState([]);
+  const [tuitionFees, setTuitionFees] = useState({ baseFees: {}, payments: [] });
   const [notifications, setNotifications] = useState(initialNotifications);
   const [teacherReports, setTeacherReports] = useState([]);
 
@@ -1688,49 +1554,15 @@ export const AppProvider = ({ children }) => {
   // Gate Scanner Simulator states
   const [smsLogs, setSmsLogs] = useState([]);
   const [selectedAttendanceMonth, setSelectedAttendanceMonth] =
-    useState("2026-06");
-
-  // Attendance records (simulated)
-  const [attendanceRecords, setAttendanceRecords] = useState(() => {
-    const records = [];
-    const startDay = 1;
-    const endDay = 15;
-    const year = 2026;
-    const month = 5; // June (0-indexed 5)
-
-    initialStudents.forEach((student) => {
-      for (let day = startDay; day <= endDay; day++) {
-        const dateObj = new Date(year, month, day);
-        const dayOfWeek = dateObj.getDay();
-        if (dayOfWeek === 4 || dayOfWeek === 5) continue; // Skip Thursday/Friday weekends
-
-        const dateStr = `2026-06-${String(day).padStart(2, "0")}`;
-
-        let status = "present";
-        let time = "07:30";
-
-        const hash = (student.id + day) % 15;
-        if (hash === 0 || hash === 5) {
-          status = "absent";
-          time = "--:--";
-        } else if (hash === 2) {
-          status = "present";
-          time = "07:45";
-        } else if (student.id === 202604 && day === 14) {
-          status = "absent";
-          time = "--:--";
-        }
-
-        records.push({
-          studentId: student.id,
-          date: dateStr,
-          status: status,
-          time: time,
-        });
-      }
+    useState(() => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      return `${year}-${month}`;
     });
-    return records;
-  });
+
+  // Attendance records (from backend / API)
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
 
   // Digital Control states
   const [isGradesEncrypted, setIsGradesEncrypted] = useState(false);
@@ -1837,6 +1669,7 @@ export const AppProvider = ({ children }) => {
                 ? notif.created_at.substring(0, 16).replace("T", " ")
                 : "",
               type: type,
+              isRead: !!notif.is_read,
               studentId:
                 notif.target_type === "by_student" ? notif.target_id : null,
               studentName: studentName,
@@ -2530,6 +2363,7 @@ export const AppProvider = ({ children }) => {
             photo_url: newStudent.photo,
             qr_code: newStudent.qrCode,
             secret_code: newGradeRow.secretCode,
+            tuition_fee: Number(newStudent.tuitionFee || 10000),
           }),
         })
           .then((res) => res.json())
@@ -2539,6 +2373,7 @@ export const AppProvider = ({ children }) => {
               const addedStudent = {
                 ...newStudent,
                 id: Number(data.student.id),
+                tuition_fee: Number(data.student.tuition_fee || newStudent.tuitionFee || 10000),
               };
               setStudents((prev) => [...prev, addedStudent]);
               
@@ -3238,7 +3073,8 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToastMessage(""), 3000);
 
     if (token) {
-      const endpoint = `/api/absence-requests/${requestId}/${newStatus}`;
+      const action = newStatus === "approved" ? "approve" : "reject";
+      const endpoint = `/api/absence-requests/${requestId}/${action}`;
       fetch(endpoint, {
         method: "POST",
         headers: {
@@ -3643,6 +3479,70 @@ export const AppProvider = ({ children }) => {
     });
   };
 
+  const handleUpdateExamScheduleAction = (id, updatedSchedule) => {
+    const token = localStorage.getItem("auth_token");
+
+    // Resolve class ID
+    const foundClass = classes.find(
+      (c) => c.grade === updatedSchedule.grade && c.section === updatedSchedule.section
+    );
+    const classId = foundClass ? Number(String(foundClass.id).replace("cls-", "")) : null;
+
+    // Resolve term key (term1 / term2)
+    const termKey = (updatedSchedule.term === "الفصل الثاني" || updatedSchedule.term === "2") ? "term2" : "term1";
+
+    // Mapped subjects array
+    const mappedSubjects = updatedSchedule.subjects.map((sub) => {
+      const foundSub = subjects.find(s => s.name === sub.subjectName || s.id === sub.subjectName);
+      const subjectId = foundSub ? Number(String(foundSub.id).replace("sub-", "")) : null;
+      
+      return {
+        subject_id: subjectId || 1,
+        exam_date: sub.date,
+        exam_time: sub.time,
+        note: sub.note || "",
+      };
+    });
+
+    setExamSchedules((prev) =>
+      prev.map((sch) => (sch.id === id ? { ...sch, ...updatedSchedule } : sch))
+    );
+    setToastMessage(
+      lang === "ar"
+        ? "تم تحديث جدول الاختبارات بنجاح!"
+        : "Exam schedule updated successfully!",
+    );
+    setTimeout(() => setToastMessage(""), 3000);
+
+    if (token) {
+      fetch(`/api/exam-schedules/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: updatedSchedule.period,
+          class_id: classId,
+          term: termKey,
+          subjects: mappedSubjects,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            fetchExamSchedules(token);
+          } else {
+            console.error("Failed to update exam schedule:", data.message);
+          }
+        })
+        .catch((err) => console.error("Error updating exam schedule:", err));
+    }
+  };
+
+
+
   const handleAddPaymentAction = (newPayment) => {
     const token = localStorage.getItem("auth_token");
 
@@ -3763,6 +3663,32 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const handleMarkNotificationAsReadAction = (id) => {
+    const token = localStorage.getItem("auth_token");
+    
+    // Update local state immediately (optimistic UI)
+    setNotifications((prev) =>
+      prev.map((notif) => (notif.id === id ? { ...notif, isRead: true } : notif))
+    );
+
+    if (token) {
+      fetch(`/api/notifications/${id}/read`, {
+        method: "PUT",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.success) {
+            console.error("Failed to mark notification as read:", data.message);
+          }
+        })
+        .catch((err) => console.error("Error marking notification as read:", err));
+    }
+  };
+
   const handleUpdateReportStatusAction = (reportId, newStatus) => {
     const token = localStorage.getItem("auth_token");
     
@@ -3803,39 +3729,39 @@ export const AppProvider = ({ children }) => {
     val,
     selectedScheduleGrade,
   ) => {
-    let updatedClassSchedule = null;
-
+    // Build the updated schedule FIRST (synchronously) before setState
     setSchedules((prev) => {
       const gradeSchedule = { ...prev[selectedScheduleGrade] };
-      const dayClasses = [...gradeSchedule[dayKey]];
+      const dayClasses = [...(gradeSchedule[dayKey] || [])];
       dayClasses[periodIdx] = val;
       gradeSchedule[dayKey] = dayClasses;
-      updatedClassSchedule = gradeSchedule;
+
+      // Send to API inside the updater to get the latest value
+      const token = localStorage.getItem("auth_token");
+      if (token) {
+        fetch("/api/schedules", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            class_name: selectedScheduleGrade,
+            schedule: gradeSchedule,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data.success) {
+              console.error("Failed to save schedule to backend:", data.message);
+            }
+          })
+          .catch((err) => console.error("Error saving schedule to backend:", err));
+      }
+
       return { ...prev, [selectedScheduleGrade]: gradeSchedule };
     });
-
-    const token = localStorage.getItem("auth_token");
-    if (token && updatedClassSchedule) {
-      fetch("/api/schedules", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          class_name: selectedScheduleGrade,
-          schedule: updatedClassSchedule,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (!data.success) {
-            console.error("Failed to save schedule to backend:", data.message);
-          }
-        })
-        .catch((err) => console.error("Error saving schedule to backend:", err));
-    }
   };
 
   const handleGradeCellChangeAction = (studentId, subject, val) => {
@@ -4325,9 +4251,11 @@ export const AppProvider = ({ children }) => {
         handleDetailedGradeChange: handleDetailedGradeChangeAction,
         syncGeneralGrades: syncGeneralGradesAction,
         handlePublishExamSchedule: handlePublishExamScheduleAction,
+        handleUpdateExamSchedule: handleUpdateExamScheduleAction,
         handleDeleteExamSchedule: handleDeleteExamScheduleAction,
         handleAddPayment: handleAddPaymentAction,
         handleSendNotification: handleSendNotificationAction,
+        handleMarkNotificationAsRead: handleMarkNotificationAsReadAction,
         handleScheduleChange: handleScheduleChangeAction,
         handleGradeCellChange: handleGradeCellChangeAction,
         handleCalculateSecretCodes: handleCalculateSecretCodesAction,

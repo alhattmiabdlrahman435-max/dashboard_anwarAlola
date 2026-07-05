@@ -604,6 +604,30 @@ body[dir="rtl"] .sidebar.collapsed .menu-item::after {
   animation: notification-pulse 1.8s infinite;
 }
 
+.badge-count-notification {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--gradient-error);
+  color: #ffffff;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-surface-alt);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+body[dir="rtl"] .badge-count-notification {
+  right: auto;
+  left: 2px;
+}
+
 @keyframes notification-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
@@ -1470,13 +1494,16 @@ body[dir="rtl"] .search-box .text-field {
 .schedule-table-container {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   background-color: var(--color-surface-alt);
   box-shadow: var(--color-shadow);
+  -webkit-overflow-scrolling: touch;
 }
 
 .schedule-table {
   width: 100%;
+  min-width: 800px;
   border-collapse: collapse;
   text-align: center;
 }
