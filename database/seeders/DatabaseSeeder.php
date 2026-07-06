@@ -152,11 +152,22 @@ class DatabaseSeeder extends Seeder
 
         // 2. Classes
         $classesData = [
+            ['grade_ar' => 'تمهيدي أول', 'grade_en' => 'KG1', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'تمهيدي ثاني', 'grade_en' => 'KG2', 'section_ar' => 'أ', 'section_en' => 'A'],
             ['grade_ar' => 'الصف الأول', 'grade_en' => 'Grade 1', 'section_ar' => 'أ', 'section_en' => 'A'],
             ['grade_ar' => 'الصف الثاني', 'grade_en' => 'Grade 2', 'section_ar' => 'أ', 'section_en' => 'A'],
             ['grade_ar' => 'الصف الثاني', 'grade_en' => 'Grade 2', 'section_ar' => 'ب', 'section_en' => 'B'],
             ['grade_ar' => 'الصف الثالث', 'grade_en' => 'Grade 3', 'section_ar' => 'أ', 'section_en' => 'A'],
             ['grade_ar' => 'الصف الثالث', 'grade_en' => 'Grade 3', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الرابع', 'grade_en' => 'Grade 4', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الخامس', 'grade_en' => 'Grade 5', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف السادس', 'grade_en' => 'Grade 6', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الأول المتوسط', 'grade_en' => 'Grade 7', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثاني المتوسط', 'grade_en' => 'Grade 8', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثالث المتوسط', 'grade_en' => 'Grade 9', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الأول الثانوي', 'grade_en' => 'Grade 10', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثاني الثانوي', 'grade_en' => 'Grade 11', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثالث الثانوي', 'grade_en' => 'Grade 12', 'section_ar' => 'أ', 'section_en' => 'A'],
         ];
 
         $classIds = [];
@@ -195,28 +206,28 @@ class DatabaseSeeder extends Seeder
         // 4. Students
         $studentsData = [
             [
-                'id' => 202601, 'student_code' => 'ANWAR-202601', 'name_ar' => 'ياسر بن محمد الرويلي', 'name_en' => 'Yasser bin Mohammed Al-Ruwayli',
-                'parent_national_id' => '1023948576', 'class_name' => 'الصف الأول - أ', 'qr_code' => 'ANWAR-202601', 'secret_code' => 'SEC-892', 'photo_url' => '👨‍🎓'
+                'id' => 202631, 'student_code' => '202631', 'name_ar' => 'ياسر بن محمد الرويلي', 'name_en' => 'Yasser bin Mohammed Al-Ruwayli',
+                'parent_national_id' => '1023948576', 'class_name' => 'الصف الأول - أ', 'qr_code' => '202631', 'secret_code' => 'SEC-892', 'photo_url' => '👨‍🎓'
             ],
             [
-                'id' => 202602, 'student_code' => 'ANWAR-202602', 'name_ar' => 'عبدالرحمن بن خالد العسيري', 'name_en' => 'Abdulrahman bin Khalid Al-Asiri',
-                'parent_national_id' => '1098765432', 'class_name' => 'الصف الثاني - ب', 'qr_code' => 'ANWAR-202602', 'secret_code' => 'SEC-451', 'photo_url' => '👦'
+                'id' => 202642, 'student_code' => '202642', 'name_ar' => 'عبدالرحمن بن خالد العسيري', 'name_en' => 'Abdulrahman bin Khalid Al-Asiri',
+                'parent_national_id' => '1098765432', 'class_name' => 'الصف الثاني - ب', 'qr_code' => '202642', 'secret_code' => 'SEC-451', 'photo_url' => '👦'
             ],
             [
-                'id' => 202603, 'student_code' => 'ANWAR-202603', 'name_ar' => 'مازن بن فيصل الشمري', 'name_en' => 'Mazen bin Faisal Al-Shammari',
-                'parent_national_id' => '1055443322', 'class_name' => 'الصف الأول - أ', 'qr_code' => 'ANWAR-202603', 'secret_code' => 'SEC-234', 'photo_url' => '🧑‍🎓'
+                'id' => 202632, 'student_code' => '202632', 'name_ar' => 'مازن بن فيصل الشمري', 'name_en' => 'Mazen bin Faisal Al-Shammari',
+                'parent_national_id' => '1055443322', 'class_name' => 'الصف الأول - أ', 'qr_code' => '202632', 'secret_code' => 'SEC-234', 'photo_url' => '🧑‍🎓'
             ],
             [
-                'id' => 202604, 'student_code' => 'ANWAR-202604', 'name_ar' => 'عبدالعزيز بن عبدالله القحطاني', 'name_en' => 'Abdulaziz bin Abdullah Al-Qahtani',
-                'parent_national_id' => '1077665544', 'class_name' => 'الصف الثالث - أ', 'qr_code' => 'ANWAR-202604', 'secret_code' => 'SEC-112', 'photo_url' => '👨‍🎓'
+                'id' => 202651, 'student_code' => '202651', 'name_ar' => 'عبدالعزيز بن عبدالله القحطاني', 'name_en' => 'Abdulaziz bin Abdullah Al-Qahtani',
+                'parent_national_id' => '1077665544', 'class_name' => 'الصف الثالث - أ', 'qr_code' => '202651', 'secret_code' => 'SEC-112', 'photo_url' => '👨‍🎓'
             ],
             [
-                'id' => 202605, 'student_code' => 'ANWAR-202605', 'name_ar' => 'سلطان بن عادل العتيبي', 'name_en' => 'Sultan bin Adel Al-Otaibi',
-                'parent_national_id' => '1011223344', 'class_name' => 'الصف الثاني - أ', 'qr_code' => 'ANWAR-202605', 'secret_code' => 'SEC-701', 'photo_url' => '👦'
+                'id' => 202641, 'student_code' => '202641', 'name_ar' => 'سلطان بن عادل العتيبي', 'name_en' => 'Sultan bin Adel Al-Otaibi',
+                'parent_national_id' => '1011223344', 'class_name' => 'الصف الثاني - أ', 'qr_code' => '202641', 'secret_code' => 'SEC-701', 'photo_url' => '👦'
             ],
             [
-                'id' => 202606, 'student_code' => 'ANWAR-202606', 'name_ar' => 'فهد بن محمد الرويلي', 'name_en' => 'Fahad bin Mohammed Al-Ruwayli',
-                'parent_national_id' => '1023948576', 'class_name' => 'الصف الثالث - ب', 'qr_code' => 'ANWAR-202606', 'secret_code' => 'SEC-389', 'photo_url' => '👦'
+                'id' => 202652, 'student_code' => '202652', 'name_ar' => 'فهد بن محمد الرويلي', 'name_en' => 'Fahad bin Mohammed Al-Ruwayli',
+                'parent_national_id' => '1023948576', 'class_name' => 'الصف الثالث - ب', 'qr_code' => '202652', 'secret_code' => 'SEC-389', 'photo_url' => '👦'
             ],
         ];
 
@@ -241,10 +252,10 @@ class DatabaseSeeder extends Seeder
         // 5. Teacher Subjects Assignments
         // Map teachers to subjects
         $teacherAssignments = [
-            'T101' => 'الرياضيات',
-            'T102' => 'العلوم',
-            'T103' => 'لغتي',
-            'T104' => 'اللغة الإنجليزية',
+            '1011111111' => 'الرياضيات',
+            '1022222222' => 'العلوم',
+            '1033333333' => 'لغتي',
+            '1044444444' => 'اللغة الإنجليزية',
         ];
 
         foreach ($teacherAssignments as $tCode => $sName) {
@@ -303,7 +314,7 @@ class DatabaseSeeder extends Seeder
                 $arrivalTime = '07:' . rand(15, 45) . ':00';
                 
                 // Student 4 (Abdulaziz Al-Qahtani) absent for 3 days to trigger alerts
-                if ($student->id == 202604 && in_array($i, [1, 2, 4])) {
+                if ($student->id == 202651 && in_array($i, [1, 2, 4])) {
                     $status = 'absent';
                     $note = 'غائب بدون عذر مسبق';
                     $arrivalTime = null;
@@ -322,9 +333,8 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        // 8. Absence Requests
         DB::table('absence_requests')->insert([
-            'student_id' => 202603,
+            'student_id' => 202632,
             'parent_id' => $parentUserIds['1055443322'],
             'start_date' => Carbon::now()->addDays(1)->toDateString(),
             'end_date' => Carbon::now()->addDays(2)->toDateString(),
@@ -337,7 +347,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         DB::table('absence_requests')->insert([
-            'student_id' => 202601,
+            'student_id' => 202631,
             'parent_id' => $parentUserIds['1023948576'],
             'start_date' => Carbon::now()->subDays(3)->toDateString(),
             'end_date' => Carbon::now()->subDays(3)->toDateString(),
@@ -400,7 +410,7 @@ class DatabaseSeeder extends Seeder
                         $written = rand(40, 50);
                         
                         // Abdulaziz has slightly lower performance to trigger alerts
-                        if ($student->id == 202604) {
+                        if ($student->id == 202651) {
                             $hw = rand(8, 11);
                             $att = rand(5, 10);
                             $beh = rand(6, 8);
@@ -427,7 +437,7 @@ class DatabaseSeeder extends Seeder
 
                     // Final Exam (month = 0)
                     $finalScore = rand(22, 30);
-                    if ($student->id == 202604) {
+                    if ($student->id == 202651) {
                         $finalScore = rand(12, 18);
                     }
 
@@ -507,12 +517,12 @@ class DatabaseSeeder extends Seeder
         // 14. Payments
         // Seed payments for students
         $paymentsMap = [
-            202601 => [4000, 3000, 3000],
-            202602 => [5000, 5000],
-            202603 => [6000, 2000],
-            202604 => [], // Paid nothing
-            202605 => [4000, 4000],
-            202606 => [3000, 2000, 2000],
+            202631 => [4000, 3000, 3000],
+            202642 => [5000, 5000],
+            202632 => [6000, 2000],
+            202651 => [], // Paid nothing
+            202641 => [4000, 4000],
+            202652 => [3000, 2000, 2000],
         ];
 
         foreach ($paymentsMap as $stId => $payments) {
@@ -546,15 +556,14 @@ class DatabaseSeeder extends Seeder
             'content' => 'نرجو من ولي أمر الطالب مراجعة الشؤون المالية لتسوية الدفعات المتبقية.',
             'type' => 'finance',
             'is_read' => false,
-            'student_id' => 202604,
+            'student_id' => 202651,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        // 16. Behavioral/Academic Reports
         DB::table('reports')->insert([
-            'student_id' => 202604,
-            'teacher_id' => $teacherUserIds['T101'],
+            'student_id' => 202651,
+            'teacher_id' => $teacherUserIds['1011111111'],
             'type' => 'academic',
             'description' => 'تراجع ملحوظ في مستوى أداء الواجبات الأسبوعية ومستوى الدرجات في مادة الرياضيات.',
             'status' => 'pending',
@@ -563,8 +572,8 @@ class DatabaseSeeder extends Seeder
         ]);
         
         DB::table('reports')->insert([
-            'student_id' => 202604,
-            'teacher_id' => $teacherUserIds['T103'],
+            'student_id' => 202651,
+            'teacher_id' => $teacherUserIds['1033333333'],
             'type' => 'behavioral',
             'description' => 'الطالب كثير التشتت أثناء الحصة ولا يلتزم بتوجيهات المعلم، نأمل التوجيه والمتابعة المنزلية.',
             'status' => 'reviewed',

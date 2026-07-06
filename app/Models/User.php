@@ -16,7 +16,7 @@ class User extends Authenticatable
         'username', 'role',
         'national_id', 'job_id',
         'name_ar', 'name_en',
-        'phone', 'photo_url',
+        'phone', 'address', 'photo_url',
         'is_active', 'last_login',
         'permissions',
         'fcm_token',

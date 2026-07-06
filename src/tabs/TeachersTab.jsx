@@ -17,7 +17,8 @@ export default function TeachersTab() {
   const [selectedTeacherIdForEdit, setSelectedTeacherIdForEdit] = useState(null);
   const [modalTeacherName, setModalTeacherName] = useState('');
   const [modalTeacherJobId, setModalTeacherJobId] = useState('');
-  const [modalTeacherPassword, setModalTeacherPassword] = useState('');
+  const [modalTeacherPhone, setModalTeacherPhone] = useState('');
+  const [modalTeacherAddress, setModalTeacherAddress] = useState('');
   const [modalTeacherPhoto, setModalTeacherPhoto] = useState('');
   const [modalTeacherAssignments, setModalTeacherAssignments] = useState([]);
   const [modalTeacherAssignmentSubject, setModalTeacherAssignmentSubject] = useState('');
@@ -28,8 +29,14 @@ export default function TeachersTab() {
     e.preventDefault();
     setFormError('');
 
-    if (!modalTeacherName.trim() || modalTeacherAssignments.length === 0 || !modalTeacherJobId.trim() || !modalTeacherPassword.trim()) {
+    if (!modalTeacherName.trim() || modalTeacherAssignments.length === 0 || !modalTeacherJobId.trim() || !modalTeacherPhone.trim()) {
       setFormError(lang === 'ar' ? 'الرجاء تعبئة جميع الحقول وإضافة تكليف تدريس واحد على الأقل' : 'Please fill all fields and add at least one teaching assignment');
+      return;
+    }
+
+    const phoneDigits = modalTeacherPhone.replace(/\D/g, '');
+    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('5')) {
+      setFormError(lang === 'ar' ? 'رقم الجوال يجب أن يكون 9 أرقام ويبدأ بـ 5' : 'Phone must be 9 digits starting with 5');
       return;
     }
 
@@ -42,7 +49,8 @@ export default function TeachersTab() {
     const newTeacher = {
       id: newId,
       jobId: modalTeacherJobId.trim(),
-      password: modalTeacherPassword.trim(),
+      phone: phoneDigits,
+      address: modalTeacherAddress.trim(),
       name: modalTeacherName,
       nameEn: nameEnFallback,
       subject: uniqueSubjects[0],
@@ -63,7 +71,8 @@ export default function TeachersTab() {
     setModalTeacherAssignments([]);
     setModalTeacherPhoto('');
     setModalTeacherJobId('');
-    setModalTeacherPassword('');
+    setModalTeacherPhone('');
+    setModalTeacherAddress('');
     setModalTeacherAssignmentSubject('');
     setModalTeacherAssignmentClass('');
   };
@@ -72,8 +81,14 @@ export default function TeachersTab() {
     e.preventDefault();
     setFormError('');
 
-    if (!modalTeacherName.trim() || modalTeacherAssignments.length === 0 || !modalTeacherJobId.trim() || !modalTeacherPassword.trim()) {
+    if (!modalTeacherName.trim() || modalTeacherAssignments.length === 0 || !modalTeacherJobId.trim() || !modalTeacherPhone.trim()) {
       setFormError(lang === 'ar' ? 'الرجاء تعبئة جميع الحقول وإضافة تكليف تدريس واحد على الأقل' : 'Please fill all fields and add at least one teaching assignment');
+      return;
+    }
+
+    const phoneDigits = modalTeacherPhone.replace(/\D/g, '');
+    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('5')) {
+      setFormError(lang === 'ar' ? 'رقم الجوال يجب أن يكون 9 أرقام ويبدأ بـ 5' : 'Phone must be 9 digits starting with 5');
       return;
     }
 
@@ -87,12 +102,14 @@ export default function TeachersTab() {
       name: modalTeacherName,
       nameEn: nameEnEn,
       jobId: modalTeacherJobId.trim(),
-      password: modalTeacherPassword.trim(),
+      phone: phoneDigits,
+      address: modalTeacherAddress.trim(),
       subject: uniqueSubjects[0],
       subjectEn: uniqueSubjects[0],
       subjects: uniqueSubjects,
       classes: uniqueClasses,
-      teachingAssignments: modalTeacherAssignments
+      teachingAssignments: modalTeacherAssignments,
+      photo: modalTeacherPhoto
     };
 
     handleEditTeacher(updatedTeacher, selectedTeacherIdForEdit);
@@ -102,7 +119,9 @@ export default function TeachersTab() {
     setModalTeacherName('');
     setModalTeacherAssignments([]);
     setModalTeacherJobId('');
-    setModalTeacherPassword('');
+    setModalTeacherPhone('');
+    setModalTeacherAddress('');
+    setModalTeacherPhoto('');
     setModalTeacherAssignmentSubject('');
     setModalTeacherAssignmentClass('');
     setSelectedTeacherIdForEdit(null);
@@ -241,7 +260,8 @@ export default function TeachersTab() {
                 setModalTeacherAssignments([]);
                 setModalTeacherPhoto('');
                 setModalTeacherJobId('');
-                setModalTeacherPassword('');
+                setModalTeacherPhone('');
+                setModalTeacherAddress('');
                 setModalTeacherAssignmentSubject('');
                 setModalTeacherAssignmentClass('');
                 setShowTeacherModal(true);
@@ -258,12 +278,12 @@ export default function TeachersTab() {
         <table className="students-table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'}</th>
               <th>{t.teacherName}</th>
               <th>{t.subject}</th>
               <th>{t.assignedClasses}</th>
-              <th>{lang === 'ar' ? 'كلمة المرور' : 'Password'}</th>
+              <th>{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'}</th>
+              <th>{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</th>
               <th>{t.gradesEntered}</th>
               <th>{t.assignmentsPublished}</th>
               <th className="no-print">{t.action}</th>
@@ -272,7 +292,6 @@ export default function TeachersTab() {
           <tbody>
             {teachers.map((teacher) => (
               <tr key={teacher.id}>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.id}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.jobId || `T${teacher.id}`}</td>
                 <td style={{ fontWeight: '600' }}>
                   {renderAvatar(teacher.photo, "👨‍--")}
@@ -299,7 +318,8 @@ export default function TeachersTab() {
                     ))}
                   </div>
                 </td>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.password || 'teacher_password123'}</td>
+                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.phone ? `+966 ${teacher.phone}` : '—'}</td>
+                <td style={{ fontSize: '12px' }}>{teacher.address || '—'}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.gradesEntered} %</td>
                 <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.assignments}</td>
                 <td className="no-print">
@@ -314,7 +334,9 @@ export default function TeachersTab() {
                         { subject: teacher.subject, class: teacher.classes[0] || 'الصف الأول - أ' }
                       ]);
                       setModalTeacherJobId(teacher.jobId || `T${teacher.id}`);
-                      setModalTeacherPassword(teacher.password || 'teacher_password123');
+                      setModalTeacherPhone(teacher.phone || '');
+                      setModalTeacherAddress(teacher.address || '');
+                      setModalTeacherPhoto(teacher.photo || '');
                       setShowEditTeacherModal(true);
                       setModalTeacherAssignmentSubject('');
                       setModalTeacherAssignmentClass('');
@@ -363,6 +385,52 @@ export default function TeachersTab() {
                   </div>
                 )}
 
+                <div className="form-group" style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>
+                    {lang === 'ar' ? 'صورة المعلم الشخصية' : 'Teacher Profile Photo'}
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    {modalTeacherPhoto ? (
+                      <div style={{ position: 'relative' }}>
+                        <img 
+                          src={modalTeacherPhoto.includes('/uploads/avatars/') ? modalTeacherPhoto.substring(modalTeacherPhoto.indexOf('/uploads/avatars/')) : modalTeacherPhoto} 
+                          alt="Preview" 
+                          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary-ui)' }} 
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setModalTeacherPhoto('')}
+                          style={{ position: 'absolute', top: 0, right: 0, background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(30, 80, 142, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', border: '1px dashed var(--color-border)' }}>
+                        👨‍🏫
+                      </div>
+                    )}
+                    <label className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', margin: 0 }}>
+                      {lang === 'ar' ? 'اختيار صورة حقيقية' : 'Choose Real Photo'}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setModalTeacherPhoto(event.target.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }} 
+                      />
+                    </label>
+                  </div>
+                </div>
+
                 <div className="form-group">
                   <label className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
@@ -381,23 +449,34 @@ export default function TeachersTab() {
                     <input 
                       type="text" 
                       className="text-field"
-                      placeholder="T105"
+                      placeholder="1011111111"
                       value={modalTeacherJobId}
                       onChange={(e) => setModalTeacherJobId(e.target.value)}
                       required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{lang === 'ar' ? 'كلمة المرور' : 'Password'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <input 
                       type="text" 
                       className="text-field"
-                      placeholder="teacher_password123"
-                      value={modalTeacherPassword}
-                      onChange={(e) => setModalTeacherPassword(e.target.value)}
+                      placeholder="5XXXXXXXX"
+                      value={modalTeacherPhone}
+                      onChange={(e) => setModalTeacherPhone(e.target.value)}
                       required
                     />
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
+                  <input 
+                    type="text" 
+                    className="text-field"
+                    placeholder={lang === 'ar' ? 'مثال: حي النزهة، الرياض' : 'e.g. Al-Nuzha, Riyadh'}
+                    value={modalTeacherAddress}
+                    onChange={(e) => setModalTeacherAddress(e.target.value)}
+                  />
                 </div>
 
                 <div style={{ padding: '14px', background: 'rgba(30, 80, 142, 0.03)', border: '1px solid var(--color-border)', borderRadius: '16px', marginBottom: '16px' }}>
@@ -540,6 +619,53 @@ export default function TeachersTab() {
                     {formError}
                   </div>
                 )}
+
+                <div className="form-group" style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>
+                    {lang === 'ar' ? 'صورة المعلم الشخصية' : 'Teacher Profile Photo'}
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    {modalTeacherPhoto ? (
+                      <div style={{ position: 'relative' }}>
+                        <img 
+                          src={modalTeacherPhoto.includes('/uploads/avatars/') ? modalTeacherPhoto.substring(modalTeacherPhoto.indexOf('/uploads/avatars/')) : modalTeacherPhoto} 
+                          alt="Preview" 
+                          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary-ui)' }} 
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setModalTeacherPhoto('')}
+                          style={{ position: 'absolute', top: 0, right: 0, background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(30, 80, 142, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', border: '1px dashed var(--color-border)' }}>
+                        👨‍🏫
+                      </div>
+                    )}
+                    <label className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', margin: 0 }}>
+                      {lang === 'ar' ? 'اختيار صورة حقيقية' : 'Choose Real Photo'}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setModalTeacherPhoto(event.target.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }} 
+                      />
+                    </label>
+                  </div>
+                </div>
+
                 <div className="form-group">
                   <label className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input type="text" className="text-field" value={modalTeacherName} onChange={(e) => setModalTeacherName(e.target.value)} required />
@@ -549,8 +675,12 @@ export default function TeachersTab() {
                   <input type="text" className="text-field" value={modalTeacherJobId} onChange={(e) => setModalTeacherJobId(e.target.value)} required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'كلمة المرور' : 'Password'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalTeacherPassword} onChange={(e) => setModalTeacherPassword(e.target.value)} required />
+                  <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input type="text" className="text-field" value={modalTeacherPhone} onChange={(e) => setModalTeacherPhone(e.target.value)} placeholder="5XXXXXXXX" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
+                  <input type="text" className="text-field" value={modalTeacherAddress} onChange={(e) => setModalTeacherAddress(e.target.value)} placeholder={lang === 'ar' ? 'مثال: حي النزهة، الرياض' : 'e.g. Al-Nuzha, Riyadh'} />
                 </div>
                 
                 <div style={{ padding: '14px', background: 'rgba(30, 80, 142, 0.03)', border: '1px solid var(--color-border)', borderRadius: '16px', marginBottom: '16px' }}>

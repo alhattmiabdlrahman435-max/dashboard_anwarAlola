@@ -17,10 +17,8 @@ class AssignmentController extends Controller
         if ($user && $user->role === 'teacher') {
             $query->where('teacher_id', $user->id);
         } elseif ($user && $user->role === 'parent') {
-            $studentIds = \App\Models\Student::where('parent_id', $user->id)->pluck('id');
-            $query->whereHas('submissions', function ($q) use ($studentIds) {
-                $q->whereIn('student_id', $studentIds);
-            });
+            $classIds = \App\Models\Student::where('parent_id', $user->id)->pluck('class_id')->filter()->unique();
+            $query->whereIn('class_id', $classIds);
         }
         
         $assignments = $query->orderBy('created_at', 'desc')->get();

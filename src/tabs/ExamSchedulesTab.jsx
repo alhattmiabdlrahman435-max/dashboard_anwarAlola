@@ -242,9 +242,12 @@ export default function ExamSchedulesTab() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formSection}</label>
                   <select value={modalExamSection} onChange={(e) => setModalExamSection(e.target.value)} className="text-field" style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}>
-                    {availableSections.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {availableSections.map(s => {
+                      const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                      return (
+                        <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>

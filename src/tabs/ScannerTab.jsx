@@ -118,9 +118,12 @@ export default function ScannerTab() {
                   className="text-field"
                   style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
                 >
-                  {availableSections.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
+                  {availableSections.map(s => {
+                    const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                    return (
+                      <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -357,9 +360,12 @@ export default function ScannerTab() {
                 className="text-field"
                 style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
               >
-                {availableSections.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                {availableSections.map(s => {
+                  const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                  return (
+                    <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                  );
+                })}
               </select>
             </div>
 
@@ -519,9 +525,12 @@ export default function ScannerTab() {
                       }}
                       style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
                     >
-                      {availableSections.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
+                      {availableSections.map(s => {
+                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                        return (
+                          <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>

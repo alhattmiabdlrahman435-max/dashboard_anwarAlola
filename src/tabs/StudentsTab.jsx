@@ -74,7 +74,30 @@ export default function StudentsTab() {
       return;
     }
 
-    const newId = 202600 + students.length + 1;
+    const getStageIndex = (className) => {
+      if (className.includes("تمهيدي أول") || className.includes("KG1") || className.includes("الروضة الأولى")) return "1";
+      if (className.includes("تمهيدي ثاني") || className.includes("KG2") || className.includes("الروضة الثانية")) return "2";
+      if (className.includes("الأول") && !className.includes("المتوسط") && !className.includes("الثانوي")) return "3";
+      if (className.includes("الثاني") && !className.includes("المتوسط") && !className.includes("الثانوي")) return "4";
+      if (className.includes("الثالث") && !className.includes("المتوسط") && !className.includes("الثانوي")) return "5";
+      if (className.includes("الرابع")) return "6";
+      if (className.includes("الخامس")) return "7";
+      if (className.includes("السادس")) return "8";
+      if (className.includes("المتوسط") && className.includes("الأول")) return "9";
+      if (className.includes("المتوسط") && className.includes("الثاني")) return "10";
+      if (className.includes("المتوسط") && className.includes("الثالث")) return "11";
+      if (className.includes("الثانوي") && className.includes("الأول")) return "12";
+      if (className.includes("الثانوي") && className.includes("الثاني")) return "13";
+      if (className.includes("الثانوي") && className.includes("الثالث")) return "14";
+      return "3";
+    };
+
+    const stageIndex = getStageIndex(modalGrade);
+    const studentsInSameGrade = students.filter(s => s.grade === modalGrade);
+    const studentSeq = String(studentsInSameGrade.length + 1);
+    const generatedStudentCode = `2026${stageIndex}${studentSeq}`;
+    const newId = Number(generatedStudentCode);
+
     const nameEnFallback = modalStudentName.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
     
     const newStudent = {
@@ -91,7 +114,7 @@ export default function StudentsTab() {
       phone: parentPhoneVal,
       status: 'absent', // registers as absent initially until scanned
       time: '--:--',
-      qrCode: `ANWAR-${newId}`,
+      qrCode: generatedStudentCode,
       photo: modalStudentPhoto,
       parentPhoto: parentPhotoVal,
       tuitionFee: Number(modalTuitionFee || 10000)
@@ -204,8 +227,8 @@ export default function StudentsTab() {
     }
     
     const matchesSearch = lang === 'ar'
-      ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) || student.id.toString().includes(searchQuery)
-      : student.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || student.id.toString().includes(searchQuery);
+      ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) || (student.qrCode && student.qrCode.includes(searchQuery))
+      : student.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || (student.qrCode && student.qrCode.includes(searchQuery));
     
     const matchesFilter = statusFilter === 'all' || student.status === statusFilter;
 
@@ -341,7 +364,7 @@ export default function StudentsTab() {
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
                   <tr key={student.id}>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>{student.id}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{student.qrCode || student.id}</td>
                     <td style={{ fontWeight: '600' }}>
                       {renderAvatar(student.photo, "👨‍🎓")}
                       {lang === 'ar' ? student.name : student.nameEn}
@@ -448,9 +471,12 @@ export default function StudentsTab() {
                       value={modalSection}
                       onChange={(e) => setModalSection(e.target.value)}
                     >
-                      {availableSections.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
+                      {availableSections.map(s => {
+                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                        return (
+                          <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>

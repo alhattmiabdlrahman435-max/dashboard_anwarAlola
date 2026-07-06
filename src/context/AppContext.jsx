@@ -786,7 +786,7 @@ const initialTeachers = [
   {
     id: 101,
     jobId: "T101",
-    password: "teacher_password123",
+    address: "حي النزهة، الرياض",
     name: "الأستاذ فهد الهذلول",
     nameEn: "Mr. Fahad Al-Hathloul",
     subject: "الرياضيات",
@@ -805,7 +805,7 @@ const initialTeachers = [
   {
     id: 102,
     jobId: "T102",
-    password: "teacher_password123",
+    address: "حي الملقا، الرياض",
     name: "الأستاذ سليمان الحربي",
     nameEn: "Mr. Sulaiman Al-Harbi",
     subject: "اللغة العربية",
@@ -824,7 +824,7 @@ const initialTeachers = [
   {
     id: 103,
     jobId: "T103",
-    password: "teacher_password123",
+    address: "حي العليا، الرياض",
     name: "الأستاذ خالد الدوسري",
     nameEn: "Mr. Khalid Al-Dawsari",
     subject: "العلوم والفيزياء",
@@ -843,7 +843,7 @@ const initialTeachers = [
   {
     id: 104,
     jobId: "T104",
-    password: "teacher_password123",
+    address: "حي الربيع، الرياض",
     name: "الأستاذ أحمد الشريف",
     nameEn: "Mr. Ahmed Al-Sharif",
     subject: "اللغة الإنجليزية",
@@ -1737,11 +1737,14 @@ export const AppProvider = ({ children }) => {
           });
           setClasses(mapped);
 
-          // Update availableGrades and availableSections
-          const gradesSet = new Set(data.classes.map((c) => c.grade_ar));
-          const sectionsSet = new Set(data.classes.map((c) => c.section_ar));
-          setAvailableGrades(Array.from(gradesSet));
-          setAvailableSections(Array.from(sectionsSet));
+          // Update availableSections (merge with existing to prevent deletion)
+          const dbSections = data.classes.map((c) => c.section_ar);
+          if (dbSections.length > 0) {
+            setAvailableSections((prev) => {
+              const merged = new Set([...prev, ...dbSections]);
+              return Array.from(merged);
+            });
+          }
         }
       })
       .catch((err) => console.error("Error fetching classes:", err));
@@ -2103,7 +2106,8 @@ export const AppProvider = ({ children }) => {
             return {
               id: t.id,
               jobId: t.job_id,
-              password: "teacher_password123",
+              phone: t.phone || "",
+              address: t.address || "",
               name: t.name_ar || t.name_en || "",
               nameEn: t.name_en || t.name_ar || "",
               subject: subjectNames.join("، "),
@@ -2114,7 +2118,6 @@ export const AppProvider = ({ children }) => {
               gradesEntered: t.grades_entered || 0,
               assignments: t.assignments_count || 0,
               photo: t.photo_url || "👨‍🏫",
-              phone: t.phone || "",
             };
           });
           setTeachers(mapped);
@@ -2297,26 +2300,32 @@ export const AppProvider = ({ children }) => {
 
   // Render photo utility helper
   const renderAvatar = (photo, defaultEmoji) => {
-    if (
-      photo &&
-      (photo.startsWith("data:") ||
-        photo.startsWith("http") ||
-        photo.startsWith("/"))
-    ) {
-      return (
-        <img
-          src={photo}
-          alt="Avatar"
-          style={{
-            width: "32px",
-            height: "32px",
-            borderRadius: "50%",
-            objectFit: "cover",
-            verticalAlign: "middle",
-            marginInlineEnd: "8px",
-          }}
-        />
-      );
+    if (photo && typeof photo === "string") {
+      let resolvedPhoto = photo;
+      if (photo.includes("/uploads/avatars/")) {
+        const index = photo.indexOf("/uploads/avatars/");
+        resolvedPhoto = photo.substring(index);
+      }
+      if (
+        resolvedPhoto.startsWith("data:") ||
+        resolvedPhoto.startsWith("http") ||
+        resolvedPhoto.startsWith("/")
+      ) {
+        return (
+          <img
+            src={resolvedPhoto}
+            alt="Avatar"
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              objectFit: "cover",
+              verticalAlign: "middle",
+              marginInlineEnd: "8px",
+            }}
+          />
+        );
+      }
     }
     return (
       <span
@@ -2460,11 +2469,56 @@ export const AppProvider = ({ children }) => {
   };
 
   const handleAddTeacherAction = (newTeacher) => {
+    const token = localStorage.getItem("auth_token");
     setTeachers((prev) => [...prev, newTeacher]);
     setToastMessage(
       lang === "ar" ? "تم تسجيل المعلم بنجاح!" : "Teacher added successfully!",
     );
     setTimeout(() => setToastMessage(""), 4000);
+
+    if (token) {
+      // Find subject_id and class_id from names
+      const apiAssignments = newTeacher.teachingAssignments.map(a => {
+        const sub = subjects.find(s => s.name === a.subject);
+        const cls = classes.find(c => c.name === a.class);
+        let subjectId = sub?.id;
+        if (subjectId && typeof subjectId === 'string' && subjectId.startsWith('sub-')) {
+          subjectId = parseInt(subjectId.replace('sub-', ''), 10);
+        }
+        let classId = cls?.id;
+        if (classId && typeof classId === 'string' && classId.startsWith('cls-')) {
+          classId = parseInt(classId.replace('cls-', ''), 10);
+        }
+        return { subject_id: subjectId, class_id: classId };
+      }).filter(a => a.subject_id && a.class_id);
+
+      fetch("/api/teachers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          job_id: newTeacher.jobId,
+          name_ar: newTeacher.name,
+          name_en: newTeacher.nameEn,
+          phone: newTeacher.phone,
+          address: newTeacher.address,
+          photo_url: newTeacher.photo,
+          assignments: apiAssignments,
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          fetchTeachers(token);
+        } else {
+          console.error("Failed to save teacher:", data.message);
+        }
+      })
+      .catch(err => console.error("Error saving teacher:", err));
+    }
   };
 
   const handleAddParentAction = (newParent) => {
@@ -2507,15 +2561,58 @@ export const AppProvider = ({ children }) => {
   };
 
   const handleEditTeacherAction = (updatedTeacher, teacherId) => {
+    const token = localStorage.getItem("auth_token");
     setTeachers((prev) =>
       prev.map((t) => (t.id === teacherId ? updatedTeacher : t)),
     );
     setToastMessage(
       lang === "ar"
-        ? "تم تحديث بيانات المعلم وإعادة تعيين كلمة المرور بنجاح!"
-        : "Teacher details updated and password reset successfully!",
+        ? "تم تحديث بيانات المعلم بنجاح!"
+        : "Teacher details updated successfully!",
     );
     setTimeout(() => setToastMessage(""), 4000);
+
+    if (token) {
+      const apiAssignments = (updatedTeacher.teachingAssignments || []).map(a => {
+        const sub = subjects.find(s => s.name === a.subject);
+        const cls = classes.find(c => c.name === a.class);
+        let subjectId = sub?.id;
+        if (subjectId && typeof subjectId === 'string' && subjectId.startsWith('sub-')) {
+          subjectId = parseInt(subjectId.replace('sub-', ''), 10);
+        }
+        let classId = cls?.id;
+        if (classId && typeof classId === 'string' && classId.startsWith('cls-')) {
+          classId = parseInt(classId.replace('cls-', ''), 10);
+        }
+        return { subject_id: subjectId, class_id: classId };
+      }).filter(a => a.subject_id && a.class_id);
+
+      fetch(`/api/teachers/${teacherId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          name_ar: updatedTeacher.name,
+          name_en: updatedTeacher.nameEn,
+          phone: updatedTeacher.phone,
+          address: updatedTeacher.address,
+          photo_url: updatedTeacher.photo,
+          assignments: apiAssignments,
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          fetchTeachers(token);
+        } else {
+          console.error("Failed to update teacher:", data.message);
+        }
+      })
+      .catch(err => console.error("Error updating teacher:", err));
+    }
   };
 
   const handleAddSupervisorAction = (newSupervisor) => {
@@ -2744,12 +2841,66 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToastMessage(""), 3000);
   };
 
-  const handleAddSectionAction = (sectionName) => {
-    setAvailableSections((prev) => [...prev, sectionName]);
+  const handleAddSectionAction = (sectionInput) => {
+    const arabicLetters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز'];
+    const englishLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const secMap = {
+      'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G',
+      'A': 'أ', 'B': 'ب', 'C': 'ج', 'D': 'د', 'E': 'هـ', 'F': 'و', 'G': 'ز'
+    };
+
+    if (availableSections.length >= 7) {
+      setToastMessage(
+        lang === "ar"
+          ? "عذراً، لا يمكن إضافة أكثر من 7 شعب دراسية!"
+          : "Sorry, you cannot add more than 7 class sections!"
+      );
+      setTimeout(() => setToastMessage(""), 3000);
+      return;
+    }
+
+    let targetSection = "";
+    const trimmedInput = (sectionInput || "").trim().toUpperCase();
+
+    if (!trimmedInput) {
+      // Auto-name: find the first unused letter from arabicLetters
+      targetSection = arabicLetters.find(l => !availableSections.includes(l));
+      if (!targetSection) {
+        setToastMessage(
+          lang === "ar"
+            ? "عذراً، لا يمكن إضافة أكثر من 7 شعب دراسية!"
+            : "Sorry, you cannot add more than 7 class sections!"
+        );
+        setTimeout(() => setToastMessage(""), 3000);
+        return;
+      }
+    } else {
+      // User typed something
+      if (englishLetters.includes(trimmedInput)) {
+        targetSection = secMap[trimmedInput];
+      } else if (arabicLetters.includes(trimmedInput)) {
+        targetSection = trimmedInput;
+      } else {
+        targetSection = trimmedInput.slice(0, 2);
+      }
+
+      if (availableSections.includes(targetSection)) {
+        setToastMessage(
+          lang === "ar"
+            ? `الشعبة "${targetSection}" مضافة بالفعل!`
+            : `Section "${targetSection}" is already added!`
+        );
+        setTimeout(() => setToastMessage(""), 3000);
+        return;
+      }
+    }
+
+    setAvailableSections((prev) => [...prev, targetSection]);
+    const displayVal = lang === "ar" ? targetSection : (secMap[targetSection] || targetSection);
     setToastMessage(
       lang === "ar"
-        ? `تمت إضافة الشعبة: ${sectionName}`
-        : `Section added: ${sectionName}`,
+        ? `تمت إضافة الشعبة: ${displayVal}`
+        : `Section added: ${displayVal}`,
     );
     setTimeout(() => setToastMessage(""), 3000);
   };
@@ -3088,12 +3239,13 @@ export const AppProvider = ({ children }) => {
       })
         .then((res) => res.json())
         .then((data) => {
-          if (!data.success) {
-            console.error("Failed to update leave request status:", data.message);
-          } else {
+          if (data.success) {
+            fetchAbsenceRequests(token);
             if (newStatus === "approved") {
               fetchAttendance(token);
             }
+          } else {
+            console.error("Failed to update leave request status:", data.message);
           }
         })
         .catch((err) => console.error("Error updating absence decision:", err));

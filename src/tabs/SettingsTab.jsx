@@ -148,18 +148,22 @@ export default function SettingsTab() {
                 </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '160px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-chip)', padding: '8px', backgroundColor: 'var(--color-surface)' }}>
-                {availableSections.map(s => (
-                  <div key={s} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', padding: '4px 8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)' }}>
-                    <span>{s}</span>
-                    <button 
-                      style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
-                      onClick={() => handleRemoveSection(s)}
-                      title={lang === 'ar' ? 'حذف الشعبة' : 'Delete section'}
-                    >
-                      ✗
-                    </button>
-                  </div>
-                ))}
+                {availableSections.map(s => {
+                  const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                  const displayName = lang === 'ar' ? s : (secMap[s] || s);
+                  return (
+                    <div key={s} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', padding: '4px 8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                      <span>{displayName}</span>
+                      <button 
+                        style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+                        onClick={() => handleRemoveSection(s)}
+                        title={lang === 'ar' ? 'حذف الشعبة' : 'Delete section'}
+                      >
+                        ✗
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

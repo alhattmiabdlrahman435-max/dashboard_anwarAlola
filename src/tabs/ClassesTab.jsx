@@ -354,9 +354,12 @@ export default function ClassesTab() {
                         setModalClassSectionEn(secMap[e.target.value] || 'A');
                       }}
                     >
-                      {availableSections.map((s, idx) => (
-                        <option key={idx} value={s}>{s}</option>
-                      ))}
+                      {availableSections.map((s, idx) => {
+                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                        return (
+                          <option key={idx} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
@@ -460,9 +463,12 @@ export default function ClassesTab() {
                         setModalClassSectionEn(secMap[e.target.value] || 'A');
                       }}
                     >
-                      {availableSections.map((s, idx) => (
-                        <option key={idx} value={s}>{s}</option>
-                      ))}
+                      {availableSections.map((s, idx) => {
+                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                        return (
+                          <option key={idx} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>

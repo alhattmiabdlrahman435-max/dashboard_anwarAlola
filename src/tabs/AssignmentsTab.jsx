@@ -373,9 +373,12 @@ export default function AssignmentsTab() {
                       onChange={(e) => setModalAssignmentSection(e.target.value)}
                       className="text-field"
                     >
-                      {availableSections.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
+                      {availableSections.map(s => {
+                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                        return (
+                          <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>

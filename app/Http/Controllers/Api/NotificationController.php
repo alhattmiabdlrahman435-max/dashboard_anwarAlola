@@ -36,6 +36,9 @@ class NotificationController extends Controller
                            ->whereNull('teacher_id');
                   });
             });
+        } else {
+            // Admins/Supervisors: Exclude transactional notifications meant for parent/teacher mobile apps.
+            $query->whereNotIn('type', ['alert', 'attendance', 'excuse_status']);
         }
 
         $notifications = $query->get()->map(function($notif) use ($request) {

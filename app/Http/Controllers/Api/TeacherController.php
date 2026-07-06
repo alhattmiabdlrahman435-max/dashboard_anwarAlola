@@ -36,6 +36,7 @@ class TeacherController extends Controller implements HasMiddleware
                 'name_ar' => $t->name_ar,
                 'name_en' => $t->name_en,
                 'phone' => $t->phone,
+                'address' => $t->address,
                 'photo_url' => $t->photo_url ?: '👨‍🏫',
                 'email' => null,
                 'assignments' => $t->teacherSubjects->map(function($sub) {
@@ -62,24 +63,43 @@ class TeacherController extends Controller implements HasMiddleware
             'job_id' => 'required|string|unique:users,job_id',
             'name_ar' => 'required|string',
             'name_en' => 'nullable|string',
-            'phone' => 'nullable|string',
+            'phone' => 'required|string',
+            'address' => 'nullable|string',
             'photo_url' => 'nullable|string',
-            'password' => 'required|string',
             'assignments' => 'nullable|array', // array of { subject_id, class_id }
         ]);
 
         return DB::transaction(function () use ($request) {
+            $photoUrl = $request->photo_url;
+            if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
+                $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
+                $type = strtolower($type[1]);
+                if (in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
+                    $data = str_replace(' ', '+', $data);
+                    $data = base64_decode($data);
+                    if ($data !== false) {
+                        $filename = time() . '_' . uniqid() . '.' . $type;
+                        if (!file_exists(public_path('uploads/avatars'))) {
+                            mkdir(public_path('uploads/avatars'), 0755, true);
+                        }
+                        file_put_contents(public_path('uploads/avatars/' . $filename), $data);
+                        $photoUrl = asset('uploads/avatars/' . $filename);
+                    }
+                }
+            }
+
             $user = User::create([
                 'name' => $request->name_ar,
                 'username' => $request->job_id,
                 'job_id' => $request->job_id,
                 'national_id' => $request->job_id,
-                'password' => Hash::make($request->password),
+                'password' => Hash::make($request->phone),
                 'role' => 'teacher',
                 'name_ar' => $request->name_ar,
                 'name_en' => $request->name_en,
                 'phone' => $request->phone,
-                'photo_url' => $request->photo_url ?: '👨‍🏫',
+                'address' => $request->address,
+                'photo_url' => $photoUrl ?: '👨‍🏫',
                 'is_active' => true,
             ]);
 
@@ -121,18 +141,48 @@ class TeacherController extends Controller implements HasMiddleware
             'name_ar' => 'required|string',
             'name_en' => 'nullable|string',
             'phone' => 'nullable|string',
+            'address' => 'nullable|string',
             'photo_url' => 'nullable|string',
             'assignments' => 'nullable|array',
         ]);
 
         return DB::transaction(function () use ($request, $teacher) {
-            $teacher->update([
+            $photoUrl = $request->photo_url;
+            if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
+                $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
+                $type = strtolower($type[1]);
+                if (in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
+                    $data = str_replace(' ', '+', $data);
+                    $data = base64_decode($data);
+                    if ($data !== false) {
+                        $filename = time() . '_' . uniqid() . '.' . $type;
+                        if (!file_exists(public_path('uploads/avatars'))) {
+                            mkdir(public_path('uploads/avatars'), 0755, true);
+                        }
+                        file_put_contents(public_path('uploads/avatars/' . $filename), $data);
+                        $photoUrl = asset('uploads/avatars/' . $filename);
+                    }
+                }
+            }
+
+            $updateData = [
                 'name' => $request->name_ar,
                 'name_ar' => $request->name_ar,
                 'name_en' => $request->name_en,
                 'phone' => $request->phone,
-                'photo_url' => $request->photo_url ?: '👨‍🏫',
-            ]);
+                'address' => $request->address,
+            ];
+
+            if ($photoUrl) {
+                $updateData['photo_url'] = $photoUrl;
+            }
+
+            // إذا تغير رقم الجوال، نحدث كلمة المرور أيضاً
+            if ($request->phone && $request->phone !== $teacher->phone) {
+                $updateData['password'] = Hash::make($request->phone);
+            }
+
+            $teacher->update($updateData);
 
             if ($request->has('assignments')) {
                 // Delete old subjects assignments

@@ -133,6 +133,15 @@ export default function AbsenceRequestsTab() {
                                 onClick={() => {
                                   setToastMessage(lang === 'ar' ? `جاري تحميل المرفق: ${req.attachment}` : `Downloading attachment: ${req.attachment}`);
                                   setTimeout(() => setToastMessage(''), 3000);
+                                  
+                                  // Trigger actual file download
+                                  const link = document.createElement('a');
+                                  link.href = req.attachment.startsWith('http') ? req.attachment : `/uploads/attachments/${req.attachment}`;
+                                  link.download = req.attachment;
+                                  link.target = '_blank';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
                                 }}
                               >
                                 📎 {req.attachment}
@@ -228,9 +237,12 @@ export default function AbsenceRequestsTab() {
                 value={attendanceRosterSection}
                 onChange={(e) => setAttendanceRosterSection(e.target.value)}
               >
-                {availableSections.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                {availableSections.map(s => {
+                  const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
+                  return (
+                    <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
+                  );
+                })}
               </select>
             </div>
 

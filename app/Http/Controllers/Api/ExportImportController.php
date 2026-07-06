@@ -67,12 +67,12 @@ class ExportImportController extends Controller
         $data = User::where('role', 'teacher')->get();
         $rows = [];
         foreach ($data as $t) {
-            $rows[] = [$t->id, $t->name_ar ?? $t->name, $t->name_en, $t->job_id, $t->phone];
+            $rows[] = [$t->name_ar ?? $t->name, $t->job_id, $t->phone, $t->address];
         }
 
         return $this->streamCsv(
             'teachers_export.csv',
-            ['#', 'الاسم (عربي)', 'الاسم (إنجليزي)', 'الرقم الوظيفي', 'رقم الجوال'],
+            ['الاسم (عربي)', 'الرقم الوظيفي', 'رقم الجوال', 'عنوان السكن'],
             $rows
         );
     }
@@ -307,13 +307,34 @@ class ExportImportController extends Controller
                 $classId = $class?->id;
             }
 
-            // Generate unique student code
-            $studentCode = 'ANWAR-' . rand(100000, 999999);
+            $getStageIndex = function ($grade) {
+                if (str_contains($grade, "تمهيدي أول") || str_contains($grade, "KG1") || str_contains($grade, "الروضة الأولى")) return 1;
+                if (str_contains($grade, "تمهيدي ثاني") || str_contains($grade, "KG2") || str_contains($grade, "الروضة الثانية")) return 2;
+                if (str_contains($grade, "الأول") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 3;
+                if (str_contains($grade, "الثاني") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 4;
+                if (str_contains($grade, "الثالث") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 5;
+                if (str_contains($grade, "الرابع")) return 6;
+                if (str_contains($grade, "الخامس")) return 7;
+                if (str_contains($grade, "السادس")) return 8;
+                if (str_contains($grade, "المتوسط") && str_contains($grade, "الأول")) return 9;
+                if (str_contains($grade, "المتوسط") && str_contains($grade, "الثاني")) return 10;
+                if (str_contains($grade, "المتوسط") && str_contains($grade, "الثالث")) return 11;
+                if (str_contains($grade, "الثانوي") && str_contains($grade, "الأول")) return 12;
+                if (str_contains($grade, "الثانوي") && str_contains($grade, "الثاني")) return 13;
+                if (str_contains($grade, "الثانوي") && str_contains($grade, "الثالث")) return 14;
+                return 3;
+            };
+
+            $stageNum = $getStageIndex($gradeAr ?: $className);
+            $seqCount = DB::table('students')->where('class_id', $classId)->count() + 1;
+            $studentCode = "2026" . $stageNum . $seqCount;
             while (DB::table('students')->where('student_code', $studentCode)->exists()) {
-                $studentCode = 'ANWAR-' . rand(100000, 999999);
+                $seqCount++;
+                $studentCode = "2026" . $stageNum . $seqCount;
             }
 
             DB::table('students')->insert([
+                'id' => (int)$studentCode,
                 'student_code' => $studentCode,
                 'name_ar' => $nameAr,
                 'name_en' => $nameAr,
@@ -362,7 +383,7 @@ class ExportImportController extends Controller
         $nameIdx = $findIdx(['الاسم (عربي)', 'الاسم', 'اسم المعلم'], 0);
         $jobIdIdx = $findIdx(['الرقم الوظيفي', 'الرقم', 'رقم الوظيفة', 'job_id'], 1);
         $phoneIdx = $findIdx(['رقم الجوال', 'جوال', 'الجوال', 'الهاتف'], 2);
-        $passwordIdx = $findIdx(['كلمة المرور', 'المرور', 'password'], 3);
+        $addressIdx = $findIdx(['عنوان السكن', 'العنوان', 'address'], 3);
 
         foreach ($rows as $index => $row) {
             $lineNum = $index + 2;
@@ -370,7 +391,7 @@ class ExportImportController extends Controller
             $nameAr = isset($row[$nameIdx]) ? trim($row[$nameIdx]) : '';
             $jobId = isset($row[$jobIdIdx]) ? trim($row[$jobIdIdx]) : '';
             $phone = isset($row[$phoneIdx]) ? trim($row[$phoneIdx]) : '';
-            $password = isset($row[$passwordIdx]) ? trim($row[$passwordIdx]) : '';
+            $address = isset($row[$addressIdx]) ? trim($row[$addressIdx]) : '';
 
             if (empty($nameAr) || empty($jobId)) {
                 $errors[] = "سطر {$lineNum}: الاسم أو الرقم الوظيفي فارغ.";
@@ -391,7 +412,8 @@ class ExportImportController extends Controller
                 'national_id' => $jobId,
                 'job_id' => $jobId,
                 'phone' => $phone,
-                'password' => !empty($password) ? Hash::make($password) : Hash::make($phone),
+                'address' => $address,
+                'password' => Hash::make($phone),
                 'role' => 'teacher',
                 'is_active' => true,
                 'photo_url' => '👨‍🏫',
@@ -498,8 +520,8 @@ class ExportImportController extends Controller
             ],
             'teachers' => [
                 'filename' => 'teachers_template.csv',
-                'headers' => ['الاسم (عربي)', 'الرقم الوظيفي', 'رقم الجوال', 'كلمة المرور'],
-                'example' => ['خالد الدوسري', '1066666666', '0507654321', '123456'],
+                'headers' => ['الاسم (عربي)', 'الرقم الوظيفي', 'رقم الجوال', 'عنوان السكن'],
+                'example' => ['خالد الدوسري', '1066666666', '0507654321', 'حي النزهة، الرياض'],
             ],
             'parents' => [
                 'filename' => 'parents_template.csv',
