@@ -2058,6 +2058,21 @@ body[dir="rtl"] input:checked + .slider:before {
    Print Adjustments
    ========================================================================== */
 @media print {
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .app-container,
+  .main-workspace,
+  .main-content-layout,
+  .content-area,
+  .section-card,
+  .section-card > div {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    position: static !important;
+  }
   body * {
     visibility: hidden;
   }
