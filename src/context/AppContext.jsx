@@ -3337,9 +3337,10 @@ export const AppProvider = ({ children }) => {
     term,
     monthKey,
     field,
-    num,
+    rawNum,
   ) => {
     const token = localStorage.getItem("auth_token");
+    const num = rawNum === "" ? 0 : (parseFloat(rawNum) || 0);
 
     setDetailedGrades((prev) => {
       let studentRecord = prev.find((r) => r.studentId === studentId);
