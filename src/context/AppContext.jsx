@@ -903,6 +903,8 @@ export const AppProvider = ({ children }) => {
           })
           .catch((err) => {
             console.error("Error storing student:", err);
+            setToastMessage(lang === "ar" ? `فشل إضافة الطالب: ${err.message}` : `Failed to add student: ${err.message}`);
+            setTimeout(() => setToastMessage(""), 5000);
           });
       } else {
         // Fallback for mock environment
@@ -941,6 +943,8 @@ export const AppProvider = ({ children }) => {
           })
           .catch((err) => {
             console.error("Error storing parent:", err);
+            setToastMessage(lang === "ar" ? `فشل إضافة ولي الأمر: ${err.message}` : `Failed to add parent: ${err.message}`);
+            setTimeout(() => setToastMessage(""), 5000);
           });
       } else {
         // Fallback

@@ -34,4 +34,9 @@ class SchoolClass extends Model
     {
         return $this->belongsToMany(Subject::class, 'teacher_subjects', 'class_id', 'subject_id')->distinct();
     }
+
+    public function teacherSubjects()
+    {
+        return $this->hasMany(TeacherSubject::class, 'class_id');
+    }
 }

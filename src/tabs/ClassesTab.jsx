@@ -1,3 +1,4 @@
+import { api } from "../services/api";
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Plus, Search, X } from 'lucide-react';
@@ -51,21 +52,54 @@ export default function ClassesTab() {
       return;
     }
 
-    const newClass = {
-      id: 'cls-' + Date.now(),
-      name: nameAr,
-      nameEn: nameEn,
-      grade: modalClassGrade,
-      gradeEn: modalClassGradeEn,
-      section: modalClassSection,
-      sectionEn: modalClassSectionEn,
-      subjects: modalClassSubjects
-    };
-
-    setClasses(prev => [...prev, newClass]);
-    setShowClassModal(false);
-    setToastMessage(lang === 'ar' ? 'تمت إضافة الفصل الدراسي بنجاح!' : 'Class created successfully!');
-    setTimeout(() => setToastMessage(''), 3000);
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      api.post("/api/classes", {
+        grade_ar: modalClassGrade,
+        grade_en: modalClassGradeEn,
+        section_ar: modalClassSection,
+        section_en: modalClassSectionEn
+      })
+      .then(data => {
+        if (data.success) {
+          const addedClass = {
+            id: `cls-${data.class.id}`,
+            name: `${data.class.grade_ar} - ${data.class.section_ar}`,
+            nameEn: `${data.class.grade_en} - ${data.class.section_en}`,
+            grade: data.class.grade_ar,
+            gradeEn: data.class.grade_en,
+            section: data.class.section_ar,
+            sectionEn: data.class.section_en,
+            subjects: modalClassSubjects
+          };
+          setClasses(prev => [...prev, addedClass]);
+          setShowClassModal(false);
+          setToastMessage(lang === 'ar' ? 'تمت إضافة الفصل الدراسي بنجاح!' : 'Class created successfully!');
+          setTimeout(() => setToastMessage(''), 3000);
+        } else {
+          setFormError(data.message || 'Error');
+        }
+      })
+      .catch(err => {
+        console.error("Error creating class:", err);
+        setFormError(lang === 'ar' ? 'حدث خطأ أثناء حفظ الفصل.' : 'Error saving class.');
+      });
+    } else {
+      const newClass = {
+        id: 'cls-' + Date.now(),
+        name: nameAr,
+        nameEn: nameEn,
+        grade: modalClassGrade,
+        gradeEn: modalClassGradeEn,
+        section: modalClassSection,
+        sectionEn: modalClassSectionEn,
+        subjects: modalClassSubjects
+      };
+      setClasses(prev => [...prev, newClass]);
+      setShowClassModal(false);
+      setToastMessage(lang === 'ar' ? 'تمت إضافة الفصل الدراسي بنجاح!' : 'Class created successfully!');
+      setTimeout(() => setToastMessage(''), 3000);
+    }
   };
 
   const handleEditClass = (e) => {
@@ -80,25 +114,63 @@ export default function ClassesTab() {
       return;
     }
 
-    setClasses(prev => prev.map(c => {
-      if (c.id === selectedClassIdForEdit) {
-        return {
-          ...c,
-          name: nameAr,
-          nameEn: nameEn,
-          grade: modalClassGrade,
-          gradeEn: modalClassGradeEn,
-          section: modalClassSection,
-          sectionEn: modalClassSectionEn,
-          subjects: modalClassSubjects
-        };
-      }
-      return c;
-    }));
-
-    setShowEditClassModal(false);
-    setToastMessage(lang === 'ar' ? 'تم تحديث بيانات الفصل بنجاح!' : 'Class details updated successfully!');
-    setTimeout(() => setToastMessage(''), 3000);
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      const numericId = Number(String(selectedClassIdForEdit).replace("cls-", ""));
+      api.put(`/api/classes/${numericId}`, {
+        grade_ar: modalClassGrade,
+        grade_en: modalClassGradeEn,
+        section_ar: modalClassSection,
+        section_en: modalClassSectionEn
+      })
+      .then(data => {
+        if (data.success) {
+          setClasses(prev => prev.map(c => {
+            if (c.id === selectedClassIdForEdit) {
+              return {
+                ...c,
+                name: nameAr,
+                nameEn: nameEn,
+                grade: modalClassGrade,
+                gradeEn: modalClassGradeEn,
+                section: modalClassSection,
+                sectionEn: modalClassSectionEn,
+                subjects: modalClassSubjects
+              };
+            }
+            return c;
+          }));
+          setShowEditClassModal(false);
+          setToastMessage(lang === 'ar' ? 'تم تحديث بيانات الفصل بنجاح!' : 'Class details updated successfully!');
+          setTimeout(() => setToastMessage(''), 3000);
+        } else {
+          setFormError(data.message || 'Error');
+        }
+      })
+      .catch(err => {
+        console.error("Error updating class:", err);
+        setFormError(lang === 'ar' ? 'حدث خطأ أثناء تحديث بيانات الفصل.' : 'Error updating class details.');
+      });
+    } else {
+      setClasses(prev => prev.map(c => {
+        if (c.id === selectedClassIdForEdit) {
+          return {
+            ...c,
+            name: nameAr,
+            nameEn: nameEn,
+            grade: modalClassGrade,
+            gradeEn: modalClassGradeEn,
+            section: modalClassSection,
+            sectionEn: modalClassSectionEn,
+            subjects: modalClassSubjects
+          };
+        }
+        return c;
+      }));
+      setShowEditClassModal(false);
+      setToastMessage(lang === 'ar' ? 'تم تحديث بيانات الفصل بنجاح!' : 'Class details updated successfully!');
+      setTimeout(() => setToastMessage(''), 3000);
+    }
   };
 
   const handleDeleteClass = (id) => {
@@ -106,9 +178,26 @@ export default function ClassesTab() {
       title: lang === 'ar' ? 'حذف الفصل الدراسي' : 'Delete Class',
       message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الفصل؟ سيتم فصل طلابه وتكليفات المعلمين المرتبطة به.' : 'Are you sure you want to delete this class? Connected students and teacher assignments will be unlinked.',
       onConfirm: () => {
-        setClasses(prev => prev.filter(c => c.id !== id));
-        setToastMessage(lang === 'ar' ? 'تم حذف الفصل بنجاح' : 'Class deleted successfully');
-        setTimeout(() => setToastMessage(''), 3000);
+        const token = localStorage.getItem("auth_token");
+        if (token) {
+          const numericId = Number(String(id).replace("cls-", ""));
+          api.delete(`/api/classes/${numericId}`)
+          .then(data => {
+            if (data.success) {
+              setClasses(prev => prev.filter(c => c.id !== id));
+              setToastMessage(lang === 'ar' ? 'تم حذف الفصل بنجاح' : 'Class deleted successfully');
+              setTimeout(() => setToastMessage(''), 3000);
+            }
+          })
+          .catch(err => {
+            console.error("Error deleting class:", err);
+            alert(lang === 'ar' ? 'فشل حذف الفصل من قاعدة البيانات' : 'Failed to delete class from database');
+          });
+        } else {
+          setClasses(prev => prev.filter(c => c.id !== id));
+          setToastMessage(lang === 'ar' ? 'تم حذف الفصل بنجاح' : 'Class deleted successfully');
+          setTimeout(() => setToastMessage(''), 3000);
+        }
       }
     });
   };
