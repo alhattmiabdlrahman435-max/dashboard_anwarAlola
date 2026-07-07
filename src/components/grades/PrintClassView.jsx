@@ -172,7 +172,7 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
                     </div>
                   </div>
 
-                  <table style={{ 
+                  <table className="control-grade-table" style={{ 
                     width: '100%', borderCollapse: 'collapse', fontSize: '11px',
                     border: '1.5px solid #0f766e',
                     direction: 'rtl'
@@ -181,26 +181,26 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
                       {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
                         <tr style={{ background: '#f1f5f9' }}>
                           <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.hwLabel} (١٥)</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.attLabel} (١٥)</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.behLabel} (١٠)</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.oralLabel} (١٠)</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.wrtLabel} (٥٠)</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.hwLabel}</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.attLabel}</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.behLabel}</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.oralLabel}</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.wrtLabel}</th>
                           <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.monthTotalLabel} (١٠٠)</th>
                         </tr>
                       ) : classPeriod === 'termTotal' ? (
                         <tr style={{ background: '#f1f5f9' }}>
                           <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.termAverageLabel} (٢٠)</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.finalExamLabel} (٣٠)</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.termTotalLabel} (٥٠)</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.termAverageLabel}</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.finalExamLabel}</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.termTotalLabel}</th>
                         </tr>
                       ) : (
                         <tr style={{ background: '#f1f5f9' }}>
                           <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
                           <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{lang === 'ar' ? 'الترم الأول (٥٠)' : 'Term 1 (50)'}</th>
                           <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{lang === 'ar' ? 'الترم الثاني (٥٠)' : 'Term 2 (50)'}</th>
-                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.yearlyTotalLabel} (١٠٠)</th>
+                          <th style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#1e293b' }}>{t.yearlyTotalLabel}</th>
                         </tr>
                       )}
                     </thead>
