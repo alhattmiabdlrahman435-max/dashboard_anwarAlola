@@ -98,4 +98,33 @@
   body[data-print-mode="class"] .navbar {
     display: none !important;
   }
+
+  body[data-print-mode="class"] .printable-area.detailed-mode {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    display: block !important;
+  }
+
+  .student-report-card-page {
+    border: 3px double #0f766e !important;
+    padding: 28px !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    min-height: 280mm !important;
+    margin: 0 0 20px 0 !important;
+  }
+
+  @media print {
+    .student-report-card-page {
+      margin: 0 !important;
+      min-height: 280mm !important;
+    }
+  }
 }
