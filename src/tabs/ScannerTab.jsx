@@ -75,7 +75,7 @@ export default function ScannerTab() {
 
       {/* Sub-tab 1: Monthly Attendance Registry */}
       {attendanceSubTab === 'monthlySheet' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+        <div className="printable-area" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
           {/* Force Landscape Print Orientation dynamically when this tab is active */}
           <style dangerouslySetInnerHTML={{__html: `
             @media print {
