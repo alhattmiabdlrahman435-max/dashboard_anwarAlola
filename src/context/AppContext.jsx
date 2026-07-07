@@ -9,7 +9,8 @@ import sloganLogo from "../assets/slogan.jpeg";
 
 const AppContext = createContext();
 
-export { dictionary } from "../locales/dictionary";
+import { dictionary } from "../locales/dictionary";
+export { dictionary };
 import { api } from "../services/api";
 import {
   initialStudents,

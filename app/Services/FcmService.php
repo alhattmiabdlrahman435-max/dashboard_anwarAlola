@@ -63,6 +63,7 @@ class FcmService
                             'notification' => [
                                 'channel_id' => 'high_importance_channel',
                                 'sound' => 'default',
+                                'icon' => 'ic_launcher',
                             ],
                         ],
                         'apns' => [

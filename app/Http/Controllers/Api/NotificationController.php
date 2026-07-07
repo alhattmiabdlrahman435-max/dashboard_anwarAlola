@@ -113,6 +113,53 @@ class NotificationController extends Controller
             'teacher_id' => $teacherId,
         ]);
 
+        // Collect target FCM tokens
+        $tokens = [];
+        if ($request->target_type === 'all_parents') {
+            $tokens = \App\Models\User::where('role', 'parent')
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->toArray();
+        } elseif ($request->target_type === 'all_teachers') {
+            $tokens = \App\Models\User::where('role', 'teacher')
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->toArray();
+        } elseif ($request->target_type === 'specific_teacher') {
+            $teacher = \App\Models\User::find($teacherId);
+            if ($teacher && $teacher->fcm_token) {
+                $tokens[] = $teacher->fcm_token;
+            }
+        } elseif ($request->target_type === 'by_student') {
+            $student = \App\Models\Student::with('parentUser')->find($studentId);
+            if ($student && $student->parentUser && $student->parentUser->fcm_token) {
+                $tokens[] = $student->parentUser->fcm_token;
+            }
+        } elseif ($request->target_type === 'by_class') {
+            $students = \App\Models\Student::with('parentUser')->where('class_id', $classId)->get();
+            $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
+            foreach ($parentUsers as $parentUser) {
+                if ($parentUser->fcm_token) {
+                    $tokens[] = $parentUser->fcm_token;
+                }
+            }
+        }
+
+        // Send FCM push notifications
+        foreach ($tokens as $token) {
+            \App\Services\FcmService::sendNotification(
+                $token,
+                $request->title,
+                $request->content,
+                [
+                    'type' => 'notifications',
+                    'id' => (string)$notification->id,
+                ]
+            );
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'تم بث الإشعار بنجاح وإرساله للجهة المستهدفة',
