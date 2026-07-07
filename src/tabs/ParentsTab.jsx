@@ -30,11 +30,7 @@ export default function ParentsTab() {
       return;
     }
 
-    const nationalIdDigits = modalParentNationalIdVal.replace(/\D/g, '');
-    if (nationalIdDigits.length !== 10 || (!nationalIdDigits.startsWith('1') && !nationalIdDigits.startsWith('2'))) {
-      setFormError(t.nationalIdError);
-      return;
-    }
+    const nationalIdDigits = modalParentNationalIdVal.trim();
 
     const phoneDigits = modalParentPhoneNum.replace(/\D/g, '');
     if (phoneDigits.length !== 9 || !phoneDigits.startsWith('7')) {
@@ -352,8 +348,8 @@ export default function ParentsTab() {
                   <input type="text" className="text-field" value={modalParentNameEn} onChange={(e) => setModalParentNameEn(e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الرقم الوطني (10 أرقام)' : 'National ID (10 digits)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentNationalIdVal} onChange={(e) => setModalParentNationalIdVal(e.target.value)} maxLength={10} required />
+                  <label className="form-label">{lang === 'ar' ? 'الرقم الوطني' : 'National ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input type="text" className="text-field" value={modalParentNationalIdVal} onChange={(e) => setModalParentNationalIdVal(e.target.value)} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
