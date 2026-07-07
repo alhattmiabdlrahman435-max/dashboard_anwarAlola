@@ -1,3 +1,4 @@
+import { api } from "../services/api";
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Download } from 'lucide-react';
@@ -48,12 +49,7 @@ export default function DetailedGradesTab() {
 
   const handleExportGrades = async () => {
     try {
-      const res = await fetch('/api/grades/export', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Accept': 'application/json'
-        }
-      });
+      const res = await api.get('/api/grades/export');
       if (!res.ok) {
         alert(lang === 'ar' ? 'فشل تصدير درجات الطلاب' : 'Failed to export student grades');
         return;

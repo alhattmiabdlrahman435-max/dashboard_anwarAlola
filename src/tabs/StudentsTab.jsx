@@ -1,3 +1,4 @@
+import { api } from "../services/api";
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Plus, Search, X, Download, Upload, Camera, User } from 'lucide-react';
@@ -151,12 +152,7 @@ export default function StudentsTab() {
 
   const handleExport = async () => {
     try {
-      const res = await fetch('/api/students/export', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Accept': 'application/json'
-        }
-      });
+      const res = await api.get('/api/students/export');
       if (!res.ok) {
         alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
         return;
@@ -182,14 +178,7 @@ export default function StudentsTab() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/students/import', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: formData,
-      });
-      const data = await res.json();
+      const data = await api.post('/api/students/import', formData);
       if (data.success) {
         setToastMessage(data.message);
         fetchStudents(localStorage.getItem('auth_token'));
@@ -203,11 +192,7 @@ export default function StudentsTab() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await fetch('/api/students/template', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        }
-      });
+      const res = await api.get('/api/students/template');
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

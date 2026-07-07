@@ -1,3 +1,4 @@
+import { api } from "../services/api";
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Search, X, Download, Upload, FileSpreadsheet } from 'lucide-react';
@@ -103,12 +104,7 @@ export default function ParentsTab() {
 
   const handleExport = async () => {
     try {
-      const res = await fetch('/api/parents/export', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Accept': 'application/json'
-        }
-      });
+      const res = await api.get('/api/parents/export');
       if (!res.ok) {
         alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
         return;
@@ -134,14 +130,7 @@ export default function ParentsTab() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/parents/import', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: formData,
-      });
-      const data = await res.json();
+      const data = await api.post('/api/parents/import', formData);
       if (data.success) {
         setToastMessage(data.message);
         fetchParents(localStorage.getItem('auth_token'));
@@ -155,11 +144,7 @@ export default function ParentsTab() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await fetch('/api/parents/template', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        }
-      });
+      const res = await api.get('/api/parents/template');
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

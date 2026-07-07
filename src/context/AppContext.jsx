@@ -10,6 +10,7 @@ import sloganLogo from "../assets/slogan.jpeg";
 const AppContext = createContext();
 
 export { dictionary } from "../locales/dictionary";
+import { api } from "../services/api";
 import {
   initialStudents,
   initialParentUsers,
@@ -193,13 +194,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
     if (token) {
-      fetch("/api/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      })
-        .then((res) => res.json())
+      api.get("/api/me")
         .then((data) => {
           if (data.success) {
             setIsAuthenticated(true);
@@ -226,13 +221,7 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   const fetchNotifications = (token) => {
-    fetch("/api/notifications", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/notifications")
       .then((data) => {
         if (data.success) {
           const mapped = data.notifications.map((notif) => {
@@ -306,13 +295,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchSubjects = (token) => {
-    fetch("/api/subjects", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/subjects")
       .then((data) => {
         if (data.success) {
           const mapped = data.subjects.map((sub) => ({
@@ -327,13 +310,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchClasses = (token) => {
-    fetch("/api/classes", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/classes")
       .then((data) => {
         if (data.success) {
           const mapped = data.classes.map((cls) => {
@@ -367,13 +344,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchStudents = (token) => {
-    fetch("/api/students", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/students")
       .then((data) => {
         if (data.success) {
           const mapped = data.students.map((st) => ({
@@ -401,13 +372,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchParents = (token) => {
-    fetch("/api/parents", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/parents")
       .then((data) => {
         if (data.success) {
           const mapped = data.parents.map((p) => ({
@@ -427,13 +392,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchAttendance = (token) => {
-    fetch("/api/attendance", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/attendance")
       .then((data) => {
         if (data.success) {
           const mapped = data.attendance.map((rec) => ({
@@ -450,13 +409,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchAbsenceRequests = (token) => {
-    fetch("/api/absence-requests", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/absence-requests")
       .then((data) => {
         if (data.success) {
           const mapped = data.absence_requests.map((req) => {
@@ -485,13 +438,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchControlGrades = (token) => {
-    fetch("/api/grades/control", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/grades/control")
       .then((data) => {
         if (data.success) {
           const mapped = data.control_grades.map((g) => ({
@@ -511,13 +458,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchFinanceData = (token) => {
-    fetch("/api/finance/students", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/finance/students")
       .then((data) => {
         if (data.success) {
           const allPayments = [];
@@ -550,13 +491,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchDashboardStats = (token) => {
-    fetch("/api/dashboard/stats", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/dashboard/stats")
       .then((data) => {
         if (data.success) {
           setDashboardStats(data.stats);
@@ -566,13 +501,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchWeeklySchedules = (token) => {
-    fetch("/api/schedules", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/schedules")
       .then((data) => {
         if (data.success && data.schedules && Object.keys(data.schedules).length > 0) {
           setSchedules(data.schedules);
@@ -582,13 +511,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchTeacherReports = (token) => {
-    fetch("/api/reports", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/reports")
       .then((data) => {
         if (data.success) {
           setTeacherReports(data.reports);
@@ -598,13 +521,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchAssignments = (token) => {
-    fetch("/api/assignments", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/assignments")
       .then((data) => {
         if (data.success) {
           const mapped = data.assignments.map((ass) => {
@@ -644,13 +561,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchExamSchedules = (token) => {
-    fetch("/api/exam-schedules", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/exam-schedules")
       .then((data) => {
         if (data.success) {
           const mapped = data.exam_schedules.map((sch) => {
@@ -681,13 +592,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchTeachers = (token) => {
-    fetch("/api/teachers", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/teachers")
       .then((data) => {
         if (data.success) {
           const mapped = data.teachers.map((t) => {
@@ -742,13 +647,7 @@ export const AppProvider = ({ children }) => {
       .catch((err) => console.error("Error fetching teachers:", err));
   };
   const fetchSupervisors = (token) => {
-    fetch("/api/supervisors", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then((res) => res.json())
+    api.get("/api/supervisors")
       .then((data) => {
         if (data.success) {
           setSupervisors(data.supervisors);
@@ -785,13 +684,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
     if (token && selectedGradeStudentId) {
-      fetch(`/api/grades/detailed/${selectedGradeStudentId}`, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((res) => res.json())
+      api.get(`/api/grades/detailed/${selectedGradeStudentId}`)
         .then((data) => {
           if (data.success) {
             const gradesMap = {
@@ -972,14 +865,7 @@ export const AppProvider = ({ children }) => {
       }
       
       if (token) {
-        fetch("/api/students", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
+        api.post("/api/students", {
             student_code: newStudent.qrCode,
             name_ar: newStudent.name,
             name_en: newStudent.nameEn,
@@ -989,9 +875,7 @@ export const AppProvider = ({ children }) => {
             qr_code: newStudent.qrCode,
             secret_code: newGradeRow.secretCode,
             tuition_fee: Number(newStudent.tuitionFee || 10000),
-          }),
-        })
-          .then((res) => res.json())
+          })
           .then((data) => {
             if (data.success) {
               // Update local state with the returned student (including database ID)
@@ -1031,22 +915,13 @@ export const AppProvider = ({ children }) => {
     if (newParentObj) {
       if (token) {
         // First create parent on backend
-        fetch("/api/parents", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
+        api.post("/api/parents", {
             national_id: newParentObj.nationalId,
             name_ar: newParentObj.name,
             name_en: newParentObj.nameEn,
             phone: newParentObj.phone,
             photo_url: newParentObj.photo,
-          }),
-        })
-          .then((res) => res.json())
+          })
           .then((data) => {
             if (data.success) {
               const createdParentId = data.parent.id;
@@ -1108,14 +983,7 @@ export const AppProvider = ({ children }) => {
         return { subject_id: subjectId, class_id: classId };
       }).filter(a => a.subject_id && a.class_id);
 
-      fetch("/api/teachers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
+      api.post("/api/teachers", {
           job_id: newTeacher.jobId,
           name_ar: newTeacher.name,
           name_en: newTeacher.nameEn,
@@ -1124,8 +992,6 @@ export const AppProvider = ({ children }) => {
           photo_url: newTeacher.photo,
           assignments: apiAssignments,
         })
-      })
-      .then(res => res.json())
       .then(data => {
         if (data.success) {
           fetchTeachers(token);
@@ -1203,14 +1069,7 @@ export const AppProvider = ({ children }) => {
         return { subject_id: subjectId, class_id: classId };
       }).filter(a => a.subject_id && a.class_id);
 
-      fetch(`/api/teachers/${teacherId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
+      api.put(`/api/teachers/${teacherId}`, {
           name_ar: updatedTeacher.name,
           name_en: updatedTeacher.nameEn,
           phone: updatedTeacher.phone,
@@ -1218,8 +1077,6 @@ export const AppProvider = ({ children }) => {
           photo_url: updatedTeacher.photo,
           assignments: apiAssignments,
         })
-      })
-      .then(res => res.json())
       .then(data => {
         if (data.success) {
           fetchTeachers(token);
@@ -1238,22 +1095,13 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToastMessage(''), 4000);
 
     if (token) {
-      fetch("/api/supervisors", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
+      api.post("/api/supervisors", {
           jobId: newSupervisor.jobId,
           name: newSupervisor.name,
           phone: newSupervisor.phone,
           password: newSupervisor.password,
           classes: newSupervisor.classes
         })
-      })
-      .then(res => res.json())
       .then(data => {
         if (data.success) {
           setSupervisors(prev => prev.map(s => s.jobId === newSupervisor.jobId ? data.supervisor : s));
@@ -1272,22 +1120,13 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToastMessage(''), 4000);
 
     if (token) {
-      fetch(`/api/supervisors/${supervisorId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
+      api.put(`/api/supervisors/${supervisorId}`, {
           jobId: updatedSupervisor.jobId,
           name: updatedSupervisor.name,
           phone: updatedSupervisor.phone,
           password: updatedSupervisor.password !== "teacher_password123" ? updatedSupervisor.password : undefined,
           classes: updatedSupervisor.classes
         })
-      })
-      .then(res => res.json())
       .then(data => {
         if (!data.success) {
           console.error("Failed to update supervisor:", data.message);
@@ -1304,14 +1143,7 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToastMessage(''), 4000);
 
     if (token) {
-      fetch(`/api/supervisors/${supervisorId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        }
-      })
-      .then(res => res.json())
+      api.delete(`/api/supervisors/${supervisorId}`)
       .then(data => {
         if (!data.success) {
           console.error("Failed to delete supervisor:", data.message);
@@ -1684,22 +1516,13 @@ export const AppProvider = ({ children }) => {
     }
 
     if (token && newStatus) {
-      fetch("/api/attendance", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.post("/api/attendance", {
           student_id: Number(studentId),
           date: date,
           status: newStatus === "late" ? "present" : newStatus,
           arrival_time: newStatus === "present" ? "07:30:00" : (newStatus === "late" ? "07:55:00" : null),
           note: "تم التعديل يدوياً من لوحة الإدارة",
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (!data.success) {
             console.error("Failed to sync attendance to backend:", data.message);
@@ -1842,18 +1665,9 @@ export const AppProvider = ({ children }) => {
     if (token) {
       const action = newStatus === "approved" ? "approve" : "reject";
       const endpoint = `/api/absence-requests/${requestId}/${action}`;
-      fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.post(endpoint, {
           admin_note_ar: adminNoteText,
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (data.success) {
             fetchAbsenceRequests(token);
@@ -2034,16 +1848,7 @@ export const AppProvider = ({ children }) => {
               reqBody.wrt_grade = mObj.written;
             }
 
-            fetch("/api/grades/detailed", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify(reqBody),
-            })
-              .then((res) => res.json())
+            api.post("/api/grades/detailed", reqBody)
               .then((data) => {
                 if (!data.success) {
                   console.error("Failed to save grade:", data.message);
@@ -2188,21 +1993,12 @@ export const AppProvider = ({ children }) => {
     });
 
     if (token && classId) {
-      fetch("/api/exam-schedules", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.post("/api/exam-schedules", {
           title: newSchedule.period,
           class_id: classId,
           term: termKey,
           subjects: mappedSubjects,
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (data.success) {
             fetchExamSchedules(token);
@@ -2229,14 +2025,7 @@ export const AppProvider = ({ children }) => {
         setTimeout(() => setToastMessage(""), 3000);
 
         if (token) {
-          fetch(`/api/exam-schedules/${id}`, {
-            method: "DELETE",
-            headers: {
-              Accept: "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          })
-            .then((res) => res.json())
+          api.delete(`/api/exam-schedules/${id}`)
             .then((data) => {
               if (!data.success) {
                 console.error("Failed to delete exam schedule from backend:", data.message);
@@ -2284,21 +2073,12 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToastMessage(""), 3000);
 
     if (token) {
-      fetch(`/api/exam-schedules/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.put(`/api/exam-schedules/${id}`, {
           title: updatedSchedule.period,
           class_id: classId,
           term: termKey,
           subjects: mappedSubjects,
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (data.success) {
             fetchExamSchedules(token);
@@ -2340,21 +2120,12 @@ export const AppProvider = ({ children }) => {
     ]);
 
     if (token) {
-      fetch("/api/finance/payment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.post("/api/finance/payment", {
           student_id: Number(newPayment.studentId),
           amount: Number(newPayment.amount),
           payment_date: newPayment.paymentDate,
           reference_no: newPayment.referenceNo,
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (data.success) {
             fetchFinanceData(token);
@@ -2393,21 +2164,12 @@ export const AppProvider = ({ children }) => {
     }
 
     if (token) {
-      fetch("/api/notifications/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.post("/api/notifications/send", {
           title: newNotification.title,
           content: newNotification.content,
           target_type: targetType,
           target_id: targetId,
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (data.success) {
             setToastMessage(t.notificationSuccessToast);
@@ -2441,14 +2203,7 @@ export const AppProvider = ({ children }) => {
     );
 
     if (token) {
-      fetch(`/api/notifications/${id}/read`, {
-        method: "PUT",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((res) => res.json())
+      api.put(`/api/notifications/${id}/read`)
         .then((data) => {
           if (!data.success) {
             console.error("Failed to mark notification as read:", data.message);
@@ -2467,18 +2222,9 @@ export const AppProvider = ({ children }) => {
     );
 
     if (token) {
-      fetch(`/api/reports/${reportId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.put(`/api/reports/${reportId}`, {
           status: newStatus,
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (data.success) {
             setToastMessage(lang === "ar" ? "تم تحديث حالة البلاغ بنجاح." : "Report status updated successfully.");
@@ -2508,19 +2254,10 @@ export const AppProvider = ({ children }) => {
       // Send to API inside the updater to get the latest value
       const token = localStorage.getItem("auth_token");
       if (token) {
-        fetch("/api/schedules", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
+        api.post("/api/schedules", {
             class_name: selectedScheduleGrade,
             schedule: gradeSchedule,
-          }),
-        })
-          .then((res) => res.json())
+          })
           .then((data) => {
             if (!data.success) {
               console.error("Failed to save schedule to backend:", data.message);
@@ -2547,18 +2284,9 @@ export const AppProvider = ({ children }) => {
     );
 
     if (token) {
-      fetch(`/api/grades/control/${studentId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.put(`/api/grades/control/${studentId}`, {
           [subject]: num,
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (!data.success) {
             console.error("Failed to update control grade:", data.message);
@@ -2587,21 +2315,12 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToastMessage(""), 3000);
 
     if (token) {
-      fetch("/api/grades/generate-codes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.post("/api/grades/generate-codes", {
           prefix: controlPrefix,
           multiplier: Number(controlMultiplier),
           offset: Number(controlOffset),
           modulo: Number(controlModulo),
-        }),
-      })
-        .then((res) => res.json())
+        })
         .then((data) => {
           if (data.success) {
             fetchControlGrades(token);
@@ -2758,22 +2477,13 @@ export const AppProvider = ({ children }) => {
       const subjectId = foundSub ? Number(String(foundSub.id).replace("sub-", "")) : null;
 
       if (subjectId) {
-        fetch("/api/grades/detailed", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
+        api.post("/api/grades/detailed", {
             student_id: Number(studentId),
             subject_id: subjectId,
             term: secretTermInput === "term1" ? "1" : "2",
             month: "final",
             final_exam: valNum,
-          }),
-        })
-          .then((res) => res.json())
+          })
           .then((data) => {
             if (!data.success) {
               console.error("Failed to save grade via secret code:", data.message);
@@ -2864,14 +2574,7 @@ export const AppProvider = ({ children }) => {
     setSmsLogs((prev) => [newSms, ...prev]);
 
     if (token) {
-      fetch(`/api/students/${scannedStudentId}/scan`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((res) => res.json())
+      api.post(`/api/students/${scannedStudentId}/scan`)
         .then((data) => {
           if (!data.success) {
             console.error("Gate scan backend error:", data.message);
@@ -2886,13 +2589,7 @@ export const AppProvider = ({ children }) => {
   const handleLogoutAction = () => {
     const token = localStorage.getItem("auth_token");
     if (token) {
-      fetch("/api/logout", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      }).catch((err) => console.error("API Logout error:", err));
+      api.post("/api/logout").catch((err) => console.error("API Logout error:", err));
     }
     localStorage.removeItem("auth_token");
     setIsAuthenticated(false);

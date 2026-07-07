@@ -1,3 +1,4 @@
+import { api } from "../services/api";
 import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
 import { X } from "lucide-react";
@@ -278,19 +279,10 @@ export default function ScheduleTab() {
           onClick={() => {
             const token = localStorage.getItem("auth_token");
             if (token && schedules[selectedScheduleGrade]) {
-              fetch("/api/schedules", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Accept: "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                  class_name: selectedScheduleGrade,
-                  schedule: schedules[selectedScheduleGrade],
-                }),
+              api.post("/api/schedules", {
+                class_name: selectedScheduleGrade,
+                schedule: schedules[selectedScheduleGrade],
               })
-                .then((res) => res.json())
                 .then((data) => {
                   if (data.success) {
                     setToastMessage(

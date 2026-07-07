@@ -1,3 +1,4 @@
+import { api } from "../services/api";
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Plus, Edit3, Trash2, Copy, Shield, ShieldCheck, ChevronDown, Search, X } from 'lucide-react';
@@ -121,10 +122,7 @@ export default function SupervisorsTab() {
 
   const fetchVicePrincipals = async () => {
     try {
-      const res = await fetch(`${API_BASE}/vice-principals`, {
-        headers: { 'Authorization': `Bearer ${getToken()}`, 'Accept': 'application/json' }
-      });
-      const data = await res.json();
+      const data = await api.get('/api/vice-principals');
       if (data.success) setVicePrincipals(data.data);
     } catch (err) {
       console.error('Failed to fetch vice principals:', err);
@@ -261,16 +259,7 @@ export default function SupervisorsTab() {
     try {
       const url = editingVP ? `${API_BASE}/vice-principals/${editingVP.id}` : `${API_BASE}/vice-principals`;
       const method = editingVP ? 'PUT' : 'POST';
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${getToken()}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
+      const data = await (editingVP ? api.put(url, body) : api.post(url, body));
       if (data.success) {
         setShowModal(false);
         fetchVicePrincipals();
@@ -289,10 +278,7 @@ export default function SupervisorsTab() {
       message: lang === 'ar' ? `هل أنت متأكد من حذف حساب "${vp.name}"؟` : `Are you sure you want to delete "${vp.name}"?`,
       onConfirm: async () => {
         try {
-          await fetch(`${API_BASE}/vice-principals/${vp.id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${getToken()}`, 'Accept': 'application/json' },
-          });
+          await api.delete(`/api/vice-principals/${vp.id}`);
           fetchVicePrincipals();
           setToastMessage(lang === 'ar' ? 'تم حذف الوكيل بنجاح.' : 'Vice principal deleted.');
         } catch (err) {
