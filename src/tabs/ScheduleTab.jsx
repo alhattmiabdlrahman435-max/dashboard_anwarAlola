@@ -4,11 +4,11 @@ import { useApp } from "../context/AppContext";
 import { X } from "lucide-react";
 
 const defaultWeekSchedule = {
-  saturday: ["", "", "", "", "", ""],
-  sunday: ["", "", "", "", "", ""],
-  monday: ["", "", "", "", "", ""],
-  tuesday: ["", "", "", "", "", ""],
-  wednesday: ["", "", "", "", "", ""],
+  saturday: ["", "", "", "", "", "", ""],
+  sunday: ["", "", "", "", "", "", ""],
+  monday: ["", "", "", "", "", "", ""],
+  tuesday: ["", "", "", "", "", "", ""],
+  wednesday: ["", "", "", "", "", "", ""],
 };
 
 export default function ScheduleTab() {
@@ -175,6 +175,12 @@ export default function ScheduleTab() {
                   12:15 - 01:00
                 </span>
               </th>
+              <th>
+                {t.period} 7 <br />
+                <span style={{ fontSize: "11px", fontWeight: "normal" }}>
+                  01:00 - 01:45
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -200,7 +206,7 @@ export default function ScheduleTab() {
                   >
                     {t[dayKey]}
                   </td>
-                  {(schedules[selectedScheduleGrade][dayKey] || Array(6).fill("")).map((subject, idx) => {
+                  {(schedules[selectedScheduleGrade][dayKey] || Array(7).fill("")).map((subject, idx) => {
                       // Find the current class to get its assigned subjects only
                       const currentClassObj = classes.find(
                         (c) => c.name === selectedScheduleGrade,

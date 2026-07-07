@@ -25,13 +25,13 @@ class ScheduleController extends Controller
         foreach ($classes as $cls) {
             $className = $cls->grade_ar . ' - ' . $cls->section_ar;
             
-            // Initialize default schedule template (Saturday to Wednesday)
+            // Initialize default schedule template (Saturday to Wednesday) - 7 blank periods by default
             $grouped[$className] = [
-                'saturday' => array_fill(0, 6, 'الرياضيات'),
-                'sunday' => array_fill(0, 6, 'اللغة العربية'),
-                'monday' => array_fill(0, 6, 'التربية الإسلامية'),
-                'tuesday' => array_fill(0, 6, 'العلوم'),
-                'wednesday' => array_fill(0, 6, 'اللغة الإنجليزية'),
+                'saturday' => array_fill(0, 7, ''),
+                'sunday' => array_fill(0, 7, ''),
+                'monday' => array_fill(0, 7, ''),
+                'tuesday' => array_fill(0, 7, ''),
+                'wednesday' => array_fill(0, 7, ''),
             ];
 
             // Build teachers mapping for subjects in this class
@@ -51,7 +51,7 @@ class ScheduleController extends Controller
             $day = strtolower($sch->day_of_week);
             $periodIdx = $sch->period - 1; // 0-indexed for frontend
             
-            if (isset($grouped[$className][$day]) && $periodIdx >= 0 && $periodIdx < 6) {
+            if (isset($grouped[$className][$day]) && $periodIdx >= 0 && $periodIdx < 7) {
                 $grouped[$className][$day][$periodIdx] = $sch->subject ? $sch->subject->name_ar : '';
             }
         }
