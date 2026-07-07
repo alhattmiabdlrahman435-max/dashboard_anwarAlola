@@ -2740,8 +2740,16 @@ body[dir="rtl"] input:checked + .slider:before {
     background: transparent !important;
   }
 
+  /* Hide all printable areas by default during custom data-print-mode */
+  body[data-print-mode] .printable-area {
+    display: none !important;
+  }
+
   /* Elegant double-line decorative frame for official school papers */
-  body[data-print-mode] .printable-area,
+  body[data-print-mode="subject"] .printable-area.print-subject-only-content,
+  body[data-print-mode="month"] .printable-area.print-month-full-report,
+  body[data-print-mode="term"] .printable-area.print-term-full-report,
+  body[data-print-mode="class"] .printable-area.print-class-report:not(.detailed-mode),
   .modal-overlay.printable-area {
     border: 3px double #0f766e !important;
     padding: 28px !important;
@@ -2751,6 +2759,14 @@ body[dir="rtl"] input:checked + .slider:before {
     border-radius: 8px !important;
     display: flex !important;
     flex-direction: column !important;
+  }
+
+  body[data-print-mode="class"] .printable-area.print-class-report.detailed-mode {
+    display: block !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
   }
 
   /* Make grades tables super crisp and premium on paper */
