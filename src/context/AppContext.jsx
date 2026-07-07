@@ -809,21 +809,23 @@ export const AppProvider = ({ children }) => {
   }, [students, lang, smsLogs]);
 
   // Render photo utility helper
-  const renderAvatar = (photo, defaultEmoji) => {
+  const renderAvatar = (photo, defaultEmoji, customStyle = {}) => {
     if (photo && typeof photo === "string") {
-      let resolvedPhoto = photo;
-      if (photo.includes("/uploads/avatars/")) {
-        const index = photo.indexOf("/uploads/avatars/");
-        resolvedPhoto = photo.substring(index);
-      }
+      const resolvedPhoto = photo.trim();
       if (
         resolvedPhoto.startsWith("data:") ||
         resolvedPhoto.startsWith("http") ||
-        resolvedPhoto.startsWith("/")
+        resolvedPhoto.startsWith("/") ||
+        resolvedPhoto.includes("/uploads/avatars/")
       ) {
+        let finalSrc = resolvedPhoto;
+        if (resolvedPhoto.includes("/uploads/avatars/") && !resolvedPhoto.startsWith("http")) {
+          const index = resolvedPhoto.indexOf("/uploads/avatars/");
+          finalSrc = resolvedPhoto.substring(index);
+        }
         return (
           <img
-            src={resolvedPhoto}
+            src={finalSrc}
             alt="Avatar"
             style={{
               width: "32px",
@@ -831,7 +833,8 @@ export const AppProvider = ({ children }) => {
               borderRadius: "50%",
               objectFit: "cover",
               verticalAlign: "middle",
-              marginInlineEnd: "8px",
+              marginInlineEnd: customStyle.marginInlineEnd !== undefined ? customStyle.marginInlineEnd : "8px",
+              ...customStyle,
             }}
           />
         );
@@ -840,9 +843,10 @@ export const AppProvider = ({ children }) => {
     return (
       <span
         style={{
-          fontSize: "18px",
-          marginInlineEnd: "8px",
+          fontSize: customStyle.fontSize || "18px",
+          marginInlineEnd: customStyle.marginInlineEnd !== undefined ? customStyle.marginInlineEnd : "8px",
           verticalAlign: "middle",
+          ...customStyle,
         }}
       >
         {photo || defaultEmoji}
@@ -961,6 +965,93 @@ export const AppProvider = ({ children }) => {
         console.error("Existing parent database ID not found");
         saveStudent(1); // default fallback
       }
+    }
+  };
+
+  const handleEditStudentAction = (studentId, updatedData) => {
+    const token = localStorage.getItem("auth_token");
+    
+    const foundClass = classes.find(
+      (c) => c.grade === updatedData.grade && c.section === updatedData.section
+    );
+    const classId = foundClass ? Number(String(foundClass.id).replace("cls-", "")) : null;
+
+    if (token) {
+      api.put(`/api/students/${studentId}`, {
+        name_ar: updatedData.name,
+        name_en: updatedData.nameEn,
+        class_id: classId,
+        tuition_fee: Number(updatedData.tuitionFee),
+        photo_url: updatedData.photo,
+        is_active: updatedData.isActive !== undefined ? updatedData.isActive : true
+      })
+      .then((data) => {
+        if (data.success) {
+          setStudents((prev) =>
+            prev.map((s) => (s.id === studentId ? { ...s, ...updatedData } : s))
+          );
+          setToastMessage(
+            lang === "ar"
+              ? "تم تحديث بيانات الطالب بنجاح!"
+              : "Student details updated successfully!",
+          );
+          setTimeout(() => setToastMessage(""), 3000);
+        } else {
+          setToastMessage(lang === "ar" ? "فشل تحديث بيانات الطالب" : "Failed to update student details");
+          setTimeout(() => setToastMessage(""), 3000);
+        }
+      })
+      .catch((err) => {
+        console.error("Error updating student:", err);
+        setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        setTimeout(() => setToastMessage(""), 3000);
+      });
+    } else {
+      setStudents((prev) =>
+        prev.map((s) => (s.id === studentId ? { ...s, ...updatedData } : s))
+      );
+      setToastMessage(
+        lang === "ar"
+          ? "تم تحديث بيانات الطالب بنجاح!"
+          : "Student details updated successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 3000);
+    }
+  };
+
+  const handleDeleteStudentAction = (studentId) => {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      api.delete(`/api/students/${studentId}`)
+        .then((data) => {
+          if (data.success) {
+            setStudents((prev) => prev.filter((s) => s.id !== studentId));
+            setGrades((prev) => prev.filter((g) => g.studentId !== studentId));
+            setToastMessage(
+              lang === "ar"
+                ? "تم حذف الطالب بنجاح!"
+                : "Student deleted successfully!",
+            );
+            setTimeout(() => setToastMessage(""), 3000);
+          } else {
+            setToastMessage(lang === "ar" ? "فشل حذف الطالب" : "Failed to delete student");
+            setTimeout(() => setToastMessage(""), 3000);
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting student:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 3000);
+        });
+    } else {
+      setStudents((prev) => prev.filter((s) => s.id !== studentId));
+      setGrades((prev) => prev.filter((g) => g.studentId !== studentId));
+      setToastMessage(
+        lang === "ar"
+          ? "تم حذف الطالب بنجاح!"
+          : "Student deleted successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 3000);
     }
   };
 
@@ -2692,6 +2783,8 @@ export const AppProvider = ({ children }) => {
 
         // Actions
         handleAddStudent: handleAddStudentAction,
+        handleEditStudent: handleEditStudentAction,
+        handleDeleteStudent: handleDeleteStudentAction,
         handleAddTeacher: handleAddTeacherAction,
         handleAddParent: handleAddParentAction,
         handleEditParent: handleEditParentAction,

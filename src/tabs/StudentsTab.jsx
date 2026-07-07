@@ -1,14 +1,14 @@
 import { api } from "../services/api";
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Search, X, Download, Upload, Camera, User } from 'lucide-react';
+import { Plus, Search, X, Download, Upload, Camera, User, Edit3, Trash2 } from 'lucide-react';
 
 export default function StudentsTab() {
   const {
     lang, t, students, parentUsers, availableGrades, availableSections,
     setSelectedStudentForCard, setShowCardVisualizerModal,
-    handleAddStudent, renderAvatar, currentUser, controlMultiplier, controlOffset,
-    canAction, fetchStudents, setToastMessage, classes
+    handleAddStudent, handleEditStudent, handleDeleteStudent, renderAvatar, currentUser, controlMultiplier, controlOffset,
+    canAction, fetchStudents, setToastMessage, classes, triggerConfirm
   } = useApp();
 
   // Local UI states
@@ -20,6 +20,15 @@ export default function StudentsTab() {
   // Student Form states
   const [modalStudentName, setModalStudentName] = useState('');
   const [selectedClassId, setSelectedClassId] = useState('');
+
+  // Edit Student Form states
+  const [showEditStudentModal, setShowEditStudentModal] = useState(false);
+  const [editingStudentId, setEditingStudentId] = useState(null);
+  const [editStudentName, setEditStudentName] = useState('');
+  const [editClassId, setEditClassId] = useState('');
+  const [editStudentPhoto, setEditStudentPhoto] = useState('');
+  const [editTuitionFee, setEditTuitionFee] = useState('10000');
+  const [editFormError, setEditFormError] = useState('');
   const [modalParentNationalId, setModalParentNationalId] = useState('');
   const [modalParentName, setModalParentName] = useState('');
   const [modalPhone, setModalPhone] = useState('');
@@ -142,6 +151,50 @@ export default function StudentsTab() {
     handleAddStudent(newStudent, newGradeRow, newParentObj);
 
     setShowStudentModal(false);
+  };
+
+  const openEditModal = (student) => {
+    setEditingStudentId(student.id);
+    setEditStudentName(student.name);
+    const studentClass = classes.find(c => c.grade === student.grade && c.section === student.section);
+    setEditClassId(studentClass ? studentClass.id : '');
+    setEditStudentPhoto(student.photo || '');
+    setEditTuitionFee(String(student.tuitionFee || 10000));
+    setEditFormError('');
+    setShowEditStudentModal(true);
+  };
+
+  const onEditSubmit = (e) => {
+    e.preventDefault();
+    setEditFormError('');
+
+    if (!editStudentName.trim()) {
+      setEditFormError(t.emptyError);
+      return;
+    }
+
+    if (!editStudentPhoto) {
+      setEditFormError(t.photoErrorStudent);
+      return;
+    }
+
+    const classObj = classes.find(c => c.id === editClassId);
+    if (!classObj) {
+      setEditFormError(lang === 'ar' ? 'الرجاء اختيار فصل دراسي صالح!' : 'Please select a valid class!');
+      return;
+    }
+
+    handleEditStudent(editingStudentId, {
+      name: editStudentName,
+      grade: classObj.grade,
+      gradeEn: classObj.gradeEn || classObj.grade,
+      section: classObj.section,
+      sectionEn: classObj.sectionEn || classObj.section,
+      photo: editStudentPhoto,
+      tuitionFee: Number(editTuitionFee || 10000)
+    });
+
+    setShowEditStudentModal(false);
 
     // Reset inputs
     setModalStudentName('');
@@ -383,16 +436,84 @@ export default function StudentsTab() {
                       </div>
                     </td>
                     <td className="no-print">
-                      <button 
-                        className="btn-elevated"
-                        style={{ padding: '6px 12px', fontSize: '12px' }}
-                        onClick={() => {
-                          setSelectedStudentForCard(student);
-                          setShowCardVisualizerModal(true);
-                        }}
-                      >
-                        🪪 {t.viewCard}
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button 
+                          className="btn-elevated"
+                          style={{ padding: '6px 12px', fontSize: '12px', height: '32px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => {
+                            setSelectedStudentForCard(student);
+                            setShowCardVisualizerModal(true);
+                          }}
+                        >
+                          🪪 {t.viewCard}
+                        </button>
+                        
+                        {canAction('edit') && (
+                          <button 
+                            onClick={() => openEditModal(student)} 
+                            title={lang === 'ar' ? 'تعديل' : 'Edit'}
+                            style={{
+                              background: 'rgba(37, 99, 235, 0.06)',
+                              border: '1px solid rgba(37, 99, 235, 0.15)',
+                              color: '#2563eb',
+                              borderRadius: '8px',
+                              width: '32px',
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = 'rgba(37, 99, 235, 0.12)';
+                              e.currentTarget.style.borderColor = '#2563eb';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
+                              e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.15)';
+                            }}
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                        )}
+
+                        {canAction('delete') && (
+                          <button 
+                            onClick={() => {
+                              triggerConfirm({
+                                title: lang === 'ar' ? 'حذف الطالب' : 'Delete Student',
+                                message: lang === 'ar' ? `هل أنت متأكد من حذف الطالب ${student.name}؟` : `Are you sure you want to delete ${student.name}?`,
+                                onConfirm: () => handleDeleteStudent(student.id)
+                              });
+                            }} 
+                            title={lang === 'ar' ? 'حذف' : 'Delete'}
+                            style={{
+                              background: 'rgba(220, 38, 38, 0.06)',
+                              border: '1px solid rgba(220, 38, 38, 0.15)',
+                              color: '#dc2626',
+                              borderRadius: '8px',
+                              width: '32px',
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = 'rgba(220, 38, 38, 0.12)';
+                              e.currentTarget.style.borderColor = '#dc2626';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'rgba(220, 38, 38, 0.06)';
+                              e.currentTarget.style.borderColor = 'rgba(220, 38, 38, 0.15)';
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -687,6 +808,173 @@ export default function StudentsTab() {
                   style={{ height: '48px' }}
                 >
                   {t.submit}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DIALOG 3: EDIT STUDENT FORM */}
+      {showEditStudentModal && (
+        <div className="modal-overlay no-print">
+          <div className="modal-container">
+            <header className="modal-header">
+              <h2 className="headline-small" style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                {lang === 'ar' ? '✏️ تعديل بيانات الطالب' : '✏️ Edit Student Details'}
+              </h2>
+              <button 
+                className="btn-text" 
+                onClick={() => setShowEditStudentModal(false)}
+                aria-label="Close modal"
+              >
+                <X size={20} />
+              </button>
+            </header>
+
+            <form onSubmit={onEditSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                {editFormError && (
+                  <div style={{ color: 'var(--color-error)', fontSize: '13px', fontWeight: '600', padding: '8px 12px', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: '6px' }}>
+                    ⚠️ {editFormError}
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">{t.studentName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input 
+                    type="text" 
+                    className="text-field"
+                    value={editStudentName}
+                    onChange={(e) => setEditStudentName(e.target.value)}
+                    placeholder={lang === 'ar' ? 'مثال: ياسر بن محمد الرويلي' : 'e.g. Yasser bin Mohammed'}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{lang === 'ar' ? 'الفصل الدراسي والشعبة' : 'Class & Section'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <select 
+                    className="text-field"
+                    value={editClassId}
+                    onChange={(e) => setEditClassId(e.target.value)}
+                    required
+                  >
+                    <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {lang === 'ar' ? c.name : c.nameEn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.س)' : 'Annual Tuition Fee (SAR)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input 
+                    type="number" 
+                    className="text-field"
+                    value={editTuitionFee}
+                    onChange={(e) => setEditTuitionFee(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-md)' }}>
+                  <div className="form-group">
+                    <label className="form-label">
+                      {t.formPhoto} (Student) <span style={{ color: 'var(--color-error)' }}>*</span>
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '12px 0' }}>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        id="edit-student-photo-input"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setEditStudentPhoto(reader.result);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                      
+                      <div style={{ position: 'relative' }}>
+                        <label 
+                          htmlFor="edit-student-photo-input" 
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '120px',
+                            height: '120px',
+                            borderRadius: '50%',
+                            border: editStudentPhoto ? '2px solid var(--color-primary)' : '2px dashed var(--color-border)',
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            backgroundColor: 'var(--color-surface)',
+                            transition: 'all 0.2s ease',
+                            position: 'relative',
+                            boxShadow: 'var(--shadow-sm)'
+                          }}
+                          className="avatar-upload-label"
+                        >
+                          {editStudentPhoto ? (
+                            <>
+                              <img 
+                                src={editStudentPhoto} 
+                                alt="Student Preview" 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              />
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0,
+                                transition: 'opacity 0.2s ease',
+                                color: '#ffffff',
+                                fontSize: '11px'
+                              }} className="avatar-hover-overlay">
+                                <Camera size={20} style={{ marginBottom: '4px' }} />
+                                <span>{lang === 'ar' ? 'تغيير الصورة' : 'Change'}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                              <User size={36} style={{ strokeWidth: 1.5, marginBottom: '4px', color: 'var(--color-text-tertiary)' }} />
+                              <span style={{ fontSize: '11px', fontWeight: '500' }}>
+                                {lang === 'ar' ? 'رفع الصورة' : 'Upload'}
+                              </span>
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <footer className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn-elevated" 
+                  onClick={() => setShowEditStudentModal(false)}
+                  style={{ height: '48px' }}
+                >
+                  {t.cancel}
+                </button>
+                <button type="submit" className="btn-filled" style={{ height: '48px' }}>
+                  {lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes'}
                 </button>
               </footer>
             </form>
