@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Camera, User } from 'lucide-react';
 
 export default function PrepSupervisorsTab() {
   const {
@@ -345,14 +345,51 @@ export default function PrepSupervisorsTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{t.formPhoto} (Emoji or URL)</label>
-                  <input 
-                    type="text" 
-                    className="text-field"
-                    placeholder="👩‍🏫 or image url"
-                    value={modalPhoto}
-                    onChange={(e) => setModalPhoto(e.target.value)}
-                  />
+                  <label className="form-label">{lang === 'ar' ? 'الصورة الشخصية' : 'Profile Photo'}</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '12px 0' }}>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      id="add-supervisor-photo-input"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setModalPhoto(reader.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                    <div style={{ position: 'relative' }}>
+                      <label 
+                        htmlFor="add-supervisor-photo-input" 
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          width: '120px', height: '120px', borderRadius: '50%',
+                          border: modalPhoto && modalPhoto.startsWith('data:') ? '2px solid var(--color-primary)' : '2px dashed var(--color-border)',
+                          cursor: 'pointer', overflow: 'hidden', backgroundColor: 'var(--color-surface)',
+                          transition: 'all 0.2s ease', position: 'relative', boxShadow: 'var(--shadow-sm)'
+                        }}
+                        className="avatar-upload-label"
+                      >
+                        {modalPhoto && modalPhoto.startsWith('data:') ? (
+                          <>
+                            <img src={modalPhoto} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s ease', color: '#ffffff', fontSize: '11px' }} className="avatar-hover-overlay">
+                              <Camera size={20} style={{ marginBottom: '4px' }} />
+                              <span>{lang === 'ar' ? 'تغيير الصورة' : 'Change'}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                            <User size={36} style={{ strokeWidth: 1.5, marginBottom: '4px', color: 'var(--color-text-tertiary)' }} />
+                            <span style={{ fontSize: '11px', fontWeight: '500' }}>{lang === 'ar' ? 'رفع الصورة' : 'Upload'}</span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -486,13 +523,51 @@ export default function PrepSupervisorsTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{t.formPhoto} (Emoji or URL)</label>
-                  <input 
-                    type="text" 
-                    className="text-field"
-                    value={modalPhoto}
-                    onChange={(e) => setModalPhoto(e.target.value)}
-                  />
+                  <label className="form-label">{lang === 'ar' ? 'الصورة الشخصية' : 'Profile Photo'}</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '12px 0' }}>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      id="edit-supervisor-photo-input"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setModalPhoto(reader.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                    <div style={{ position: 'relative' }}>
+                      <label 
+                        htmlFor="edit-supervisor-photo-input" 
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          width: '120px', height: '120px', borderRadius: '50%',
+                          border: (modalPhoto && (modalPhoto.startsWith('data:') || modalPhoto.startsWith('http'))) ? '2px solid var(--color-primary)' : '2px dashed var(--color-border)',
+                          cursor: 'pointer', overflow: 'hidden', backgroundColor: 'var(--color-surface)',
+                          transition: 'all 0.2s ease', position: 'relative', boxShadow: 'var(--shadow-sm)'
+                        }}
+                        className="avatar-upload-label"
+                      >
+                        {modalPhoto && (modalPhoto.startsWith('data:') || modalPhoto.startsWith('http')) ? (
+                          <>
+                            <img src={modalPhoto} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s ease', color: '#ffffff', fontSize: '11px' }} className="avatar-hover-overlay">
+                              <Camera size={20} style={{ marginBottom: '4px' }} />
+                              <span>{lang === 'ar' ? 'تغيير الصورة' : 'Change'}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                            <User size={36} style={{ strokeWidth: 1.5, marginBottom: '4px', color: 'var(--color-text-tertiary)' }} />
+                            <span style={{ fontSize: '11px', fontWeight: '500' }}>{lang === 'ar' ? 'رفع الصورة' : 'Upload'}</span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 

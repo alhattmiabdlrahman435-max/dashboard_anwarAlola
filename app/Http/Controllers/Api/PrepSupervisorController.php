@@ -9,6 +9,7 @@ use App\Models\SupervisorClass;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class PrepSupervisorController extends Controller
 {
@@ -90,6 +91,20 @@ class PrepSupervisorController extends Controller
                 'is_active'   => true,
             ]);
 
+            // Handle base64 photo upload
+            if ($request->filled('photo') && str_starts_with($request->photo, 'data:image')) {
+                $photoData = $request->photo;
+                $photoData = preg_replace('/^data:image\/\w+;base64,/', '', $photoData);
+                $photoData = base64_decode($photoData);
+                $fileName = 'supervisor_' . $user->id . '_' . time() . '.jpg';
+                $uploadPath = public_path('uploads/avatars');
+                if (!File::isDirectory($uploadPath)) {
+                    File::makeDirectory($uploadPath, 0755, true);
+                }
+                file_put_contents($uploadPath . '/' . $fileName, $photoData);
+                $user->update(['photo_url' => asset('uploads/avatars/' . $fileName)]);
+            }
+
             if ($request->has('classes') && is_array($request->classes)) {
                 foreach ($request->classes as $className) {
                     $class = $this->findClassByName($className);
@@ -141,6 +156,21 @@ class PrepSupervisorController extends Controller
             if ($request->filled('password')) {
                 $user->password = Hash::make($request->password);
             }
+
+            // Handle base64 photo upload
+            if ($request->filled('photo') && str_starts_with($request->photo, 'data:image')) {
+                $photoData = $request->photo;
+                $photoData = preg_replace('/^data:image\/\w+;base64,/', '', $photoData);
+                $photoData = base64_decode($photoData);
+                $fileName = 'supervisor_' . $user->id . '_' . time() . '.jpg';
+                $uploadPath = public_path('uploads/avatars');
+                if (!File::isDirectory($uploadPath)) {
+                    File::makeDirectory($uploadPath, 0755, true);
+                }
+                file_put_contents($uploadPath . '/' . $fileName, $photoData);
+                $user->photo_url = asset('uploads/avatars/' . $fileName);
+            }
+
             $user->save();
 
             // Sync classes

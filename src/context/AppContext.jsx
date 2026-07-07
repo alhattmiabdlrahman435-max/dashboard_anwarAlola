@@ -1196,7 +1196,8 @@ export const AppProvider = ({ children }) => {
           name: newSupervisor.name,
           phone: newSupervisor.phone,
           password: newSupervisor.password,
-          classes: newSupervisor.classes
+          classes: newSupervisor.classes,
+          photo: newSupervisor.photo
         })
       .then(data => {
         if (data.success) {
@@ -1221,7 +1222,8 @@ export const AppProvider = ({ children }) => {
           name: updatedSupervisor.name,
           phone: updatedSupervisor.phone,
           password: updatedSupervisor.password !== "teacher_password123" ? updatedSupervisor.password : undefined,
-          classes: updatedSupervisor.classes
+          classes: updatedSupervisor.classes,
+          photo: updatedSupervisor.photo
         })
       .then(data => {
         if (!data.success) {
