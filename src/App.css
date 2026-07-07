@@ -3710,3 +3710,15 @@ body[dir="rtl"] .menu-item.active {
   border: 2px solid var(--color-surface-alt) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
+
+/* Avatar Uploader Hover Effects */
+.avatar-upload-label:hover {
+  border-color: var(--color-primary) !important;
+  transform: scale(1.02);
+  box-shadow: var(--shadow-md) !important;
+}
+
+.avatar-upload-label:hover .avatar-hover-overlay {
+  opacity: 1 !important;
+}
+

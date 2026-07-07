@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Search, X, Download, Upload } from 'lucide-react';
+import { Plus, Search, X, Download, Upload, Camera, User } from 'lucide-react';
 
 export default function StudentsTab() {
   const {
@@ -564,8 +564,10 @@ export default function StudentsTab() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
-                    <label className="form-label">{t.formPhoto} (Student) <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <label className="form-label">
+                      {t.formPhoto} (Student) <span style={{ color: 'var(--color-error)' }}>*</span>
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '12px 0' }}>
                       <input 
                         type="file" 
                         accept="image/*"
@@ -580,12 +582,104 @@ export default function StudentsTab() {
                         }}
                         style={{ display: 'none' }}
                       />
-                      <label htmlFor="student-photo-input" className="btn-elevated" style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer' }}>
-                        📁 {t.uploadPhoto}
-                      </label>
-                      {modalStudentPhoto && (
-                        <img src={modalStudentPhoto} alt="" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
-                      )}
+                      
+                      <div style={{ position: 'relative' }}>
+                        {/* Circle Container */}
+                        <label 
+                          htmlFor="student-photo-input" 
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '120px',
+                            height: '120px',
+                            borderRadius: '50%',
+                            border: modalStudentPhoto ? '2px solid var(--color-primary)' : '2px dashed var(--color-border)',
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            backgroundColor: 'var(--color-surface)',
+                            transition: 'all 0.2s ease',
+                            position: 'relative',
+                            boxShadow: 'var(--shadow-sm)'
+                          }}
+                          className="avatar-upload-label"
+                        >
+                          {modalStudentPhoto ? (
+                            <>
+                              <img 
+                                src={modalStudentPhoto} 
+                                alt="Student Preview" 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              />
+                              {/* Hover overlay to change image */}
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0,
+                                transition: 'opacity 0.2s ease',
+                                color: '#ffffff',
+                                fontSize: '11px'
+                              }} className="avatar-hover-overlay">
+                                <Camera size={20} style={{ marginBottom: '4px' }} />
+                                <span>{lang === 'ar' ? 'تغيير الصورة' : 'Change'}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                              <User size={36} style={{ strokeWidth: 1.5, marginBottom: '4px', color: 'var(--color-text-tertiary)' }} />
+                              <span style={{ fontSize: '11px', fontWeight: '500' }}>
+                                {lang === 'ar' ? 'رفع الصورة' : 'Upload'}
+                              </span>
+                            </div>
+                          )}
+                        </label>
+
+                        {/* Delete / Clear button */}
+                        {modalStudentPhoto && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModalStudentPhoto(null);
+                              const fileInput = document.getElementById('student-photo-input');
+                              if (fileInput) fileInput.value = '';
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: '2px',
+                              right: '2px',
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '50%',
+                              backgroundColor: '#ef4444',
+                              color: '#ffffff',
+                              border: '2px solid #ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                              zIndex: 10,
+                              padding: 0
+                            }}
+                            title={lang === 'ar' ? 'إزالة الصورة' : 'Remove Photo'}
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textAlign: 'center', marginTop: '4px' }}>
+                        {lang === 'ar' ? 'صيغ الصور المدعومة: JPG, PNG. الحد الأقصى 5MB.' : 'Supported formats: JPG, PNG. Max 5MB.'}
+                      </span>
                     </div>
                   </div>
                 </div>
