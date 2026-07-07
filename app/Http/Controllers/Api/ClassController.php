@@ -86,4 +86,48 @@ class ClassController extends Controller
         $class->delete();
         return response()->json(['success' => true, 'message' => 'تم حذف الفصل بنجاح']);
     }
+
+    public function syncSubjects(Request $request, $id)
+    {
+        $class = SchoolClass::find($id);
+        if (!$class) {
+            return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
+        }
+
+        $request->validate([
+            'subjects' => 'required|array',
+        ]);
+
+        $subjectIds = \App\Models\Subject::whereIn('name_ar', $request->subjects)->pluck('id')->toArray();
+
+        \App\Models\TeacherSubject::where('class_id', $class->id)
+            ->whereNotIn('subject_id', $subjectIds)
+            ->delete();
+
+        $defaultTeacher = \App\Models\User::where('role', 'teacher')->first() ?? \App\Models\User::where('role', 'admin')->first();
+        $defaultTeacherId = $defaultTeacher ? $defaultTeacher->id : 1;
+
+        foreach ($subjectIds as $subId) {
+            $exists = \App\Models\TeacherSubject::where('class_id', $class->id)
+                ->where('subject_id', $subId)
+                ->exists();
+            if (!$exists) {
+                $otherAssign = \App\Models\TeacherSubject::where('subject_id', $subId)
+                    ->whereNotNull('teacher_id')
+                    ->first();
+                $tId = $otherAssign ? $otherAssign->teacher_id : $defaultTeacherId;
+
+                \App\Models\TeacherSubject::create([
+                    'class_id' => $class->id,
+                    'subject_id' => $subId,
+                    'teacher_id' => $tId,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديث مواد الفصل بنجاح'
+        ]);
+    }
 }

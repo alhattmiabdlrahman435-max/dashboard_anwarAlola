@@ -57,25 +57,63 @@ export default function ScheduleTab() {
     e.preventDefault();
     if (!selectedClassForEdit) return;
 
-    setClasses((prev) =>
-      prev.map((c) => {
-        if (c.id === selectedClassForEdit.id) {
-          return {
-            ...c,
-            subjects: modalClassSubjects,
-          };
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      const numericId = Number(String(selectedClassForEdit.id).replace("cls-", ""));
+      api.post(`/api/classes/${numericId}/subjects`, {
+        subjects: modalClassSubjects
+      })
+      .then(data => {
+        if (data.success) {
+          setClasses((prev) =>
+            prev.map((c) => {
+              if (c.id === selectedClassForEdit.id) {
+                return {
+                  ...c,
+                  subjects: modalClassSubjects,
+                };
+              }
+              return c;
+            }),
+          );
+          setShowEditSubjectsModal(false);
+          setToastMessage(
+            lang === "ar"
+              ? "تم تحديث مواد الفصل بنجاح!"
+              : "Class subjects updated successfully!",
+          );
+          setTimeout(() => setToastMessage(""), 3000);
         }
-        return c;
-      }),
-    );
-
-    setShowEditSubjectsModal(false);
-    setToastMessage(
-      lang === "ar"
-        ? "تم تحديث مواد الفصل بنجاح!"
-        : "Class subjects updated successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 3000);
+      })
+      .catch(err => {
+        console.error("Error saving class subjects:", err);
+        setToastMessage(
+          lang === "ar"
+            ? "فشل حفظ مواد الفصل في قاعدة البيانات"
+            : "Failed to save class subjects in database",
+        );
+        setTimeout(() => setToastMessage(""), 3000);
+      });
+    } else {
+      setClasses((prev) =>
+        prev.map((c) => {
+          if (c.id === selectedClassForEdit.id) {
+            return {
+              ...c,
+              subjects: modalClassSubjects,
+            };
+          }
+          return c;
+        }),
+      );
+      setShowEditSubjectsModal(false);
+      setToastMessage(
+        lang === "ar"
+          ? "تم تحديث مواد الفصل بنجاح!"
+          : "Class subjects updated successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 3000);
+    }
   };
 
   return (
@@ -214,19 +252,18 @@ export default function ScheduleTab() {
                       const classSubjects = currentClassObj
                         ? currentClassObj.subjects || []
                         : [];
-                      // Fallback to all subjects if none are assigned to the class yet
-                      const subjectsToUse =
-                        classSubjects.length > 0
-                          ? classSubjects
-                          : subjects.map((s) => s.name);
-                      const extraOptions = ["نشاط حر", "العلوم"];
+                      // Only show assigned subjects (no fallback to all subjects)
+                      const subjectsToUse = classSubjects;
+                      const extraOptions = ["نشاط حر"];
                       const allOptionNames = [
                         ...new Set([
+                          "", // Empty option first
                           ...subjectsToUse,
                           ...extraOptions,
                           ...(subject &&
                           !subjectsToUse.includes(subject) &&
-                          !extraOptions.includes(subject)
+                          !extraOptions.includes(subject) &&
+                          subject !== ""
                             ? [subject]
                             : []),
                         ]),
@@ -235,7 +272,7 @@ export default function ScheduleTab() {
                         <td key={idx}>
                           <select
                             className="schedule-cell-editor"
-                            value={subject}
+                            value={subject || ""}
                             onChange={(e) =>
                               handleScheduleChange(
                                 dayKey,
@@ -247,6 +284,13 @@ export default function ScheduleTab() {
                             aria-label={`${t[dayKey]} Period ${idx + 1}`}
                           >
                             {allOptionNames.map((optName) => {
+                              if (optName === "") {
+                                return (
+                                  <option key="empty" value="">
+                                    {lang === "ar" ? "فارغ" : "Empty"}
+                                  </option>
+                                );
+                              }
                               const subObj = subjects.find(
                                 (s) => s.name === optName,
                               );

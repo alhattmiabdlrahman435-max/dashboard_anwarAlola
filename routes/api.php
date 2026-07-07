@@ -70,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Classes - الفصول الدراسية
     Route::apiResource('classes', ClassController::class);
+    Route::post('/classes/{id}/subjects', [ClassController::class, 'syncSubjects']);
 
     // Subjects - المواد الدراسية
     Route::apiResource('subjects', SubjectController::class);
