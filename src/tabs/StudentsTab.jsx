@@ -19,8 +19,7 @@ export default function StudentsTab() {
 
   // Student Form states
   const [modalStudentName, setModalStudentName] = useState('');
-  const [modalGrade, setModalGrade] = useState('الصف الأول');
-  const [modalSection, setModalSection] = useState('أ');
+  const [selectedClassId, setSelectedClassId] = useState('');
   const [modalParentNationalId, setModalParentNationalId] = useState('');
   const [modalParentName, setModalParentName] = useState('');
   const [modalPhone, setModalPhone] = useState('');
@@ -75,6 +74,12 @@ export default function StudentsTab() {
       return;
     }
 
+    const classObj = classes.find(c => c.id === selectedClassId);
+    if (!classObj) {
+      setFormError(lang === 'ar' ? 'الرجاء اختيار فصل دراسي صالح!' : 'Please select a valid class!');
+      return;
+    }
+
     const getStageIndex = (className) => {
       if (className.includes("تمهيدي أول") || className.includes("KG1") || className.includes("الروضة الأولى")) return "1";
       if (className.includes("تمهيدي ثاني") || className.includes("KG2") || className.includes("الروضة الثانية")) return "2";
@@ -93,8 +98,8 @@ export default function StudentsTab() {
       return "3";
     };
 
-    const stageIndex = getStageIndex(modalGrade);
-    const studentsInSameGrade = students.filter(s => s.grade === modalGrade);
+    const stageIndex = getStageIndex(classObj.grade);
+    const studentsInSameGrade = students.filter(s => s.grade === classObj.grade);
     const studentSeq = String(studentsInSameGrade.length + 1);
     const generatedStudentCode = `2026${stageIndex}${studentSeq}`;
     const newId = Number(generatedStudentCode);
@@ -105,10 +110,10 @@ export default function StudentsTab() {
       id: newId,
       name: modalStudentName,
       nameEn: nameEnFallback,
-      grade: modalGrade,
-      gradeEn: modalGrade === 'الصف الأول' ? 'Grade 1' : modalGrade === 'الصف الثاني' ? 'Grade 2' : 'Grade 3',
-      section: modalSection,
-      sectionEn: modalSection === 'أ' ? 'A' : 'B',
+      grade: classObj.grade,
+      gradeEn: classObj.gradeEn || classObj.grade,
+      section: classObj.section,
+      sectionEn: classObj.sectionEn || classObj.section,
       parentName: parentNameVal,
       parentNameEn: parentNameVal,
       parentNationalId: parentNationalIdVal,
@@ -140,6 +145,11 @@ export default function StudentsTab() {
 
     // Reset inputs
     setModalStudentName('');
+    if (classes.length > 0) {
+      setSelectedClassId(classes[0].id);
+    } else {
+      setSelectedClassId('');
+    }
     setModalParentNationalId('');
     setModalParentName('');
     setModalPhone('');
@@ -269,6 +279,11 @@ export default function StudentsTab() {
                   setModalParentPhoto('');
                   setSelectedParentLinkOption('');
                   setParentSearchText('');
+                  if (classes.length > 0) {
+                    setSelectedClassId(classes[0].id);
+                  } else {
+                    setSelectedClassId('');
+                  }
                   setShowStudentModal(true);
                 }}
               >
@@ -436,34 +451,21 @@ export default function StudentsTab() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                  <div className="form-group">
-                    <label className="form-label">{t.formGrade} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                    <select 
-                      className="text-field"
-                      value={modalGrade}
-                      onChange={(e) => setModalGrade(e.target.value)}
-                    >
-                      {availableGrades.map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">{t.formSection} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                    <select 
-                      className="text-field"
-                      value={modalSection}
-                      onChange={(e) => setModalSection(e.target.value)}
-                    >
-                      {availableSections.map(s => {
-                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
-                        return (
-                          <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
-                        );
-                      })}
-                    </select>
-                  </div>
+                <div className="form-group">
+                  <label className="form-label">{lang === 'ar' ? 'الفصل الدراسي والشعبة' : 'Class & Section'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <select 
+                    className="text-field"
+                    value={selectedClassId}
+                    onChange={(e) => setSelectedClassId(e.target.value)}
+                    required
+                  >
+                    <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {lang === 'ar' ? c.name : c.nameEn}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group">
