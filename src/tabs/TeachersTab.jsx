@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, X, Trash2, Download, Upload } from 'lucide-react';
+import { Plus, X, Trash2, Download, Upload, FileSpreadsheet } from 'lucide-react';
 
 export default function TeachersTab() {
   const {
@@ -35,8 +35,8 @@ export default function TeachersTab() {
     }
 
     const phoneDigits = modalTeacherPhone.replace(/\D/g, '');
-    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('5')) {
-      setFormError(lang === 'ar' ? 'رقم الجوال يجب أن يكون 9 أرقام ويبدأ بـ 5' : 'Phone must be 9 digits starting with 5');
+    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('7')) {
+      setFormError(lang === 'ar' ? 'رقم الجوال يجب أن يكون 9 أرقام ويبدأ بـ 7' : 'Phone must be 9 digits starting with 7');
       return;
     }
 
@@ -87,8 +87,8 @@ export default function TeachersTab() {
     }
 
     const phoneDigits = modalTeacherPhone.replace(/\D/g, '');
-    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('5')) {
-      setFormError(lang === 'ar' ? 'رقم الجوال يجب أن يكون 9 أرقام ويبدأ بـ 5' : 'Phone must be 9 digits starting with 5');
+    if (phoneDigits.length !== 9 || !phoneDigits.startsWith('7')) {
+      setFormError(lang === 'ar' ? 'رقم الجوال يجب أن يكون 9 أرقام ويبدأ بـ 7' : 'Phone must be 9 digits starting with 7');
       return;
     }
 
@@ -118,6 +118,7 @@ export default function TeachersTab() {
     // Reset fields
     setModalTeacherName('');
     setModalTeacherAssignments([]);
+    setModalTeacherPhoto('');
     setModalTeacherJobId('');
     setModalTeacherPhone('');
     setModalTeacherAddress('');
@@ -242,6 +243,7 @@ export default function TeachersTab() {
           {canAction('teachers', 'import') && (
             <>
               <button className="btn-secondary" onClick={handleDownloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}>
+                <FileSpreadsheet size={16} />
                 {lang === 'ar' ? 'النموذج' : 'Template'}
               </button>
               <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0 }}>
@@ -318,7 +320,7 @@ export default function TeachersTab() {
                     ))}
                   </div>
                 </td>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.phone ? `+966 ${teacher.phone}` : '—'}</td>
+                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.phone ? `+967 ${teacher.phone}` : '—'}</td>
                 <td style={{ fontSize: '12px' }}>{teacher.address || '—'}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.gradesEntered} %</td>
                 <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.assignments}</td>
@@ -385,50 +387,38 @@ export default function TeachersTab() {
                   </div>
                 )}
 
-                <div className="form-group" style={{ textAlign: 'center', marginBottom: '16px' }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>
-                    {lang === 'ar' ? 'صورة المعلم الشخصية' : 'Teacher Profile Photo'}
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    {modalTeacherPhoto ? (
-                      <div style={{ position: 'relative' }}>
-                        <img 
-                          src={modalTeacherPhoto.includes('/uploads/avatars/') ? modalTeacherPhoto.substring(modalTeacherPhoto.indexOf('/uploads/avatars/')) : modalTeacherPhoto} 
-                          alt="Preview" 
-                          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary-ui)' }} 
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setModalTeacherPhoto('')}
-                          style={{ position: 'absolute', top: 0, right: 0, background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
-                        >
-                          ✕
-                        </button>
-                      </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+                  <div style={{ position: 'relative', width: '90px', height: '90px', borderRadius: '50%', border: '2px dashed var(--color-primary-ui)', padding: '4px', cursor: 'pointer', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(30, 80, 142, 0.02)', transition: 'all 0.2s ease' }}
+                       onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-accent)'}
+                       onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--color-primary-ui)'}
+                       onClick={() => document.getElementById('teacher-photo-input').click()}
+                  >
+                    {modalTeacherPhoto && modalTeacherPhoto !== '👨‍🏫' ? (
+                      <img src={modalTeacherPhoto.includes('/uploads/avatars/') ? modalTeacherPhoto.substring(modalTeacherPhoto.indexOf('/uploads/avatars/')) : modalTeacherPhoto} alt="Preview" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                     ) : (
-                      <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(30, 80, 142, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', border: '1px dashed var(--color-border)' }}>
-                        👨‍🏫
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-text-secondary)', userSelect: 'none' }}>
+                        <span style={{ fontSize: '24px' }}>📷</span>
+                        <span style={{ fontSize: '10px', marginTop: '4px', fontWeight: 'bold' }}>{lang === 'ar' ? 'رفع صورة' : 'Upload'}</span>
                       </div>
                     )}
-                    <label className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', margin: 0 }}>
-                      {lang === 'ar' ? 'اختيار صورة حقيقية' : 'Choose Real Photo'}
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        style={{ display: 'none' }} 
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setModalTeacherPhoto(event.target.result);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }} 
-                      />
-                    </label>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      id="teacher-photo-input"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setModalTeacherPhoto(reader.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
                   </div>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                    {lang === 'ar' ? 'الصورة الشخصية للمعلم' : 'Teacher Profile Photo'}
+                  </span>
                 </div>
 
                 <div className="form-group">
@@ -460,7 +450,7 @@ export default function TeachersTab() {
                     <input 
                       type="text" 
                       className="text-field"
-                      placeholder="5XXXXXXXX"
+                      placeholder="7XXXXXXXX"
                       value={modalTeacherPhone}
                       onChange={(e) => setModalTeacherPhone(e.target.value)}
                       required
@@ -561,17 +551,6 @@ export default function TeachersTab() {
                     </tbody>
                   </table>
                 </div>
-
-                <div className="form-group">
-                  <label className="form-label">{t.formPhoto} (Teacher - Emoji or URL)</label>
-                  <input 
-                    type="text" 
-                    className="text-field"
-                    placeholder="👨‍🏫 or image url"
-                    value={modalTeacherPhoto}
-                    onChange={(e) => setModalTeacherPhoto(e.target.value)}
-                  />
-                </div>
               </div>
 
               <footer className="modal-footer">
@@ -601,7 +580,7 @@ export default function TeachersTab() {
         <div className="modal-overlay no-print">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
-              <h3 className="modal-title">👨‍🏫 {lang === 'ar' ? 'تعديل بيانات المعلم ورصد الصلاحيات' : 'Edit Teacher & Reset Password'}</h3>
+              <h3 className="modal-title">👨‍🏫 {lang === 'ar' ? 'تعديل بيانات المعلم ورصد الصلاحيات' : 'Edit Teacher'}</h3>
               <button 
                 className="modal-close-btn" 
                 onClick={() => {
@@ -619,51 +598,39 @@ export default function TeachersTab() {
                     {formError}
                   </div>
                 )}
-
-                <div className="form-group" style={{ textAlign: 'center', marginBottom: '16px' }}>
-                  <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>
-                    {lang === 'ar' ? 'صورة المعلم الشخصية' : 'Teacher Profile Photo'}
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    {modalTeacherPhoto ? (
-                      <div style={{ position: 'relative' }}>
-                        <img 
-                          src={modalTeacherPhoto.includes('/uploads/avatars/') ? modalTeacherPhoto.substring(modalTeacherPhoto.indexOf('/uploads/avatars/')) : modalTeacherPhoto} 
-                          alt="Preview" 
-                          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary-ui)' }} 
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setModalTeacherPhoto('')}
-                          style={{ position: 'absolute', top: 0, right: 0, background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
-                        >
-                          ✕
-                        </button>
-                      </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+                  <div style={{ position: 'relative', width: '90px', height: '90px', borderRadius: '50%', border: '2px dashed var(--color-primary-ui)', padding: '4px', cursor: 'pointer', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(30, 80, 142, 0.02)', transition: 'all 0.2s ease' }}
+                       onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-accent)'}
+                       onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--color-primary-ui)'}
+                       onClick={() => document.getElementById('edit-teacher-photo-input').click()}
+                  >
+                    {modalTeacherPhoto && modalTeacherPhoto !== '👨‍🏫' ? (
+                      <img src={modalTeacherPhoto.includes('/uploads/avatars/') ? modalTeacherPhoto.substring(modalTeacherPhoto.indexOf('/uploads/avatars/')) : modalTeacherPhoto} alt="Preview" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                     ) : (
-                      <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(30, 80, 142, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', border: '1px dashed var(--color-border)' }}>
-                        👨‍🏫
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-text-secondary)', userSelect: 'none' }}>
+                        <span style={{ fontSize: '24px' }}>📷</span>
+                        <span style={{ fontSize: '10px', marginTop: '4px', fontWeight: 'bold' }}>{lang === 'ar' ? 'رفع صورة' : 'Upload'}</span>
                       </div>
                     )}
-                    <label className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', margin: 0 }}>
-                      {lang === 'ar' ? 'اختيار صورة حقيقية' : 'Choose Real Photo'}
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        style={{ display: 'none' }} 
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setModalTeacherPhoto(event.target.result);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }} 
-                      />
-                    </label>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      id="edit-teacher-photo-input"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setModalTeacherPhoto(reader.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
                   </div>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                    {lang === 'ar' ? 'الصورة الشخصية للمعلم' : 'Teacher Profile Photo'}
+                  </span>
                 </div>
 
                 <div className="form-group">
@@ -676,11 +643,11 @@ export default function TeachersTab() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalTeacherPhone} onChange={(e) => setModalTeacherPhone(e.target.value)} placeholder="5XXXXXXXX" required />
+                  <input type="text" className="text-field" value={modalTeacherPhone} onChange={(e) => setModalTeacherPhone(e.target.value)} placeholder="7XXXXXXXX" required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
-                  <input type="text" className="text-field" value={modalTeacherAddress} onChange={(e) => setModalTeacherAddress(e.target.value)} placeholder={lang === 'ar' ? 'مثال: حي النزهة، الرياض' : 'e.g. Al-Nuzha, Riyadh'} />
+                  <input type="text" className="text-field" value={modalTeacherAddress} onChange={(e) => setModalTeacherAddress(e.target.value)} placeholder={lang === 'ar' ? 'مثال: صنعاء، شارع حدة' : 'e.g. Sanaa, Hadda St'} />
                 </div>
                 
                 <div style={{ padding: '14px', background: 'rgba(30, 80, 142, 0.03)', border: '1px solid var(--color-border)', borderRadius: '16px', marginBottom: '16px' }}>

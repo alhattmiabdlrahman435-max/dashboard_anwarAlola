@@ -82,6 +82,21 @@ class PermissionService
             return null;
         }
 
+        // Parents
+        if ($user->role === 'parent') {
+            return $user->children()->pluck('class_id')->filter()->unique()->toArray();
+        }
+
+        // Teachers
+        if ($user->role === 'teacher') {
+            return $user->teacherSubjects()->pluck('class_id')->unique()->toArray();
+        }
+
+        // Preparation Supervisors
+        if ($user->role === 'preparation_supervisor') {
+            return $user->supervisorClasses()->pluck('class_id')->unique()->toArray();
+        }
+
         $permissions = $user->permissions;
 
         // full_access = unrestricted

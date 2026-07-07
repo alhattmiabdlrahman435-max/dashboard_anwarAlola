@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import PrintHeader from '../components/PrintHeader';
-import { X } from 'lucide-react';
+import { X, Calendar, BarChart3, Printer, Clock } from 'lucide-react';
 
 export default function ScannerTab() {
   const {
@@ -53,22 +53,22 @@ export default function ScannerTab() {
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           📋 {lang === 'ar' ? 'سجل الحضور والغياب الموحد' : 'Unified Attendance Log'}
         </h3>
-        <div style={{ display: 'flex', gap: '8px', backgroundColor: 'var(--color-surface)', padding: '4px', borderRadius: 'var(--radius-button)', border: '1px solid var(--color-border)' }}>
+        <div className="segment-control">
           <button 
             type="button"
-            className={`chip ${attendanceSubTab === 'monthlySheet' ? 'selected' : ''}`}
+            className={`segment-btn ${attendanceSubTab === 'monthlySheet' ? 'active' : ''}`}
             onClick={() => setAttendanceSubTab('monthlySheet')}
-            style={{ margin: 0, padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}
           >
-            📅 {lang === 'ar' ? 'كشف الحضور الشهري' : 'Monthly Registry'}
+            <Calendar size={16} />
+            {lang === 'ar' ? 'كشف الحضور الشهري' : 'Monthly Registry'}
           </button>
           <button 
             type="button"
-            className={`chip ${attendanceSubTab === 'statsSummary' ? 'selected' : ''}`}
+            className={`segment-btn ${attendanceSubTab === 'statsSummary' ? 'active' : ''}`}
             onClick={() => setAttendanceSubTab('statsSummary')}
-            style={{ margin: 0, padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}
           >
-            📊 {lang === 'ar' ? 'إحصائيات الحضور والغياب' : 'Attendance Stats'}
+            <BarChart3 size={16} />
+            {lang === 'ar' ? 'إحصائيات الحضور والغياب' : 'Attendance Stats'}
           </button>
         </div>
       </div>
@@ -151,32 +151,35 @@ export default function ScannerTab() {
               </div>
 
             </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button 
+                type="button"
+                className="btn-filled"
+                onClick={() => window.print()}
+                style={{ minHeight: '36px', height: '36px', padding: '0 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+              >
+                <Printer size={16} />
+                {lang === 'ar' ? 'طباعة كشف الفصل' : 'Print Class Sheet'}
+              </button>
 
-            <button 
-              type="button"
-              className="btn-filled"
-              onClick={() => window.print()}
-              style={{ height: '36px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-            >
-              🖨️ {lang === 'ar' ? 'طباعة كشف الفصل' : 'Print Class Sheet'}
-            </button>
-
-            <button 
-              type="button"
-              className="btn-accent"
-              onClick={() => {
-                const initialStudents = students.filter(s => s.grade === attendanceMonthGrade && s.section === attendanceMonthSection);
-                setQuickGrade(attendanceMonthGrade);
-                setQuickSection(attendanceMonthSection);
-                setQuickStudentId(initialStudents.length > 0 ? initialStudents[0].id : '');
-                setQuickDate(new Date().toISOString().substring(0, 10));
-                setQuickStatus('present');
-                setShowQuickAttendanceModal(true);
-              }}
-              style={{ height: '36px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-            >
-              ⏱️ {lang === 'ar' ? 'تحضير سريع (منفرد)' : 'Quick Attendance'}
-            </button>
+              <button 
+                type="button"
+                className="btn-accent"
+                onClick={() => {
+                  const initialStudents = students.filter(s => s.grade === attendanceMonthGrade && s.section === attendanceMonthSection);
+                  setQuickGrade(attendanceMonthGrade);
+                  setQuickSection(attendanceMonthSection);
+                  setQuickStudentId(initialStudents.length > 0 ? initialStudents[0].id : '');
+                  setQuickDate(new Date().toISOString().substring(0, 10));
+                  setQuickStatus('present');
+                  setShowQuickAttendanceModal(true);
+                }}
+                style={{ minHeight: '36px', height: '36px', padding: '0 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+              >
+                <Clock size={16} />
+                {lang === 'ar' ? 'تحضير سريع (منفرد)' : 'Quick Attendance'}
+              </button>
+            </div>
           </div>
 
           {/* Monthly Sheet Matrix Table */}

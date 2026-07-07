@@ -103,7 +103,8 @@ class DatabaseSeeder extends Seeder
         ];
 
         $teacherUserIds = [];
-        foreach ($teachersData as $tData) {
+        $tCodes = ['T101', 'T102', 'T103', 'T104'];
+        foreach ($teachersData as $index => $tData) {
             $tUserId = DB::table('users')->insertGetId([
                 'name' => $tData['username'],
                 'username' => $tData['username'],
@@ -120,6 +121,7 @@ class DatabaseSeeder extends Seeder
                 'updated_at' => now(),
             ]);
             $teacherUserIds[$tData['username']] = $tUserId;
+            $teacherUserIds[$tCodes[$index]] = $tUserId;
         }
 
         // Parents (Users)

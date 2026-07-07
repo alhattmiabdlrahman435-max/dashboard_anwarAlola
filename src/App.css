@@ -1211,6 +1211,36 @@ body[dir="rtl"] .profile-dropdown-container {
   box-shadow: 0 6px 18px rgba(var(--color-accent-hsl), 0.35);
 }
 
+.btn-secondary {
+  background-color: var(--color-surface-alt);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  min-height: 46px;
+  padding: 0 var(--space-lg);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  box-shadow: var(--color-shadow);
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-border);
+  border-color: var(--color-text-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
 /* Chips Filter Tags */
 .chip {
   display: inline-flex;
@@ -1242,6 +1272,51 @@ body[dir="rtl"] .profile-dropdown-container {
   background-color: rgba(56, 189, 248, 0.1);
   color: #38bdf8;
   border-color: #38bdf8;
+}
+
+
+/* Segment Control Switchers */
+.segment-control {
+  display: inline-flex;
+  background-color: var(--color-surface-alt);
+  padding: 4px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--color-border);
+  gap: 4px;
+  align-items: center;
+}
+
+.segment-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.segment-btn:hover {
+  color: var(--color-text-primary);
+  background-color: rgba(15, 80, 142, 0.03);
+}
+
+.segment-btn.active {
+  background-color: var(--color-surface);
+  color: var(--color-primary-ui);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+:root.dark .segment-btn.active {
+  background-color: #1e293b;
+  color: #38bdf8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* ==========================================================================

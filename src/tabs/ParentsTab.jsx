@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, X, Download, Upload } from 'lucide-react';
+import { Search, X, Download, Upload, FileSpreadsheet } from 'lucide-react';
 
 export default function ParentsTab() {
   const {
@@ -200,6 +200,7 @@ export default function ParentsTab() {
           {canAction('parents', 'import') && (
             <>
               <button className="btn-secondary" onClick={handleDownloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 16px', fontSize: '13px' }} title={lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}>
+                <FileSpreadsheet size={16} />
                 {lang === 'ar' ? 'النموذج' : 'Template'}
               </button>
               <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0, padding: '8px 16px', fontSize: '13px' }}>
