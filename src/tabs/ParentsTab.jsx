@@ -248,7 +248,7 @@ export default function ParentsTab() {
                       {renderAvatar(parent.photo, "🧔")} 
                       {lang === 'ar' ? parent.name : (parent.nameEn || parent.name)}
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>+967 {parent.phone}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)' }}>{parent.phone}</td>
                     <td style={{ fontWeight: 'bold', textAlign: 'center' }}>{children.length}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>

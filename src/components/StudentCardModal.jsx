@@ -75,7 +75,7 @@ export default function StudentCardModal() {
                 </div>
                 
                 <div className="card-avatar" style={{ overflow: 'hidden' }}>
-                  {renderAvatar(selectedStudentForCard.photo, "👨‍🎓")}
+                  {renderAvatar(selectedStudentForCard.photo, "👨‍🎓", { width: '100%', height: '100%', marginInlineEnd: 0, fontSize: '40px' })}
                 </div>
 
                 <div className="card-name">
@@ -205,7 +205,7 @@ export default function StudentCardModal() {
                 const student = students.find(s => s.id === selectedGradeStudentId);
                 return (
                   <div className="print-modal-student-banner">
-                    <span style={{ fontSize: '22px' }}>{student?.photo || '👨‍🎓'}</span>
+                    {renderAvatar(student?.photo, "👨‍🎓")}
                     <div>
                       <div style={{ fontWeight: '700', fontSize: '14px' }}>{lang === 'ar' ? student?.name : student?.nameEn}</div>
                       <div style={{ fontSize: '12px', opacity: 0.75 }}>

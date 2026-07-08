@@ -13,7 +13,8 @@ export default function Sidebar() {
     isSidebarCollapsed, setIsSidebarCollapsed,
     isMobileMenuOpen, setIsMobileMenuOpen,
     currentUser, absenceRequests, teacherReports, notifications,
-    hasPermission
+    hasPermission,
+    renderAvatar
   } = useApp();
 
   const isAdmin = currentUser?.role === 'admin';
@@ -321,7 +322,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="user-avatar-wrapper">
-          <div className="user-avatar">{currentUser?.photo || 'أ ع'}</div>
+          <div className="user-avatar">{renderAvatar(currentUser?.photo, 'أ ع')}</div>
           <span className="user-status-dot"></span>
         </div>
         <div className="user-info">

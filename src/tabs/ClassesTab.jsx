@@ -15,7 +15,8 @@ export default function ClassesTab() {
     availableGrades,
     availableSections,
     setToastMessage,
-    triggerConfirm
+    triggerConfirm,
+    renderAvatar
   } = useApp();
 
   // Local state for searching & modals
@@ -644,9 +645,7 @@ export default function ClassesTab() {
                           <tr key={student.id}>
                             <td style={{ padding: '6px 12px', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>{student.id}</td>
                             <td style={{ padding: '6px 12px', fontSize: '12px', fontWeight: '600' }}>
-                              {student.photo ? (
-                                <span style={{ marginInlineEnd: '6px' }}>{student.photo}</span>
-                              ) : null}
+                              {renderAvatar(student.photo, "👨‍🎓")}
                               {lang === 'ar' ? student.name : student.nameEn}
                             </td>
                             <td style={{ padding: '6px 12px', fontSize: '12px' }}>
@@ -694,7 +693,7 @@ export default function ClassesTab() {
                             <td style={{ padding: '6px 12px', fontSize: '12px', fontWeight: '600' }}>
                               {teacherObj ? (
                                 <>
-                                  {teacherObj.photo ? <span style={{ marginInlineEnd: '6px' }}>{teacherObj.photo}</span> : "👨‍🏫 "}
+                                  {renderAvatar(teacherObj.photo, "👨‍🏫")}
                                   {lang === 'ar' ? teacherObj.name : teacherObj.nameEn}
                                 </>
                               ) : (

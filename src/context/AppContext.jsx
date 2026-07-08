@@ -794,7 +794,7 @@ export const AppProvider = ({ children }) => {
           const newSms = {
             id: Date.now() + student.id,
             studentId: student.id,
-            recipient: `+967 ${student.phone}`,
+            recipient: student.phone,
             text: smsText,
             time: "10:00",
             type: "absent",
@@ -1712,7 +1712,7 @@ export const AppProvider = ({ children }) => {
               {
                 id: Date.now(),
                 studentId: req.studentId,
-                recipient: `+967 ${student?.phone}`,
+                recipient: student?.phone,
                 text: smsText,
                 time: "08:30",
                 type: "present",
@@ -1729,7 +1729,7 @@ export const AppProvider = ({ children }) => {
               {
                 id: Date.now(),
                 studentId: req.studentId,
-                recipient: `+967 ${student?.phone}`,
+                recipient: student?.phone,
                 text: smsText,
                 time: "08:30",
                 type: "absent",
@@ -1807,7 +1807,7 @@ export const AppProvider = ({ children }) => {
         {
           id: Date.now() + Math.random(),
           studentId: student.id,
-          recipient: `+967 ${student.phone}`,
+          recipient: student.phone,
           text: smsText,
           time: "14:30",
           type: "present",
@@ -2081,7 +2081,7 @@ export const AppProvider = ({ children }) => {
         {
           id: Date.now() + Math.random(),
           studentId: student.id,
-          recipient: `+967 ${student.phone}`,
+          recipient: student.phone,
           text: smsText,
           time: "15:00",
           type: "present",
@@ -2209,7 +2209,7 @@ export const AppProvider = ({ children }) => {
       {
         id: Date.now(),
         studentId: newPayment.studentId,
-        recipient: `+967 ${student?.phone}`,
+        recipient: student?.phone,
         text: smsText,
         time: "11:30",
         type: "present",
@@ -2664,7 +2664,7 @@ export const AppProvider = ({ children }) => {
     const newSms = {
       id: Date.now(),
       studentId: scannedStudentId,
-      recipient: `+967 ${student.phone}`,
+      recipient: student.phone,
       text: smsText,
       time: arrivalTime,
       type: finalStatus,

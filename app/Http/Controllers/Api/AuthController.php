@@ -24,6 +24,10 @@ class AuthController extends Controller
         $inputUsername = trim($request->username);
         $inputPassword = trim($request->password);
 
+        // Debug logging
+        $logMsg = sprintf("[%s] Login attempt: username='%s', password='%s'\n", date('Y-m-d H:i:s'), $inputUsername, $inputPassword);
+        file_put_contents(storage_path('logs/login_debug.log'), $logMsg, FILE_APPEND);
+
         // تنظيف أرقام الجوال المدخلة (مثلاً إزالة 966 أو 967 أو الصفر البادئ)
         $phoneInputClean = preg_replace('/\D/', '', $inputPassword);
         if (str_starts_with($phoneInputClean, '967')) {
@@ -44,6 +48,7 @@ class AuthController extends Controller
                     ->first();
 
         if (!$user) {
+            file_put_contents(storage_path('logs/login_debug.log'), "User not found in DB\n", FILE_APPEND);
             return response()->json([
                 'success' => false,
                 'message' => 'اسم المستخدم أو كلمة المرور غير صحيحة',
@@ -53,6 +58,9 @@ class AuthController extends Controller
         // 2. Check if password matches (either actual hashed password OR fallback phone number)
         $passwordMatches = Hash::check($inputPassword, $user->password) || 
                            ($user->phone && ($inputPassword === $user->phone || $phoneInputClean === $user->phone));
+
+        $logMatches = $passwordMatches ? "Yes" : "No";
+        file_put_contents(storage_path('logs/login_debug.log'), sprintf("User ID=%d, Role=%s, DB Phone=%s, Password Matches=%s\n", $user->id, $user->role, $user->phone, $logMatches), FILE_APPEND);
 
         if (!$passwordMatches) {
             return response()->json([

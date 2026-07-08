@@ -83,13 +83,31 @@ class StudentController extends Controller implements HasMiddleware
             'tuition_fee' => 'nullable|numeric',
         ]);
 
+        $photoUrl = $request->photo_url;
+        if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
+            $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
+            $type = strtolower($type[1]);
+            if (in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
+                $data = str_replace(' ', '+', $data);
+                $data = base64_decode($data);
+                if ($data !== false) {
+                    $filename = time() . '_' . uniqid() . '.' . $type;
+                    if (!file_exists(public_path('uploads/avatars'))) {
+                        mkdir(public_path('uploads/avatars'), 0755, true);
+                    }
+                    file_put_contents(public_path('uploads/avatars/' . $filename), $data);
+                    $photoUrl = asset('uploads/avatars/' . $filename);
+                }
+            }
+        }
+
         $student = Student::create([
             'student_code' => $request->student_code,
             'name_ar' => $request->name_ar,
             'name_en' => $request->name_en,
             'class_id' => $request->class_id,
             'parent_id' => $request->parent_id,
-            'photo_url' => $request->photo_url ?: '👨‍🎓',
+            'photo_url' => $photoUrl ?: '👨‍🎓',
             'qr_code' => $request->qr_code ?: ('ANWAR-' . rand(100000, 999999)),
             'secret_code' => $request->secret_code,
             'tuition_fee' => $request->tuition_fee ?? 10000.00,
@@ -119,7 +137,30 @@ class StudentController extends Controller implements HasMiddleware
             return response()->json(['success' => false, 'message' => 'الطالب غير موجود'], 404);
         }
 
-        $student->update($request->all());
+        $updateData = $request->all();
+
+        if ($request->has('photo_url')) {
+            $photoUrl = $request->photo_url;
+            if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
+                $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
+                $type = strtolower($type[1]);
+                if (in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
+                    $data = str_replace(' ', '+', $data);
+                    $data = base64_decode($data);
+                    if ($data !== false) {
+                        $filename = time() . '_' . uniqid() . '.' . $type;
+                        if (!file_exists(public_path('uploads/avatars'))) {
+                            mkdir(public_path('uploads/avatars'), 0755, true);
+                        }
+                        file_put_contents(public_path('uploads/avatars/' . $filename), $data);
+                        $photoUrl = asset('uploads/avatars/' . $filename);
+                        $updateData['photo_url'] = $photoUrl;
+                    }
+                }
+            }
+        }
+
+        $student->update($updateData);
 
         return response()->json([
             'success' => true,

@@ -305,7 +305,7 @@ export default function TeachersTab() {
                     ))}
                   </div>
                 </td>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.phone ? `+967 ${teacher.phone}` : '—'}</td>
+                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.phone || '—'}</td>
                 <td style={{ fontSize: '12px' }}>{teacher.address || '—'}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.gradesEntered} %</td>
                 <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.assignments}</td>

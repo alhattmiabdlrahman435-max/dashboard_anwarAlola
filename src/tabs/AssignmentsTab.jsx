@@ -90,7 +90,7 @@ export default function AssignmentsTab() {
       setSmsLogs(logs => [{
         id: Date.now() + Math.random(),
         studentId: student.id,
-        recipient: `+967 ${student.phone}`,
+        recipient: student.phone,
         text: smsText,
         time: "14:30",
         type: 'present'

@@ -24,18 +24,19 @@ class ReportController extends Controller
             ->get()
             ->map(function ($report) {
                 return [
-                    'id'          => (string) $report->id,
-                    'studentId'   => (string) $report->student_id,
-                    'studentName' => $report->student->name_ar ?? $report->student->name ?? 'غير معروف',
-                    'className'   => $report->student->schoolClass
+                    'id'              => (string) $report->id,
+                    'studentId'       => (string) $report->student_id,
+                    'studentName'     => $report->student->name_ar ?? $report->student->name ?? 'غير معروف',
+                    'studentPhotoUrl' => $report->student->photo_url ?? null,
+                    'className'       => $report->student->schoolClass
                         ? ($report->student->schoolClass->name_ar ?? $report->student->schoolClass->name ?? '')
                         : '',
-                    'teacherName' => $report->teacher->name_ar ?? $report->teacher->name ?? 'غير معروف',
-                    'type'        => $report->type,
-                    'description' => $report->description,
-                    'imageUrl'    => $report->image_url,
-                    'status'      => $report->status,
-                    'createdAt'   => $report->created_at->toIso8601String(),
+                    'teacherName'     => $report->teacher->name_ar ?? $report->teacher->name ?? 'غير معروف',
+                    'type'            => $report->type,
+                    'description'     => $report->description,
+                    'imageUrl'        => $report->image_url,
+                    'status'          => $report->status,
+                    'createdAt'       => $report->created_at->toIso8601String(),
                 ];
             });
 
@@ -77,18 +78,19 @@ class ReportController extends Controller
             'success' => true,
             'message' => 'تم إرسال البلاغ بنجاح وهو قيد الانتظار للموافقة من الإدارة.',
             'report'  => [
-                'id'          => (string) $report->id,
-                'studentId'   => (string) $report->student_id,
-                'studentName' => $report->student->name_ar ?? $report->student->name ?? 'غير معروف',
-                'className'   => $report->student->schoolClass
+                'id'              => (string) $report->id,
+                'studentId'       => (string) $report->student_id,
+                'studentName'     => $report->student->name_ar ?? $report->student->name ?? 'غير معروف',
+                'studentPhotoUrl' => $report->student->photo_url ?? null,
+                'className'       => $report->student->schoolClass
                     ? ($report->student->schoolClass->name_ar ?? $report->student->schoolClass->name ?? '')
                     : '',
-                'teacherName' => $report->teacher->name_ar ?? $report->teacher->name ?? 'غير معروف',
-                'type'        => $report->type,
-                'description' => $report->description,
-                'imageUrl'    => $report->image_url,
-                'status'      => $report->status,
-                'createdAt'   => $report->created_at->toIso8601String(),
+                'teacherName'     => $report->teacher->name_ar ?? $report->teacher->name ?? 'غير معروف',
+                'type'            => $report->type,
+                'description'     => $report->description,
+                'imageUrl'        => $report->image_url,
+                'status'          => $report->status,
+                'createdAt'       => $report->created_at->toIso8601String(),
             ],
         ], 201);
     }

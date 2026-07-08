@@ -13,7 +13,8 @@ export default function SubjectsTab() {
     subjects,
     setSubjects,
     setToastMessage,
-    triggerConfirm
+    triggerConfirm,
+    renderAvatar
   } = useApp();
 
   // Local state for searching & modals
@@ -484,7 +485,7 @@ export default function SubjectsTab() {
                               <td style={{ padding: '8px 12px', fontSize: '13px', fontWeight: '600' }}>
                                 {classTeacher ? (
                                   <>
-                                    {classTeacher.photo ? <span style={{ marginInlineEnd: '6px' }}>{classTeacher.photo}</span> : "👨‍🏫 "}
+                                    {renderAvatar(classTeacher.photo, "👨‍🏫")}
                                     {lang === 'ar' ? classTeacher.name : classTeacher.nameEn}
                                   </>
                                 ) : (
@@ -528,7 +529,7 @@ export default function SubjectsTab() {
                           return (
                             <tr key={teach.id}>
                               <td style={{ padding: '8px 12px', fontSize: '13px', fontWeight: '600' }}>
-                                {teach.photo ? <span style={{ marginInlineEnd: '6px' }}>{teach.photo}</span> : null}
+                                {renderAvatar(teach.photo, "👨‍🏫")}
                                 {lang === 'ar' ? teach.name : teach.nameEn}
                               </td>
                               <td style={{ padding: '8px 12px', fontSize: '12px' }}>

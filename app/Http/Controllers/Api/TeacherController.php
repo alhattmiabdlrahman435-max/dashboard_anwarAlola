@@ -413,8 +413,11 @@ class TeacherController extends Controller implements HasMiddleware
     public function getTeacherAttendanceHistory(Request $request)
     {
         $user = $request->user();
-        if ($user->role === 'supervisor' || $user->role === 'admin' || $user->role === 'preparation_supervisor') {
+        if ($user->role === 'supervisor' || $user->role === 'admin') {
             $classes = SchoolClass::all();
+        } elseif ($user->role === 'preparation_supervisor') {
+            $classIds = \App\Models\SupervisorClass::where('supervisor_id', $user->id)->pluck('class_id')->unique();
+            $classes = SchoolClass::whereIn('id', $classIds)->get();
         } elseif ($user->role === 'teacher') {
             $classIds = TeacherSubject::where('teacher_id', $user->id)->pluck('class_id')->unique();
             $classes = SchoolClass::whereIn('id', $classIds)->get();
@@ -527,6 +530,7 @@ class TeacherController extends Controller implements HasMiddleware
                 'civilId' => $student->student_code ?? '',
                 'presentCount' => $pCount,
                 'absentCount' => $aCount,
+                'photoUrl' => $student->photo_url,
             ];
         }
 

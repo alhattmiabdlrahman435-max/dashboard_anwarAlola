@@ -665,7 +665,7 @@ export default function StudentsTab() {
                       </div>
                     </div>
                     <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      📞 {lang === 'ar' ? 'رقم الجوال: ' : 'Phone Number: '} +967 {modalPhone}
+                      📞 {lang === 'ar' ? 'رقم الجوال: ' : 'Phone Number: '} {modalPhone}
                     </div>
                   </div>
                 )}

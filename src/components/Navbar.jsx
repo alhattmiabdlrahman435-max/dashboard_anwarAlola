@@ -9,7 +9,8 @@ export default function Navbar() {
     isMobileMenuOpen, setIsMobileMenuOpen,
     showNotificationsDropdown, setShowNotificationsDropdown,
     showProfileDropdown, setShowProfileDropdown,
-    currentUser, smsLogs, notifications, handleLogout, handleMarkNotificationAsRead
+    currentUser, smsLogs, notifications, handleLogout, handleMarkNotificationAsRead,
+    renderAvatar
   } = useApp();
 
   const getTabLabel = () => {
@@ -167,13 +168,13 @@ export default function Navbar() {
             onClick={() => setShowProfileDropdown(!showProfileDropdown)}
             aria-label="User Profile Menu"
           >
-            <div className="header-avatar">{currentUser?.photo || 'أ ع'}</div>
+            <div className="header-avatar">{renderAvatar(currentUser?.photo, 'أ ع')}</div>
           </button>
           
           {showProfileDropdown && (
             <div className="profile-dropdown-container glass-panel animate-scale-up">
               <div className="profile-dropdown-header">
-                <div className="header-avatar large">{currentUser?.photo || 'أ ع'}</div>
+                <div className="header-avatar large">{renderAvatar(currentUser?.photo, 'أ ع')}</div>
                 <div className="profile-info">
                   <div className="profile-name">{lang === 'ar' ? currentUser?.name : currentUser?.nameEn}</div>
                   <div className="profile-email">{currentUser?.email || currentUser?.username}</div>
