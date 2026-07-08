@@ -3722,3 +3722,16 @@ body[dir="rtl"] .menu-item.active {
   opacity: 1 !important;
 }
 
+/* Custom layout for Finance tab with narrower sidebar and wider details */
+.finance-ledger-grid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: var(--space-xl);
+}
+
+@media (max-width: 1150px) {
+  .finance-ledger-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

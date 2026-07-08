@@ -590,7 +590,7 @@ export default function StudentsTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.س)' : 'Annual Tuition Fee (SAR)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.ي)' : 'Annual Tuition Fee (R.Y)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
                     type="number" 
                     className="text-field"
@@ -870,7 +870,7 @@ export default function StudentsTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.س)' : 'Annual Tuition Fee (SAR)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.ي)' : 'Annual Tuition Fee (R.Y)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
                     type="number" 
                     className="text-field"

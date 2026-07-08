@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Schedule;
+use App\Models\TeacherSubject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -82,7 +83,108 @@ class ScheduleController extends Controller
             return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
         }
 
-        return DB::transaction(function() use ($request, $cls) {
+        // Check for teacher conflicts before saving
+        $conflictsByTeacher = [];
+        $dayNamesAr = [
+            'saturday' => 'السبت',
+            'sunday' => 'الأحد',
+            'monday' => 'الاثنين',
+            'tuesday' => 'الثلاثاء',
+            'wednesday' => 'الأربعاء',
+            'thursday' => 'الخميس',
+            'friday' => 'الجمعة',
+        ];
+        $periodNamesAr = [
+            1 => 'الأولى',
+            2 => 'الثانية',
+            3 => 'الثالثة',
+            4 => 'الرابعة',
+            5 => 'الخامسة',
+            6 => 'السادسة',
+            7 => 'السابعة',
+        ];
+
+        // Preload subjects
+        $allSubjectNames = [];
+        foreach ($request->schedule as $day => $periods) {
+            foreach ($periods as $idx => $subjName) {
+                if (!empty($subjName)) {
+                    $allSubjectNames[] = $subjName;
+                }
+            }
+        }
+        $allSubjectNames = array_unique($allSubjectNames);
+        $subjectsMap = Subject::whereIn('name_ar', $allSubjectNames)->get()->keyBy('name_ar');
+
+        // Preload teacher subject assignments for this class
+        $teacherSubjectsMap = TeacherSubject::where('class_id', $cls->id)
+            ->with('teacher')
+            ->get()
+            ->groupBy('subject_id');
+
+        foreach ($request->schedule as $day => $periods) {
+            foreach ($periods as $idx => $subjName) {
+                if (empty($subjName)) continue;
+                
+                $dayKey = strtolower($day);
+                $periodNumber = $idx + 1;
+                
+                $subj = $subjectsMap->get($subjName);
+                if (!$subj) continue;
+
+                $tsList = $teacherSubjectsMap->get($subj->id);
+                if (!$tsList || $tsList->isEmpty()) continue;
+                
+                $ts = $tsList->first();
+                if (!$ts->teacher) continue;
+                
+                $teacherId = $ts->teacher_id;
+                $teacherName = $ts->teacher->name_ar ?? $ts->teacher->name;
+
+                // Query DB to check if this teacher is already assigned elsewhere at this day and period
+                $conflict = DB::table('schedules')
+                    ->join('teacher_subjects', function($join) {
+                        $join->on('schedules.class_id', '=', 'teacher_subjects.class_id')
+                             ->on('schedules.subject_id', '=', 'teacher_subjects.subject_id');
+                    })
+                    ->join('classes', 'schedules.class_id', '=', 'classes.id')
+                    ->join('subjects', 'schedules.subject_id', '=', 'subjects.id')
+                    ->where('schedules.class_id', '!=', $cls->id)
+                    ->where('schedules.day_of_week', $dayKey)
+                    ->where('schedules.period', $periodNumber)
+                    ->where('teacher_subjects.teacher_id', $teacherId)
+                    ->select(
+                        'classes.grade_ar',
+                        'classes.section_ar',
+                        'subjects.name_ar as subject_name'
+                    )
+                    ->first();
+
+                if ($conflict) {
+                    $conflictClassName = $conflict->grade_ar . ' - ' . $conflict->section_ar;
+                    $dayAr = $dayNamesAr[$dayKey] ?? $day;
+                    $periodAr = $periodNamesAr[$periodNumber] ?? "الحصة {$periodNumber}";
+                    
+                    $conflictsByTeacher[$teacherName][] = "يوم {$dayAr} الحصة {$periodAr} (مادة {$conflict->subject_name} في {$conflictClassName})";
+                }
+            }
+        }
+
+        if (!empty($conflictsByTeacher)) {
+            $messageLines = ["توجد تعارضات في جدول المعلمين:"];
+            foreach ($conflictsByTeacher as $teacher => $list) {
+                $messageLines[] = "👤 " . $teacher . ":";
+                foreach ($list as $item) {
+                    $messageLines[] = "  • " . $item;
+                }
+            }
+            return response()->json([
+                'success' => false,
+                'message' => implode("\n", $messageLines)
+            ], 400);
+        }
+
+        return DB::transaction(function() use ($request, $cls, $className) {
             // Delete old schedules for this class
             Schedule::where('class_id', $cls->id)->delete();
             

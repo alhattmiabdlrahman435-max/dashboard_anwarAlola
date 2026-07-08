@@ -340,23 +340,26 @@ export default function ScheduleTab() {
                         ? "تم حفظ التعديلات على الجدول بنجاح!"
                         : "Timetable changes saved successfully!",
                     );
+                    setTimeout(() => setToastMessage(""), 3000);
                   } else {
                     setToastMessage(
                       lang === "ar"
                         ? "فشل حفظ الجدول: " + (data.message || "")
                         : "Failed to save schedule: " + (data.message || ""),
+                      "error"
                     );
+                    setTimeout(() => setToastMessage(""), 6000);
                   }
-                  setTimeout(() => setToastMessage(""), 3000);
                 })
                 .catch((err) => {
                   console.error("Error saving schedule:", err);
                   setToastMessage(
                     lang === "ar"
-                      ? "حدث خطأ أثناء حفظ الجدول"
-                      : "Error saving schedule",
+                      ? "فشل حفظ الجدول: " + (err.message || "حدث خطأ أثناء حفظ الجدول")
+                      : "Failed to save schedule: " + (err.message || "Error saving schedule"),
+                    "error"
                   );
-                  setTimeout(() => setToastMessage(""), 3000);
+                  setTimeout(() => setToastMessage(""), 6000);
                 });
             }
           }}

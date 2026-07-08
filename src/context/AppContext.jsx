@@ -144,7 +144,19 @@ export const AppProvider = ({ children }) => {
     return false;
   }, [currentUser]);
 
-  const [toastMessage, setToastMessage] = useState("");
+  const [toast, setToast] = useState({ message: "", type: "success" });
+  const toastMessage = toast.message;
+  const toastType = toast.type;
+
+  const setToastMessage = useCallback((msg, type = "success") => {
+    if (!msg) {
+      setToast({ message: "", type: "success" });
+    } else if (typeof msg === "object") {
+      setToast({ message: msg.message || "", type: msg.type || "success" });
+    } else {
+      setToast({ message: msg, type: type });
+    }
+  }, []);
 
   const [confirmState, setConfirmState] = useState({
     isOpen: false,
@@ -2204,7 +2216,7 @@ export const AppProvider = ({ children }) => {
     const smsText =
       lang === "ar"
         ? `تم استلام دفعة مالية بقيمة ${newPayment.amount} ريال للسند رقم ${newPayment.referenceNo} بخصوص الطالب ${student?.name}. شكراً لكم. رياض و مدارس انوار العلى.`
-        : `Payment of ${newPayment.amount} SAR (Receipt: ${newPayment.referenceNo}) received for student ${student?.nameEn}. Thank you. Riyadh & Anwar Al-Ola.`;
+        : `Payment of ${newPayment.amount} R.Y (Receipt: ${newPayment.referenceNo}) received for student ${student?.nameEn}. Thank you. Riyadh & Anwar Al-Ola.`;
     setSmsLogs((logs) => [
       {
         id: Date.now(),
@@ -2359,9 +2371,25 @@ export const AppProvider = ({ children }) => {
           .then((data) => {
             if (!data.success) {
               console.error("Failed to save schedule to backend:", data.message);
+              setToastMessage(
+                lang === "ar"
+                  ? `فشل حفظ التعديل: ${data.message || ""}`
+                  : `Failed to save changes: ${data.message || ""}`,
+                "error"
+              );
+              setTimeout(() => setToastMessage(""), 5000);
             }
           })
-          .catch((err) => console.error("Error saving schedule to backend:", err));
+          .catch((err) => {
+            console.error("Error saving schedule to backend:", err);
+            setToastMessage(
+              lang === "ar"
+                ? `فشل حفظ التعديل: ${err.message || ""}`
+                : `Failed to save changes: ${err.message || ""}`,
+              "error"
+            );
+            setTimeout(() => setToastMessage(""), 5000);
+          });
       }
 
       return { ...prev, [selectedScheduleGrade]: gradeSchedule };
@@ -2757,6 +2785,7 @@ export const AppProvider = ({ children }) => {
         teacherReports,
         setTeacherReports,
         toastMessage,
+        toastType,
         setToastMessage,
         confirmState,
         triggerConfirm,

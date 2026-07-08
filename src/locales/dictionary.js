@@ -561,7 +561,7 @@ export const dictionary = {
     totalPaidFees: "Total Fees Paid",
     totalRemainingFees: "Remaining Balance",
     logPaymentBtn: "Log Payment Receipt",
-    paymentAmountLabel: "Amount Paid (SAR)",
+    paymentAmountLabel: "Amount Paid (R.Y)",
     paymentDateLabel: "Payment Date",
     referenceNoLabel: "Receipt / Reference No",
     paymentsHistoryTitle: "Student Payments History Logs",

@@ -391,11 +391,11 @@ export default function DashboardTab() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px dashed var(--color-border)', paddingTop: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', backgroundColor: 'rgba(16, 185, 129, 0.04)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.08)' }}>
                     <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>{lang === 'ar' ? 'المبالغ المحصلة' : 'Collected'}</span>
-                    <strong style={{ fontSize: '13px', color: 'var(--color-success)' }}>{totalTuitionPaid.toLocaleString()} ر.س</strong>
+                    <strong style={{ fontSize: '13px', color: 'var(--color-success)' }}>{totalTuitionPaid.toLocaleString()} {lang === 'ar' ? 'ر.ي' : 'R.Y'}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', backgroundColor: 'rgba(239, 68, 68, 0.04)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.08)' }}>
                     <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>{lang === 'ar' ? 'المتبقي المستحق' : 'Outstanding'}</span>
-                    <strong style={{ fontSize: '13px', color: 'var(--color-error)' }}>{(totalTuitionRequired - totalTuitionPaid).toLocaleString()} ر.س</strong>
+                    <strong style={{ fontSize: '13px', color: 'var(--color-error)' }}>{(totalTuitionRequired - totalTuitionPaid).toLocaleString()} {lang === 'ar' ? 'ر.ي' : 'R.Y'}</strong>
                   </div>
                 </div>
               </div>

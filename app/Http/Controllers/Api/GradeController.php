@@ -346,6 +346,7 @@ class GradeController extends Controller implements HasMiddleware
             return [
                 'studentId' => (string) $student->id,
                 'studentName' => $student->name_ar ?? $student->name ?? 'غير معروف',
+                'studentPhotoUrl' => $student->photo_url,
                 'subjectId' => (string) $subjectId,
                 'firstTerm' => $termRecords[1],
                 'secondTerm' => $termRecords[2],

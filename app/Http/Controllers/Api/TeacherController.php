@@ -587,7 +587,7 @@ class TeacherController extends Controller implements HasMiddleware
         $scheduleData = [];
         
         foreach ($days as $day) {
-            $scheduleData[$day] = array_fill(0, 6, [
+            $scheduleData[$day] = array_fill(0, 7, [
                 'subject_name' => '',
                 'class_name' => '',
                 'startTime' => '',
@@ -602,13 +602,14 @@ class TeacherController extends Controller implements HasMiddleware
             ['start' => '10:30', 'end' => '11:15'],
             ['start' => '11:30', 'end' => '12:15'],
             ['start' => '12:15', 'end' => '01:00'],
+            ['start' => '01:00', 'end' => '01:45'],
         ];
         
         foreach ($schedules as $sch) {
             $day = strtolower($sch->day_of_week);
             $periodIdx = $sch->period - 1; // 0-indexed
             
-            if (isset($scheduleData[$day]) && $periodIdx >= 0 && $periodIdx < 6) {
+            if (isset($scheduleData[$day]) && $periodIdx >= 0 && $periodIdx < 7) {
                 $hasAssignment = $assignments->where('class_id', $sch->class_id)
                                              ->where('subject_id', $sch->subject_id)
                                              ->isNotEmpty();
