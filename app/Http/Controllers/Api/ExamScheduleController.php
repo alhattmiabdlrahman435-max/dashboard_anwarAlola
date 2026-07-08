@@ -72,9 +72,12 @@ class ExamScheduleController extends Controller
 
             // Create notification for parents in the class
             if ($schedule->class_id) {
+                $termName = ($schedule->term === 'term2' ? 'الفصل الدراسي الثاني' : 'الفصل الدراسي الأول');
+                $messageText = 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title . ' (' . $termName . ')';
+
                 \App\Models\Notification::create([
                     'title' => 'جدول اختبارات جديد',
-                    'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title,
+                    'content' => $messageText,
                     'type' => 'general',
                     'is_read' => false,
                     'class_id' => $schedule->class_id,
@@ -83,13 +86,13 @@ class ExamScheduleController extends Controller
                 $this->notifyParentsOfClass(
                     $schedule->class_id,
                     'جدول اختبارات جديد 📋',
-                    'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title
+                    $messageText
                 );
 
                 $this->notifyTeachersOfClass(
                     $schedule->class_id,
                     'جدول اختبارات جديد 📋',
-                    'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $schedule->title
+                    'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $schedule->title . ' (' . $termName . ')'
                 );
             }
 
@@ -172,9 +175,12 @@ class ExamScheduleController extends Controller
 
             // Create notification for parents in the class
             if ($schedule->class_id) {
+                $termName = ($schedule->term === 'term2' ? 'الفصل الدراسي الثاني' : 'الفصل الدراسي الأول');
+                $messageText = 'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title . ' (' . $termName . ')';
+
                 \App\Models\Notification::create([
                     'title' => 'تعديل جدول اختبارات',
-                    'content' => 'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title,
+                    'content' => $messageText,
                     'type' => 'general',
                     'is_read' => false,
                     'class_id' => $schedule->class_id,
@@ -183,13 +189,13 @@ class ExamScheduleController extends Controller
                 $this->notifyParentsOfClass(
                     $schedule->class_id,
                     'تعديل جدول اختبارات 📋',
-                    'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title
+                    $messageText
                 );
 
                 $this->notifyTeachersOfClass(
                     $schedule->class_id,
                     'تعديل جدول اختبارات 📋',
-                    'تم تعديل جدول اختبارات لفصل تدرسه: ' . $schedule->title
+                    'تم تعديل جدول اختبارات لفصل تدرسه: ' . $schedule->title . ' (' . $termName . ')'
                 );
             }
 
