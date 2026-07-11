@@ -8,9 +8,24 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+/dist
 dist-ssr
 *.local
+
+# Laravel specific exclusions
+.env
+.env.laravel
+.env.production
+.env.local
+.env.*.local
+.phpunit.result.cache
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+/bootstrap/cache/*
+database/*.sqlite
+database/database.sqlite
 
 # Editor directories and files
 .vscode/*
@@ -23,8 +38,7 @@ dist-ssr
 *.sln
 *.sw?
 
-/vendor
-
 # Uploaded assets
 /public/uploads/assignments/*
 !/public/uploads/assignments/.gitkeep
+
