@@ -79,15 +79,47 @@ class ExportImportController extends Controller
 
     private function exportParents(User $user): StreamedResponse
     {
-        $data = User::where('role', 'parent')->get();
+        $parents = User::where('role', 'parent')->with('children.schoolClass')->get();
+
+        // Calculate max children count for any parent to define headers dynamically
+        $maxChildren = 0;
+        foreach ($parents as $p) {
+            $maxChildren = max($maxChildren, $p->children->count());
+        }
+        $maxChildren = max($maxChildren, 2); // Default to at least 2 slots
+
+        $headers = ['رقم الهوية', 'الاسم (عربي)', 'رقم الجوال'];
+        for ($i = 1; $i <= $maxChildren; $i++) {
+            $headers[] = "اسم الابن {$i}";
+            $headers[] = "صف الابن {$i}";
+        }
+
         $rows = [];
-        foreach ($data as $p) {
-            $rows[] = [$p->id, $p->name_ar ?? $p->name, $p->name_en, $p->national_id, $p->phone];
+        foreach ($parents as $p) {
+            $row = [
+                $p->national_id,
+                $p->name_ar ?? $p->name,
+                $p->phone,
+            ];
+
+            foreach ($p->children as $child) {
+                $row[] = $child->name_ar;
+                $row[] = $child->schoolClass ? "{$child->schoolClass->grade_ar} - {$child->schoolClass->section_ar}" : '';
+            }
+
+            // Fill remaining columns with empty strings
+            $remaining = $maxChildren - $p->children->count();
+            for ($k = 0; $k < $remaining; $k++) {
+                $row[] = '';
+                $row[] = '';
+            }
+
+            $rows[] = $row;
         }
 
         return $this->streamCsv(
             'parents_export.csv',
-            ['#', 'الاسم (عربي)', 'الاسم (إنجليزي)', 'رقم الهوية', 'رقم الجوال'],
+            $headers,
             $rows
         );
     }
@@ -439,7 +471,8 @@ class ExportImportController extends Controller
         $parsed = $this->parseCsv($path);
         $headers = array_map('trim', $parsed['headers'] ?? []);
         $rows = $parsed['rows'] ?? [];
-        $imported = 0;
+        $importedParents = 0;
+        $importedStudents = 0;
         $errors = [];
 
         $findIdx = function($terms, $default) use ($headers) {
@@ -456,7 +489,62 @@ class ExportImportController extends Controller
         $nameIdx = $findIdx(['الاسم (عربي)', 'الاسم', 'اسم ولي الأمر'], 0);
         $nationalIdIdx = $findIdx(['رقم الهوية', 'الهوية', 'national_id'], 1);
         $phoneIdx = $findIdx(['رقم الجوال', 'جوال', 'الجوال', 'الهاتف'], 2);
-        $passwordIdx = $findIdx(['كلمة المرور', 'المرور', 'password'], 3);
+        $passwordIdx = $findIdx(['كلمة المرور', 'المرور', 'password'], -1);
+
+        // Find child columns dynamically
+        $childSlots = [];
+        foreach ($headers as $idx => $header) {
+            $isChildName = str_contains($header, 'اسم الابن') || str_contains($header, 'اسم الطالب');
+            if ($isChildName && !str_contains($header, 'صف') && !str_contains($header, 'فصل')) {
+                // Try to find the matching class column
+                // Get number from header (e.g. "1" from "اسم الابن 1")
+                preg_match('/\d+/', $header, $matches);
+                $num = $matches[0] ?? null;
+
+                $classIdx = null;
+                if ($num !== null) {
+                    foreach ($headers as $cIdx => $cHeader) {
+                        $isClass = str_contains($cHeader, 'صف') || str_contains($cHeader, 'فصل') || str_contains($cHeader, 'Class') || str_contains($cHeader, 'class');
+                        if ($isClass && str_contains($cHeader, $num)) {
+                            $classIdx = $cIdx;
+                            break;
+                        }
+                    }
+                }
+
+                // Fallback to next column if class index is not found
+                if ($classIdx === null && isset($headers[$idx + 1])) {
+                    $nextHeader = $headers[$idx + 1];
+                    $isClass = str_contains($nextHeader, 'صف') || str_contains($nextHeader, 'فصل') || str_contains($nextHeader, 'Class') || str_contains($nextHeader, 'class');
+                    if ($isClass) {
+                        $classIdx = $idx + 1;
+                    }
+                }
+
+                $childSlots[] = [
+                    'name_idx' => $idx,
+                    'class_idx' => $classIdx
+                ];
+            }
+        }
+
+        $getStageIndex = function ($grade) {
+            if (str_contains($grade, "تمهيدي أول") || str_contains($grade, "KG1") || str_contains($grade, "الروضة الأولى")) return 1;
+            if (str_contains($grade, "تمهيدي ثاني") || str_contains($grade, "KG2") || str_contains($grade, "الروضة الثانية")) return 2;
+            if (str_contains($grade, "الأول") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 3;
+            if (str_contains($grade, "الثاني") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 4;
+            if (str_contains($grade, "الثالث") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 5;
+            if (str_contains($grade, "الرابع")) return 6;
+            if (str_contains($grade, "الخامس")) return 7;
+            if (str_contains($grade, "السادس")) return 8;
+            if (str_contains($grade, "المتوسط") && str_contains($grade, "الأول")) return 9;
+            if (str_contains($grade, "المتوسط") && str_contains($grade, "الثاني")) return 10;
+            if (str_contains($grade, "المتوسط") && str_contains($grade, "الثالث")) return 11;
+            if (str_contains($grade, "الثانوي") && str_contains($grade, "الأول")) return 12;
+            if (str_contains($grade, "الثانوي") && str_contains($grade, "الثاني")) return 13;
+            if (str_contains($grade, "الثانوي") && str_contains($grade, "الثالث")) return 14;
+            return 3;
+        };
 
         foreach ($rows as $index => $row) {
             $lineNum = $index + 2;
@@ -464,36 +552,129 @@ class ExportImportController extends Controller
             $nameAr = isset($row[$nameIdx]) ? trim($row[$nameIdx]) : '';
             $nationalId = isset($row[$nationalIdIdx]) ? trim($row[$nationalIdIdx]) : '';
             $phone = isset($row[$phoneIdx]) ? trim($row[$phoneIdx]) : '';
-            $password = isset($row[$passwordIdx]) ? trim($row[$passwordIdx]) : '';
+            $password = ($passwordIdx !== -1 && isset($row[$passwordIdx])) ? trim($row[$passwordIdx]) : '';
 
-            if (empty($nameAr) || empty($nationalId)) {
-                $errors[] = "سطر {$lineNum}: الاسم أو رقم الهوية فارغ.";
+            if (empty($nationalId)) {
+                $errors[] = "سطر {$lineNum}: رقم الهوية فارغ.";
                 continue;
             }
 
-            $exists = User::where('national_id', $nationalId)->orWhere('username', $nationalId)->first();
-            if ($exists) {
-                $errors[] = "سطر {$lineNum}: رقم الهوية {$nationalId} مسجل مسبقاً.";
-                continue;
+            if (empty($nameAr)) {
+                // If parent doesn't exist, name is required
+                $parentExists = User::where('national_id', $nationalId)->orWhere('username', $nationalId)->first();
+                if (!$parentExists) {
+                    $errors[] = "سطر {$lineNum}: اسم ولي الأمر فارغ لحساب جديد.";
+                    continue;
+                }
             }
 
-            User::create([
-                'name' => $nameAr,
-                'name_ar' => $nameAr,
-                'name_en' => $nameAr,
-                'username' => $nationalId,
-                'national_id' => $nationalId,
-                'job_id' => $nationalId,
-                'phone' => $phone,
-                'password' => !empty($password) ? Hash::make($password) : Hash::make($phone),
-                'role' => 'parent',
-                'is_active' => true,
-                'photo_url' => '👨‍👧‍👦',
-            ]);
-            $imported++;
+            // Find or create parent
+            $parent = User::where('national_id', $nationalId)->orWhere('username', $nationalId)->first();
+            if ($parent) {
+                $parent->update([
+                    'name' => $nameAr ?: $parent->name,
+                    'name_ar' => $nameAr ?: $parent->name_ar,
+                    'phone' => $phone ?: $parent->phone,
+                ]);
+            } else {
+                $parent = User::create([
+                    'name' => $nameAr,
+                    'name_ar' => $nameAr,
+                    'name_en' => $nameAr,
+                    'username' => $nationalId,
+                    'national_id' => $nationalId,
+                    'job_id' => $nationalId,
+                    'phone' => $phone ?: '777777777',
+                    'password' => !empty($password) ? Hash::make($password) : Hash::make($phone ?: '123456'),
+                    'role' => 'parent',
+                    'is_active' => true,
+                    'photo_url' => '🧔',
+                ]);
+                $importedParents++;
+            }
+
+            // Process children
+            foreach ($childSlots as $slot) {
+                $studentName = isset($row[$slot['name_idx']]) ? trim($row[$slot['name_idx']]) : '';
+                $className = ($slot['class_idx'] !== null && isset($row[$slot['class_idx']])) ? trim($row[$slot['class_idx']]) : '';
+
+                if (empty($studentName)) {
+                    continue;
+                }
+
+                // Check if student already exists for this parent
+                $student = Student::where('name_ar', $studentName)
+                    ->where('parent_id', $parent->id)
+                    ->first();
+
+                // Find class
+                $classId = null;
+                $class = null;
+                if (!empty($className)) {
+                    $gradeAr = '';
+                    $sectionAr = '';
+                    if (str_contains($className, '-')) {
+                        $parts = explode('-', $className);
+                        $gradeAr = trim($parts[0] ?? '');
+                        $sectionAr = trim($parts[1] ?? '');
+                    } else {
+                        $parts = explode(' ', $className);
+                        if (count($parts) >= 2) {
+                            $gradeAr = $parts[0] . ' ' . $parts[1];
+                            $sectionAr = $parts[2] ?? '';
+                        } else {
+                            $gradeAr = $className;
+                        }
+                    }
+
+                    $class = SchoolClass::where('grade_ar', 'like', "%{$gradeAr}%")
+                        ->where('section_ar', 'like', "%{$sectionAr}%")
+                        ->first();
+                    $classId = $class?->id;
+                }
+
+                if (!$student) {
+                    // Generate student code
+                    $stageNum = 3;
+                    if ($class) {
+                        $stageNum = $getStageIndex($class->grade_ar);
+                    } elseif (!empty($className)) {
+                        $stageNum = $getStageIndex($className);
+                    }
+
+                    $seqCount = DB::table('students')->where('class_id', $classId)->count() + 1;
+                    $studentCode = "2026" . $stageNum . $seqCount;
+                    while (DB::table('students')->where('student_code', $studentCode)->exists()) {
+                        $seqCount++;
+                        $studentCode = "2026" . $stageNum . $seqCount;
+                    }
+
+                    DB::table('students')->insert([
+                        'id' => (int)$studentCode,
+                        'student_code' => $studentCode,
+                        'name_ar' => $studentName,
+                        'name_en' => $studentName,
+                        'class_id' => $classId,
+                        'parent_id' => $parent->id,
+                        'qr_code' => $studentCode,
+                        'is_active' => true,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $importedStudents++;
+                } else {
+                    // Update student class if changed
+                    if ($classId && $student->class_id !== $classId) {
+                        DB::table('students')->where('id', $student->id)->update([
+                            'class_id' => $classId,
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+            }
         }
 
-        $msg = "تم استيراد {$imported} ولي أمر بنجاح.";
+        $msg = "تم استيراد/تحديث {$importedParents} أولياء أمور بنجاح، وربط {$importedStudents} طلاب أبناء بنجاح.";
         if (count($errors) > 0) {
             $msg .= " الأخطاء: " . implode(', ', $errors);
         }
@@ -501,7 +682,7 @@ class ExportImportController extends Controller
         return response()->json([
             'success' => true,
             'message' => $msg,
-            'imported' => $imported,
+            'imported' => $importedParents,
             'errors' => $errors,
         ]);
     }
@@ -525,8 +706,8 @@ class ExportImportController extends Controller
             ],
             'parents' => [
                 'filename' => 'parents_template.csv',
-                'headers' => ['الاسم (عربي)', 'رقم الهوية', 'رقم الجوال', 'كلمة المرور'],
-                'example' => ['محمد العمري', '1077777777', '0509876543', '123456'],
+                'headers' => ['رقم الهوية', 'الاسم (عربي)', 'رقم الجوال', 'اسم الابن 1', 'صف الابن 1', 'اسم الابن 2', 'صف الابن 2'],
+                'example' => ['1077777777', 'محمد العمري', '0509876543', 'أحمد محمد العمري', 'الصف الأول - أ', 'سارة محمد العمري', 'الصف الثاني - ب'],
             ],
         ];
 

@@ -8,6 +8,7 @@ import '../styles/printGrades.css';
 import SubjectView from '../components/grades/SubjectView';
 import MonthView from '../components/grades/MonthView';
 import ClassView from '../components/grades/ClassView';
+import SearchableSelect from '../components/SearchableSelect';
 
 // Print Views
 import PrintSubjectView from '../components/grades/PrintSubjectView';
@@ -19,7 +20,10 @@ export default function DetailedGradesTab() {
   const {
     lang,
     t,
+    classes,
     students,
+    setToastMessage,
+    triggerConfirm,
     selectedGradeStudentId,
     setSelectedGradeStudentId,
     selectedGradeTerm,
@@ -46,6 +50,53 @@ export default function DetailedGradesTab() {
       setSelectedClass(classesList[0]);
     }
   }, [classesList, selectedClass]);
+
+  const handlePublishGrades = () => {
+    if (!selectedClass) return;
+    
+    triggerConfirm({
+      title: lang === 'ar' ? 'اعتماد الدرجات' : 'Publish Grades',
+      message: lang === 'ar' 
+        ? `هل أنت متأكد من اعتماد درجات ${classPeriod === 'termTotal' ? 'الترم' : 'الشهر'} لجميع طلاب ${selectedClass} وإرسال إشعار لأولياء الأمور؟` 
+        : `Are you sure you want to publish grades for this period?`,
+      type: 'info',
+      onConfirm: async () => {
+        try {
+          // Find classId
+          const [grade, section] = selectedClass.split(' - ');
+          const classObj = classes.find(c => (c.grade === grade || c.gradeEn === grade) && (c.section === section || c.sectionEn === section));
+          
+          if (!classObj) {
+            setToastMessage(lang === 'ar' ? 'لم يتم العثور على الفصل' : 'Class not found');
+            return;
+          }
+
+          const term = selectedGradeTerm === 'term2' ? '2' : '1';
+          let monthVal = '0';
+          if (classPeriod === 'm1') monthVal = '1';
+          if (classPeriod === 'm2') monthVal = '2';
+          if (classPeriod === 'm3') monthVal = '3';
+          if (classPeriod === 'termTotal') monthVal = 'final';
+
+          const res = await api.post('/api/grades/publish-month', {
+            class_id: classObj.id,
+            term: term,
+            month: monthVal
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            setToastMessage(data.message || (lang === 'ar' ? 'تم الاعتماد بنجاح' : 'Published successfully'));
+          } else {
+            setToastMessage(data.message || (lang === 'ar' ? 'حدث خطأ أثناء الاعتماد' : 'Error publishing grades'));
+          }
+        } catch (error) {
+          console.error(error);
+          setToastMessage(lang === 'ar' ? 'حدث خطأ في الاتصال بالسيرفر' : 'Server connection error');
+        }
+      }
+    });
+  };
 
   const handleExportGrades = async () => {
     try {
@@ -98,13 +149,24 @@ export default function DetailedGradesTab() {
             </button>
           )}
           {viewMode === 'class' ? (
-            <button 
-              className="btn-elevated"
-              onClick={handlePrintClass}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              🖨️ {lang === 'ar' ? 'طباعة كشف درجات الفصل' : 'Print Class Grades'}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {['m1', 'm2', 'm3', 'termTotal'].includes(classPeriod) && (
+                <button
+                  className="btn-primary"
+                  onClick={handlePublishGrades}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--gradient-success)', color: 'white', border: 'none', padding: '0 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  ✉️ {lang === 'ar' ? 'اعتماد وإرسال الدرجات' : 'Publish Grades'}
+                </button>
+              )}
+              <button 
+                className="btn-elevated"
+                onClick={handlePrintClass}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                🖨️ {lang === 'ar' ? 'طباعة كشف درجات الفصل' : 'Print Class Grades'}
+              </button>
+            </div>
           ) : (
             <button 
               className="btn-elevated"
@@ -211,64 +273,64 @@ export default function DetailedGradesTab() {
         {viewMode !== 'class' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.selectStudent}</label>
-            <select 
-              value={selectedGradeStudentId}
-              onChange={(e) => setSelectedGradeStudentId(Number(e.target.value))}
-              className="text-field"
-              style={{ height: '40px', padding: '0 12px' }}
-            >
-              {students.map(s => (
-                <option key={s.id} value={s.id}>{lang === 'ar' ? s.name : s.nameEn} ({s.id})</option>
-              ))}
-            </select>
+            <div style={{ position: 'relative', zIndex: 10 }}>
+              <SearchableSelect
+                options={students.map(s => ({ value: s.id, label: `${lang === 'ar' ? s.name : s.nameEn} (${s.id})` }))}
+                value={selectedGradeStudentId}
+                onChange={(val) => setSelectedGradeStudentId(Number(val))}
+                placeholder={t.selectStudent}
+              />
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
               {lang === 'ar' ? 'اختر الفصل' : 'Select Class'}
             </label>
-            <select 
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="text-field"
-              style={{ height: '40px', padding: '0 12px' }}
-            >
-              {classesList.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <div style={{ position: 'relative', zIndex: 10 }}>
+              <SearchableSelect
+                options={classesList.map(c => ({ value: c, label: c }))}
+                value={selectedClass}
+                onChange={(val) => setSelectedClass(val)}
+                placeholder={lang === 'ar' ? 'اختر الفصل' : 'Select Class'}
+              />
+            </div>
           </div>
         )}
 
         {/* Selector 2: Term (Always visible) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.selectTerm}</label>
-          <select 
-            value={selectedGradeTerm}
-            onChange={(e) => setSelectedGradeTerm(e.target.value)}
-            className="text-field"
-            style={{ height: '40px', padding: '0 12px' }}
-          >
-            <option value="term1">{t.term1Label}</option>
-            <option value="term2">{t.term2Label}</option>
-          </select>
+          <div style={{ position: 'relative', zIndex: 9 }}>
+            <SearchableSelect
+              options={[
+                { value: 'term1', label: t.term1Label },
+                { value: 'term2', label: t.term2Label }
+              ]}
+              value={selectedGradeTerm}
+              onChange={(val) => setSelectedGradeTerm(val)}
+              placeholder={t.selectTerm}
+            />
+          </div>
         </div>
 
         {/* Dynamic selector 3: Subject or Month or Class Period */}
         {viewMode === 'subject' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.subjectLabel}</label>
-            <select 
-              value={selectedGradeSubject}
-              onChange={(e) => setSelectedGradeSubject(e.target.value)}
-              className="text-field"
-              style={{ height: '40px', padding: '0 12px' }}
-            >
-              <option value="الرياضيات">{t.math}</option>
-              <option value="العلوم">{t.science}</option>
-              <option value="اللغة العربية">{t.arabic}</option>
-              <option value="اللغة الإنجليزية">{t.english}</option>
-            </select>
+            <div style={{ position: 'relative', zIndex: 8 }}>
+              <SearchableSelect
+                options={[
+                  { value: 'الرياضيات', label: t.math },
+                  { value: 'العلوم', label: t.science },
+                  { value: 'اللغة العربية', label: t.arabic },
+                  { value: 'اللغة الإنجليزية', label: t.english }
+                ]}
+                value={selectedGradeSubject}
+                onChange={(val) => setSelectedGradeSubject(val)}
+                placeholder={t.subjectLabel}
+              />
+            </div>
           </div>
         )}
 
@@ -277,16 +339,18 @@ export default function DetailedGradesTab() {
             <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
               {lang === 'ar' ? 'اختر الفترة / الشهر' : 'Select Period / Month'}
             </label>
-            <select 
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="text-field"
-              style={{ height: '40px', padding: '0 12px' }}
-            >
-              <option value="m1">{t.m1Label}</option>
-              <option value="m2">{t.m2Label}</option>
-              <option value="m3">{t.m3Label}</option>
-            </select>
+            <div style={{ position: 'relative', zIndex: 8 }}>
+              <SearchableSelect
+                options={[
+                  { value: 'm1', label: t.m1Label },
+                  { value: 'm2', label: t.m2Label },
+                  { value: 'm3', label: t.m3Label }
+                ]}
+                value={selectedMonth}
+                onChange={(val) => setSelectedMonth(val)}
+                placeholder={lang === 'ar' ? 'اختر الفترة / الشهر' : 'Select Period / Month'}
+              />
+            </div>
           </div>
         )}
 
@@ -296,37 +360,41 @@ export default function DetailedGradesTab() {
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
                 {lang === 'ar' ? 'الفترة التقييمية للفصل' : 'Class Evaluation Period'}
               </label>
-              <select 
-                value={classPeriod}
-                onChange={(e) => setClassPeriod(e.target.value)}
-                className="text-field"
-                style={{ height: '40px', padding: '0 12px' }}
-              >
-                <option value="m1">{t.m1Label} (١٠٠)</option>
-                <option value="m2">{t.m2Label} (١٠٠)</option>
-                <option value="m3">{t.m3Label} (١٠٠)</option>
-                <option value="termTotal">{lang === 'ar' ? 'مجموع الترم (٥٠)' : 'Term Total (50)'}</option>
-                <option value="yearlyTotal">{lang === 'ar' ? 'المجموع السنوي (١٠٠)' : 'Yearly Total (100)'}</option>
-              </select>
+              <div style={{ position: 'relative', zIndex: 8 }}>
+                <SearchableSelect
+                  options={[
+                    { value: 'm1', label: `${t.m1Label} (١٠٠)` },
+                    { value: 'm2', label: `${t.m2Label} (١٠٠)` },
+                    { value: 'm3', label: `${t.m3Label} (١٠٠)` },
+                    { value: 'termTotal', label: lang === 'ar' ? 'مجموع الترم (٥٠)' : 'Term Total (50)' },
+                    { value: 'yearlyTotal', label: lang === 'ar' ? 'المجموع السنوي (١٠٠)' : 'Yearly Total (100)' }
+                  ]}
+                  value={classPeriod}
+                  onChange={(val) => setClassPeriod(val)}
+                  placeholder={lang === 'ar' ? 'الفترة التقييمية للفصل' : 'Class Evaluation Period'}
+                />
+              </div>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
                 {lang === 'ar' ? 'عرض المادة' : 'View Subject'}
               </label>
-              <select 
-                value={classSubject}
-                onChange={(e) => setClassSubject(e.target.value)}
-                className="text-field"
-                style={{ height: '40px', padding: '0 12px' }}
-              >
-                <option value="all">{lang === 'ar' ? 'جميع المواد (إجمالي)' : 'All Subjects (Summary)'}</option>
-                <option value="detailed">{lang === 'ar' ? 'جميع المواد (تفصيلي)' : 'All Subjects (Detailed)'}</option>
-                <option value="الرياضيات">{t.math}</option>
-                <option value="العلوم">{t.science}</option>
-                <option value="اللغة العربية">{t.arabic}</option>
-                <option value="اللغة الإنجليزية">{t.english}</option>
-              </select>
+              <div style={{ position: 'relative', zIndex: 7 }}>
+                <SearchableSelect
+                  options={[
+                    { value: 'all', label: lang === 'ar' ? 'جميع المواد (إجمالي)' : 'All Subjects (Summary)' },
+                    { value: 'detailed', label: lang === 'ar' ? 'جميع المواد (تفصيلي)' : 'All Subjects (Detailed)' },
+                    { value: 'الرياضيات', label: t.math },
+                    { value: 'العلوم', label: t.science },
+                    { value: 'اللغة العربية', label: t.arabic },
+                    { value: 'اللغة الإنجليزية', label: t.english }
+                  ]}
+                  value={classSubject}
+                  onChange={(val) => setClassSubject(val)}
+                  placeholder={lang === 'ar' ? 'عرض المادة' : 'View Subject'}
+                />
+              </div>
             </div>
           </>
         )}

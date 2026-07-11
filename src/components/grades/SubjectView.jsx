@@ -36,7 +36,7 @@ export default function SubjectView() {
 
   return (
     <>
-      <div style={{ padding: 'var(--space-md)', backgroundColor: 'var(--color-primary-ui)', color: '#ffffff', borderRadius: 'var(--radius-card)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ padding: 'var(--space-md)', background: 'var(--gradient-brand)', color: '#ffffff', borderRadius: 'var(--radius-card)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <strong>{lang === 'ar' ? student?.name : student?.nameEn}</strong>
           <span style={{ marginInlineStart: '12px', opacity: 0.8, fontSize: '13px' }}>

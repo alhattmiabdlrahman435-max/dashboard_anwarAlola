@@ -7,7 +7,7 @@ export default function ParentsTab() {
   const {
     lang, t, parentUsers, students,
     handleAddParent, handleEditParent, renderAvatar, currentUser,
-    canAction, fetchParents, setToastMessage
+    canAction, fetchParents, fetchStudents, setToastMessage
   } = useApp();
 
   // Local UI states
@@ -133,7 +133,9 @@ export default function ParentsTab() {
       const data = await api.post('/api/parents/import', formData);
       if (data.success) {
         setToastMessage(data.message);
-        fetchParents(localStorage.getItem('auth_token'));
+        const token = localStorage.getItem('auth_token');
+        fetchParents(token);
+        fetchStudents(token);
       } else {
         alert(data.message || (lang === 'ar' ? 'حدث خطأ أثناء الاستيراد' : 'Error importing'));
       }

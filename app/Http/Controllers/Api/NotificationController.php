@@ -183,4 +183,43 @@ class NotificationController extends Controller
             'message' => 'تم تحديث حالة قراءة الإشعار'
         ]);
     }
+
+    public function readAll()
+    {
+        $user = auth()->user();
+        $query = Notification::where('is_read', false);
+
+        if ($user->role === 'parent') {
+            $studentIds = Student::where('parent_id', $user->id)->pluck('id')->toArray();
+            $classIds = Student::where('parent_id', $user->id)->pluck('class_id')->filter()->unique()->toArray();
+
+            $query->where(function($q) use ($studentIds, $classIds) {
+                $q->whereIn('student_id', $studentIds)
+                  ->orWhereIn('class_id', $classIds)
+                  ->orWhere(function($subQ) {
+                      $subQ->whereNull('student_id')
+                           ->whereNull('class_id')
+                           ->whereNull('teacher_id');
+                  });
+            });
+        } elseif ($user->role === 'teacher') {
+            $query->where(function($q) use ($user) {
+                $q->where('teacher_id', $user->id)
+                  ->orWhere(function($subQ) {
+                      $subQ->whereNull('student_id')
+                           ->whereNull('class_id')
+                           ->whereNull('teacher_id');
+                  });
+            });
+        } else {
+            $query->whereNotIn('type', ['alert', 'attendance', 'excuse_status']);
+        }
+
+        $query->update(['is_read' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديد جميع الإشعارات كمقروءة'
+        ]);
+    }
 }

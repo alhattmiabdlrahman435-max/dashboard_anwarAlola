@@ -4,6 +4,26 @@ export default function ConfirmModal() {
   const { confirmState, lang } = useApp();
   if (!confirmState || !confirmState.isOpen) return null;
 
+  const type = confirmState.type || 'danger'; // Default to danger for backward compatibility
+
+  let icon = '⚠️';
+  let primaryColor = '#ef4444';
+  let iconBg = 'rgba(239, 68, 68, 0.1)';
+
+  if (type === 'success') {
+    icon = '✨';
+    primaryColor = 'var(--color-success, #10b981)';
+    iconBg = 'rgba(16, 185, 129, 0.1)';
+  } else if (type === 'info') {
+    icon = 'ℹ️';
+    primaryColor = 'var(--color-primary, #3b82f6)';
+    iconBg = 'rgba(59, 130, 246, 0.1)';
+  } else if (type === 'warning') {
+    icon = '⚠️';
+    primaryColor = '#f59e0b';
+    iconBg = 'rgba(245, 158, 11, 0.1)';
+  }
+
   return (
     <div className="modal-overlay no-print animate-fade-in" style={{ zIndex: 100000 }}>
       <div className="modal-container glass-panel animate-scale-up" style={{ 
@@ -19,8 +39,8 @@ export default function ConfirmModal() {
           width: '60px',
           height: '60px',
           borderRadius: '50%',
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          color: '#ef4444',
+          backgroundColor: iconBg,
+          color: primaryColor,
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -28,7 +48,7 @@ export default function ConfirmModal() {
           marginBottom: '16px',
           marginInline: 'auto'
         }}>
-          ⚠️
+          {icon}
         </div>
         <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '10px', color: 'var(--color-text)' }}>
           {confirmState.title}
@@ -52,7 +72,7 @@ export default function ConfirmModal() {
               flex: 1, 
               height: '44px', 
               borderRadius: '12px', 
-              backgroundColor: '#ef4444', 
+              backgroundColor: primaryColor, 
               backgroundImage: 'none',
               color: '#ffffff', 
               border: 'none',

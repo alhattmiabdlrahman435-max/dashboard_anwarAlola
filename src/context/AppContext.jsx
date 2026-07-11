@@ -166,11 +166,12 @@ export const AppProvider = ({ children }) => {
     onCancel: null
   });
 
-  const triggerConfirm = ({ title, message, onConfirm, onCancel }) => {
+  const triggerConfirm = ({ title, message, type, onConfirm, onCancel }) => {
     setConfirmState({
       isOpen: true,
       title: title || (lang === 'ar' ? 'تأكيد الإجراء' : 'Confirm Action'),
       message,
+      type: type || 'danger',
       onConfirm: () => {
         if (onConfirm) onConfirm();
         setConfirmState(prev => ({ ...prev, isOpen: false }));
@@ -540,6 +541,7 @@ export const AppProvider = ({ children }) => {
           const mapped = data.assignments.map((ass) => {
             const classObj = ass.school_class || {};
             const subjObj = ass.subject || {};
+            const teacherObj = ass.teacher || {};
             const subs = (ass.submissions || []).map((sub) => {
               let status = "notSubmitted";
               if (sub.status === "submitted") status = "submitted";
@@ -559,9 +561,12 @@ export const AppProvider = ({ children }) => {
               section: classObj.section_ar || "",
               subjectName: subjObj.name_ar || "",
               subjectNameEn: subjObj.name_en || "",
+              teacherName: teacherObj.name_ar || teacherObj.name_en || "",
+              teacherNameEn: teacherObj.name_en || teacherObj.name_ar || "",
+              teacherId: teacherObj.id || null,
               title: ass.title,
               content: ass.content || "",
-              dateCreated: ass.date_created,
+              dateCreated: ass.date_created || (ass.created_at ? ass.created_at.split('T')[0] : ""),
               dueDate: ass.due_date,
               attachments: ass.attachment_url ? [ass.attachment_url] : [],
               submissions: subs,

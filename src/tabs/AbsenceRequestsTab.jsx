@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { X } from 'lucide-react';
 
 export default function AbsenceRequestsTab() {
   const {
@@ -25,6 +26,32 @@ export default function AbsenceRequestsTab() {
 
   const [attendanceRosterGrade, setAttendanceRosterGrade] = useState('الصف الأول');
   const [attendanceRosterSection, setAttendanceRosterSection] = useState('أ');
+
+  // Decision Modal state
+  const [decisionModalOpen, setDecisionModalOpen] = useState(false);
+  const [activeRequest, setActiveRequest] = useState(null);
+  const [decisionType, setDecisionType] = useState(''); // 'approved' or 'rejected'
+  const [decisionNote, setDecisionNote] = useState('');
+
+  const openDecisionModal = (req, type) => {
+    setActiveRequest(req);
+    setDecisionType(type);
+    setDecisionNote('');
+    setDecisionModalOpen(true);
+  };
+
+  const handleModalSubmit = (e) => {
+    e.preventDefault();
+    if (decisionType === 'rejected' && !decisionNote.trim()) {
+      setToastMessage(lang === 'ar' ? 'يجب إدخال سبب الرفض' : 'Rejection reason is required');
+      setTimeout(() => setToastMessage(''), 3000);
+      return;
+    }
+    handleAbsenceDecision(activeRequest.id, decisionType, decisionNote);
+    setDecisionModalOpen(false);
+    setActiveRequest(null);
+    setDecisionNote('');
+  };
 
   const handleDecision = (requestId, status) => {
     handleAbsenceDecision(requestId, status, absenceNoteText);
@@ -84,7 +111,6 @@ export default function AbsenceRequestsTab() {
                     <th>{t.studentName}</th>
                     <th>{t.requestedDate}</th>
                     <th>{t.reason}</th>
-                    <th>{lang === 'ar' ? 'المرفقات' : 'Attachments'}</th>
                     <th>{t.adminNoteLabel}</th>
                     <th>{t.status}</th>
                     <th className="no-print">{t.action}</th>
@@ -118,39 +144,6 @@ export default function AbsenceRequestsTab() {
                             </div>
                           </td>
                           <td>
-                            {req.attachment ? (
-                              <button 
-                                className="btn-elevated"
-                                style={{ 
-                                  fontSize: '11px', 
-                                  height: '28px', 
-                                  padding: '0 8px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  cursor: 'pointer'
-                                }}
-                                onClick={() => {
-                                  setToastMessage(lang === 'ar' ? `جاري تحميل المرفق: ${req.attachment}` : `Downloading attachment: ${req.attachment}`);
-                                  setTimeout(() => setToastMessage(''), 3000);
-                                  
-                                  // Trigger actual file download
-                                  const link = document.createElement('a');
-                                  link.href = req.attachment.startsWith('http') ? req.attachment : `/uploads/attachments/${req.attachment}`;
-                                  link.download = req.attachment;
-                                  link.target = '_blank';
-                                  document.body.appendChild(link);
-                                  link.click();
-                                  document.body.removeChild(link);
-                                }}
-                              >
-                                📎 {req.attachment}
-                              </button>
-                            ) : (
-                              <span style={{ fontStyle: 'italic', opacity: 0.5 }}>--</span>
-                            )}
-                          </td>
-                          <td>
                             {req.adminNote ? (
                               <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
                                 📝 {req.adminNote}
@@ -168,34 +161,54 @@ export default function AbsenceRequestsTab() {
                           </td>
                           <td className="no-print">
                             {req.status === 'pending' ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <input 
-                                  type="text" 
-                                  placeholder={lang === 'ar' ? 'ملاحظات القرار (اختياري)...' : 'Decision notes (optional)...'}
-                                  className="text-field"
-                                  style={{ height: '36px', padding: '6px var(--space-md)', fontSize: '12px' }}
-                                  value={absenceNoteText}
-                                  onChange={(e) => setAbsenceNoteText(e.target.value)}
-                                />
-                                <div style={{ display: 'flex', gap: '6px' }}>
-                                  <button 
-                                    className="btn-elevated"
-                                    style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--color-success)', borderColor: 'rgba(22, 163, 74, 0.3)' }}
-                                    onClick={() => handleDecision(req.id, 'approved')}
-                                  >
-                                    ✓ {t.approveBtn}
-                                  </button>
-                                  <button 
-                                    className="btn-elevated"
-                                    style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--color-error)', borderColor: 'rgba(220, 38, 38, 0.3)' }}
-                                    onClick={() => handleDecision(req.id, 'rejected')}
-                                  >
-                                    ✗ {t.rejectBtn}
-                                  </button>
-                                </div>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn-filled"
+                                  style={{ 
+                                    padding: '6px 14px', 
+                                    fontSize: '12px', 
+                                    backgroundColor: 'var(--color-success, #16a34a)', 
+                                    color: 'white', 
+                                    borderRadius: '8px', 
+                                    border: 'none', 
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  onClick={() => openDecisionModal(req, 'approved')}
+                                >
+                                  ✓ {t.approveBtn || 'موافقة'}
+                                </button>
+                                <button 
+                                  className="btn-filled"
+                                  style={{ 
+                                    padding: '6px 14px', 
+                                    fontSize: '12px', 
+                                    backgroundColor: 'var(--color-error, #dc2626)', 
+                                    color: 'white', 
+                                    borderRadius: '8px', 
+                                    border: 'none', 
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  onClick={() => openDecisionModal(req, 'rejected')}
+                                >
+                                  ✗ {t.rejectBtn || 'رفض'}
+                                </button>
                               </div>
                             ) : (
-                              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>✓ {lang === 'ar' ? 'مكتمل' : 'Processed'}</span>
+                              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                {req.status === 'approved' ? (
+                                  <span style={{ color: 'var(--color-success)' }}>✓ {lang === 'ar' ? 'تمت الموافقة' : 'Approved'}</span>
+                                ) : (
+                                  <span style={{ color: 'var(--color-error)' }}>✗ {lang === 'ar' ? 'تم الرفض' : 'Rejected'}</span>
+                                )}
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -355,6 +368,107 @@ export default function AbsenceRequestsTab() {
               );
             }
           })()}
+        </div>
+      )}
+
+      {/* DECISION POPUP MODAL */}
+      {decisionModalOpen && activeRequest && (
+        <div className="modal-overlay no-print" style={{ zIndex: 1100 }}>
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h3 className="modal-title">
+                {decisionType === 'approved' 
+                  ? (lang === 'ar' ? '✅ قبول طلب الاستئذان' : '✅ Approve Absence Request') 
+                  : (lang === 'ar' ? '❌ رفض طلب الاستئذان' : '❌ Reject Absence Request')
+                }
+              </h3>
+              <button 
+                className="modal-close-btn" 
+                onClick={() => {
+                  setDecisionModalOpen(false);
+                  setActiveRequest(null);
+                }}
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </header>
+
+            <form onSubmit={handleModalSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                {/* Student Info */}
+                <div style={{ backgroundColor: 'var(--color-surface-alt)', padding: '12px', borderRadius: '12px', border: '1px solid var(--color-border)', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <strong>{lang === 'ar' ? 'اسم الطالب:' : 'Student Name:'}</strong>
+                    <span>{activeRequest.studentName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <strong>{lang === 'ar' ? 'تاريخ الغياب المطلوب:' : 'Requested Date:'}</strong>
+                    <span>{activeRequest.requestedDate}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <strong>{lang === 'ar' ? 'السبب:' : 'Reason:'}</strong>
+                    <div style={{ padding: '6px 10px', backgroundColor: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}>
+                      {lang === 'ar' ? activeRequest.reason : (activeRequest.reasonEn || activeRequest.reason)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Input Decision Note */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 'bold' }}>
+                    {decisionType === 'rejected' 
+                      ? (lang === 'ar' ? 'سبب الرفض (مطلوب):' : 'Rejection Reason (Required):') 
+                      : (lang === 'ar' ? 'ملاحظات إضافية (اختياري):' : 'Additional Notes (Optional):')
+                    }
+                  </label>
+                  <textarea
+                    className="text-field"
+                    value={decisionNote}
+                    onChange={(e) => setDecisionNote(e.target.value)}
+                    placeholder={decisionType === 'rejected' 
+                      ? (lang === 'ar' ? 'يرجى كتابة سبب رفض طلب الاستئذان بالتفصيل لتوضيحه لولي الأمر...' : 'Write reason for rejecting this leave request...') 
+                      : (lang === 'ar' ? 'اكتب ملاحظات القبول (مثال: تمت الموافقة بعذر طبي)...' : 'Write approval note (e.g. Approved with medical note)...')
+                    }
+                    style={{ minHeight: '100px', resize: 'vertical', fontSize: '13px', padding: '10px' }}
+                    required={decisionType === 'rejected'}
+                  />
+                </div>
+              </div>
+
+              <footer className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-elevated"
+                  onClick={() => {
+                    setDecisionModalOpen(false);
+                    setActiveRequest(null);
+                  }}
+                  style={{ minHeight: '40px', padding: '0 16px' }}
+                >
+                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="btn-filled"
+                  style={{
+                    minHeight: '40px',
+                    padding: '0 16px',
+                    backgroundColor: decisionType === 'approved' ? 'var(--color-success, #16a34a)' : 'var(--color-error, #dc2626)',
+                    borderColor: 'transparent',
+                    color: 'white',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  {decisionType === 'approved' 
+                    ? (lang === 'ar' ? '✓ تأكيد القبول والموافقة' : '✓ Confirm & Approve') 
+                    : (lang === 'ar' ? '✗ تأكيد الرفض' : '✗ Confirm Rejection')
+                  }
+                </button>
+              </footer>
+            </form>
+          </div>
         </div>
       )}
     </div>

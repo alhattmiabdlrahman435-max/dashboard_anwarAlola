@@ -131,39 +131,71 @@ class GradeController extends Controller implements HasMiddleware
             ]
         );
 
-        // Send Notification to Parent
-        $student = \App\Models\Student::with('parentUser')->find($request->student_id);
-        if ($student) {
-            $subject = \App\Models\Subject::find($request->subject_id);
-            $subjectName = $subject ? $subject->name_ar : 'المادة';
-            
-            // Create database notification record
-            \App\Models\Notification::create([
-                'title' => 'رصد درجات جديدة',
-                'content' => 'تم رصد درجات ابنكم ' . ($student->name_ar ?? '') . ' في مادة ' . $subjectName,
-                'type' => 'general',
-                'is_read' => false,
-                'student_id' => $student->id,
-            ]);
-
-            // Send FCM
-            if ($student->parentUser && $student->parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification(
-                    $student->parentUser->fcm_token,
-                    'رصد درجات جديدة 📊',
-                    'تم رصد درجات ابنكم ' . ($student->name_ar ?? '') . ' في مادة ' . $subjectName . '.',
-                    [
-                        'type' => 'grade',
-                        'student_id' => (string)$student->id
-                    ]
-                );
-            }
-        }
 
         return response()->json([
             'success' => true,
             'message' => 'تم رصد الدرجات التفصيلية بنجاح',
             'grade' => $grade
+        ]);
+    }
+
+    /**
+     * إرسال إشعارات مجمعة بدرجات الشهر لأولياء أمور صف معين
+     */
+    public function publishMonthGrades(Request $request)
+    {
+        $request->validate([
+            'class_id' => 'required|integer',
+            'term' => 'required|string',
+            'month' => 'required|string',
+        ]);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+
+        if ($scopedClassIds !== null && !in_array((int)$request->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بإرسال إشعارات درجات هذا الفصل.'
+            ], 403);
+        }
+
+        $students = Student::with('parentUser')->where('class_id', $request->class_id)->get();
+        $monthName = $request->month === '0' || $request->month === 'final' ? 'النهائية' : 'للشهر ' . $request->month;
+
+        $sentCount = 0;
+
+        foreach ($students as $student) {
+            if ($student->parentUser) {
+                // Create database notification
+                \App\Models\Notification::create([
+                    'title' => 'اعتماد درجات جديدة',
+                    'content' => 'تم اعتماد درجات ابنكم ' . ($student->name_ar ?? '') . ' ' . $monthName . '. يمكنكم الاطلاع عليها الآن.',
+                    'type' => 'general',
+                    'is_read' => false,
+                    'student_id' => $student->id,
+                ]);
+
+                // Send FCM
+                if ($student->parentUser->fcm_token) {
+                    \App\Services\FcmService::sendNotification(
+                        $student->parentUser->fcm_token,
+                        'اعتماد الدرجات 📊',
+                        'تم اعتماد درجات ابنكم ' . ($student->name_ar ?? '') . ' ' . $monthName . '.',
+                        [
+                            'type' => 'grade',
+                            'student_id' => (string)$student->id,
+                            'month' => (string)$request->month,
+                        ]
+                    );
+                }
+                $sentCount++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم إرسال إشعارات الدرجات لـ ' . $sentCount . ' من أولياء الأمور بنجاح.',
         ]);
     }
 
@@ -332,6 +364,7 @@ class GradeController extends Controller implements HasMiddleware
                         'oral' => $mGrade ? (float) $mGrade->oral : 0.0,
                         'homework' => $mGrade ? (float) $mGrade->homework : 0.0,
                         'written' => $mGrade ? (float) $mGrade->written : 0.0,
+                        'isSaved' => $mGrade != null,
                     ];
                 }
 
@@ -340,6 +373,7 @@ class GradeController extends Controller implements HasMiddleware
                     'termIndex' => $term,
                     'months' => $months,
                     'finalExam' => $finalGrade ? (float) $finalGrade->final_exam : 0.0,
+                    'isFinalSaved' => $finalGrade != null,
                 ];
             }
 

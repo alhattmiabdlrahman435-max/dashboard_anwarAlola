@@ -38,10 +38,12 @@ database/database.sqlite
 *.sln
 *.sw?
 
-# Uploaded assets
 /public/uploads/*
 !/public/uploads/.gitkeep
 /public/dist/uploads/*
 !/public/dist/uploads/.gitkeep
 
+# Credentials and private keys
+app/anwaralola-firebase-adminsdk-fbsvc-*.json
+.env
 

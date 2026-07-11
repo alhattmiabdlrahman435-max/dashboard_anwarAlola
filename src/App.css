@@ -3735,3 +3735,9 @@ body[dir="rtl"] .menu-item.active {
   }
 }
 
+.hover-card-y:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--color-shadow-hover) !important;
+  border-color: rgba(var(--color-primary-hsl), 0.15) !important;
+}
+

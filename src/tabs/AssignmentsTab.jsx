@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X } from 'lucide-react';
+import { api } from '../services/api';
+import { X, Filter, Calendar, User, BookOpen } from 'lucide-react';
 
 export default function AssignmentsTab() {
   const {
@@ -15,87 +16,189 @@ export default function AssignmentsTab() {
     setSmsLogs,
     renderAvatar,
     availableGrades,
-    availableSections
+    availableSections,
+    subjects,
+    classes
   } = useApp();
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(assignments[0]?.id || null);
   
+  // Filter States
+  const [filterDate, setFilterDate] = useState('');
+  const [filterTeacherId, setFilterTeacherId] = useState('all');
+  const [filterSubject, setFilterSubject] = useState('all');
+
   // Modal visibility
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
 
   // Form Fields
   const [modalAssignmentGrade, setModalAssignmentGrade] = useState('الصف الأول');
   const [modalAssignmentSection, setModalAssignmentSection] = useState('أ');
-  const [modalAssignmentSubject, setModalAssignmentSubject] = useState('الرياضيات');
+  const [modalAssignmentSubject, setModalAssignmentSubject] = useState('');
   const [modalAssignmentTitle, setModalAssignmentTitle] = useState('');
   const [modalAssignmentContent, setModalAssignmentContent] = useState('');
   const [modalAssignmentDueDate, setModalAssignmentDueDate] = useState('');
   const [modalAssignmentAttachment, setModalAssignmentAttachment] = useState('');
 
+  // Default subject once loaded
+  React.useEffect(() => {
+    if (subjects && subjects.length > 0 && !modalAssignmentSubject) {
+      setModalAssignmentSubject(subjects[0].name);
+    }
+  }, [subjects, modalAssignmentSubject]);
+
+  // Standardize any date format to YYYY-MM-DD
+  const standardizeDate = (dateStr) => {
+    if (!dateStr) return '';
+    if (dateStr.includes('T')) {
+      dateStr = dateStr.split('T')[0];
+    }
+    const dmyRegex = /^(\d{2})[-/](\d{2})[-/](\d{4})$/;
+    const match = dateStr.trim().match(dmyRegex);
+    if (match) {
+      return `${match[3]}-${match[2]}-${match[1]}`;
+    }
+    const ymdRegex = /^(\d{4})[-/](\d{2})[-/](\d{2})/;
+    const matchYmd = dateStr.trim().match(ymdRegex);
+    if (matchYmd) {
+      return `${matchYmd[1]}-${matchYmd[2]}-${matchYmd[3]}`;
+    }
+    return dateStr.trim();
+  };
+
+  // Compute filtered assignments
+  const filteredAssignments = assignments.filter(assign => {
+    if (filterDate) {
+      const standardFilter = standardizeDate(filterDate);
+      const standardDue = standardizeDate(assign.dueDate);
+      const standardCreated = standardizeDate(assign.dateCreated);
+      if (standardDue !== standardFilter && standardCreated !== standardFilter) return false;
+    }
+    if (filterTeacherId !== 'all' && Number(assign.teacherId) !== Number(filterTeacherId)) return false;
+    if (filterSubject !== 'all' && assign.subjectName !== filterSubject && assign.subjectNameEn !== filterSubject) return false;
+    return true;
+  });
+
+  // Sync selected assignment with filtered list
+  React.useEffect(() => {
+    if (filteredAssignments.length > 0) {
+      const exists = filteredAssignments.some(a => a.id === selectedAssignmentId);
+      if (!exists) {
+        setSelectedAssignmentId(filteredAssignments[0].id);
+      }
+    } else {
+      setSelectedAssignmentId(null);
+    }
+  }, [filteredAssignments, selectedAssignmentId]);
+
   // CRUD Handlers
-  const handleAddAssignment = (e) => {
+  const handleAddAssignment = async (e) => {
     e.preventDefault();
     if (!modalAssignmentTitle.trim() || !modalAssignmentContent.trim() || !modalAssignmentDueDate) {
       setToastMessage(lang === 'ar' ? 'الرجاء تعبئة جميع الحقول المطلوبة' : 'Please fill all required fields');
       setTimeout(() => setToastMessage(''), 3000);
       return;
     }
-    const newId = Date.now();
-    const newAssignment = {
-      id: newId,
-      grade: modalAssignmentGrade,
-      section: modalAssignmentSection,
-      subjectName: modalAssignmentSubject,
-      subjectNameEn: modalAssignmentSubject === 'الرياضيات' ? 'Mathematics' : modalAssignmentSubject === 'العلوم' ? 'Science' : modalAssignmentSubject === 'اللغة العربية' ? 'Arabic' : 'English',
-      title: modalAssignmentTitle,
-      content: modalAssignmentContent,
-      dateCreated: new Date().toISOString().split('T')[0],
-      dueDate: modalAssignmentDueDate,
-      attachments: modalAssignmentAttachment.trim() ? [modalAssignmentAttachment.trim()] : [],
-      submissions: students
-        .filter(s => s.grade === modalAssignmentGrade && s.section === modalAssignmentSection)
-        .map(s => ({ studentId: s.id, studentName: s.name, status: 'notSubmitted', teacherNote: '' }))
-    };
 
-    setAssignments(prev => [newAssignment, ...prev]);
-    setSelectedAssignmentId(newId);
-    setShowAssignmentModal(false);
-    
-    // Increment assignments count for the primary teacher of that subject if matching
-    const matchingTeacher = teachers.find(teach => teach.subject === modalAssignmentSubject);
-    if (matchingTeacher) {
-      setTeachers(prev => prev.map(t => {
-        if (t.id === matchingTeacher.id) {
-          return { ...t, assignments: t.assignments + 1 };
-        }
-        return t;
-      }));
+    // Find class_id
+    const targetClass = classes?.find(
+      (c) => c.grade_ar === modalAssignmentGrade && c.section_ar === modalAssignmentSection
+    );
+    if (!targetClass) {
+      setToastMessage(lang === 'ar' ? 'الصف المحدد غير موجود في قاعدة البيانات' : 'Selected class not found in DB');
+      setTimeout(() => setToastMessage(''), 3000);
+      return;
     }
 
-    setToastMessage(t.assignmentSuccessToast);
-    setTimeout(() => setToastMessage(''), 3000);
-    
-    // Clear fields
-    setModalAssignmentTitle('');
-    setModalAssignmentContent('');
-    setModalAssignmentDueDate('');
-    setModalAssignmentAttachment('');
+    // Find subject_id
+    const targetSubject = subjects?.find(
+      (s) => s.name === modalAssignmentSubject || s.nameEn === modalAssignmentSubject
+    );
+    if (!targetSubject) {
+      setToastMessage(lang === 'ar' ? 'المادة المحددة غير موجودة' : 'Selected subject not found');
+      setTimeout(() => setToastMessage(''), 3000);
+      return;
+    }
 
-    // Trigger simulated SMS warning
-    const classStudents = students.filter(s => s.grade === modalAssignmentGrade && s.section === modalAssignmentSection);
-    classStudents.forEach(student => {
-      const smsText = lang === 'ar'
-        ? `تم نشر واجب جديد للمادة ${modalAssignmentSubject}: "${modalAssignmentTitle}". موعد التسليم: ${modalAssignmentDueDate}. رياض و مدارس انوار العلى.`
-        : `New homework assignment published for ${modalAssignmentSubject}: "${modalAssignmentTitle}". Due: ${modalAssignmentDueDate}. Riyadh & Anwar Al-Ola.`;
-      setSmsLogs(logs => [{
-        id: Date.now() + Math.random(),
-        studentId: student.id,
-        recipient: student.phone,
-        text: smsText,
-        time: "14:30",
-        type: 'present'
-      }, ...logs]);
-    });
+    try {
+      const res = await api.post('/api/assignments', {
+        class_id: targetClass.id,
+        subject_id: targetSubject.id,
+        title: modalAssignmentTitle,
+        content: modalAssignmentContent,
+        due_date: modalAssignmentDueDate,
+      });
+
+      if (res.success) {
+        // Find matching teacher
+        const matchingTeacher = teachers.find(teach => teach.subjects?.includes(modalAssignmentSubject) || teach.subject === modalAssignmentSubject);
+
+        const newId = res.assignment?.id || Date.now();
+        const newAssignment = {
+          id: newId,
+          grade: modalAssignmentGrade,
+          section: modalAssignmentSection,
+          subjectName: modalAssignmentSubject,
+          subjectNameEn: modalAssignmentSubject === 'الرياضيات' ? 'Mathematics' : modalAssignmentSubject === 'العلوم' ? 'Science' : modalAssignmentSubject === 'اللغة العربية' ? 'Arabic' : 'English',
+          teacherName: matchingTeacher ? matchingTeacher.name : (lang === 'ar' ? 'غير محدد' : 'N/A'),
+          teacherNameEn: matchingTeacher ? matchingTeacher.nameEn : (lang === 'ar' ? 'غير محدد' : 'N/A'),
+          teacherId: matchingTeacher ? matchingTeacher.id : null,
+          title: modalAssignmentTitle,
+          content: modalAssignmentContent,
+          dateCreated: new Date().toISOString().split('T')[0],
+          dueDate: modalAssignmentDueDate,
+          attachments: modalAssignmentAttachment.trim() ? [modalAssignmentAttachment.trim()] : [],
+          submissions: students
+            .filter(s => s.grade === modalAssignmentGrade && s.section === modalAssignmentSection)
+            .map(s => ({ studentId: s.id, studentName: s.name, status: 'notSubmitted', teacherNote: '' }))
+        };
+
+        setAssignments(prev => [newAssignment, ...prev]);
+        setSelectedAssignmentId(newId);
+        setShowAssignmentModal(false);
+        
+        if (matchingTeacher) {
+          setTeachers(prev => prev.map(t => {
+            if (t.id === matchingTeacher.id) {
+              return { ...t, assignments: t.assignments + 1 };
+            }
+            return t;
+          }));
+        }
+
+        setToastMessage(res.message || t.assignmentSuccessToast);
+        setTimeout(() => setToastMessage(''), 3000);
+        
+        // Clear fields
+        setModalAssignmentTitle('');
+        setModalAssignmentContent('');
+        setModalAssignmentDueDate('');
+        setModalAssignmentAttachment('');
+
+        // Trigger simulated SMS warning
+        const classStudents = students.filter(s => s.grade === modalAssignmentGrade && s.section === modalAssignmentSection);
+        classStudents.forEach(student => {
+          const smsText = lang === 'ar'
+            ? `تم نشر واجب جديد للمادة ${modalAssignmentSubject}: "${modalAssignmentTitle}". موعد التسليم: ${modalAssignmentDueDate}. رياض و مدارس انوار العلى.`
+            : `New homework assignment published for ${modalAssignmentSubject}: "${modalAssignmentTitle}". Due: ${modalAssignmentDueDate}. Riyadh & Anwar Al-Ola.`;
+          setSmsLogs(logs => [{
+            id: Date.now() + Math.random(),
+            studentId: student.id,
+            recipient: student.phone,
+            text: smsText,
+            time: "14:30",
+            type: 'present'
+          }, ...logs]);
+        });
+      } else {
+        setToastMessage(res.message || 'Error creating assignment');
+        setTimeout(() => setToastMessage(''), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      setToastMessage(lang === 'ar' ? 'حدث خطأ أثناء إضافة الواجب' : 'Failed to add assignment');
+      setTimeout(() => setToastMessage(''), 3000);
+    }
   };
 
   // Update Assignment Submissions
@@ -139,6 +242,89 @@ export default function AssignmentsTab() {
         </button>
       </div>
 
+      {/* Filter Toolbar */}
+      <div style={{
+        display: 'flex',
+        gap: 'var(--space-md)',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        padding: '12px 16px',
+        backgroundColor: 'var(--color-surface)',
+        borderRadius: '16px',
+        border: '1px solid var(--color-border)',
+        marginBottom: '20px'
+      }} className="no-print">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: '700' }}>
+          <Filter size={15} />
+          <span>{lang === 'ar' ? 'تصفية الواجبات:' : 'Filter Assignments:'}</span>
+        </div>
+
+        {/* Date Filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Calendar size={14} style={{ color: 'var(--color-text-secondary)' }} />
+          <input
+            type="date"
+            className="text-field"
+            value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+            style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: '130px' }}
+          />
+          {filterDate && (
+            <button 
+              onClick={() => setFilterDate('')} 
+              style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '12px', padding: 0 }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Teacher Filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <User size={14} style={{ color: 'var(--color-text-secondary)' }} />
+          <select
+            className="text-field"
+            value={filterTeacherId}
+            onChange={e => setFilterTeacherId(e.target.value)}
+            style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: 'auto' }}
+          >
+            <option value="all">{lang === 'ar' ? 'جميع المعلمين' : 'All Teachers'}</option>
+            {teachers.map(t => (
+              <option key={t.id} value={t.id}>{lang === 'ar' ? t.name : t.nameEn}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Subject Filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <BookOpen size={14} style={{ color: 'var(--color-text-secondary)' }} />
+          <select
+            className="text-field"
+            value={filterSubject}
+            onChange={e => setFilterSubject(e.target.value)}
+            style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: 'auto' }}
+          >
+            <option value="all">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
+            {subjects && subjects.length > 0 ? (
+              subjects.map(s => (
+                <option key={s.id} value={s.name}>{lang === 'ar' ? s.name : s.nameEn}</option>
+              ))
+            ) : (
+              <>
+                <option value="الرياضيات">{t.math}</option>
+                <option value="العلوم">{t.science}</option>
+                <option value="اللغة العربية">{t.arabic}</option>
+                <option value="اللغة الإنجليزية">{t.english}</option>
+              </>
+            )}
+          </select>
+        </div>
+
+        <div style={{ marginInlineStart: 'auto', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+          {lang === 'ar' ? `النتائج: ${filteredAssignments.length}` : `Results: ${filteredAssignments.length}`}
+        </div>
+      </div>
+
       <div className="dashboard-main-grid">
         {/* Assignments List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
@@ -146,8 +332,8 @@ export default function AssignmentsTab() {
             🗓️ {lang === 'ar' ? 'الواجبات المنشورة حالياً' : 'Currently Published Assignments'}
           </h4>
 
-          {assignments.length > 0 ? (
-            assignments.map(assign => (
+          {filteredAssignments.length > 0 ? (
+            filteredAssignments.map(assign => (
               <div 
                 key={assign.id} 
                 style={{
@@ -199,17 +385,28 @@ export default function AssignmentsTab() {
                     ))}
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-border)', paddingTop: '8px' }}>
-                  <span>📅 {t.dueDateLabel}: {assign.dueDate}</span>
-                  <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                    {lang === 'ar' ? 'عرض التسليمات' : 'View Submissions'} ➔
-                  </span>
+                {assign.teacherName && (
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <User size={12} />
+                    <span>{lang === 'ar' ? 'المعلم' : 'Teacher'}: {lang === 'ar' ? assign.teacherName : assign.teacherNameEn}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-border)', paddingTop: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+                    <span>📅 {lang === 'ar' ? 'تاريخ النشر:' : 'Published:'} {assign.dateCreated}</span>
+                    <span>⌛ {t.dueDateLabel}: {assign.dueDate}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                    <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                      {lang === 'ar' ? 'عرض التسليمات' : 'View Submissions'} ➔
+                    </span>
+                  </div>
                 </div>
               </div>
             ))
           ) : (
-            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)' }}>
-              🔍 {t.noAssignments}
+            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)', border: '1px dashed var(--color-border)' }}>
+              🔍 {lang === 'ar' ? 'لا توجد واجبات تطابق خيارات التصفية.' : 'No assignments match the filters.'}
             </div>
           )}
         </div>
@@ -317,8 +514,22 @@ export default function AssignmentsTab() {
                   <button 
                     className="btn-filled" 
                     style={{ alignSelf: 'flex-end', height: '40px', minHeight: '40px' }}
-                    onClick={() => {
-                      setToastMessage(lang === 'ar' ? 'تم حفظ بيانات تسليمات الطلاب بنجاح!' : 'Submissions updated successfully!');
+                    onClick={async () => {
+                      try {
+                        const payload = selectedAssign.submissions.map(sub => ({
+                          student_id: sub.studentId,
+                          status: sub.status === 'submittedLate' ? 'submitted_late' : (sub.status === 'submitted' ? 'submitted' : 'not_submitted'),
+                          teacher_note: sub.teacherNote || ''
+                        }));
+                        const res = await api.put(`/api/assignments/${selectedAssign.id}/submissions`, { submissions: payload });
+                        if (res.success) {
+                          setToastMessage(res.message || (lang === 'ar' ? 'تم حفظ بيانات تسليمات الطلاب بنجاح!' : 'Submissions updated successfully!'));
+                        } else {
+                          setToastMessage(res.message || (lang === 'ar' ? 'فشل الحفظ' : 'Error updating submissions'));
+                        }
+                      } catch(err) {
+                        setToastMessage(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
+                      }
                       setTimeout(() => setToastMessage(''), 3000);
                     }}
                   >
@@ -391,10 +602,18 @@ export default function AssignmentsTab() {
                     onChange={(e) => setModalAssignmentSubject(e.target.value)}
                     className="text-field"
                   >
-                    <option value="الرياضيات">{t.math}</option>
-                    <option value="العلوم">{t.science}</option>
-                    <option value="اللغة العربية">{t.arabic}</option>
-                    <option value="اللغة الإنجليزية">{t.english}</option>
+                    {subjects && subjects.length > 0 ? (
+                      subjects.map(s => (
+                        <option key={s.id} value={s.name}>{lang === 'ar' ? s.name : s.nameEn}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="الرياضيات">{t.math}</option>
+                        <option value="العلوم">{t.science}</option>
+                        <option value="اللغة العربية">{t.arabic}</option>
+                        <option value="اللغة الإنجليزية">{t.english}</option>
+                      </>
+                    )}
                   </select>
                 </div>
 

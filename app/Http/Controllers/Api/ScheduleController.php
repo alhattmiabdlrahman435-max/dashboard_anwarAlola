@@ -184,28 +184,121 @@ class ScheduleController extends Controller
             ], 400);
         }
 
-        return DB::transaction(function() use ($request, $cls, $className) {
-            // Delete old schedules for this class
-            Schedule::where('class_id', $cls->id)->delete();
-            
+        return DB::transaction(function() use ($request, $cls, $className, $dayNamesAr, $periodNamesAr) {
+            // 1. Get old schedules for comparison
+            $oldSchedules = Schedule::where('class_id', $cls->id)->get();
+            $oldPeriods = [];
+            foreach ($oldSchedules as $sch) {
+                $oldPeriods[strtolower($sch->day_of_week) . '-' . $sch->period] = $sch->subject_id;
+            }
+
+            // 2. Preload teacher subjects for this class to map subject_id -> teacher
+            $teacherSubjects = TeacherSubject::where('class_id', $cls->id)->get()->keyBy('subject_id');
+
+            // 3. Build new periods mapping from request
+            $newPeriods = [];
             foreach ($request->schedule as $day => $periods) {
                 foreach ($periods as $idx => $subjName) {
                     if (empty($subjName)) continue;
-                    
-                    // Find subject by name_ar
                     $subj = Subject::where('name_ar', $subjName)->first();
                     if ($subj) {
-                        Schedule::create([
-                            'class_id' => $cls->id,
-                            'subject_id' => $subj->id,
-                            'day_of_week' => strtolower($day),
-                            'period' => $idx + 1, // 1-indexed for DB
-                        ]);
+                        $newPeriods[strtolower($day) . '-' . ($idx + 1)] = $subj->id;
                     }
                 }
             }
 
-            // 1. Notify parents of the class
+            // 4. Delete old schedules for this class
+            Schedule::where('class_id', $cls->id)->delete();
+            
+            // 5. Create new schedules
+            foreach ($newPeriods as $key => $subjectId) {
+                list($day, $period) = explode('-', $key);
+                Schedule::create([
+                    'class_id' => $cls->id,
+                    'subject_id' => $subjectId,
+                    'day_of_week' => $day,
+                    'period' => $period,
+                ]);
+            }
+
+            // 6. Calculate changes and notify teachers
+            $notificationsToSend = []; // array of ['teacher_id' => ..., 'title' => ..., 'body' => ...]
+
+            // Helper to get teacher from subject
+            $getTeacherId = function($subjectId) use ($teacherSubjects) {
+                $ts = $teacherSubjects->get($subjectId);
+                return $ts ? $ts->teacher_id : null;
+            };
+
+            // Detect deleted periods (existed in old, not in new OR new has different subject)
+            foreach ($oldPeriods as $key => $oldSubjId) {
+                list($day, $period) = explode('-', $key);
+                $newSubjId = $newPeriods[$key] ?? null;
+
+                if ($newSubjId !== $oldSubjId) {
+                    // Session deleted or changed for the old subject's teacher
+                    $oldTeacherId = $getTeacherId($oldSubjId);
+                    if ($oldTeacherId) {
+                        $subjName = Subject::find($oldSubjId)->name_ar ?? '';
+                        $dayAr = $dayNamesAr[$day] ?? $day;
+                        $periodAr = $periodNamesAr[$period] ?? "الحصة {$period}";
+                        
+                        $notificationsToSend[] = [
+                            'teacher_id' => $oldTeacherId,
+                            'title' => '❌ حذف حصة من جدولك',
+                            'body' => "تم إزالة حصتك (مادة {$subjName}) من جدول فصل {$className} ليوم {$dayAr} {$periodAr}.",
+                        ];
+                    }
+                }
+            }
+
+            // Detect added periods (existed in new, not in old OR old had different subject)
+            foreach ($newPeriods as $key => $newSubjId) {
+                list($day, $period) = explode('-', $key);
+                $oldSubjId = $oldPeriods[$key] ?? null;
+
+                if ($oldSubjId !== $newSubjId) {
+                    // Session added or changed for the new subject's teacher
+                    $newTeacherId = $getTeacherId($newSubjId);
+                    if ($newTeacherId) {
+                        $subjName = Subject::find($newSubjId)->name_ar ?? '';
+                        $dayAr = $dayNamesAr[$day] ?? $day;
+                        $periodAr = $periodNamesAr[$period] ?? "الحصة {$period}";
+                        
+                        $notificationsToSend[] = [
+                            'teacher_id' => $newTeacherId,
+                            'title' => '➕ إضافة حصة جديدة لجدولك',
+                            'body' => "تم إضافة حصة جديدة لك (مادة {$subjName}) في جدول فصل {$className} ليوم {$dayAr} {$periodAr}.",
+                        ];
+                    }
+                }
+            }
+
+            // Send calculated notifications
+            foreach ($notificationsToSend as $notif) {
+                \App\Models\Notification::create([
+                    'title' => $notif['title'],
+                    'content' => $notif['body'],
+                    'type' => 'general',
+                    'is_read' => false,
+                    'teacher_id' => $notif['teacher_id'],
+                ]);
+
+                $teacherUser = \App\Models\User::find($notif['teacher_id']);
+                if ($teacherUser && $teacherUser->fcm_token) {
+                    \App\Services\FcmService::sendNotification(
+                        $teacherUser->fcm_token,
+                        $notif['title'] . ' 📅',
+                        $notif['body'],
+                        [
+                            'type' => 'weekly_schedule',
+                            'class_id' => (string)$cls->id
+                        ]
+                    );
+                }
+            }
+
+            // 7. Notify parents of the class as usual
             \App\Models\Notification::create([
                 'title' => 'تحديث الجدول الدراسي الأسبوعي',
                 'content' => 'تم تحديث الجدول الدراسي الأسبوعي للفصل ' . $className,
@@ -227,33 +320,6 @@ class ScheduleController extends Controller
                             'class_id' => (string)$cls->id
                         ]
                     );
-                }
-            }
-
-            // 2. Notify teachers of the class
-            $teacherIds = \App\Models\TeacherSubject::where('class_id', $cls->id)->pluck('teacher_id')->filter()->unique();
-            foreach ($teacherIds as $teacherId) {
-                $teacherUser = \App\Models\User::find($teacherId);
-                if ($teacherUser) {
-                    \App\Models\Notification::create([
-                        'title' => 'تحديث الجدول الأسبوعي',
-                        'content' => 'تم تحديث الجدول الأسبوعي لفصل تدرسه: ' . $className,
-                        'type' => 'general',
-                        'is_read' => false,
-                        'teacher_id' => $teacherId,
-                    ]);
-
-                    if ($teacherUser->fcm_token) {
-                        \App\Services\FcmService::sendNotification(
-                            $teacherUser->fcm_token,
-                            'تحديث الجدول الدراسي الأسبوعي 📅',
-                            'تم تحديث الجدول الدراسي الأسبوعي لفصل تدرسه: ' . $className,
-                            [
-                                'type' => 'weekly_schedule',
-                                'class_id' => (string)$cls->id
-                            ]
-                        );
-                    }
                 }
             }
 

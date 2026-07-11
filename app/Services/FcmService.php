@@ -68,10 +68,14 @@ class FcmService
                         ],
                         'apns' => [
                             'headers' => [
-                                'ap-priority' => '10',
+                                'apns-priority' => '10',
                             ],
                             'payload' => [
                                 'aps' => [
+                                    'alert' => [
+                                        'title' => $title,
+                                        'body' => $body,
+                                    ],
                                     'sound' => 'default',
                                     'badge' => 1,
                                 ],

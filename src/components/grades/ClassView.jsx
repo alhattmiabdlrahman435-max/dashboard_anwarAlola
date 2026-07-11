@@ -7,6 +7,7 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
     lang,
     t,
     students,
+    selectedGradeTerm,
     getStudentDetailedGrades,
     handleDetailedGradeChange,
     syncGeneralGrades,
@@ -19,13 +20,13 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
 
   return (
     <>
-      <div style={{ padding: 'var(--space-md)', backgroundColor: 'var(--color-primary-ui)', color: '#ffffff', borderRadius: 'var(--radius-card)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ padding: 'var(--space-md)', background: 'var(--gradient-brand)', color: '#ffffff', borderRadius: 'var(--radius-card)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <strong>{lang === 'ar' ? 'فصل: ' : 'Class: '} {selectedClass}</strong>
         </div>
         <div>
           <strong>{lang === 'ar' ? 'الترم: ' : 'Term: '} </strong>
-          <span>{selectedGradeTerm => selectedGradeTerm === 'term1' ? t.term1Label : t.term2Label}</span>
+          <span>{selectedGradeTerm === 'term1' ? t.term1Label : t.term2Label}</span>
           <span style={{ marginInline: '8px', opacity: 0.5 }}>|</span>
           <strong>{lang === 'ar' ? 'الفترة: ' : 'Period: '} </strong>
           <span>
@@ -39,7 +40,11 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
             <>
               <span style={{ marginInline: '8px', opacity: 0.5 }}>|</span>
               <strong>{lang === 'ar' ? 'المادة: ' : 'Subject: '} </strong>
-              <span>{classSubject}</span>
+              <span>
+                {classSubject === 'detailed' 
+                  ? (lang === 'ar' ? 'جميع المواد (تفصيلي)' : 'All Subjects (Detailed)')
+                  : classSubject}
+              </span>
             </>
           )}
         </div>

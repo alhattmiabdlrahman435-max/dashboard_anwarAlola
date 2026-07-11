@@ -95,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Grades - الدرجات
     Route::get('/grades/detailed/{studentId}', [GradeController::class, 'detailed']);
     Route::post('/grades/detailed', [GradeController::class, 'saveDetailed']);
+    Route::post('/grades/publish-month', [GradeController::class, 'publishMonthGrades']);
     Route::get('/grades/class/{classId}/subject/{subjectId}', [GradeController::class, 'getByClassAndSubject']);
     Route::get('/grades/control', [GradeController::class, 'control']);
     Route::put('/grades/control/{studentId}', [GradeController::class, 'updateControl']);
@@ -122,6 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Notifications - الإشعارات
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/send', [NotificationController::class, 'send']);
+    Route::put('/notifications/read-all', [NotificationController::class, 'readAll']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'read']);
 
     // --- المعلم (Teacher) ---
