@@ -39,6 +39,9 @@ database/database.sqlite
 *.sw?
 
 # Uploaded assets
-/public/uploads/assignments/*
-!/public/uploads/assignments/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
+/public/dist/uploads/*
+!/public/dist/uploads/.gitkeep
+
 
