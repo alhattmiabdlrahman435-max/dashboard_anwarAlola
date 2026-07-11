@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 
 class ExportImportController extends Controller
 {
@@ -236,26 +239,30 @@ class ExportImportController extends Controller
 
         $file = $request->file('file');
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, ['csv', 'txt'])) {
+        if (!in_array($extension, ['csv', 'txt', 'xlsx'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'يجب أن يكون الملف المرفوع بصيغة CSV أو TXT فقط.'
+                'message' => 'يجب أن يكون الملف المرفوع بصيغة CSV أو TXT أو XLSX فقط.'
             ], 422);
         }
 
         $path = $file->getRealPath();
 
         return match ($module) {
-            'students' => $this->importStudents($path),
-            'teachers' => $this->importTeachers($path),
-            'parents' => $this->importParents($path),
+            'students' => $this->importStudents($path, $extension),
+            'teachers' => $this->importTeachers($path, $extension),
+            'parents' => $this->importParents($path, $extension),
             default => response()->json(['success' => false, 'message' => 'الموديول غير مدعوم للاستيراد.'], 400),
         };
     }
 
-    private function importStudents(string $path)
+    private function importStudents(string $path, string $extension = 'csv')
     {
-        $parsed = $this->parseCsv($path);
+        if ($extension === 'xlsx') {
+            $parsed = $this->parseXlsx($path);
+        } else {
+            $parsed = $this->parseCsv($path);
+        }
         $headers = array_map('trim', $parsed['headers'] ?? []);
         $rows = $parsed['rows'] ?? [];
         $imported = 0;
@@ -393,9 +400,13 @@ class ExportImportController extends Controller
         ]);
     }
 
-    private function importTeachers(string $path)
+    private function importTeachers(string $path, string $extension = 'csv')
     {
-        $parsed = $this->parseCsv($path);
+        if ($extension === 'xlsx') {
+            $parsed = $this->parseXlsx($path);
+        } else {
+            $parsed = $this->parseCsv($path);
+        }
         $headers = array_map('trim', $parsed['headers'] ?? []);
         $rows = $parsed['rows'] ?? [];
         $imported = 0;
@@ -466,9 +477,13 @@ class ExportImportController extends Controller
         ]);
     }
 
-    private function importParents(string $path)
+    private function importParents(string $path, string $extension = 'csv')
     {
-        $parsed = $this->parseCsv($path);
+        if ($extension === 'xlsx') {
+            $parsed = $this->parseXlsx($path);
+        } else {
+            $parsed = $this->parseCsv($path);
+        }
         $headers = array_map('trim', $parsed['headers'] ?? []);
         $rows = $parsed['rows'] ?? [];
         $importedParents = 0;
@@ -613,24 +628,39 @@ class ExportImportController extends Controller
                 if (!empty($className)) {
                     $gradeAr = '';
                     $sectionAr = '';
-                    if (str_contains($className, '-')) {
-                        $parts = explode('-', $className);
-                        $gradeAr = trim($parts[0] ?? '');
-                        $sectionAr = trim($parts[1] ?? '');
-                    } else {
-                        $parts = explode(' ', $className);
-                        if (count($parts) >= 2) {
-                            $gradeAr = $parts[0] . ' ' . $parts[1];
-                            $sectionAr = $parts[2] ?? '';
-                        } else {
-                            $gradeAr = $className;
+                    // Try exact match first on combined name: "{$grade_ar} - {$section_ar}"
+                    $classes = SchoolClass::all();
+                    foreach ($classes as $c) {
+                        $combined = "{$c->grade_ar} - {$c->section_ar}";
+                        if (trim($combined) === trim($className)) {
+                            $class = $c;
+                            $classId = $c->id;
+                            break;
                         }
                     }
 
-                    $class = SchoolClass::where('grade_ar', 'like', "%{$gradeAr}%")
-                        ->where('section_ar', 'like', "%{$sectionAr}%")
-                        ->first();
-                    $classId = $class?->id;
+                    if (!$class) {
+                        $gradeAr = '';
+                        $sectionAr = '';
+                        if (str_contains($className, '-')) {
+                            $parts = explode('-', $className);
+                            $gradeAr = trim($parts[0] ?? '');
+                            $sectionAr = trim($parts[1] ?? '');
+                        } else {
+                            $parts = explode(' ', $className);
+                            if (count($parts) >= 2) {
+                                $gradeAr = $parts[0] . ' ' . $parts[1];
+                                $sectionAr = $parts[2] ?? '';
+                            } else {
+                                $gradeAr = $className;
+                            }
+                        }
+
+                        $class = SchoolClass::where('grade_ar', 'like', "%{$gradeAr}%")
+                            ->where('section_ar', 'like', "%{$sectionAr}%")
+                            ->first();
+                        $classId = $class?->id;
+                    }
                 }
 
                 if (!$student) {
@@ -691,8 +721,70 @@ class ExportImportController extends Controller
     // TEMPLATE DOWNLOAD
     // ========================
 
+
     public function template(Request $request, string $module)
     {
+        if ($module === 'parents') {
+            return new StreamedResponse(function () {
+                $spreadsheet = new Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+                
+                // Headers
+                $headers = ['رقم الهوية', 'الاسم (عربي)', 'رقم الجوال', 'اسم الابن 1', 'صف الابن 1', 'اسم الابن 2', 'صف الابن 2'];
+                $sheet->fromArray([$headers], null, 'A1');
+                
+                // Example Row
+                $exampleRow = ['1077777777', 'محمد العمري', '0509876543', 'أحمد محمد العمري', '', 'سارة محمد العمري', ''];
+                $sheet->fromArray([$exampleRow], null, 'A2');
+                
+                // Fetch classes
+                $classes = SchoolClass::all();
+                $classNames = [];
+                foreach ($classes as $class) {
+                    $classNames[] = "{$class->grade_ar} - {$class->section_ar}";
+                }
+                
+                if (!empty($classNames)) {
+                    // Create list sheet
+                    $listSheet = $spreadsheet->createSheet();
+                    $listSheet->setTitle('ClassesList');
+                    
+                    foreach ($classNames as $idx => $name) {
+                        $listSheet->setCellValue('A' . ($idx + 1), $name);
+                    }
+                    
+                    $listSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
+                    
+                    // Set validation formula
+                    $validation = $sheet->getCell('E2')->getDataValidation();
+                    $validation->setType(DataValidation::TYPE_LIST);
+                    $validation->setErrorStyle(DataValidation::STYLE_STOP);
+                    $validation->setAllowBlank(true);
+                    $validation->setShowInputMessage(true);
+                    $validation->setShowErrorMessage(true);
+                    $validation->setShowDropDown(true);
+                    $validation->setErrorTitle('الصف غير صحيح');
+                    $validation->setError('يرجى اختيار الصف من القائمة المتاحة فقط.');
+                    $validation->setPromptTitle('اختر الصف');
+                    $validation->setPrompt('يرجى اختيار الصف المناسب من القائمة.');
+                    $validation->setFormula1('ClassesList!$A$1:$A$' . count($classNames));
+                    
+                    // Apply validation to E2:E500 and G2:G500
+                    for ($row = 2; $row <= 500; $row++) {
+                        $sheet->getCell('E' . $row)->setDataValidation(clone $validation);
+                        $sheet->getCell('G' . $row)->setDataValidation(clone $validation);
+                    }
+                }
+                
+                $writer = new Xlsx($spreadsheet);
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="parents_template.xlsx"',
+                'Cache-Control' => 'max-age=0',
+            ]);
+        }
+
         $templates = [
             'students' => [
                 'filename' => 'students_template.csv',
@@ -703,11 +795,6 @@ class ExportImportController extends Controller
                 'filename' => 'teachers_template.csv',
                 'headers' => ['الاسم (عربي)', 'الرقم الوظيفي', 'رقم الجوال', 'عنوان السكن'],
                 'example' => ['خالد الدوسري', '1066666666', '0507654321', 'حي النزهة، الرياض'],
-            ],
-            'parents' => [
-                'filename' => 'parents_template.csv',
-                'headers' => ['رقم الهوية', 'الاسم (عربي)', 'رقم الجوال', 'اسم الابن 1', 'صف الابن 1', 'اسم الابن 2', 'صف الابن 2'],
-                'example' => ['1077777777', 'محمد العمري', '0509876543', 'أحمد محمد العمري', 'الصف الأول - أ', 'سارة محمد العمري', 'الصف الثاني - ب'],
             ],
         ];
 
@@ -796,6 +883,51 @@ class ExportImportController extends Controller
         return [
             'headers' => $headers,
             'rows' => $rows,
+        ];
+    }
+
+    private function parseXlsx(string $path): array
+    {
+        $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($path);
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($path);
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $data = $sheet->toArray();
+        if (empty($data)) {
+            return [
+                'headers' => [],
+                'rows' => []
+            ];
+        }
+        
+        $headers = array_map(function($val) {
+            return trim($val, " \t\n\r\0\x0B\"'#");
+        }, $data[0]);
+        
+        $rows = [];
+        for ($i = 1; $i < count($data); $i++) {
+            $row = $data[$i];
+            // Check if row is completely empty
+            $isEmpty = true;
+            foreach ($row as $val) {
+                if ($val !== null && trim((string)$val) !== '') {
+                    $isEmpty = false;
+                    break;
+                }
+            }
+            if ($isEmpty) continue;
+            
+            $cleanRow = array_map(function($val) {
+                return $val === null ? '' : trim((string)$val);
+            }, $row);
+            
+            $rows[] = $cleanRow;
+        }
+        
+        return [
+            'headers' => $headers,
+            'rows' => $rows
         ];
     }
 }

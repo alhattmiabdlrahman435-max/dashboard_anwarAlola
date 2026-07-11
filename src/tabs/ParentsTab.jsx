@@ -151,7 +151,7 @@ export default function ParentsTab() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'parents_template.csv';
+      a.download = 'parents_template.xlsx';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -189,7 +189,7 @@ export default function ParentsTab() {
               <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0, padding: '8px 16px', fontSize: '13px' }}>
                 <Upload size={16} />
                 {lang === 'ar' ? 'استيراد' : 'Import'}
-                <input type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} />
+                <input type="file" accept=".csv,.xlsx" onChange={handleImport} style={{ display: 'none' }} />
               </label>
             </>
           )}
