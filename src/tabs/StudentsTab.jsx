@@ -275,8 +275,12 @@ export default function StudentsTab() {
     }
     
     const matchesSearch = lang === 'ar'
-      ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) || (student.qrCode && student.qrCode.includes(searchQuery))
-      : student.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || (student.qrCode && student.qrCode.includes(searchQuery));
+      ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (student.qrCode && student.qrCode.includes(searchQuery)) ||
+        (student.parentNationalId && student.parentNationalId.includes(searchQuery))
+      : student.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (student.qrCode && student.qrCode.includes(searchQuery)) ||
+        (student.parentNationalId && student.parentNationalId.includes(searchQuery));
     
     const matchesFilter = statusFilter === 'all' || student.status === statusFilter;
 
@@ -355,7 +359,7 @@ export default function StudentsTab() {
               <input 
                 type="text"
                 className="text-field"
-                placeholder={lang === 'ar' ? 'البحث باسم الطالب أو الرقم الأكاديمي...' : 'Search by name or student number...'}
+                placeholder={lang === 'ar' ? 'البحث باسم الطالب، الرقم الأكاديمي، أو هوية ولي الأمر...' : 'Search by student name, number, or parent national ID...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
