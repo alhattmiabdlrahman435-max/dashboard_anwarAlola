@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import PrintHeader from '../components/PrintHeader';
-import { X, Calendar, BarChart3, Printer, Clock } from 'lucide-react';
+import { X, Calendar, BarChart3, Printer, Clock, Search } from 'lucide-react';
 
 export default function ScannerTab() {
   const {
@@ -139,15 +139,18 @@ export default function ScannerTab() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.searchPlaceholder}</label>
-                <input 
-                  type="text" 
-                  placeholder={t.searchPlaceholder}
-                  value={attendanceSearchQuery} 
-                  onChange={(e) => setAttendanceSearchQuery(e.target.value)} 
-                  className="text-field"
-                  style={{ height: '36px', padding: '0 12px', fontSize: '12px', width: '160px' }}
-                />
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'البحث عن طالب' : 'Search Student'}</label>
+                <div className="search-box" style={{ margin: 0, minWidth: '200px' }}>
+                  <Search size={16} />
+                  <input 
+                    type="text" 
+                    placeholder={lang === 'ar' ? 'اسم الطالب...' : 'Search student...'}
+                    value={attendanceSearchQuery} 
+                    onChange={(e) => setAttendanceSearchQuery(e.target.value)} 
+                    className="text-field"
+                    style={{ height: '36px', fontSize: '12px' }}
+                  />
+                </div>
               </div>
 
             </div>
