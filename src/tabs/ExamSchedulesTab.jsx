@@ -12,7 +12,8 @@ export default function ExamSchedulesTab() {
     setToastMessage,
     handlePublishExamSchedule: publishExamSchedule,
     handleUpdateExamSchedule,
-    handleDeleteExamSchedule
+    handleDeleteExamSchedule,
+    classes
   } = useApp();
 
   // Modal visibility & Edit State
@@ -231,23 +232,28 @@ export default function ExamSchedulesTab() {
               
               {/* Header Info */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--space-md)' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formGrade}</label>
-                  <select value={modalExamGrade} onChange={(e) => setModalExamGrade(e.target.value)} className="text-field" style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}>
-                    {availableGrades.map(g => (
-                      <option key={g} value={g}>{g}</option>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                    {lang === 'ar' ? 'الفصل الدراسي' : 'Class'}
+                  </label>
+                  <select 
+                    value={`${modalExamGrade} - ${modalExamSection}`} 
+                    onChange={(e) => {
+                      const selectedVal = e.target.value;
+                      const parts = selectedVal.split(' - ');
+                      if (parts.length >= 2) {
+                        setModalExamGrade(parts[0]);
+                        setModalExamSection(parts[1]);
+                      }
+                    }} 
+                    className="text-field" 
+                    style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+                  >
+                    {(classes || []).map(cls => (
+                      <option key={cls.id} value={cls.name}>
+                        {lang === 'ar' ? cls.name : cls.nameEn}
+                      </option>
                     ))}
-                  </select>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formSection}</label>
-                  <select value={modalExamSection} onChange={(e) => setModalExamSection(e.target.value)} className="text-field" style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}>
-                    {availableSections.map(s => {
-                      const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
-                      return (
-                        <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
-                      );
-                    })}
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>

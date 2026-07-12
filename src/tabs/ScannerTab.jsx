@@ -16,7 +16,8 @@ export default function ScannerTab() {
     availableGrades,
     availableSections,
     selectedAttendanceMonth,
-    setSelectedAttendanceMonth
+    setSelectedAttendanceMonth,
+    classes
   } = useApp();
 
   // Local navigation and filters
@@ -97,33 +98,27 @@ export default function ScannerTab() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formGrade}</label>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                  {lang === 'ar' ? 'الفصل الدراسي' : 'Class'}
+                </label>
                 <select 
-                  value={attendanceMonthGrade} 
-                  onChange={(e) => setAttendanceMonthGrade(e.target.value)} 
+                  value={`${attendanceMonthGrade} - ${attendanceMonthSection}`} 
+                  onChange={(e) => {
+                    const selectedVal = e.target.value;
+                    const parts = selectedVal.split(' - ');
+                    if (parts.length >= 2) {
+                      setAttendanceMonthGrade(parts[0]);
+                      setAttendanceMonthSection(parts[1]);
+                    }
+                  }} 
                   className="text-field"
-                  style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+                  style={{ height: '36px', padding: '0 8px', fontSize: '12px', minWidth: '180px' }}
                 >
-                  {availableGrades.map(g => (
-                    <option key={g} value={g}>{g}</option>
+                  {(classes || []).map(cls => (
+                    <option key={cls.id} value={cls.name}>
+                      {lang === 'ar' ? cls.name : cls.nameEn}
+                    </option>
                   ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formSection}</label>
-                <select 
-                  value={attendanceMonthSection} 
-                  onChange={(e) => setAttendanceMonthSection(e.target.value)} 
-                  className="text-field"
-                  style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
-                >
-                  {availableSections.map(s => {
-                    const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
-                    return (
-                      <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
-                    );
-                  })}
                 </select>
               </div>
 
@@ -345,33 +340,27 @@ export default function ScannerTab() {
           {/* Filters bar */}
           <div className="students-controls no-print" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', padding: 'var(--space-md)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)', border: '1px solid var(--color-border)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formGrade}</label>
+              <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                {lang === 'ar' ? 'الفصل الدراسي' : 'Class'}
+              </label>
               <select 
-                value={attendanceMonthGrade} 
-                onChange={(e) => setAttendanceMonthGrade(e.target.value)} 
+                value={`${attendanceMonthGrade} - ${attendanceMonthSection}`} 
+                onChange={(e) => {
+                  const selectedVal = e.target.value;
+                  const parts = selectedVal.split(' - ');
+                  if (parts.length >= 2) {
+                    setAttendanceMonthGrade(parts[0]);
+                    setAttendanceMonthSection(parts[1]);
+                  }
+                }} 
                 className="text-field"
-                style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+                style={{ height: '36px', padding: '0 8px', fontSize: '12px', minWidth: '180px' }}
               >
-                {availableGrades.map(g => (
-                  <option key={g} value={g}>{g}</option>
+                {(classes || []).map(cls => (
+                  <option key={cls.id} value={cls.name}>
+                    {lang === 'ar' ? cls.name : cls.nameEn}
+                  </option>
                 ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formSection}</label>
-              <select 
-                value={attendanceMonthSection} 
-                onChange={(e) => setAttendanceMonthSection(e.target.value)} 
-                className="text-field"
-                style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
-              >
-                {availableSections.map(s => {
-                  const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
-                  return (
-                    <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
-                  );
-                })}
               </select>
             </div>
 
