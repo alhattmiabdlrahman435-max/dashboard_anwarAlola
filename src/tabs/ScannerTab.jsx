@@ -190,7 +190,7 @@ export default function ScannerTab() {
             const getDayOfWeek = (day) => new Date(yearNum, monthNum - 1, day).getDay();
             const checkIsWeekend = (day) => {
               const dow = getDayOfWeek(day);
-              return dow === 5 || dow === 6; // Friday and Saturday
+              return dow === 4 || dow === 5; // Thursday and Friday
             };
             const getDayLetter = (day) => {
               const dow = getDayOfWeek(day);
