@@ -16,7 +16,8 @@ export default function ClassesTab() {
     availableSections,
     setToastMessage,
     triggerConfirm,
-    renderAvatar
+    renderAvatar,
+    fetchTeachers
   } = useApp();
 
   // Local state for searching & modals
@@ -63,20 +64,43 @@ export default function ClassesTab() {
       })
       .then(data => {
         if (data.success) {
-          const addedClass = {
-            id: `cls-${data.class.id}`,
-            name: `${data.class.grade_ar} - ${data.class.section_ar}`,
-            nameEn: `${data.class.grade_en} - ${data.class.section_en}`,
-            grade: data.class.grade_ar,
-            gradeEn: data.class.grade_en,
-            section: data.class.section_ar,
-            sectionEn: data.class.section_en,
+          // Sync subjects with database
+          api.post(`/api/classes/${data.class.id}/subjects`, {
             subjects: modalClassSubjects
-          };
-          setClasses(prev => [...prev, addedClass]);
-          setShowClassModal(false);
-          setToastMessage(lang === 'ar' ? 'تمت إضافة الفصل الدراسي بنجاح!' : 'Class created successfully!');
-          setTimeout(() => setToastMessage(''), 3000);
+          })
+          .then(() => {
+            const addedClass = {
+              id: `cls-${data.class.id}`,
+              name: `${data.class.grade_ar} - ${data.class.section_ar}`,
+              nameEn: `${data.class.grade_en} - ${data.class.section_en}`,
+              grade: data.class.grade_ar,
+              gradeEn: data.class.grade_en,
+              section: data.class.section_ar,
+              sectionEn: data.class.section_en,
+              subjects: modalClassSubjects
+            };
+            setClasses(prev => [...prev, addedClass]);
+            fetchTeachers(token);
+            setShowClassModal(false);
+            setToastMessage(lang === 'ar' ? 'تمت إضافة الفصل الدراسي بنجاح!' : 'Class created successfully!');
+            setTimeout(() => setToastMessage(''), 3000);
+          })
+          .catch(err => {
+            console.error("Error syncing class subjects:", err);
+            // Fallback: still show class added but warn
+            const addedClass = {
+              id: `cls-${data.class.id}`,
+              name: `${data.class.grade_ar} - ${data.class.section_ar}`,
+              nameEn: `${data.class.grade_en} - ${data.class.section_en}`,
+              grade: data.class.grade_ar,
+              gradeEn: data.class.grade_en,
+              section: data.class.section_ar,
+              sectionEn: data.class.section_en,
+              subjects: modalClassSubjects
+            };
+            setClasses(prev => [...prev, addedClass]);
+            setShowClassModal(false);
+          });
         } else {
           setFormError(data.message || 'Error');
         }
@@ -126,24 +150,51 @@ export default function ClassesTab() {
       })
       .then(data => {
         if (data.success) {
-          setClasses(prev => prev.map(c => {
-            if (c.id === selectedClassIdForEdit) {
-              return {
-                ...c,
-                name: nameAr,
-                nameEn: nameEn,
-                grade: modalClassGrade,
-                gradeEn: modalClassGradeEn,
-                section: modalClassSection,
-                sectionEn: modalClassSectionEn,
-                subjects: modalClassSubjects
-              };
-            }
-            return c;
-          }));
-          setShowEditClassModal(false);
-          setToastMessage(lang === 'ar' ? 'تم تحديث بيانات الفصل بنجاح!' : 'Class details updated successfully!');
-          setTimeout(() => setToastMessage(''), 3000);
+          // Sync subjects with database
+          api.post(`/api/classes/${numericId}/subjects`, {
+            subjects: modalClassSubjects
+          })
+          .then(() => {
+            setClasses(prev => prev.map(c => {
+              if (c.id === selectedClassIdForEdit) {
+                return {
+                  ...c,
+                  name: nameAr,
+                  nameEn: nameEn,
+                  grade: modalClassGrade,
+                  gradeEn: modalClassGradeEn,
+                  section: modalClassSection,
+                  sectionEn: modalClassSectionEn,
+                  subjects: modalClassSubjects
+                };
+              }
+              return c;
+            }));
+            fetchTeachers(token);
+            setShowEditClassModal(false);
+            setToastMessage(lang === 'ar' ? 'تم تحديث بيانات الفصل بنجاح!' : 'Class details updated successfully!');
+            setTimeout(() => setToastMessage(''), 3000);
+          })
+          .catch(err => {
+            console.error("Error syncing class subjects during update:", err);
+            // Fallback: still show class edited locally but warn
+            setClasses(prev => prev.map(c => {
+              if (c.id === selectedClassIdForEdit) {
+                return {
+                  ...c,
+                  name: nameAr,
+                  nameEn: nameEn,
+                  grade: modalClassGrade,
+                  gradeEn: modalClassGradeEn,
+                  section: modalClassSection,
+                  sectionEn: modalClassSectionEn,
+                  subjects: modalClassSubjects
+                };
+              }
+              return c;
+            }));
+            setShowEditClassModal(false);
+          });
         } else {
           setFormError(data.message || 'Error');
         }

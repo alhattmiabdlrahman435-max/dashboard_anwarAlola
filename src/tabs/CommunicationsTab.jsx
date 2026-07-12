@@ -10,7 +10,8 @@ export default function CommunicationsTab() {
     teachers,
     notifications,
     availableGrades,
-    handleSendNotification
+    handleSendNotification,
+    handleMarkNotificationAsRead
   } = useApp();
 
   const [showNotificationModal, setShowNotificationModal] = useState(false);
@@ -152,11 +153,12 @@ export default function CommunicationsTab() {
           : 'This platform is dedicated to managing and sending instant notifications and circulars from the school administration directly to parents or teachers (general, by class, or private to a specific student).'}
       </div>
 
-      {/* History log list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-        <h4 style={{ fontSize: '15px', fontWeight: 'bold', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
-          📤 {t.notificationsHistoryTitle}
-        </h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
+          <h4 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0 }}>
+            📤 {t.notificationsHistoryTitle}
+          </h4>
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {notifications.length > 0 ? (
@@ -174,19 +176,40 @@ export default function CommunicationsTab() {
                 <div 
                   key={notif.id}
                   className="notification-item-card"
+                  onClick={() => {
+                    if (!notif.isRead) {
+                      handleMarkNotificationAsRead(notif.id);
+                    }
+                  }}
                   style={{
                     padding: 'var(--space-lg)',
-                    backgroundColor: 'var(--color-surface-alt)',
-                    border: '1px solid var(--color-border)',
+                    backgroundColor: notif.isRead ? 'var(--color-surface-alt)' : 'rgba(30, 80, 142, 0.03)',
+                    border: notif.isRead ? '1px solid var(--color-border)' : '1.5px solid var(--color-primary-ui)',
                     borderInlineStart: getBorderColor(),
                     borderRadius: 'var(--radius-card)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '6px'
+                    gap: '6px',
+                    transition: 'all 0.3s ease',
+                    cursor: notif.isRead ? 'default' : 'pointer'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: '14px', color: 'var(--color-text-primary)' }}>📢 {notif.title}</strong>
+                    <strong style={{ fontSize: '14px', color: 'var(--color-text-primary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      📢 {notif.title}
+                      {!notif.isRead && (
+                        <span style={{
+                          backgroundColor: 'var(--color-error)',
+                          color: 'white',
+                          padding: '2px 6px',
+                          borderRadius: '10px',
+                          fontSize: '10px',
+                          fontWeight: 'bold',
+                        }}>
+                          {lang === 'ar' ? 'جديد' : 'New'}
+                        </span>
+                      )}
+                    </strong>
                     {(() => {
                       let badgeClass = 'reached';
                       let badgeLabel = '';
@@ -227,9 +250,11 @@ export default function CommunicationsTab() {
                     {notif.content}
                   </p>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', borderTop: '1px dashed var(--color-border)', paddingTop: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--color-text-secondary)', borderTop: '1px dashed var(--color-border)', paddingTop: '6px' }}>
                     <span>🕒 {notif.date}</span>
-                    <span>✓ {lang === 'ar' ? 'تم الإرسال كإشعار فوري' : 'Sent via Push Notification'}</span>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <span>✓ {lang === 'ar' ? 'تم الإرسال كإشعار فوري' : 'Sent via Push Notification'}</span>
+                    </div>
                   </div>
                 </div>
               );

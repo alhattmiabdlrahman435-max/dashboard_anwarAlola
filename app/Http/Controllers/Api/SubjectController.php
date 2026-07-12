@@ -67,4 +67,63 @@ class SubjectController extends Controller
         $subject->delete();
         return response()->json(['success' => true, 'message' => 'تم حذف المادة الدراسية بنجاح']);
     }
+
+    public function syncClasses(Request $request, $id)
+    {
+        $subject = Subject::find($id);
+        if (!$subject) {
+            return response()->json(['success' => false, 'message' => 'المادة الدراسية غير موجودة'], 404);
+        }
+
+        $request->validate([
+            'classes' => 'required|array',
+        ]);
+
+        // Look up class IDs by their grade_ar - section_ar (name_ar)
+        $classNames = $request->classes;
+        $classIds = [];
+        foreach ($classNames as $name) {
+            $parts = explode(' - ', $name);
+            if (count($parts) === 2) {
+                $cls = \App\Models\SchoolClass::where('grade_ar', $parts[0])
+                    ->where('section_ar', $parts[1])
+                    ->first();
+                if ($cls) {
+                    $classIds[] = $cls->id;
+                }
+            }
+        }
+
+        // Delete relations for classes not in the list
+        \App\Models\TeacherSubject::where('subject_id', $subject->id)
+            ->whereNotIn('class_id', $classIds)
+            ->delete();
+
+        // Assign to new classes
+        $defaultTeacher = \App\Models\User::where('role', 'teacher')->first() ?? \App\Models\User::where('role', 'admin')->first();
+        $defaultTeacherId = $defaultTeacher ? $defaultTeacher->id : 1;
+
+        foreach ($classIds as $clsId) {
+            $exists = \App\Models\TeacherSubject::where('class_id', $clsId)
+                ->where('subject_id', $subject->id)
+                ->exists();
+            if (!$exists) {
+                $otherAssign = \App\Models\TeacherSubject::where('subject_id', $subject->id)
+                    ->whereNotNull('teacher_id')
+                    ->first();
+                $tId = $otherAssign ? $otherAssign->teacher_id : $defaultTeacherId;
+
+                \App\Models\TeacherSubject::create([
+                    'class_id' => $clsId,
+                    'subject_id' => $subject->id,
+                    'teacher_id' => $tId,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديث فصول المادة بنجاح'
+        ]);
+    }
 }

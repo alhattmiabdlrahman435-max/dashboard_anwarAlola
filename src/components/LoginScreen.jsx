@@ -48,6 +48,10 @@ export default function LoginScreen() {
       const data = await response.json();
 
       if (data.success) {
+        if (data.user.role !== 'admin' && data.user.role !== 'supervisor') {
+          setLoginError(lang === 'ar' ? 'عذراً، غير مصرح لك بالدخول إلى لوحة التحكم الإدارية.' : 'Sorry, you are not authorized to access the admin dashboard.');
+          return;
+        }
         localStorage.setItem('auth_token', data.token);
         setIsAuthenticated(true);
         setCurrentUser(data.user);

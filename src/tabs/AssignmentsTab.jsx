@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { X } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function AssignmentsTab() {
   const {
@@ -15,7 +16,10 @@ export default function AssignmentsTab() {
     setSmsLogs,
     renderAvatar,
     availableGrades,
-    availableSections
+    availableSections,
+    classes,
+    subjects,
+    fetchAssignments
   } = useApp();
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(assignments[0]?.id || null);
@@ -40,62 +44,109 @@ export default function AssignmentsTab() {
       setTimeout(() => setToastMessage(''), 3000);
       return;
     }
-    const newId = Date.now();
-    const newAssignment = {
-      id: newId,
-      grade: modalAssignmentGrade,
-      section: modalAssignmentSection,
-      subjectName: modalAssignmentSubject,
-      subjectNameEn: modalAssignmentSubject === 'الرياضيات' ? 'Mathematics' : modalAssignmentSubject === 'العلوم' ? 'Science' : modalAssignmentSubject === 'اللغة العربية' ? 'Arabic' : 'English',
-      title: modalAssignmentTitle,
-      content: modalAssignmentContent,
-      dateCreated: new Date().toISOString().split('T')[0],
-      dueDate: modalAssignmentDueDate,
-      attachments: modalAssignmentAttachment.trim() ? [modalAssignmentAttachment.trim()] : [],
-      submissions: students
-        .filter(s => s.grade === modalAssignmentGrade && s.section === modalAssignmentSection)
-        .map(s => ({ studentId: s.id, studentName: s.name, status: 'notSubmitted', teacherNote: '' }))
-    };
 
-    setAssignments(prev => [newAssignment, ...prev]);
-    setSelectedAssignmentId(newId);
-    setShowAssignmentModal(false);
+    const token = localStorage.getItem("auth_token");
     
-    // Increment assignments count for the primary teacher of that subject if matching
-    const matchingTeacher = teachers.find(teach => teach.subject === modalAssignmentSubject);
-    if (matchingTeacher) {
-      setTeachers(prev => prev.map(t => {
-        if (t.id === matchingTeacher.id) {
-          return { ...t, assignments: t.assignments + 1 };
+    // Resolve class ID
+    const foundClass = classes.find(
+      (c) => c.grade === modalAssignmentGrade && c.section === modalAssignmentSection
+    );
+    const classId = foundClass ? Number(String(foundClass.id).replace("cls-", "")) : null;
+
+    // Resolve subject ID
+    const foundSub = subjects.find(
+      (s) => s.name === modalAssignmentSubject || s.id === modalAssignmentSubject
+    );
+    const subjectId = foundSub ? Number(String(foundSub.id).replace("sub-", "")) : null;
+
+    if (token && classId && subjectId) {
+      api.post("/api/assignments", {
+        class_id: classId,
+        subject_id: subjectId,
+        title: modalAssignmentTitle.trim(),
+        content: modalAssignmentContent.trim(),
+        due_date: modalAssignmentDueDate,
+      })
+      .then(data => {
+        if (data.success) {
+          fetchAssignments(token);
+          setShowAssignmentModal(false);
+          setToastMessage(t.assignmentSuccessToast);
+          setTimeout(() => setToastMessage(''), 3000);
+          
+          // Clear fields
+          setModalAssignmentTitle('');
+          setModalAssignmentContent('');
+          setModalAssignmentDueDate('');
+          setModalAssignmentAttachment('');
+        } else {
+          setToastMessage(data.message || 'Error');
+          setTimeout(() => setToastMessage(''), 3000);
         }
-        return t;
-      }));
+      })
+      .catch(err => {
+        console.error("Error creating assignment:", err);
+        setToastMessage(lang === 'ar' ? 'حدث خطأ أثناء حفظ الواجب' : 'Error saving assignment');
+        setTimeout(() => setToastMessage(''), 3000);
+      });
+    } else {
+      const newId = Date.now();
+      const newAssignment = {
+        id: newId,
+        grade: modalAssignmentGrade,
+        section: modalAssignmentSection,
+        subjectName: modalAssignmentSubject,
+        subjectNameEn: modalAssignmentSubject === 'الرياضيات' ? 'Mathematics' : modalAssignmentSubject === 'العلوم' ? 'Science' : modalAssignmentSubject === 'اللغة العربية' ? 'Arabic' : 'English',
+        title: modalAssignmentTitle,
+        content: modalAssignmentContent,
+        dateCreated: new Date().toISOString().split('T')[0],
+        dueDate: modalAssignmentDueDate,
+        attachments: modalAssignmentAttachment.trim() ? [modalAssignmentAttachment.trim()] : [],
+        submissions: students
+          .filter(s => s.grade === modalAssignmentGrade && s.section === modalAssignmentSection)
+          .map(s => ({ studentId: s.id, studentName: s.name, status: 'notSubmitted', teacherNote: '' }))
+      };
+
+      setAssignments(prev => [newAssignment, ...prev]);
+      setSelectedAssignmentId(newId);
+      setShowAssignmentModal(false);
+      
+      // Increment assignments count for the primary teacher of that subject if matching
+      const matchingTeacher = teachers.find(teach => teach.subject === modalAssignmentSubject);
+      if (matchingTeacher) {
+        setTeachers(prev => prev.map(t => {
+          if (t.id === matchingTeacher.id) {
+            return { ...t, assignments: t.assignments + 1 };
+          }
+          return t;
+        }));
+      }
+
+      setToastMessage(t.assignmentSuccessToast);
+      setTimeout(() => setToastMessage(''), 3000);
+      
+      // Clear fields
+      setModalAssignmentTitle('');
+      setModalAssignmentContent('');
+      setModalAssignmentDueDate('');
+      setModalAssignmentAttachment('');
+
+      // Trigger simulated SMS warning
+      const classStudents = students.filter(s => s.grade === modalAssignmentGrade && s.section === modalAssignmentSection);
+      classStudents.forEach(student => {
+        const smsText = lang === 'ar'
+          ? `تم نشر واجب جديد للمادة ${modalAssignmentSubject}: "${modalAssignmentTitle}". موعد التسليم: ${modalAssignmentDueDate}. رياض و مدارس انوار العلى.`
+          : `New homework assignment published for ${modalAssignmentSubject}: "${modalAssignmentTitle}". Due: ${modalAssignmentDueDate}. Riyadh & Anwar Al-Ola.`;
+        setSmsLogs(logs => [{
+          id: Date.now() + Math.random(),
+          studentId: student.id,
+          recipient: student.phone,
+          text: smsText,
+          time: "14:30",
+          type: 'present'
+        }, ...logs]);
+      });
     }
-
-    setToastMessage(t.assignmentSuccessToast);
-    setTimeout(() => setToastMessage(''), 3000);
-    
-    // Clear fields
-    setModalAssignmentTitle('');
-    setModalAssignmentContent('');
-    setModalAssignmentDueDate('');
-    setModalAssignmentAttachment('');
-
-    // Trigger simulated SMS warning
-    const classStudents = students.filter(s => s.grade === modalAssignmentGrade && s.section === modalAssignmentSection);
-    classStudents.forEach(student => {
-      const smsText = lang === 'ar'
-        ? `تم نشر واجب جديد للمادة ${modalAssignmentSubject}: "${modalAssignmentTitle}". موعد التسليم: ${modalAssignmentDueDate}. رياض و مدارس انوار العلى.`
-        : `New homework assignment published for ${modalAssignmentSubject}: "${modalAssignmentTitle}". Due: ${modalAssignmentDueDate}. Riyadh & Anwar Al-Ola.`;
-      setSmsLogs(logs => [{
-        id: Date.now() + Math.random(),
-        studentId: student.id,
-        recipient: student.phone,
-        text: smsText,
-        time: "14:30",
-        type: 'present'
-      }, ...logs]);
-    });
   };
 
   // Update Assignment Submissions
@@ -318,8 +369,36 @@ export default function AssignmentsTab() {
                     className="btn-filled" 
                     style={{ alignSelf: 'flex-end', height: '40px', minHeight: '40px' }}
                     onClick={() => {
-                      setToastMessage(lang === 'ar' ? 'تم حفظ بيانات تسليمات الطلاب بنجاح!' : 'Submissions updated successfully!');
-                      setTimeout(() => setToastMessage(''), 3000);
+                      const token = localStorage.getItem("auth_token");
+                      if (token && selectedAssign) {
+                        const payload = {
+                          submissions: selectedAssign.submissions.map(sub => ({
+                            student_id: Number(sub.studentId),
+                            status: sub.status === 'notSubmitted' ? 'pending' : (sub.status === 'submittedLate' ? 'submitted_late' : sub.status),
+                            teacher_note: sub.teacherNote || ''
+                          }))
+                        };
+
+                        api.put(`/api/assignments/${selectedAssign.id}/submissions`, payload)
+                        .then(data => {
+                          if (data.success) {
+                            fetchAssignments(token);
+                            setToastMessage(lang === 'ar' ? 'تم حفظ بيانات تسليمات الطلاب بنجاح!' : 'Submissions updated successfully!');
+                            setTimeout(() => setToastMessage(''), 3000);
+                          } else {
+                            setToastMessage(data.message || 'Error');
+                            setTimeout(() => setToastMessage(''), 3000);
+                          }
+                        })
+                        .catch(err => {
+                          console.error("Error updating submissions:", err);
+                          setToastMessage(lang === 'ar' ? 'حدث خطأ أثناء حفظ التسليمات' : 'Error saving submissions');
+                          setTimeout(() => setToastMessage(''), 3000);
+                        });
+                      } else {
+                        setToastMessage(lang === 'ar' ? 'تم حفظ بيانات تسليمات الطلاب بنجاح!' : 'Submissions updated successfully!');
+                        setTimeout(() => setToastMessage(''), 3000);
+                      }
                     }}
                   >
                     💾 {t.saveSubmissionsBtn}

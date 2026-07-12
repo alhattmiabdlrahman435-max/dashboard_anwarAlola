@@ -12,21 +12,7 @@ const AppContext = createContext();
 import { dictionary } from "../locales/dictionary";
 export { dictionary };
 import { api } from "../services/api";
-import {
-  initialStudents,
-  initialParentUsers,
-  initialSupervisors,
-  initialTeachers,
-  initialSubjects,
-  initialClasses,
-  initialSchedule,
-  initialGrades,
-  initialAbsenceRequests,
-  initialAssignments,
-  defaultDetailedGradeObj,
-  initialDetailedGrades,
-  initialNotifications,
-} from "../data/initialData";
+import { defaultDetailedGradeObj } from "../data/initialData";
 
 export const AppProvider = ({ children }) => {
   const [lang, setLang] = useState("ar");
@@ -62,13 +48,13 @@ export const AppProvider = ({ children }) => {
   const [dashboardStats, setDashboardStats] = useState(null);
 
   // School core data states
-  const [students, setStudents] = useState(initialStudents);
-  const [supervisors, setSupervisors] = useState(initialSupervisors);
-  const [teachers, setTeachers] = useState(initialTeachers);
-  const [schedules, setSchedules] = useState(initialSchedule);
-  const [grades, setGrades] = useState(initialGrades);
-  const [subjects, setSubjects] = useState(initialSubjects);
-  const [classes, setClasses] = useState(initialClasses);
+  const [students, setStudents] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [schedules, setSchedules] = useState({});
+  const [grades, setGrades] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [classes, setClasses] = useState([]);
 
   // Dynamic available classes and sections configuration
   const [availableGrades, setAvailableGrades] = useState([
@@ -98,17 +84,15 @@ export const AppProvider = ({ children }) => {
   ]);
 
   // Standalone parent accounts database
-  const [parentUsers, setParentUsers] = useState(initialParentUsers);
+  const [parentUsers, setParentUsers] = useState([]);
 
   // New integrated features states
-  const [absenceRequests, setAbsenceRequests] = useState(
-    initialAbsenceRequests,
-  );
-  const [assignments, setAssignments] = useState(initialAssignments);
-  const [detailedGrades, setDetailedGrades] = useState(initialDetailedGrades);
+  const [absenceRequests, setAbsenceRequests] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [detailedGrades, setDetailedGrades] = useState([]);
   const [examSchedules, setExamSchedules] = useState([]);
   const [tuitionFees, setTuitionFees] = useState({ baseFees: {}, payments: [] });
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [teacherReports, setTeacherReports] = useState([]);
 
   // Vice Principals (Supervisors) state
@@ -210,6 +194,12 @@ export const AppProvider = ({ children }) => {
       api.get("/api/me")
         .then((data) => {
           if (data.success) {
+            if (data.user.role !== 'admin' && data.user.role !== 'supervisor') {
+              localStorage.removeItem("auth_token");
+              setIsAuthenticated(false);
+              setCurrentUser(null);
+              return;
+            }
             setIsAuthenticated(true);
             // Convert from database fields to frontend structure if necessary
             const mappedUser = {
@@ -1112,13 +1102,42 @@ export const AppProvider = ({ children }) => {
   };
 
   const handleAddParentAction = (newParent) => {
-    setParentUsers((prev) => [...prev, newParent]);
-    setToastMessage(
-      lang === "ar"
-        ? "تم تسجيل حساب ولي الأمر بنجاح!"
-        : "Parent account registered successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 4000);
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      api.post("/api/parents", {
+        national_id: newParent.nationalId,
+        name_ar: newParent.name,
+        name_en: newParent.nameEn,
+        phone: newParent.phone,
+        photo_url: newParent.photo,
+      })
+      .then(data => {
+        if (data.success) {
+          const mapped = {
+            ...newParent,
+            id: data.parent.id,
+          };
+          setParentUsers((prev) => [...prev, mapped]);
+          setToastMessage(
+            lang === "ar"
+              ? "تم تسجيل حساب ولي الأمر بنجاح!"
+              : "Parent account registered successfully!",
+          );
+          setTimeout(() => setToastMessage(""), 4000);
+        } else {
+          console.error("Failed to add parent:", data.message);
+        }
+      })
+      .catch(err => console.error("Error adding parent:", err));
+    } else {
+      setParentUsers((prev) => [...prev, newParent]);
+      setToastMessage(
+        lang === "ar"
+          ? "تم تسجيل حساب ولي الأمر بنجاح!"
+          : "Parent account registered successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 4000);
+    }
   };
 
   const handleEditParentAction = (
@@ -1126,28 +1145,72 @@ export const AppProvider = ({ children }) => {
     linkedNameSync,
     parentNationalId,
   ) => {
-    setParentUsers((prev) =>
-      prev.map((p) => (p.nationalId === parentNationalId ? updatedParent : p)),
-    );
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.parentNationalId === parentNationalId) {
-          return {
-            ...s,
-            parentName: updatedParent.name,
-            parentNameEn: updatedParent.nameEn,
-            phone: updatedParent.phone,
+    const token = localStorage.getItem("auth_token");
+    const parentObj = parentUsers.find(p => p.nationalId === parentNationalId);
+    const parentDbId = parentObj ? parentObj.id : null;
+
+    if (token && parentDbId) {
+      api.put(`/api/parents/${parentDbId}`, {
+        name_ar: updatedParent.name,
+        name_en: updatedParent.nameEn,
+        phone: updatedParent.phone,
+        photo_url: updatedParent.photo,
+      })
+      .then(data => {
+        if (data.success) {
+          const mapped = {
+            ...updatedParent,
+            id: parentDbId,
           };
+          setParentUsers((prev) =>
+            prev.map((p) => (p.nationalId === parentNationalId ? mapped : p)),
+          );
+          setStudents((prev) =>
+            prev.map((s) => {
+              if (s.parentNationalId === parentNationalId) {
+                return {
+                  ...s,
+                  parentName: updatedParent.name,
+                  parentNameEn: updatedParent.nameEn,
+                  phone: updatedParent.phone,
+                };
+              }
+              return s;
+            }),
+          );
+          setToastMessage(
+            lang === "ar"
+              ? "تم تحديث حساب ولي الأمر وتعديل بيانات الاتصال بنجاح!"
+              : "Parent account details updated successfully!",
+          );
+          setTimeout(() => setToastMessage(""), 4000);
         }
-        return s;
-      }),
-    );
-    setToastMessage(
-      lang === "ar"
-        ? "تم تحديث حساب ولي الأمر وتعديل بيانات الاتصال بنجاح!"
-        : "Parent account details updated successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 4000);
+      })
+      .catch(err => console.error("Error updating parent:", err));
+    } else {
+      setParentUsers((prev) =>
+        prev.map((p) => (p.nationalId === parentNationalId ? updatedParent : p)),
+      );
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.parentNationalId === parentNationalId) {
+            return {
+              ...s,
+              parentName: updatedParent.name,
+              parentNameEn: updatedParent.nameEn,
+              phone: updatedParent.phone,
+            };
+          }
+          return s;
+        }),
+      );
+      setToastMessage(
+        lang === "ar"
+          ? "تم تحديث حساب ولي الأمر وتعديل بيانات الاتصال بنجاح!"
+          : "Parent account details updated successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 4000);
+    }
   };
 
   const handleEditTeacherAction = (updatedTeacher, teacherId) => {
@@ -2884,6 +2947,12 @@ export const AppProvider = ({ children }) => {
         fetchParents,
         fetchTeachers,
         fetchControlGrades,
+        fetchSubjects,
+        fetchClasses,
+        fetchAssignments,
+        fetchExamSchedules,
+        fetchAbsenceRequests,
+        fetchAttendance,
       }}
     >
       {children}
