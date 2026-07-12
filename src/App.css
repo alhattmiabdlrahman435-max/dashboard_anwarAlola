@@ -3741,3 +3741,279 @@ body[dir="rtl"] .menu-item.active {
   border-color: rgba(var(--color-primary-hsl), 0.15) !important;
 }
 
+/* ==========================================================================
+   📱 Mobile-First Responsive Overrides
+   Breakpoints: ≤800px (tablet/mobile) | ≤480px (small phones)
+   ========================================================================== */
+
+/* ── 800px: Tablets & large phones ──────────────────────────────────────── */
+@media (max-width: 800px) {
+
+  /* Main workspace takes full width (sidebar becomes overlay drawer) */
+  .main-workspace {
+    width: 100% !important;
+  }
+
+  /* Notifications dropdown: fixed position within viewport */
+  .notifications-dropdown-container {
+    position: fixed !important;
+    inset-inline-end: var(--space-md) !important;
+    inset-inline-start: auto !important;
+    top: 72px !important;
+    width: min(360px, calc(100vw - 2 * var(--space-md))) !important;
+    max-height: calc(100vh - 90px) !important;
+    overflow-y: auto;
+  }
+
+  .profile-dropdown-container {
+    position: fixed !important;
+    inset-inline-end: var(--space-md) !important;
+    inset-inline-start: auto !important;
+    top: 72px !important;
+    width: min(280px, calc(100vw - 2 * var(--space-md))) !important;
+  }
+
+  /* Stats/KPI grids: 2 columns on tablet */
+  .stats-grid,
+  .kpi-grid,
+  .dashboard-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: var(--space-md) !important;
+  }
+
+  /* Tables: horizontal scroll to prevent content cut-off */
+  .section-card table,
+  .tab-content table,
+  .table-wrapper table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  td, th {
+    white-space: nowrap;
+    font-size: 0.82rem;
+  }
+
+  /* Table wrappers get scroll context */
+  .table-wrapper,
+  .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Pagination: wrap and center */
+  .pagination,
+  .pagination-bar {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: var(--space-xs) !important;
+  }
+
+  /* Filter/search bars: stack vertically */
+  .filter-bar,
+  .search-bar-row {
+    flex-direction: column !important;
+    gap: var(--space-sm) !important;
+    align-items: stretch !important;
+  }
+
+  .filter-bar > *,
+  .search-bar-row > * {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+
+  /* Section card headers: allow wrapping */
+  .section-card-header {
+    flex-wrap: wrap !important;
+    gap: var(--space-sm) !important;
+  }
+
+  /* Modal dialogs: safe width */
+  .modal-dialog,
+  .modal-container,
+  [class*="modal"] > [class*="content"],
+  [class*="modal"] > [class*="inner"] {
+    width: calc(100vw - 2 * var(--space-xl)) !important;
+    max-width: 520px !important;
+    max-height: 90vh !important;
+    overflow-y: auto;
+    border-radius: var(--radius-card) !important;
+  }
+
+  /* Schedule/timetable: horizontal scroll */
+  .schedule-grid,
+  .schedule-table,
+  [class*="schedule"] table {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    display: block;
+  }
+
+  /* Tab pill navigation: scrollable row */
+  .tab-pills,
+  .tab-nav,
+  [class*="tab-header"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  .tab-pills::-webkit-scrollbar,
+  .tab-nav::-webkit-scrollbar {
+    height: 3px;
+  }
+
+  .tab-pills::-webkit-scrollbar-thumb,
+  .tab-nav::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 2px;
+  }
+}
+
+/* ── 480px: Small phones ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+
+  /* Header: reduce height & padding */
+  .app-header {
+    height: 58px !important;
+    padding: 0 var(--space-md) !important;
+  }
+
+  /* Header actions: tighter gap */
+  .header-actions {
+    gap: 6px !important;
+  }
+
+  /* Hide language label on tiny screens; keep globe icon */
+  .lang-btn span {
+    display: none;
+  }
+  .lang-btn {
+    width: 40px !important;
+    padding: 0 !important;
+    justify-content: center;
+  }
+
+  /* Sidebar drawer: full-width on small phones */
+  .sidebar {
+    width: 100vw !important;
+  }
+
+  /* Content area: minimal padding and smooth touch scrolling */
+  .content-area {
+    padding: var(--space-md) !important;
+    gap: var(--space-md) !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Stats/KPI grids: single column */
+  .stats-grid,
+  .kpi-grid,
+  .dashboard-stats-row {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-sm) !important;
+  }
+
+  /* Dashboard main grid: single column */
+  .dashboard-main-grid {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-md) !important;
+  }
+
+  /* Finance ledger: single column */
+  .finance-ledger-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Section cards: tighter padding */
+  .section-card {
+    padding: var(--space-md) !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  /* Notifications dropdown: full-width anchored to top */
+  .notifications-dropdown-container,
+  .profile-dropdown-container {
+    position: fixed !important;
+    inset-inline-start: var(--space-sm) !important;
+    inset-inline-end: var(--space-sm) !important;
+    top: 64px !important;
+    width: auto !important;
+    min-width: unset !important;
+  }
+
+  /* Modals: edge-to-edge with small margin */
+  .modal-dialog,
+  .modal-container,
+  [class*="modal"] > [class*="content"],
+  [class*="modal"] > [class*="inner"] {
+    width: calc(100vw - 2 * var(--space-md)) !important;
+    max-width: 100% !important;
+    border-radius: var(--radius-md) !important;
+    margin: var(--space-md) auto !important;
+  }
+
+  /* Form groups: full width */
+  .form-row {
+    flex-direction: column !important;
+    gap: var(--space-md) !important;
+  }
+
+  .form-group {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+
+  /* Button rows: wrap */
+  .btn-group,
+  .action-row {
+    flex-wrap: wrap !important;
+    gap: var(--space-sm) !important;
+  }
+
+  /* Touch-friendly minimum tap targets (≥44px) */
+  button,
+  .btn,
+  .action-btn,
+  .menu-item {
+    min-height: 44px;
+  }
+
+  /* Bigger text on small screens for readability */
+  .section-card-title {
+    font-size: 0.95rem !important;
+  }
+
+  td, th {
+    font-size: 0.78rem !important;
+    padding: 8px 10px !important;
+  }
+
+  /* Fix flexbox overflow cutoff on very small screens for login page */
+  .login-page-container {
+    justify-content: flex-start !important;
+    padding: 80px var(--space-md) var(--space-md) !important;
+  }
+  .login-top-actions {
+    position: absolute !important;
+    top: var(--space-md) !important;
+    right: var(--space-md) !important;
+    left: var(--space-md) !important;
+    gap: var(--space-sm) !important;
+    justify-content: flex-end !important;
+    width: auto !important;
+  }
+  body[dir="rtl"] .login-top-actions {
+    right: var(--space-md) !important;
+    left: var(--space-md) !important;
+    justify-content: flex-start !important;
+  }
+}
+
+

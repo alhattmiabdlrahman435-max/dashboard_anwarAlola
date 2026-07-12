@@ -37,7 +37,9 @@ function DashboardShell() {
     isAuthenticated,
     activeTab,
     lang,
-    darkMode
+    darkMode,
+    isMobileMenuOpen,
+    setIsMobileMenuOpen,
   } = useApp();
 
   // Handle Dark mode / RTL dynamically
@@ -108,6 +110,14 @@ function DashboardShell() {
   return (
     <div className="app-container">
       <Sidebar />
+      {/* Mobile backdrop overlay — closes sidebar when tapped outside */}
+      {isMobileMenuOpen && (
+        <div
+          className="mobile-drawer-backdrop"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <div className="main-workspace">
         <Navbar />
         <main className="main-content-layout">
