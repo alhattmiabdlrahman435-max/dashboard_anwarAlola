@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-<<<<<<< HEAD
 import { api } from '../services/api';
 import { X, Filter, Calendar, User, BookOpen } from 'lucide-react';
-=======
-import { X } from 'lucide-react';
-import { api } from '../services/api';
->>>>>>> local-backup-before-pull
 
 export default function AssignmentsTab() {
   const {
@@ -22,14 +17,8 @@ export default function AssignmentsTab() {
     renderAvatar,
     availableGrades,
     availableSections,
-<<<<<<< HEAD
     subjects,
     classes
-=======
-    classes,
-    subjects,
-    fetchAssignments
->>>>>>> local-backup-before-pull
   } = useApp();
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(assignments[0]?.id || null);
