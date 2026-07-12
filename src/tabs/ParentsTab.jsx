@@ -1,13 +1,12 @@
 import { api } from "../services/api";
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, X, Download, Upload, FileSpreadsheet } from 'lucide-react';
-
+import { Search, X, Download, Upload, FileSpreadsheet, Edit3, Trash2 } from 'lucide-react';
 export default function ParentsTab() {
   const {
     lang, t, parentUsers, students,
-    handleAddParent, handleEditParent, renderAvatar, currentUser,
-    canAction, fetchParents, fetchStudents, setToastMessage
+    handleAddParent, handleEditParent, handleDeleteParent, renderAvatar, currentUser,
+    canAction, fetchParents, fetchStudents, setToastMessage, triggerConfirm
   } = useApp();
 
   // Local UI states
@@ -272,21 +271,83 @@ export default function ParentsTab() {
                     </td>
                     {currentUser?.role === 'admin' && (
                       <td className="no-print">
-                        <button 
-                          className="btn-elevated"
-                          style={{ padding: '6px 12px', fontSize: '11px' }}
-                          onClick={() => {
-                            setFormError('');
-                            setSelectedParentIdForEdit(parent.nationalId);
-                            setModalParentNameAr(parent.name);
-                            setModalParentNameEn(parent.nameEn || '');
-                            setModalParentPhoneNum(parent.phone);
-                            setModalParentNationalIdVal(parent.nationalId);
-                            setShowEditParentModal(true);
-                          }}
-                        >
-                          📝 {lang === 'ar' ? 'تعديل الحساب' : 'Edit Account'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button 
+                            className="btn-elevated"
+                            style={{ 
+                              padding: '6px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              border: '1px solid rgba(37, 99, 235, 0.15)',
+                              background: 'rgba(37, 99, 235, 0.06)',
+                              color: '#2563eb',
+                              width: '32px',
+                              height: '32px',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = 'rgba(37, 99, 235, 0.12)';
+                              e.currentTarget.style.borderColor = '#2563eb';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
+                              e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.15)';
+                            }}
+                            onClick={() => {
+                              setFormError('');
+                              setSelectedParentIdForEdit(parent.nationalId);
+                              setModalParentNameAr(parent.name);
+                              setModalParentNameEn(parent.nameEn || '');
+                              setModalParentPhoneNum(parent.phone);
+                              setModalParentNationalIdVal(parent.nationalId);
+                              setShowEditParentModal(true);
+                            }}
+                            title={lang === 'ar' ? 'تعديل' : 'Edit'}
+                          >
+                            <Edit3 size={15} />
+                          </button>
+
+                          {canAction('parents', 'delete') && (
+                            <button 
+                              onClick={() => {
+                                triggerConfirm({
+                                  title: lang === 'ar' ? 'حذف حساب ولي الأمر' : 'Delete Parent Account',
+                                  message: lang === 'ar' 
+                                    ? `هل أنت متأكد من حذف حساب ولي الأمر ${parent.name} وحسابه بالكامل؟` 
+                                    : `Are you sure you want to delete parent ${parent.name} and their account?`,
+                                  onConfirm: () => handleDeleteParent(parent.id)
+                                });
+                              }} 
+                              title={lang === 'ar' ? 'حذف' : 'Delete'}
+                              style={{
+                                background: 'rgba(220, 38, 38, 0.06)',
+                                border: '1px solid rgba(220, 38, 38, 0.15)',
+                                color: '#dc2626',
+                                borderRadius: '8px',
+                                width: '32px',
+                                height: '32px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseOver={e => {
+                                e.currentTarget.style.background = 'rgba(220, 38, 38, 0.12)';
+                                e.currentTarget.style.borderColor = '#dc2626';
+                              }}
+                              onMouseOut={e => {
+                                e.currentTarget.style.background = 'rgba(220, 38, 38, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(220, 38, 38, 0.15)';
+                              }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>

@@ -1072,6 +1072,74 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const handleDeleteParentAction = (parentId) => {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      api.delete(`/api/parents/${parentId}`)
+        .then((data) => {
+          if (data.success) {
+            const parent = parentUsers.find((p) => p.id === parentId);
+            if (parent) {
+              setParentUsers((prev) => prev.filter((p) => p.id !== parentId));
+              setStudents((prev) =>
+                prev.map((s) => {
+                  if (s.parentNationalId === parent.nationalId) {
+                    return {
+                      ...s,
+                      parentName: "",
+                      parentNameEn: "",
+                      phone: "",
+                      parentNationalId: "",
+                    };
+                  }
+                  return s;
+                }),
+              );
+            }
+            setToastMessage(
+              lang === "ar"
+                ? "تم حذف ولي الأمر بنجاح!"
+                : "Parent deleted successfully!",
+            );
+            setTimeout(() => setToastMessage(""), 3000);
+          } else {
+            setToastMessage(lang === "ar" ? "فشل حذف ولي الأمر" : "Failed to delete parent");
+            setTimeout(() => setToastMessage(""), 3000);
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting parent:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 3000);
+        });
+    } else {
+      const parent = parentUsers.find((p) => p.id === parentId);
+      if (parent) {
+        setParentUsers((prev) => prev.filter((p) => p.id !== parentId));
+        setStudents((prev) =>
+          prev.map((s) => {
+            if (s.parentNationalId === parent.nationalId) {
+              return {
+                ...s,
+                parentName: "",
+                parentNameEn: "",
+                phone: "",
+                parentNationalId: "",
+              };
+            }
+            return s;
+          }),
+        );
+      }
+      setToastMessage(
+        lang === "ar"
+          ? "تم حذف ولي الأمر بنجاح!"
+          : "Parent deleted successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 3000);
+    }
+  };
+
   const handleAddTeacherAction = (newTeacher) => {
     const token = localStorage.getItem("auth_token");
     setTeachers((prev) => [...prev, newTeacher]);
@@ -1131,28 +1199,79 @@ export const AppProvider = ({ children }) => {
     linkedNameSync,
     parentNationalId,
   ) => {
-    setParentUsers((prev) =>
-      prev.map((p) => (p.nationalId === parentNationalId ? updatedParent : p)),
-    );
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.parentNationalId === parentNationalId) {
-          return {
-            ...s,
-            parentName: updatedParent.name,
-            parentNameEn: updatedParent.nameEn,
-            phone: updatedParent.phone,
+    const parent = parentUsers.find(p => p.nationalId === parentNationalId);
+    const parentId = parent?.id;
+    const token = localStorage.getItem("auth_token");
+
+    if (token && parentId) {
+      api.put(`/api/parents/${parentId}`, {
+        name_ar: updatedParent.name,
+        name_en: updatedParent.nameEn,
+        phone: updatedParent.phone,
+        photo_url: updatedParent.photo,
+      })
+      .then((data) => {
+        if (data.success) {
+          const finalParent = {
+            ...updatedParent,
+            id: parentId,
           };
+          setParentUsers((prev) =>
+            prev.map((p) => (p.nationalId === parentNationalId ? finalParent : p)),
+          );
+          setStudents((prev) =>
+            prev.map((s) => {
+              if (s.parentNationalId === parentNationalId) {
+                return {
+                  ...s,
+                  parentName: updatedParent.name,
+                  parentNameEn: updatedParent.nameEn,
+                  phone: updatedParent.phone,
+                };
+              }
+              return s;
+            }),
+          );
+          setToastMessage(
+            lang === "ar"
+              ? "تم تحديث حساب ولي الأمر وتعديل بيانات الاتصال بنجاح!"
+              : "Parent account details updated successfully!",
+          );
+          setTimeout(() => setToastMessage(""), 4000);
+        } else {
+          setToastMessage(lang === "ar" ? "فشل تحديث بيانات ولي الأمر" : "Failed to update parent details");
+          setTimeout(() => setToastMessage(""), 4000);
         }
-        return s;
-      }),
-    );
-    setToastMessage(
-      lang === "ar"
-        ? "تم تحديث حساب ولي الأمر وتعديل بيانات الاتصال بنجاح!"
-        : "Parent account details updated successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 4000);
+      })
+      .catch((err) => {
+        console.error("Error updating parent:", err);
+        setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        setTimeout(() => setToastMessage(""), 4000);
+      });
+    } else {
+      setParentUsers((prev) =>
+        prev.map((p) => (p.nationalId === parentNationalId ? updatedParent : p)),
+      );
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.parentNationalId === parentNationalId) {
+            return {
+              ...s,
+              parentName: updatedParent.name,
+              parentNameEn: updatedParent.nameEn,
+              phone: updatedParent.phone,
+            };
+          }
+          return s;
+        }),
+      );
+      setToastMessage(
+        lang === "ar"
+          ? "تم تحديث حساب ولي الأمر وتعديل بيانات الاتصال بنجاح!"
+          : "Parent account details updated successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 4000);
+    }
   };
 
   const handleEditTeacherAction = (updatedTeacher, teacherId) => {
@@ -2824,6 +2943,7 @@ export const AppProvider = ({ children }) => {
         handleAddTeacher: handleAddTeacherAction,
         handleAddParent: handleAddParentAction,
         handleEditParent: handleEditParentAction,
+        handleDeleteParent: handleDeleteParentAction,
         handleEditTeacher: handleEditTeacherAction,
         handleAddSupervisor: handleAddSupervisorAction,
         handleEditSupervisor: handleEditSupervisorAction,
