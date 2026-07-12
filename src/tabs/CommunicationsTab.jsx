@@ -13,8 +13,7 @@ export default function CommunicationsTab() {
     teachers,
     notifications,
     availableGrades,
-    handleSendNotification,
-    handleMarkNotificationAsRead
+    handleSendNotification
   } = useApp();
 
   // Local UI states
@@ -85,7 +84,7 @@ export default function CommunicationsTab() {
       const targetStudent = students.find(s => s.id === Number(modalNotificationStudentId));
       if (targetStudent) {
         const smsText = lang === 'ar'
-          ? `طھظ†ط¨ظٹظ‡ ط®ط§طµ ط¨ط®طµظˆطµ ط§ط¨ظ†ظƒظ… ${targetStudent.name}: ${modalNotificationTitle} - ${modalNotificationContent}. ط±ظٹط§ط¶ ظˆ ظ…ط¯ط§ط±ط³ ط§ظ†ظˆط§ط± ط§ظ„ط¹ظ„ظ‰.`
+          ? `تنبيه خاص بخصوص ابنكم ${targetStudent.name}: ${modalNotificationTitle} - ${modalNotificationContent}. رياض و مدارس انوار العلى.`
           : `Private alert for ${targetStudent.nameEn}: ${modalNotificationTitle} - ${modalNotificationContent}. Riyadh & Anwar Al-Ola.`;
         extraLogs.push({
           id: Date.now(),
@@ -100,7 +99,7 @@ export default function CommunicationsTab() {
       const classStudents = students.filter(s => s.grade === modalNotificationGrade);
       classStudents.forEach((student, idx) => {
         const smsText = lang === 'ar'
-          ? `طھط¹ظ…ظٹظ… ظ„طµظپ ${modalNotificationGrade}: ${modalNotificationTitle} - ${modalNotificationContent}.`
+          ? `تعميم لصف ${modalNotificationGrade}: ${modalNotificationTitle} - ${modalNotificationContent}.`
           : `Class announcement for ${modalNotificationGrade}: ${modalNotificationTitle} - ${modalNotificationContent}.`;
         extraLogs.push({
           id: Date.now() + Math.random() + idx,
@@ -114,7 +113,7 @@ export default function CommunicationsTab() {
     } else if (modalNotificationType === 'parents') {
       students.forEach((student, idx) => {
         const smsText = lang === 'ar'
-          ? `ط¥ط´ط¹ط§ط± ط¹ط§ظ… ظ…ظ† ط§ظ„ظ…ط¯ط±ط³ط© ظ„ط£ظˆظ„ظٹط§ط، ط§ظ„ط£ظ…ظˆط±: ${modalNotificationTitle} - ${modalNotificationContent}.`
+          ? `إشعار عام من المدرسة لأولياء الأمور: ${modalNotificationTitle} - ${modalNotificationContent}.`
           : `Broadcast Announcement to Parents: ${modalNotificationTitle} - ${modalNotificationContent}.`;
         extraLogs.push({
           id: Date.now() + Math.random() + idx,
@@ -178,14 +177,14 @@ export default function CommunicationsTab() {
   const getCategoryDetails = (type, grade, studentName, studentNameEn, teacherName, teacherNameEn) => {
     if (type === 'general' || type === 'parents') {
       return {
-        label: lang === 'ar' ? 'ط¹ط§ظ… ظ„ط£ظˆظ„ظٹط§ط، ط§ظ„ط£ظ…ظˆط±' : 'All Parents',
+        label: lang === 'ar' ? 'عام لأولياء الأمور' : 'All Parents',
         colorClass: 'badge-parents',
         gradientBorder: 'var(--gradient-brand)',
         icon: <Users size={15} />
       };
     } else if (type === 'class') {
       return {
-        label: lang === 'ar' ? `ط§ظ„طµظپ: ${grade}` : `Class: ${grade}`,
+        label: lang === 'ar' ? `الصف: ${grade}` : `Class: ${grade}`,
         colorClass: 'badge-class',
         gradientBorder: 'var(--gradient-warning)',
         icon: <Layers size={15} />
@@ -193,14 +192,14 @@ export default function CommunicationsTab() {
     } else if (type === 'student' || type === 'private') {
       const name = lang === 'ar' ? studentName : (studentNameEn || studentName);
       return {
-        label: lang === 'ar' ? `ط·ط§ظ„ط¨: ${name}` : `Student: ${name}`,
+        label: lang === 'ar' ? `طالب: ${name}` : `Student: ${name}`,
         colorClass: 'badge-student',
         gradientBorder: 'var(--gradient-error)',
         icon: <GraduationCap size={15} />
       };
     } else if (type === 'teachers') {
       return {
-        label: lang === 'ar' ? 'ط¬ظ…ظٹط¹ ط§ظ„ظ…ط¹ظ„ظ…ظٹظ†' : 'All Teachers',
+        label: lang === 'ar' ? 'جميع المعلمين' : 'All Teachers',
         colorClass: 'badge-teachers',
         gradientBorder: 'var(--gradient-success)',
         icon: <Users size={15} />
@@ -208,14 +207,14 @@ export default function CommunicationsTab() {
     } else if (type === 'teacher') {
       const name = lang === 'ar' ? teacherName : (teacherNameEn || teacherName);
       return {
-        label: lang === 'ar' ? `ط§ظ„ظ…ط¹ظ„ظ…: ${name}` : `Teacher: ${name}`,
+        label: lang === 'ar' ? `المعلم: ${name}` : `Teacher: ${name}`,
         colorClass: 'badge-teacher',
         gradientBorder: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
         icon: <User size={15} />
       };
     }
     return {
-      label: lang === 'ar' ? 'ط¥ط´ط¹ط§ط±' : 'Alert',
+      label: lang === 'ar' ? 'إشعار' : 'Alert',
       colorClass: 'badge-neutral',
       gradientBorder: 'var(--color-border)',
       icon: <Bell size={15} />
@@ -628,7 +627,12 @@ export default function CommunicationsTab() {
           fontWeight: '600'
         }}>
           {lang === 'ar' 
-            ? 'ظ…ظ†طµط© ط§ظ„ط§طھطµط§ظ„ط§طھ ظˆط§ظ„ط¥ط´ط¹ط§ط±ط§طھ ط§ظ„ظ…ظˆط­ط¯ط©: طھطھظٹط­ ظ„ظƒ ط¥ط±ط³ط§ظ„ ط§ظ„طھظ†ط¨ظٹظ‡ط§طھ ط§ظ„ظپظˆط±ظٹط© ط§ظ„ظپط¹ط§ظ„ط© ظˆط§ظ„طھط¹ط§ظ…ظٹظ… ط§ظ„ظ…ط¨ط§ط´ط±ط© ظ„ظپط¦ط§طھ ظ…ط®طھظ„ظپط© ظپظٹ ط§ظ„ظ…ط¯ط±ط³ط© ظ…ط¹ طھطھط¨ط¹ ظپظˆط±ظ      {/* Stats Cards Row */}
+            ? 'منصة الاتصالات والإشعارات الموحدة: تتيح لك إرسال التنبيهات الفورية الفعالة والتعاميم المباشرة لفئات مختلفة في المدرسة مع تتبع فوري لحالة التسليم.' 
+            : 'Unified Communications & Notifications Platform: Allows you to push instant notifications and announcements to various school segments with direct delivery tracking.'}
+        </p>
+      </div>
+
+      {/* Stats Cards Row */}
       <div className="stats-grid-modern no-print">
         {/* Card 1: Total sent */}
         <div className="stat-card-glass">
@@ -637,7 +641,7 @@ export default function CommunicationsTab() {
           </div>
           <div className="stat-content">
             <span className="stat-number-value">{statsTotal}</span>
-            <span className="stat-label-text">{lang === 'ar' ? 'ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ط¥ط´ط¹ط§ط±ط§طھ' : 'Total Notifications'}</span>
+            <span className="stat-label-text">{lang === 'ar' ? 'إجمالي الإشعارات' : 'Total Notifications'}</span>
           </div>
         </div>
 
@@ -648,7 +652,7 @@ export default function CommunicationsTab() {
           </div>
           <div className="stat-content">
             <span className="stat-number-value">{statsParents}</span>
-            <span className="stat-label-text">{lang === 'ar' ? 'طھط¹ط§ظ…ظٹظ… ط£ظˆظ„ظٹط§ط، ط§ظ„ط£ظ…ظˆط±' : 'Parents Broadcasts'}</span>
+            <span className="stat-label-text">{lang === 'ar' ? 'تعاميم أولياء الأمور' : 'Parents Broadcasts'}</span>
           </div>
         </div>
 
@@ -659,7 +663,7 @@ export default function CommunicationsTab() {
           </div>
           <div className="stat-content">
             <span className="stat-number-value">{statsClasses}</span>
-            <span className="stat-label-text">{lang === 'ar' ? 'طھط¹ط§ظ…ظٹظ… ط§ظ„ظپطµظˆظ„' : 'Class Broadcasts'}</span>
+            <span className="stat-label-text">{lang === 'ar' ? 'تعاميم الفصول' : 'Class Broadcasts'}</span>
           </div>
         </div>
 
@@ -670,21 +674,8 @@ export default function CommunicationsTab() {
           </div>
           <div className="stat-content">
             <span className="stat-number-value">{statsPrivate}</span>
-            <span className="stat-label-text">{lang === 'ar' ? 'ط§ظ„طھظ†ط¨ظٹظ‡ط§طھ ط§ظ„ظپط±ط¯ظٹط©' : 'Private Alerts'}</span>
+            <span className="stat-label-text">{lang === 'ar' ? 'التنبيهات الفردية' : 'Private Alerts'}</span>
           </div>
-        </div>
-      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)' }}>
-              ًں“¨ {t.noNotifications}
-            </div>
-          )}
->>>>>>> local-backup-before-pull
         </div>
       </div>
 
@@ -695,7 +686,7 @@ export default function CommunicationsTab() {
           <Search size={18} className="search-input-icon" />
           <input 
             type="text"
-            placeholder={lang === 'ar' ? 'ط§ظ„ط¨ط­ط« ظپظٹ ط³ط¬ظ„ ط§ظ„ط¥ط´ط¹ط§ط±ط§طھ ط§ظ„ظ…ط±ط³ظ„ط©...' : 'Search sent history...'}
+            placeholder={lang === 'ar' ? 'البحث في سجل الإشعارات المرسلة...' : 'Search sent history...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -707,31 +698,31 @@ export default function CommunicationsTab() {
             onClick={() => setActiveFilter('all')}
             className={`pill-btn-modern ${activeFilter === 'all' ? 'active-pill' : ''}`}
           >
-            {lang === 'ar' ? 'ط§ظ„ظƒظ„' : 'All'}
+            {lang === 'ar' ? 'الكل' : 'All'}
           </button>
           <button 
             onClick={() => setActiveFilter('parents')}
             className={`pill-btn-modern ${activeFilter === 'parents' ? 'active-pill' : ''}`}
           >
-            {lang === 'ar' ? 'ط£ظˆظ„ظٹط§ط، ط§ظ„ط£ظ…ظˆط±' : 'Parents'}
+            {lang === 'ar' ? 'أولياء الأمور' : 'Parents'}
           </button>
           <button 
             onClick={() => setActiveFilter('classes')}
             className={`pill-btn-modern ${activeFilter === 'classes' ? 'active-pill' : ''}`}
           >
-            {lang === 'ar' ? 'ط§ظ„طµظپظˆظپ' : 'Classes'}
+            {lang === 'ar' ? 'الصفوف' : 'Classes'}
           </button>
           <button 
             onClick={() => setActiveFilter('teachers')}
             className={`pill-btn-modern ${activeFilter === 'teachers' ? 'active-pill' : ''}`}
           >
-            {lang === 'ar' ? 'ط§ظ„ظ…ط¹ظ„ظ…ظˆظ†' : 'Teachers'}
+            {lang === 'ar' ? 'المعلمون' : 'Teachers'}
           </button>
           <button 
             onClick={() => setActiveFilter('private')}
             className={`pill-btn-modern ${activeFilter === 'private' ? 'active-pill' : ''}`}
           >
-            {lang === 'ar' ? 'ط¥ط´ط¹ط§ط± ط®ط§طµ' : 'Private'}
+            {lang === 'ar' ? 'إشعار خاص' : 'Private'}
           </button>
         </div>
 
@@ -746,7 +737,7 @@ export default function CommunicationsTab() {
           }}
         >
           <Plus size={16} strokeWidth={3} />
-          <span>{lang === 'ar' ? 'ط¥ظ†ط´ط§ط، ط¥ط´ط¹ط§ط± ظپظˆط±ظٹ' : 'Compose Alert'}</span>
+          <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
         </button>
       </div>
 
@@ -848,11 +839,11 @@ export default function CommunicationsTab() {
                 {/* Footer metadata */}
                 <div className="notif-footer-modern">
                   <div className="notif-footer-item">
-                    <span>ًں•’ {notif.date}</span>
+                    <span>🕒 {notif.date}</span>
                   </div>
                   <div className="notif-footer-item" style={{ color: 'var(--color-success)' }}>
                     <CheckCircle2 size={12} />
-                    <span>{lang === 'ar' ? 'طھظ… ط§ظ„ظ†ط´ط± ظƒط¥ط´ط¹ط§ط± ظپظˆط±ظٹ ظ„ظ„ظ‡ط§طھظپ ظˆط§ظ„ظ€ SMS' : 'Broadcasted via Push Notification & SMS'}</span>
+                    <span>{lang === 'ar' ? 'تم النشر كإشعار فوري للهاتف والـ SMS' : 'Broadcasted via Push Notification & SMS'}</span>
                   </div>
                 </div>
               </div>
@@ -884,7 +875,7 @@ export default function CommunicationsTab() {
             <header className="modal-header" style={{ padding: 'var(--space-xl) var(--space-xxl)', borderBottom: '1px solid var(--color-border)' }}>
               <h3 className="modal-title" style={{ fontSize: '17px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Send size={18} style={{ color: 'var(--color-primary-ui)' }} />
-                <span>{lang === 'ar' ? 'ط¥ط±ط³ط§ظ„ ط¥ط´ط¹ط§ط± ظپظˆط±ظٹ ط¬ط¯ظٹط¯' : 'Send Push Announcement'}</span>
+                <span>{lang === 'ar' ? 'إرسال إشعار فوري جديد' : 'Send Push Announcement'}</span>
               </h3>
               <button 
                 className="modal-close-btn" 
@@ -902,7 +893,7 @@ export default function CommunicationsTab() {
                 {/* 1. Target Audience Cards Selection */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                    ًںژ¯ {lang === 'ar' ? 'ط§ط®طھط± ط§ظ„ط¬ظ…ظ‡ظˆط± ط§ظ„ظ…ط³طھظ‡ط¯ظپ' : 'Select Target Audience'}
+                    🎯 {lang === 'ar' ? 'اختر الجمهور المستهدف' : 'Select Target Audience'}
                   </label>
                   
                   <div className="audience-grid-cards">
@@ -984,14 +975,14 @@ export default function CommunicationsTab() {
                 {modalNotificationType === 'student' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                      ًں”چ {t.selectStudent}
+                      🔍 {t.selectStudent}
                     </label>
                     <div className="live-search-select-wrapper">
                       <div style={{ position: 'relative' }}>
                         <Search size={16} style={{ position: 'absolute', top: '50%', right: '12px', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
                         <input 
                           type="text"
-                          placeholder={lang === 'ar' ? 'ط§ط¨ط­ط« ط¨ط§ط³ظ… ط§ظ„ط·ط§ظ„ط¨ ط£ظˆ ط§ظ„ط±ظ‚ظ… ط§ظ„ط£ظƒط§ط¯ظٹظ…ظٹ...' : 'Search student by name or ID...'}
+                          placeholder={lang === 'ar' ? 'ابحث باسم الطالب أو الرقم الأكاديمي...' : 'Search student by name or ID...'}
                           value={studentSearchText}
                           onChange={(e) => setStudentSearchText(e.target.value)}
                           className="text-field"
@@ -1013,7 +1004,7 @@ export default function CommunicationsTab() {
                           ))
                         ) : (
                           <div style={{ padding: '12px', fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                            {lang === 'ar' ? 'ظ„ط§ ظٹظˆط¬ط¯ ظ†طھط§ط¦ط¬ ظ…ط·ط§ط¨ظ‚ط©' : 'No matches found'}
+                            {lang === 'ar' ? 'لا يوجد نتائج مطابقة' : 'No matches found'}
                           </div>
                         )}
                       </div>
@@ -1025,7 +1016,7 @@ export default function CommunicationsTab() {
                 {modalNotificationType === 'class' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                      ًںڈ« {t.selectClass}
+                      🏫 {t.selectClass}
                     </label>
                     <select 
                       value={modalNotificationGrade} 
@@ -1044,14 +1035,14 @@ export default function CommunicationsTab() {
                 {modalNotificationType === 'teacher' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                      ًں”چ {t.selectTeacher}
+                      🔍 {t.selectTeacher}
                     </label>
                     <div className="live-search-select-wrapper">
                       <div style={{ position: 'relative' }}>
                         <Search size={16} style={{ position: 'absolute', top: '50%', right: '12px', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
                         <input 
                           type="text"
-                          placeholder={lang === 'ar' ? 'ط§ط¨ط­ط« ط¨ط§ط³ظ… ط§ظ„ظ…ط¹ظ„ظ… ط£ظˆ ط§ظ„ط±ظ‚ظ… ط§ظ„ظˆط¸ظٹظپظٹ...' : 'Search teacher by name...'}
+                          placeholder={lang === 'ar' ? 'ابحث باسم المعلم أو الرقم الوظيفي...' : 'Search teacher by name...'}
                           value={teacherSearchText}
                           onChange={(e) => setTeacherSearchText(e.target.value)}
                           className="text-field"
@@ -1073,7 +1064,7 @@ export default function CommunicationsTab() {
                           ))
                         ) : (
                           <div style={{ padding: '12px', fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                            {lang === 'ar' ? 'ظ„ط§ ظٹظˆط¬ط¯ ظ†طھط§ط¦ط¬ ظ…ط·ط§ط¨ظ‚ط©' : 'No matches found'}
+                            {lang === 'ar' ? 'لا يوجد نتائج مطابقة' : 'No matches found'}
                           </div>
                         )}
                       </div>
@@ -1084,13 +1075,13 @@ export default function CommunicationsTab() {
                 {/* 3. Title */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                    ًں“‌ {t.notificationTitleLabel}
+                    📝 {t.notificationTitleLabel}
                   </label>
                   <input 
                     type="text" 
                     value={modalNotificationTitle} 
                     onChange={(e) => setModalNotificationTitle(e.target.value)}
-                    placeholder={lang === 'ar' ? 'ط£ط¯ط®ظ„ ط¹ظ†ظˆط§ظ†ط§ظ‹ ط¬ط°ط§ط¨ط§ظ‹ ظˆظ…ط®طھطµط±ط§ظ‹...' : 'Enter a short and appealing title...'}
+                    placeholder={lang === 'ar' ? 'أدخل عنواناً جذاباً ومختصراً...' : 'Enter a short and appealing title...'}
                     className="text-field"
                     style={{ borderRadius: '12px', minHeight: '42px' }}
                     required
@@ -1100,12 +1091,12 @@ export default function CommunicationsTab() {
                 {/* 4. Content */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                    ًں’¬ {t.notificationContentLabel}
+                    💬 {t.notificationContentLabel}
                   </label>
                   <textarea 
                     value={modalNotificationContent} 
                     onChange={(e) => setModalNotificationContent(e.target.value)}
-                    placeholder={lang === 'ar' ? 'ط§ظƒطھط¨ طھظپط§طµظٹظ„ ظˆظ…ط­طھظˆظ‰ ط§ظ„ط¥ط´ط¹ط§ط± ظ‡ظ†ط§ ط¨ظˆط¶ظˆط­...' : 'Type fully details and instructions here...'}
+                    placeholder={lang === 'ar' ? 'اكتب تفاصيل ومحتوى الإشعار هنا بوضوح...' : 'Type fully details and instructions here...'}
                     className="text-field"
                     style={{ minHeight: '110px', resize: 'vertical', borderRadius: '14px', padding: '12px 16px' }}
                     required
@@ -1137,7 +1128,7 @@ export default function CommunicationsTab() {
                   style={{ padding: '10px 24px', boxShadow: 'none' }}
                 >
                   <Send size={15} />
-                  <span>{lang === 'ar' ? 'ط¥ط±ط³ط§ظ„ ظˆظ†ط´ط± ط§ظ„ط¢ظ†' : 'Broadcast Now'}</span>
+                  <span>{lang === 'ar' ? 'إرسال ونشر الآن' : 'Broadcast Now'}</span>
                 </button>
               </footer>
             </form>
