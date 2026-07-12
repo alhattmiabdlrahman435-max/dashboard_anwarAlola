@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Plus, Search, X } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function SubjectsTab() {
   const {
@@ -14,7 +15,9 @@ export default function SubjectsTab() {
     setSubjects,
     setToastMessage,
     triggerConfirm,
-    renderAvatar
+    renderAvatar,
+    fetchSubjects,
+    fetchClasses
   } = useApp();
 
   // Local state for searching & modals
@@ -47,30 +50,38 @@ export default function SubjectsTab() {
       return;
     }
 
-    const newSubId = 'sub-' + (subjects.length + 1) + '-' + Math.floor(Math.random() * 100);
-    const newSubject = {
-      id: newSubId,
-      name: modalSubjectNameAr.trim(),
-      nameEn: modalSubjectNameEn.trim()
-    };
+    const token = localStorage.getItem('auth_token');
 
-    setSubjects(prev => [...prev, newSubject]);
-
-    // Update classes assigned to this subject
-    setClasses(prev => prev.map(c => {
-      if (modalSubjectClasses.includes(c.name)) {
-        if (!c.subjects.includes(newSubject.name)) {
-          return { ...c, subjects: [...c.subjects, newSubject.name] };
-        }
+    api.post('/api/subjects', {
+      name_ar: modalSubjectNameAr.trim(),
+      name_en: modalSubjectNameEn.trim()
+    })
+    .then(data => {
+      if (data.success && data.subject) {
+        api.post(`/api/subjects/${data.subject.id}/classes`, {
+          classes: modalSubjectClasses
+        })
+        .then(() => {
+          if (token) {
+            fetchSubjects(token);
+            fetchClasses(token);
+          }
+          setShowSubjectModal(false);
+          setToastMessage(lang === 'ar' ? 'تمت إضافة المادة بنجاح!' : 'Subject created successfully!');
+          setTimeout(() => setToastMessage(''), 3000);
+        })
+        .catch(err => {
+          console.error("Error syncing classes:", err);
+          setFormError(lang === 'ar' ? 'حدث خطأ أثناء تعيين الفصول الدراسية' : 'Error assigning classes');
+        });
       } else {
-        return { ...c, subjects: c.subjects.filter(s => s !== newSubject.name) };
+        setFormError(data.message || 'Error');
       }
-      return c;
-    }));
-
-    setShowSubjectModal(false);
-    setToastMessage(lang === 'ar' ? 'تمت إضافة المادة بنجاح!' : 'Subject created successfully!');
-    setTimeout(() => setToastMessage(''), 3000);
+    })
+    .catch(err => {
+      console.error("Error adding subject:", err);
+      setFormError(lang === 'ar' ? 'حدث خطأ أثناء حفظ المادة' : 'Error saving subject');
+    });
   };
 
   const handleEditSubject = (e) => {
@@ -84,58 +95,39 @@ export default function SubjectsTab() {
     const targetSub = subjects.find(s => s.id === selectedSubjectIdForEdit);
     if (!targetSub) return;
 
-    const oldName = targetSub.name;
-    const newName = modalSubjectNameAr.trim();
+    const dbSubjectId = Number(String(selectedSubjectIdForEdit).replace('sub-', ''));
+    const token = localStorage.getItem('auth_token');
 
-    // Update subjects list
-    setSubjects(prev => prev.map(s => {
-      if (s.id === selectedSubjectIdForEdit) {
-        return {
-          ...s,
-          name: newName,
-          nameEn: modalSubjectNameEn.trim()
-        };
-      }
-      return s;
-    }));
-
-    // Update classes with new subject name and membership
-    setClasses(prev => prev.map(c => {
-      let classSubjects = c.subjects;
-      
-      if (modalSubjectClasses.includes(c.name)) {
-        if (classSubjects.includes(oldName)) {
-          classSubjects = classSubjects.map(s => s === oldName ? newName : s);
-        } else {
-          classSubjects = [...classSubjects, newName];
-        }
+    api.put(`/api/subjects/${dbSubjectId}`, {
+      name_ar: modalSubjectNameAr.trim(),
+      name_en: modalSubjectNameEn.trim()
+    })
+    .then(data => {
+      if (data.success) {
+        api.post(`/api/subjects/${dbSubjectId}/classes`, {
+          classes: modalSubjectClasses
+        })
+        .then(() => {
+          if (token) {
+            fetchSubjects(token);
+            fetchClasses(token);
+          }
+          setShowEditSubjectModal(false);
+          setToastMessage(lang === 'ar' ? 'تم تحديث المادة بنجاح!' : 'Subject details updated successfully!');
+          setTimeout(() => setToastMessage(''), 3000);
+        })
+        .catch(err => {
+          console.error("Error syncing classes:", err);
+          setFormError(lang === 'ar' ? 'حدث خطأ أثناء تحديث الفصول الدراسية' : 'Error updating classes');
+        });
       } else {
-        classSubjects = classSubjects.filter(s => s !== oldName && s !== newName);
+        setFormError(data.message || 'Error');
       }
-
-      return {
-        ...c,
-        subjects: classSubjects
-      };
-    }));
-
-    // Update teachers who teach this subject
-    setTeachers(prev => prev.map(t => {
-      let tSubs = t.subjects || [];
-      if (tSubs.includes(oldName)) {
-        tSubs = tSubs.map(s => s === oldName ? newName : s);
-      }
-      const tSub = t.subject === oldName ? newName : t.subject;
-      return {
-        ...t,
-        subject: tSub,
-        subjects: tSubs
-      };
-    }));
-
-    setShowEditSubjectModal(false);
-    setToastMessage(lang === 'ar' ? 'تم تحديث المادة بنجاح!' : 'Subject details updated successfully!');
-    setTimeout(() => setToastMessage(''), 3000);
+    })
+    .catch(err => {
+      console.error("Error updating subject:", err);
+      setFormError(lang === 'ar' ? 'حدث خطأ أثناء تعديل المادة' : 'Error editing subject');
+    });
   };
 
   const handleDeleteSubject = (id) => {
@@ -145,14 +137,23 @@ export default function SubjectsTab() {
       title: lang === 'ar' ? 'حذف المادة الدراسية' : 'Delete Subject',
       message: lang === 'ar' ? `هل أنت متأكد من حذف مادة ${sub.name}؟ سيتم إزالتها من جميع الفصول وتكليفات المعلمين.` : `Are you sure you want to delete ${sub.nameEn}? It will be removed from all classes and teacher assignments.`,
       onConfirm: () => {
-        setSubjects(prev => prev.filter(s => s.id !== id));
-        // Remove this subject from all classes
-        setClasses(prev => prev.map(c => ({
-          ...c,
-          subjects: c.subjects.filter(s => s !== sub.name)
-        })));
-        setToastMessage(lang === 'ar' ? 'تم حذف المادة بنجاح' : 'Subject deleted successfully');
-        setTimeout(() => setToastMessage(''), 3000);
+        const dbSubjectId = Number(String(id).replace('sub-', ''));
+        const token = localStorage.getItem('auth_token');
+
+        api.delete(`/api/subjects/${dbSubjectId}`)
+        .then(data => {
+          if (data.success) {
+            if (token) {
+              fetchSubjects(token);
+              fetchClasses(token);
+            }
+            setToastMessage(lang === 'ar' ? 'تم حذف المادة بنجاح' : 'Subject deleted successfully');
+            setTimeout(() => setToastMessage(''), 3000);
+          }
+        })
+        .catch(err => {
+          console.error("Error deleting subject:", err);
+        });
       }
     });
   };

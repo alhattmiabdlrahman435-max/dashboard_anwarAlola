@@ -14,7 +14,10 @@ Route::get('/', function () {
     return file_get_contents($path);
 });
 
-Route::fallback(function () {
+Route::fallback(function (\Illuminate\Http\Request $request) {
+    if (preg_match('/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i', $request->path())) {
+        abort(404);
+    }
     $path = public_path('dist/index.html');
     if (file_exists($path)) {
         return file_get_contents($path);

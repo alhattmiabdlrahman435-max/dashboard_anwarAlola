@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Subjects - المواد الدراسية
     Route::apiResource('subjects', SubjectController::class);
+    Route::post('/subjects/{id}/classes', [SubjectController::class, 'syncClasses']);
 
     // Attendance - الحضور والغياب
     Route::get('/attendance', [AttendanceController::class, 'index']);
