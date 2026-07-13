@@ -174,7 +174,6 @@ html, body, #root {
   background-color: var(--color-surface);
   color: var(--color-text-primary);
   transition: background-color var(--transition-normal), color var(--transition-normal);
-  overflow: hidden;
 }
 
 body[dir="rtl"] {
