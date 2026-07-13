@@ -131,45 +131,65 @@ class GradeController extends Controller implements HasMiddleware
             ]
         );
 
-        $grade->load(['student.parentUser', 'subject']);
+        $grade->load(['student.schoolClass', 'subject']);
         $student = $grade->student;
-        $subject = $grade->subject;
 
-        if ($student && $student->parent_id) {
-            $monthNames = [
-                'm1' => 'الأول',
-                'm2' => 'الثاني',
-                'm3' => 'الثالث',
-                '1' => 'الأول',
-                '2' => 'الثاني',
-                '3' => 'الثالث',
-                'final' => 'النهائي',
-                '0' => 'النهائي',
-            ];
-            $monthText = $monthNames[$request->month] ?? $request->month;
-            $title = 'تحديث درجات الطالب 📊';
-            $content = "تم رصد/تعديل درجات ابنكم {$student->name_ar} لشهر {$monthText} في مادة {$subject->name_ar}.";
+        if ($student && $student->class_id) {
+            $classId = $student->class_id;
 
-            \App\Models\Notification::create([
-                'title' => $title,
-                'content' => $content,
-                'type' => 'general',
-                'is_read' => false,
-                'student_id' => $student->id,
-            ]);
+            // 1. Get all student IDs in this class
+            $studentsInClass = Student::where('class_id', $classId)->get();
+            $studentIds = $studentsInClass->pluck('id')->toArray();
+            $totalStudentsInClass = count($studentIds);
 
-            $parentUser = $student->parentUser;
-            if ($parentUser && $parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification(
-                    $parentUser->fcm_token,
-                    $title,
-                    $content,
-                    [
-                        'type' => 'grade',
-                        'student_id' => (string)$student->id,
-                        'month' => (string)$request->month,
-                    ]
-                );
+            // 2. Get subject IDs assigned to this class
+            $subjectIds = \App\Models\TeacherSubject::where('class_id', $classId)->pluck('subject_id')->unique()->toArray();
+            if (empty($subjectIds)) {
+                $subjectIds = \App\Models\Subject::pluck('id')->toArray();
+            }
+            $totalSubjectsInClass = count($subjectIds);
+
+            // 3. Count existing grade records for these students and subjects for this term/month
+            $gradesCount = Grade::whereIn('student_id', $studentIds)
+                ->whereIn('subject_id', $subjectIds)
+                ->where('term', $termVal)
+                ->where('month', $monthVal)
+                ->where('is_control', false)
+                ->count();
+
+            // 4. Check if all grades are recorded
+            if ($gradesCount >= ($totalStudentsInClass * $totalSubjectsInClass)) {
+                $className = $student->schoolClass ? ($student->schoolClass->grade_ar . ' - ' . $student->schoolClass->section_ar) : 'غير معروف';
+                $monthNames = [
+                    'm1' => 'الأول',
+                    'm2' => 'الثاني',
+                    'm3' => 'الثالث',
+                    '1' => 'الأول',
+                    '2' => 'الثاني',
+                    '3' => 'الثالث',
+                    'final' => 'النهائي',
+                    '0' => 'النهائي',
+                ];
+                $monthText = $monthNames[$request->month] ?? $request->month;
+
+                $notifTitle = "📊 درجات جاهزة للمراجعة: صف {$className}";
+                $notifContent = "تم اكتمال رصد درجات جميع المواد لجميع الطلاب في الصف {$className} لشهر {$monthText} (الترم {$termVal}). يمكنك مراجعتها واعتمادها الآن.";
+
+                $alreadyNotified = \App\Models\Notification::where('title', $notifTitle)
+                    ->where('content', $notifContent)
+                    ->exists();
+
+                if (!$alreadyNotified) {
+                    \App\Models\Notification::create([
+                        'title' => $notifTitle,
+                        'content' => $notifContent,
+                        'type' => 'info',
+                        'is_read' => false,
+                        'student_id' => null,
+                        'class_id' => null,
+                        'teacher_id' => null,
+                    ]);
+                }
             }
         }
 
@@ -336,31 +356,48 @@ class GradeController extends Controller implements HasMiddleware
             }
         }
 
-        $student->load('parentUser');
-        if ($student->parent_id) {
-            $title = 'تحديث درجات الكنترول 📊';
-            $content = "تم رصد/تعديل درجات الكنترول العام (النهائية) لابنكم {$student->name_ar}.";
+        $student->load('schoolClass');
+        if ($student->class_id) {
+            $classId = $student->class_id;
 
-            \App\Models\Notification::create([
-                'title' => $title,
-                'content' => $content,
-                'type' => 'general',
-                'is_read' => false,
-                'student_id' => $student->id,
-            ]);
+            // 1. Get all student IDs in this class
+            $studentsInClass = Student::where('class_id', $classId)->get();
+            $studentIds = $studentsInClass->pluck('id')->toArray();
+            $totalStudentsInClass = count($studentIds);
 
-            $parentUser = $student->parentUser;
-            if ($parentUser && $parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification(
-                    $parentUser->fcm_token,
-                    $title,
-                    $content,
-                    [
-                        'type' => 'grade',
-                        'student_id' => (string)$student->id,
-                        'month' => '0', // Final control is month 0
-                    ]
-                );
+            // 2. Control subjects are exactly 4
+            $subjectIds = [1, 2, 3, 4];
+            $totalSubjectsInClass = count($subjectIds);
+
+            // 3. Count existing control grade records
+            $gradesCount = Grade::whereIn('student_id', $studentIds)
+                ->whereIn('subject_id', $subjectIds)
+                ->where('term', 1) // Default to term 1
+                ->where('month', 0) // Month 0 for control final exam
+                ->where('is_control', true)
+                ->count();
+
+            // 4. Check if complete
+            if ($gradesCount >= ($totalStudentsInClass * $totalSubjectsInClass)) {
+                $className = $student->schoolClass ? ($student->schoolClass->grade_ar . ' - ' . $student->schoolClass->section_ar) : 'غير معروف';
+                $notifTitle = "📊 درجات الكنترول جاهزة للمراجعة: صف {$className}";
+                $notifContent = "تم اكتمال رصد درجات الكنترول النهائي لجميع الطلاب في الصف {$className} (الترم 1). يمكنك مراجعتها واعتمادها الآن.";
+
+                $alreadyNotified = \App\Models\Notification::where('title', $notifTitle)
+                    ->where('content', $notifContent)
+                    ->exists();
+
+                if (!$alreadyNotified) {
+                    \App\Models\Notification::create([
+                        'title' => $notifTitle,
+                        'content' => $notifContent,
+                        'type' => 'info',
+                        'is_read' => false,
+                        'student_id' => null,
+                        'class_id' => null,
+                        'teacher_id' => null,
+                    ]);
+                }
             }
         }
 
