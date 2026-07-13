@@ -53,7 +53,26 @@ class GradeController extends Controller implements HasMiddleware
             }
         }
 
-        $grades = Grade::with('subject')->where('student_id', $studentId)->get()->map(function($grade) {
+        $gradesQuery = Grade::with('subject')->where('student_id', $studentId);
+        $grades = $gradesQuery->get();
+
+        if ($user && $user->role === 'parent') {
+            // Get all published period types for this student
+            $publishedPeriods = \App\Models\Notification::where('student_id', $studentId)
+                ->where('type', 'like', 'grade_published:%')
+                ->pluck('type')
+                ->toArray();
+
+            $grades = $grades->filter(function($grade) use ($publishedPeriods) {
+                $termKey = $grade->term === 1 ? 'term1' : 'term2';
+                $monthKey = $grade->month === 0 ? 'final' : ('m' . $grade->month);
+                $expectedType = "grade_published:{$termKey}:{$monthKey}";
+
+                return in_array($expectedType, $publishedPeriods);
+            });
+        }
+
+        $mappedGrades = $grades->map(function($grade) {
             // Map term and month to frontend keys if necessary
             $termKey = $grade->term === 1 ? 'term1' : 'term2';
             $monthKey = $grade->month === 0 ? 'final' : ('m' . $grade->month);
@@ -75,11 +94,11 @@ class GradeController extends Controller implements HasMiddleware
                 // Calculations mapped for frontend
                 'month_total' => $grade->homework + $grade->attendance + $grade->behavior + $grade->oral + $grade->written,
             ];
-        });
+        })->values();
 
         return response()->json([
             'success' => true,
-            'grades' => $grades
+            'grades' => $mappedGrades
         ]);
     }
 
@@ -221,18 +240,38 @@ class GradeController extends Controller implements HasMiddleware
             ], 403);
         }
 
+        // Normalize term and month keys
+        $termNorm = ($request->term === 'term2' || $request->term === '2') ? 'term2' : 'term1';
+        $monthNorm = $request->month;
+        if ($monthNorm === '0' || $monthNorm === 'final') {
+            $monthNorm = 'final';
+        } elseif ($monthNorm === '1' || $monthNorm === 'm1') {
+            $monthNorm = 'm1';
+        } elseif ($monthNorm === '2' || $monthNorm === 'm2') {
+            $monthNorm = 'm2';
+        } elseif ($monthNorm === '3' || $monthNorm === 'm3') {
+            $monthNorm = 'm3';
+        }
+
         $students = Student::with('parentUser')->where('class_id', $request->class_id)->get();
-        $monthName = $request->month === '0' || $request->month === 'final' ? 'النهائية' : 'للشهر ' . $request->month;
+        
+        $monthNamesMap = [
+            'm1' => 'للشهر الأول',
+            'm2' => 'للشهر الثاني',
+            'm3' => 'للشهر الثالث',
+            'final' => 'النهائية',
+        ];
+        $monthName = $monthNamesMap[$monthNorm] ?? ('للشهر ' . $monthNorm);
 
         $sentCount = 0;
 
         foreach ($students as $student) {
             if ($student->parentUser) {
-                // Create database notification
+                // Create database notification with specific type for publication tracking
                 \App\Models\Notification::create([
                     'title' => 'اعتماد درجات جديدة',
                     'content' => 'تم اعتماد درجات ابنكم ' . ($student->name_ar ?? '') . ' ' . $monthName . '. يمكنكم الاطلاع عليها الآن.',
-                    'type' => 'general',
+                    'type' => "grade_published:{$termNorm}:{$monthNorm}",
                     'is_read' => false,
                     'student_id' => $student->id,
                 ]);
