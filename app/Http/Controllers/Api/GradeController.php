@@ -161,19 +161,19 @@ class GradeController extends Controller implements HasMiddleware
             if ($gradesCount >= ($totalStudentsInClass * $totalSubjectsInClass)) {
                 $className = $student->schoolClass ? ($student->schoolClass->grade_ar . ' - ' . $student->schoolClass->section_ar) : 'غير معروف';
                 $monthNames = [
-                    'm1' => 'الأول',
-                    'm2' => 'الثاني',
-                    'm3' => 'الثالث',
-                    '1' => 'الأول',
-                    '2' => 'الثاني',
-                    '3' => 'الثالث',
-                    'final' => 'النهائي',
-                    '0' => 'النهائي',
+                    'm1' => 'للشهر الأول',
+                    'm2' => 'للشهر الثاني',
+                    'm3' => 'للشهر الثالث',
+                    '1' => 'للشهر الأول',
+                    '2' => 'للشهر الثاني',
+                    '3' => 'للشهر الثالث',
+                    'final' => 'للاختبار النهائي',
+                    '0' => 'للاختبار النهائي',
                 ];
                 $monthText = $monthNames[$request->month] ?? $request->month;
 
-                $notifTitle = "📊 درجات جاهزة للمراجعة: صف {$className}";
-                $notifContent = "تم اكتمال رصد درجات جميع المواد لجميع الطلاب في الصف {$className} لشهر {$monthText} (الترم {$termVal}). يمكنك مراجعتها واعتمادها الآن.";
+                $notifTitle = "📊 درجات جاهزة للمراجعة: {$className}";
+                $notifContent = "تم اكتمال رصد درجات جميع المواد لجميع الطلاب في {$className} {$monthText} (الترم {$termVal}). يمكنك مراجعتها واعتمادها الآن.";
 
                 $alreadyNotified = \App\Models\Notification::where('title', $notifTitle)
                     ->where('content', $notifContent)
@@ -380,8 +380,8 @@ class GradeController extends Controller implements HasMiddleware
             // 4. Check if complete
             if ($gradesCount >= ($totalStudentsInClass * $totalSubjectsInClass)) {
                 $className = $student->schoolClass ? ($student->schoolClass->grade_ar . ' - ' . $student->schoolClass->section_ar) : 'غير معروف';
-                $notifTitle = "📊 درجات الكنترول جاهزة للمراجعة: صف {$className}";
-                $notifContent = "تم اكتمال رصد درجات الكنترول النهائي لجميع الطلاب في الصف {$className} (الترم 1). يمكنك مراجعتها واعتمادها الآن.";
+                $notifTitle = "📊 درجات الكنترول جاهزة للمراجعة: {$className}";
+                $notifContent = "تم اكتمال رصد درجات الكنترول النهائي لجميع الطلاب في {$className} (الترم 1). يمكنك مراجعتها واعتمادها الآن.";
 
                 $alreadyNotified = \App\Models\Notification::where('title', $notifTitle)
                     ->where('content', $notifContent)
