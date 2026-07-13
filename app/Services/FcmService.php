@@ -59,9 +59,9 @@ class FcmService
                             'body' => $body,
                         ],
                         'android' => [
-                            'priority' => 'high',
+                            'priority' => 'HIGH',
                             'notification' => [
-                                'channel_id' => 'high_importance_channel',
+                                'channel_id' => 'high_importance_channel_v2',
                                 'sound' => 'default',
                                 'icon' => 'ic_launcher',
                             ],
