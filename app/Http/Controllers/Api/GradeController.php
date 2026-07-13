@@ -16,7 +16,7 @@ class GradeController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('check.permission:grades,view', only: ['detailed', 'control', 'getByClassAndSubject']),
+            new Middleware('check.permission:grades,view', only: ['detailed', 'control', 'getByClassAndSubject', 'getByClass']),
             new Middleware('check.permission:grades,update', only: ['saveDetailed', 'updateControl', 'generateSecretCodes']),
         ];
     }
@@ -472,6 +472,80 @@ class GradeController extends Controller implements HasMiddleware
         return response()->json([
             'success' => true,
             'message' => 'تم توليد وتطبيق الأرقام السرية بنجاح لجميع الطلاب'
+        ]);
+    }
+
+    /**
+     * جلب جميع درجات جميع الطلاب في فصل معين (كل المواد)
+     */
+    public function getByClass(Request $request, string $classId)
+    {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+
+        if ($scopedClassIds !== null && !in_array((int)$classId, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بالوصول لدرجات هذا الفصل.'
+            ], 403);
+        }
+
+        $students = Student::where('class_id', $classId)->get();
+        $subjects = \App\Models\Subject::all();
+
+        $result = [];
+
+        foreach ($students as $student) {
+            $dbGrades = Grade::with('subject')
+                ->where('student_id', $student->id)
+                ->where('is_control', false)
+                ->get();
+
+            // Build same structure as frontend expects in detailedGrades state
+            $gradesMap = [];
+            foreach (['term1', 'term2'] as $termKey) {
+                $termVal = $termKey === 'term1' ? 1 : 2;
+                $gradesMap[$termKey] = [];
+                foreach ($subjects as $subject) {
+                    $subjectName = $subject->name_ar;
+                    $gradesMap[$termKey][$subjectName] = [
+                        'm1' => ['homework' => 0, 'attendance' => 0, 'behavior' => 0, 'oral' => 0, 'written' => 0],
+                        'm2' => ['homework' => 0, 'attendance' => 0, 'behavior' => 0, 'oral' => 0, 'written' => 0],
+                        'm3' => ['homework' => 0, 'attendance' => 0, 'behavior' => 0, 'oral' => 0, 'written' => 0],
+                        'finalExam' => 0,
+                    ];
+
+                    $termGrades = $dbGrades->filter(fn($g) => $g->term === $termVal && $g->subject && $g->subject->name_ar === $subjectName);
+
+                    foreach ($termGrades as $g) {
+                        $monthKey = $g->month === 0 ? null : ('m' . $g->month);
+                        if ($monthKey) {
+                            $gradesMap[$termKey][$subjectName][$monthKey] = [
+                                'homework'   => (float)$g->homework,
+                                'attendance' => (float)$g->attendance,
+                                'behavior'   => (float)$g->behavior,
+                                'oral'       => (float)$g->oral,
+                                'written'    => (float)$g->written,
+                            ];
+                        } else {
+                            // month === 0 means final exam
+                            $gradesMap[$termKey][$subjectName]['finalExam'] = (float)$g->final_exam;
+                        }
+                    }
+                }
+            }
+
+            $result[] = [
+                'studentId'   => (string)$student->id,
+                'studentName' => $student->name_ar ?? $student->name ?? 'غير معروف',
+                'grades'      => $gradesMap,
+            ];
+        }
+
+        return response()->json([
+            'success'  => true,
+            'classId'  => (string)$classId,
+            'students' => $result,
         ]);
     }
 

@@ -13,7 +13,8 @@ export default function CommunicationsTab() {
     teachers,
     notifications,
     availableGrades,
-    handleSendNotification
+    handleSendNotification,
+    handleMarkNotificationAsRead
   } = useApp();
 
   // Local UI states

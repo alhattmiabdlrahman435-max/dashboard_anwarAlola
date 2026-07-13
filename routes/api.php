@@ -98,6 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/grades/detailed', [GradeController::class, 'saveDetailed']);
     Route::post('/grades/publish-month', [GradeController::class, 'publishMonthGrades']);
     Route::get('/grades/class/{classId}/subject/{subjectId}', [GradeController::class, 'getByClassAndSubject']);
+    Route::get('/grades/class/{classId}', [GradeController::class, 'getByClass']);
     Route::get('/grades/control', [GradeController::class, 'control']);
     Route::put('/grades/control/{studentId}', [GradeController::class, 'updateControl']);
     Route::post('/grades/generate-codes', [GradeController::class, 'generateSecretCodes']);

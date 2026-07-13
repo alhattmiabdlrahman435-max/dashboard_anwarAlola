@@ -121,6 +121,43 @@ export default function Navbar() {
                       if (!notif.isRead) {
                         handleMarkNotificationAsRead(notif.id);
                       }
+                      
+                      let className = null;
+                      let monthKey = 'm1';
+                      let termKey = 'term1';
+
+                      if (notif.title.includes('درجات جاهزة للمراجعة:')) {
+                        className = notif.title.replace('📊 درجات جاهزة للمراجعة:', '').trim();
+                      } else if (notif.title.includes('درجات الكنترول جاهزة للمراجعة:')) {
+                        className = notif.title.replace('📊 درجات الكنترول جاهزة للمراجعة:', '').trim();
+                        monthKey = 'termTotal';
+                      }
+
+                      if (className) {
+                        if (notif.content.includes('للشهر الثاني')) {
+                          monthKey = 'm2';
+                        } else if (notif.content.includes('للشهر الثالث')) {
+                          monthKey = 'm3';
+                        } else if (notif.content.includes('للشهر الأول')) {
+                          monthKey = 'm1';
+                        } else if (notif.content.includes('الكنترول النهائي')) {
+                          monthKey = 'termTotal';
+                        }
+
+                        if (notif.content.includes('الترم 2')) {
+                          termKey = 'term2';
+                        } else {
+                          termKey = 'term1';
+                        }
+
+                        localStorage.setItem('goto_class', className);
+                        localStorage.setItem('goto_period', monthKey);
+                        localStorage.setItem('goto_term', termKey);
+                        window.dispatchEvent(new Event('goto_class_changed'));
+                        
+                        setActiveTab('detailedGrades');
+                        setShowNotificationsDropdown(false);
+                      }
                     }}
                     style={{ opacity: notif.isRead ? 0.6 : 1, transition: 'all 0.3s' }}
                   >

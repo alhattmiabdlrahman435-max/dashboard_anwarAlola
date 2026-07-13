@@ -747,6 +747,31 @@ export const AppProvider = ({ children }) => {
     }
   }, [selectedGradeStudentId, isAuthenticated, students]);
 
+  // Fetch all grades for an entire class (used by ClassView to show real data)
+  const fetchClassGrades = useCallback((classId) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token || !classId) return;
+    api.get(`/api/grades/class/${classId}`)
+      .then((data) => {
+        if (data.success && Array.isArray(data.students)) {
+          setDetailedGrades((prev) => {
+            // Remove old records for these students and replace with fresh data
+            const incomingIds = data.students.map(s => Number(s.studentId));
+            const filtered = prev.filter(r => !incomingIds.includes(Number(r.studentId)));
+            return [
+              ...filtered,
+              ...data.students.map(s => ({
+                studentId: Number(s.studentId), // Must match Number type used in students array
+                studentName: s.studentName,
+                grades: s.grades,
+              }))
+            ];
+          });
+        }
+      })
+      .catch((err) => console.error("Error fetching class grades:", err));
+  }, []);
+
   // Set html page direction
   useEffect(() => {
     document.body.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
@@ -2920,6 +2945,7 @@ export const AppProvider = ({ children }) => {
         setAssignments,
         detailedGrades,
         setDetailedGrades,
+        fetchClassGrades,
         examSchedules,
         setExamSchedules,
         tuitionFees,

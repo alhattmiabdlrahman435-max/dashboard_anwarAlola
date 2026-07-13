@@ -31,18 +31,49 @@ export default function DetailedGradesTab() {
     canAction,
     selectedGradeSubject,
     setSelectedGradeSubject,
-    setShowPrintModal
+    setShowPrintModal,
+    fetchClassGrades
   } = useApp();
 
   // State for view controls
-  const [viewMode, setViewMode] = React.useState('subject'); // 'subject', 'month', 'class'
+  const [viewMode, setViewMode] = React.useState('class'); // Default to class view for admin reviews
   const [selectedMonth, setSelectedMonth] = React.useState('m1'); // 'm1', 'm2', 'm3'
   
   // Calculate unique classes list from students
   const classesList = Array.from(new Set(students.map(s => `${s.grade} - ${s.section}`))).sort();
-  const [selectedClass, setSelectedClass] = React.useState(classesList[0] || '');
-  const [classPeriod, setClassPeriod] = React.useState('m1'); // 'm1', 'm2', 'm3', 'termTotal', 'yearlyTotal'
+  const [selectedClass, setSelectedClass] = React.useState(localStorage.getItem('goto_class') || classesList[0] || '');
+  const [classPeriod, setClassPeriod] = React.useState(localStorage.getItem('goto_period') || 'm1'); // 'm1', 'm2', 'm3', 'termTotal', 'yearlyTotal'
   const [classSubject, setClassSubject] = React.useState('all'); // 'all', 'detailed', and subjects
+
+  // Listen for notification click events to jump straight to the correct ready grades page
+  React.useEffect(() => {
+    const handleGotoChange = () => {
+      const cls = localStorage.getItem('goto_class');
+      const period = localStorage.getItem('goto_period');
+      const term = localStorage.getItem('goto_term');
+      if (cls) {
+        setSelectedClass(cls);
+        localStorage.removeItem('goto_class');
+      }
+      if (period) {
+        setClassPeriod(period);
+        localStorage.removeItem('goto_period');
+      }
+      if (term) {
+        setSelectedGradeTerm(term);
+        localStorage.removeItem('goto_term');
+      }
+      setViewMode('class'); // Shift view mode to Class-level grades for editing and approval
+    };
+    window.addEventListener('goto_class_changed', handleGotoChange);
+    
+    // Check immediately on mount if there's a pending navigation
+    if (localStorage.getItem('goto_class')) {
+      handleGotoChange();
+    }
+
+    return () => window.removeEventListener('goto_class_changed', handleGotoChange);
+  }, [setSelectedGradeTerm]);
 
   // Synchronize default class selector when students list changes
   React.useEffect(() => {
@@ -50,6 +81,22 @@ export default function DetailedGradesTab() {
       setSelectedClass(classesList[0]);
     }
   }, [classesList, selectedClass]);
+
+  // Auto-load grades from database when selected class changes (class view mode)
+  React.useEffect(() => {
+    if (!selectedClass || viewMode !== 'class') return;
+    // Map class name back to numeric class ID
+    const [grade, section] = selectedClass.split(' - ');
+    const classObj = classes.find(c =>
+      (c.grade === grade || c.gradeEn === grade) &&
+      (c.section === section || c.sectionEn === section)
+    );
+    if (!classObj) return;
+    const numericId = typeof classObj.id === 'string' && classObj.id.startsWith('cls-')
+      ? classObj.id.replace('cls-', '')
+      : classObj.id;
+    fetchClassGrades(numericId);
+  }, [selectedClass, viewMode, classes, fetchClassGrades]);
 
   const handlePublishGrades = () => {
     if (!selectedClass) return;
@@ -78,15 +125,18 @@ export default function DetailedGradesTab() {
           if (classPeriod === 'm3') monthVal = '3';
           if (classPeriod === 'termTotal') monthVal = 'final';
 
-          const res = await api.post('/api/grades/publish-month', {
-            class_id: classObj.id,
+          const numericClassId = typeof classObj.id === 'string' && classObj.id.startsWith('cls-')
+            ? parseInt(classObj.id.replace('cls-', ''), 10)
+            : classObj.id;
+
+          const data = await api.post('/api/grades/publish-month', {
+            class_id: numericClassId,
             term: term,
             month: monthVal
           });
 
-          const data = await res.json();
           if (data.success) {
-            setToastMessage(data.message || (lang === 'ar' ? 'تم الاعتماد بنجاح' : 'Published successfully'));
+            setToastMessage(data.message || (lang === 'ar' ? 'تم الاعتماد بنجاح وإرسال الإشعارات لأولياء الأمور' : 'Published successfully'));
           } else {
             setToastMessage(data.message || (lang === 'ar' ? 'حدث خطأ أثناء الاعتماد' : 'Error publishing grades'));
           }
