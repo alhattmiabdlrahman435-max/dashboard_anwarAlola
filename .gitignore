@@ -47,3 +47,7 @@ database/database.sqlite
 app/anwaralola-firebase-adminsdk-fbsvc-*.json
 .env
 
+# Graphify & Diagnostics
+graphify-out/
+.graphifyignore
+check_db.php

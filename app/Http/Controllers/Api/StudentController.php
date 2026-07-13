@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Attendance;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -235,6 +236,30 @@ class StudentController extends Controller implements HasMiddleware
             'note' => 'تم تسجيل الحضور من قبل: ' . $request->user()->name_ar,
             'created_by' => $request->user()->id
         ]);
+
+        // Notify parent
+        if ($student->parent_id) {
+            $title = 'تحديث سجل الحضور المدرسي';
+            $content = "تم تسجيل حضور الطالب {$student->name_ar} اليوم.";
+
+            Notification::create([
+                'title' => $title,
+                'content' => $content,
+                'type' => 'attendance',
+                'is_read' => false,
+                'student_id' => $student->id,
+            ]);
+
+            // Load parent relation to get the token
+            $student->load('parentUser');
+            $parentUser = $student->parentUser;
+            if ($parentUser && $parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+                    'type' => 'attendance',
+                    'student_id' => $student->id
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,

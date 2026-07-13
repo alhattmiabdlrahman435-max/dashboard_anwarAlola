@@ -131,6 +131,47 @@ class GradeController extends Controller implements HasMiddleware
             ]
         );
 
+        $grade->load(['student.parentUser', 'subject']);
+        $student = $grade->student;
+        $subject = $grade->subject;
+
+        if ($student && $student->parent_id) {
+            $monthNames = [
+                'm1' => 'الأول',
+                'm2' => 'الثاني',
+                'm3' => 'الثالث',
+                '1' => 'الأول',
+                '2' => 'الثاني',
+                '3' => 'الثالث',
+                'final' => 'النهائي',
+                '0' => 'النهائي',
+            ];
+            $monthText = $monthNames[$request->month] ?? $request->month;
+            $title = 'تحديث درجات الطالب 📊';
+            $content = "تم رصد/تعديل درجات ابنكم {$student->name_ar} لشهر {$monthText} في مادة {$subject->name_ar}.";
+
+            \App\Models\Notification::create([
+                'title' => $title,
+                'content' => $content,
+                'type' => 'general',
+                'is_read' => false,
+                'student_id' => $student->id,
+            ]);
+
+            $parentUser = $student->parentUser;
+            if ($parentUser && $parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification(
+                    $parentUser->fcm_token,
+                    $title,
+                    $content,
+                    [
+                        'type' => 'grade',
+                        'student_id' => (string)$student->id,
+                        'month' => (string)$request->month,
+                    ]
+                );
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -290,6 +331,34 @@ class GradeController extends Controller implements HasMiddleware
                         'oral' => 0,
                         'written' => 0,
                         'final_exam' => $request->$inputName
+                    ]
+                );
+            }
+        }
+
+        $student->load('parentUser');
+        if ($student->parent_id) {
+            $title = 'تحديث درجات الكنترول 📊';
+            $content = "تم رصد/تعديل درجات الكنترول العام (النهائية) لابنكم {$student->name_ar}.";
+
+            \App\Models\Notification::create([
+                'title' => $title,
+                'content' => $content,
+                'type' => 'general',
+                'is_read' => false,
+                'student_id' => $student->id,
+            ]);
+
+            $parentUser = $student->parentUser;
+            if ($parentUser && $parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification(
+                    $parentUser->fcm_token,
+                    $title,
+                    $content,
+                    [
+                        'type' => 'grade',
+                        'student_id' => (string)$student->id,
+                        'month' => '0', // Final control is month 0
                     ]
                 );
             }
