@@ -200,7 +200,9 @@ class ScheduleController extends Controller
             foreach ($request->schedule as $day => $periods) {
                 foreach ($periods as $idx => $subjName) {
                     if (empty($subjName)) continue;
-                    $subj = Subject::where('name_ar', $subjName)->first();
+                    $subj = Subject::where('name_ar', trim($subjName))
+                        ->orWhere('name_en', trim($subjName))
+                        ->first();
                     if ($subj) {
                         $newPeriods[strtolower($day) . '-' . ($idx + 1)] = $subj->id;
                     }

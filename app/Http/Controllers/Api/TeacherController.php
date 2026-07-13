@@ -110,6 +110,38 @@ class TeacherController extends Controller implements HasMiddleware
                         'subject_id' => $assign['subject_id'],
                         'class_id' => $assign['class_id'],
                     ]);
+
+                    // Send notification to the teacher
+                    $subject = \App\Models\Subject::find($assign['subject_id']);
+                    $cls = SchoolClass::find($assign['class_id']);
+
+                    if ($subject && $cls) {
+                        $className = $cls->grade_ar . ' - ' . $cls->section_ar;
+                        $subjectName = $subject->name_ar;
+
+                        $title = '➕ تكليف تدريس جديد';
+                        $body = "تم تكليفك بتدريس مادة ({$subjectName}) للفصل ({$className}).";
+
+                        \App\Models\Notification::create([
+                            'title' => $title,
+                            'content' => $body,
+                            'type' => 'general',
+                            'is_read' => false,
+                            'teacher_id' => $user->id,
+                        ]);
+
+                        if ($user->fcm_token) {
+                            \App\Services\FcmService::sendNotification(
+                                $user->fcm_token,
+                                $title . ' 📅',
+                                $body,
+                                [
+                                    'type' => 'weekly_schedule',
+                                    'class_id' => (string)$cls->id
+                                ]
+                            );
+                        }
+                    }
                 }
             }
 
@@ -185,6 +217,12 @@ class TeacherController extends Controller implements HasMiddleware
             $teacher->update($updateData);
 
             if ($request->has('assignments')) {
+                // Get old assignments keys
+                $oldAssignments = TeacherSubject::where('teacher_id', $teacher->id)->get();
+                $oldKeys = $oldAssignments->map(function($a) {
+                    return $a->class_id . '-' . $a->subject_id;
+                })->toArray();
+
                 // Delete old subjects assignments
                 TeacherSubject::where('teacher_id', $teacher->id)->delete();
 
@@ -194,6 +232,43 @@ class TeacherController extends Controller implements HasMiddleware
                         'subject_id' => $assign['subject_id'],
                         'class_id' => $assign['class_id'],
                     ]);
+
+                    $key = $assign['class_id'] . '-' . $assign['subject_id'];
+                    if (!in_array($key, $oldKeys)) {
+                        // This is a newly added teaching assignment!
+                        $subject = \App\Models\Subject::find($assign['subject_id']);
+                        $cls = SchoolClass::find($assign['class_id']);
+                        
+                        if ($subject && $cls) {
+                            $className = $cls->grade_ar . ' - ' . $cls->section_ar;
+                            $subjectName = $subject->name_ar;
+
+                            $title = '➕ تكليف تدريس جديد';
+                            $body = "تم تكليفك بتدريس مادة ({$subjectName}) للفصل ({$className}).";
+
+                            // Create database notification
+                            \App\Models\Notification::create([
+                                'title' => $title,
+                                'content' => $body,
+                                'type' => 'general',
+                                'is_read' => false,
+                                'teacher_id' => $teacher->id,
+                            ]);
+
+                            // Send push notification via FCM
+                            if ($teacher->fcm_token) {
+                                \App\Services\FcmService::sendNotification(
+                                    $teacher->fcm_token,
+                                    $title . ' 📅',
+                                    $body,
+                                    [
+                                        'type' => 'weekly_schedule',
+                                        'class_id' => (string)$cls->id
+                                    ]
+                                );
+                            }
+                        }
+                    }
                 }
             }
 

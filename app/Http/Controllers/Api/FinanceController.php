@@ -86,6 +86,29 @@ class FinanceController extends Controller
             'recorded_by' => auth()->id()
         ]);
 
+        // Notify parent about new payment receipt
+        $student = Student::with('parentUser')->find($request->student_id);
+        if ($student && $student->parent_id) {
+            $title = 'سند قبض مالي جديد 💳';
+            $content = "تم تسجيل دفعة مالية بقيمة " . number_format($request->amount) . " ريال للطالب " . $student->name_ar . " بتاريخ " . $request->payment_date;
+
+            \App\Models\Notification::create([
+                'title' => $title,
+                'content' => $content,
+                'type' => 'general',
+                'is_read' => false,
+                'student_id' => $student->id,
+            ]);
+
+            $parentUser = $student->parentUser;
+            if ($parentUser && $parentUser->fcm_token) {
+                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+                    'type' => 'finance',
+                    'student_id' => (string)$student->id
+                ]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'تم تسجيل سند القبض المالي بنجاح وتحديث حساب الطالب',

@@ -78,6 +78,8 @@ class FcmService
                                     ],
                                     'sound' => 'default',
                                     'badge' => 1,
+                                    'content-available' => 1,
+                                    'mutable-content' => 1,
                                 ],
                             ],
                         ],
