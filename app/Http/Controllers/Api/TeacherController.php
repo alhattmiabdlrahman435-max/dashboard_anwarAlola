@@ -69,88 +69,108 @@ class TeacherController extends Controller implements HasMiddleware
             'assignments' => 'nullable|array', // array of { subject_id, class_id }
         ]);
 
-        return DB::transaction(function () use ($request) {
-            $photoUrl = $request->photo_url;
-            if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
-                $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
-                $type = strtolower($type[1]);
-                if (in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
-                    $data = str_replace(' ', '+', $data);
-                    $data = base64_decode($data);
-                    if ($data !== false) {
-                        $filename = time() . '_' . uniqid() . '.' . $type;
-                        if (!file_exists(public_path('uploads/avatars'))) {
-                            mkdir(public_path('uploads/avatars'), 0755, true);
+        try {
+            return DB::transaction(function () use ($request) {
+                $photoUrl = $request->photo_url;
+                if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
+                    $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
+                    $type = strtolower($type[1]);
+                    if (in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
+                        $data = str_replace(' ', '+', $data);
+                        $data = base64_decode($data);
+                        if ($data !== false) {
+                            $filename = time() . '_' . uniqid() . '.' . $type;
+                            if (!file_exists(public_path('uploads/avatars'))) {
+                                mkdir(public_path('uploads/avatars'), 0755, true);
+                            }
+                            file_put_contents(public_path('uploads/avatars/' . $filename), $data);
+                            $photoUrl = asset('uploads/avatars/' . $filename);
                         }
-                        file_put_contents(public_path('uploads/avatars/' . $filename), $data);
-                        $photoUrl = asset('uploads/avatars/' . $filename);
                     }
                 }
-            }
 
-            $user = User::create([
-                'name' => $request->name_ar,
-                'username' => $request->job_id,
-                'job_id' => $request->job_id,
-                'national_id' => $request->job_id,
-                'password' => Hash::make($request->phone),
-                'role' => 'teacher',
-                'name_ar' => $request->name_ar,
-                'name_en' => $request->name_en,
-                'phone' => $request->phone,
-                'address' => $request->address,
-                'photo_url' => $photoUrl ?: '👨‍🏫',
-                'is_active' => true,
-            ]);
+                $user = User::create([
+                    'name' => $request->name_ar,
+                    'username' => $request->job_id,
+                    'job_id' => $request->job_id,
+                    'national_id' => $request->job_id,
+                    'password' => Hash::make($request->phone),
+                    'role' => 'teacher',
+                    'name_ar' => $request->name_ar,
+                    'name_en' => $request->name_en,
+                    'phone' => $request->phone,
+                    'address' => $request->address,
+                    'photo_url' => $photoUrl ?: '👨‍🏫',
+                    'is_active' => true,
+                ]);
 
-            if ($request->has('assignments')) {
-                foreach ($request->assignments as $assign) {
-                    TeacherSubject::create([
-                        'teacher_id' => $user->id,
-                        'subject_id' => $assign['subject_id'],
-                        'class_id' => $assign['class_id'],
-                    ]);
+                if ($request->has('assignments')) {
+                    foreach ($request->assignments as $assign) {
+                        // التحقق من تعارض الإسناد مع معلمين آخرين
+                        $exists = TeacherSubject::where('class_id', $assign['class_id'])
+                            ->where('subject_id', $assign['subject_id'])
+                            ->whereNotNull('teacher_id')
+                            ->first();
+                        if ($exists) {
+                            $className = SchoolClass::find($assign['class_id'])->name_ar ?? 'الفصل';
+                            $subjectName = \App\Models\Subject::find($assign['subject_id'])->name_ar ?? 'المادة';
+                            $otherTeacher = User::find($exists->teacher_id)->name_ar ?? 'معلم آخر';
+                            
+                            throw new \Exception("المادة ({$subjectName}) في الفصل ({$className}) مسندة بالفعل للمعلم ({$otherTeacher}). يرجى إلغاء تكليفه أولاً.");
+                        }
 
-                    // Send notification to the teacher
-                    $subject = \App\Models\Subject::find($assign['subject_id']);
-                    $cls = SchoolClass::find($assign['class_id']);
-
-                    if ($subject && $cls) {
-                        $className = $cls->grade_ar . ' - ' . $cls->section_ar;
-                        $subjectName = $subject->name_ar;
-
-                        $title = '➕ تكليف تدريس جديد';
-                        $body = "تم تكليفك بتدريس مادة ({$subjectName}) للفصل ({$className}).";
-
-                        \App\Models\Notification::create([
-                            'title' => $title,
-                            'content' => $body,
-                            'type' => 'general',
-                            'is_read' => false,
+                        TeacherSubject::create([
                             'teacher_id' => $user->id,
+                            'subject_id' => $assign['subject_id'],
+                            'class_id' => $assign['class_id'],
                         ]);
 
-                        if ($user->fcm_token) {
-                            \App\Services\FcmService::sendNotification(
-                                $user->fcm_token,
-                                $title . ' 📅',
-                                $body,
-                                [
-                                    'type' => 'weekly_schedule',
-                                    'class_id' => (string)$cls->id
-                                ]
-                            );
+                        // Send notification to the teacher
+                        $subject = \App\Models\Subject::find($assign['subject_id']);
+                        $cls = SchoolClass::find($assign['class_id']);
+
+                        if ($subject && $cls) {
+                            $className = $cls->grade_ar . ' - ' . $cls->section_ar;
+                            $subjectName = $subject->name_ar;
+
+                            $title = '➕ تكليف تدريس جديد';
+                            $body = "تم تكليفك بتدريس مادة ({$subjectName}) للفصل ({$className}).";
+
+                            \App\Models\Notification::create([
+                                'title' => $title,
+                                'content' => $body,
+                                'type' => 'general',
+                                'is_read' => false,
+                                'teacher_id' => $user->id,
+                            ]);
+
+                            if ($user->fcm_token) {
+                                \App\Services\FcmService::sendNotification(
+                                    $user->fcm_token,
+                                    $title . ' 📅',
+                                    $body,
+                                    [
+                                        'type' => 'weekly_schedule',
+                                        'class_id' => (string)$cls->id
+                                    ]
+                                );
+                            }
                         }
                     }
                 }
-            }
 
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم إضافة المعلم وتكليفاته بنجاح',
+                    'teacher' => $user->load('teacherSubjects')
+                ], 201);
+            });
+        } catch (\Exception $e) {
             return response()->json([
-                'success' => true,
-                'message' => 'تم إضافة المعلم وتكليفاته بنجاح',
-                'teacher' => $user->load('teacherSubjects')
-            ], 201);
-        });
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     public function show(string $id)
@@ -178,106 +198,129 @@ class TeacherController extends Controller implements HasMiddleware
             'assignments' => 'nullable|array',
         ]);
 
-        return DB::transaction(function () use ($request, $teacher) {
-            $photoUrl = $request->photo_url;
-            if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
-                $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
-                $type = strtolower($type[1]);
-                if (in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
-                    $data = str_replace(' ', '+', $data);
-                    $data = base64_decode($data);
-                    if ($data !== false) {
-                        $filename = time() . '_' . uniqid() . '.' . $type;
-                        if (!file_exists(public_path('uploads/avatars'))) {
-                            mkdir(public_path('uploads/avatars'), 0755, true);
+        try {
+            return DB::transaction(function () use ($request, $teacher) {
+                $photoUrl = $request->photo_url;
+                if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
+                    $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
+                    $type = strtolower($type[1]);
+                    if (in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
+                        $data = str_replace(' ', '+', $data);
+                        $data = base64_decode($data);
+                        if ($data !== false) {
+                            $filename = time() . '_' . uniqid() . '.' . $type;
+                            if (!file_exists(public_path('uploads/avatars'))) {
+                                mkdir(public_path('uploads/avatars'), 0755, true);
+                            }
+                            file_put_contents(public_path('uploads/avatars/' . $filename), $data);
+                            $photoUrl = asset('uploads/avatars/' . $filename);
                         }
-                        file_put_contents(public_path('uploads/avatars/' . $filename), $data);
-                        $photoUrl = asset('uploads/avatars/' . $filename);
                     }
                 }
-            }
 
-            $updateData = [
-                'name' => $request->name_ar,
-                'name_ar' => $request->name_ar,
-                'name_en' => $request->name_en,
-                'phone' => $request->phone,
-                'address' => $request->address,
-            ];
+                $updateData = [
+                    'name' => $request->name_ar,
+                    'name_ar' => $request->name_ar,
+                    'name_en' => $request->name_en,
+                    'phone' => $request->phone,
+                    'address' => $request->address,
+                ];
 
-            if ($photoUrl) {
-                $updateData['photo_url'] = $photoUrl;
-            }
+                if ($photoUrl) {
+                    $updateData['photo_url'] = $photoUrl;
+                }
 
-            // إذا تغير رقم الجوال، نحدث كلمة المرور أيضاً
-            if ($request->phone && $request->phone !== $teacher->phone) {
-                $updateData['password'] = Hash::make($request->phone);
-            }
+                // إذا تغير رقم الجوال، نحدث كلمة المرور أيضاً
+                if ($request->phone && $request->phone !== $teacher->phone) {
+                    $updateData['password'] = Hash::make($request->phone);
+                }
 
-            $teacher->update($updateData);
+                $teacher->update($updateData);
 
-            if ($request->has('assignments')) {
-                // Get old assignments keys
-                $oldAssignments = TeacherSubject::where('teacher_id', $teacher->id)->get();
-                $oldKeys = $oldAssignments->map(function($a) {
-                    return $a->class_id . '-' . $a->subject_id;
-                })->toArray();
+                if ($request->has('assignments')) {
+                    // Get old assignments keys
+                    $oldAssignments = TeacherSubject::where('teacher_id', $teacher->id)->get();
+                    $oldKeys = $oldAssignments->map(function($a) {
+                        return $a->class_id . '-' . $a->subject_id;
+                    })->toArray();
 
-                // Delete old subjects assignments
-                TeacherSubject::where('teacher_id', $teacher->id)->delete();
+                    // التحقق من تعارض الإسناد مع معلمين آخرين قبل المضي قدماً
+                    foreach ($request->assignments as $assign) {
+                        $exists = TeacherSubject::where('class_id', $assign['class_id'])
+                            ->where('subject_id', $assign['subject_id'])
+                            ->where('teacher_id', '!=', $teacher->id)
+                            ->whereNotNull('teacher_id')
+                            ->first();
+                        if ($exists) {
+                            $className = SchoolClass::find($assign['class_id'])->name_ar ?? 'الفصل';
+                            $subjectName = \App\Models\Subject::find($assign['subject_id'])->name_ar ?? 'المادة';
+                            $otherTeacher = User::find($exists->teacher_id)->name_ar ?? 'معلم آخر';
+                            
+                            throw new \Exception("المادة ({$subjectName}) في الفصل ({$className}) مسندة بالفعل للمعلم ({$otherTeacher}). يرجى إلغاء تكليفه أولاً.");
+                        }
+                    }
 
-                foreach ($request->assignments as $assign) {
-                    TeacherSubject::create([
-                        'teacher_id' => $teacher->id,
-                        'subject_id' => $assign['subject_id'],
-                        'class_id' => $assign['class_id'],
-                    ]);
+                    // Delete old subjects assignments
+                    TeacherSubject::where('teacher_id', $teacher->id)->delete();
 
-                    $key = $assign['class_id'] . '-' . $assign['subject_id'];
-                    if (!in_array($key, $oldKeys)) {
-                        // This is a newly added teaching assignment!
-                        $subject = \App\Models\Subject::find($assign['subject_id']);
-                        $cls = SchoolClass::find($assign['class_id']);
-                        
-                        if ($subject && $cls) {
-                            $className = $cls->grade_ar . ' - ' . $cls->section_ar;
-                            $subjectName = $subject->name_ar;
+                    foreach ($request->assignments as $assign) {
+                        TeacherSubject::create([
+                            'teacher_id' => $teacher->id,
+                            'subject_id' => $assign['subject_id'],
+                            'class_id' => $assign['class_id'],
+                        ]);
 
-                            $title = '➕ تكليف تدريس جديد';
-                            $body = "تم تكليفك بتدريس مادة ({$subjectName}) للفصل ({$className}).";
+                        $key = $assign['class_id'] . '-' . $assign['subject_id'];
+                        if (!in_array($key, $oldKeys)) {
+                            // This is a newly added teaching assignment!
+                            $subject = \App\Models\Subject::find($assign['subject_id']);
+                            $cls = SchoolClass::find($assign['class_id']);
+                            
+                            if ($subject && $cls) {
+                                $className = $cls->grade_ar . ' - ' . $cls->section_ar;
+                                $subjectName = $subject->name_ar;
 
-                            // Create database notification
-                            \App\Models\Notification::create([
-                                'title' => $title,
-                                'content' => $body,
-                                'type' => 'general',
-                                'is_read' => false,
-                                'teacher_id' => $teacher->id,
-                            ]);
+                                $title = '➕ تكليف تدريس جديد';
+                                $body = "تم تكليفك بتدريس مادة ({$subjectName}) للفصل ({$className}).";
 
-                            // Send push notification via FCM
-                            if ($teacher->fcm_token) {
-                                \App\Services\FcmService::sendNotification(
-                                    $teacher->fcm_token,
-                                    $title . ' 📅',
-                                    $body,
-                                    [
-                                        'type' => 'weekly_schedule',
-                                        'class_id' => (string)$cls->id
-                                    ]
-                                );
+                                // Create database notification
+                                \App\Models\Notification::create([
+                                    'title' => $title,
+                                    'content' => $body,
+                                    'type' => 'general',
+                                    'is_read' => false,
+                                    'teacher_id' => $teacher->id,
+                                ]);
+
+                                // Send push notification via FCM
+                                if ($teacher->fcm_token) {
+                                    \App\Services\FcmService::sendNotification(
+                                        $teacher->fcm_token,
+                                        $title . ' 📅',
+                                        $body,
+                                        [
+                                            'type' => 'weekly_schedule',
+                                            'class_id' => (string)$cls->id
+                                        ]
+                                    );
+                                }
                             }
                         }
                     }
                 }
-            }
 
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم تحديث بيانات المعلم وتكليفاته بنجاح',
+                    'teacher' => $teacher->load('teacherSubjects')
+                ]);
+            });
+        } catch (\Exception $e) {
             return response()->json([
-                'success' => true,
-                'message' => 'تم تحديث بيانات المعلم وتكليفاته بنجاح',
-                'teacher' => $teacher->load('teacherSubjects')
-            ]);
-        });
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     public function destroy(string $id)
