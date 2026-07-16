@@ -1157,11 +1157,6 @@ export const AppProvider = ({ children }) => {
 
   const handleAddTeacherAction = (newTeacher) => {
     const token = localStorage.getItem("auth_token");
-    setTeachers((prev) => [...prev, newTeacher]);
-    setToastMessage(
-      lang === "ar" ? "تم تسجيل المعلم بنجاح!" : "Teacher added successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 4000);
 
     if (token) {
       // Find subject_id and class_id from names
@@ -1191,11 +1186,30 @@ export const AppProvider = ({ children }) => {
       .then(data => {
         if (data.success) {
           fetchTeachers(token);
+          setToastMessage(
+            lang === "ar" ? "تم تسجيل المعلم بنجاح!" : "Teacher added successfully!",
+          );
+          setTimeout(() => setToastMessage(""), 4000);
         } else {
-          console.error("Failed to save teacher:", data.message);
+          setToastMessage(
+            lang === "ar" ? `فشل تسجيل المعلم: ${data.message}` : `Failed to add teacher: ${data.message}`
+          );
+          setTimeout(() => setToastMessage(""), 6000);
         }
       })
-      .catch(err => console.error("Error saving teacher:", err));
+      .catch(err => {
+        console.error("Error saving teacher:", err);
+        setToastMessage(
+          lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`
+        );
+        setTimeout(() => setToastMessage(""), 6000);
+      });
+    } else {
+      setTeachers((prev) => [...prev, newTeacher]);
+      setToastMessage(
+        lang === "ar" ? "تم تسجيل المعلم بنجاح!" : "Teacher added successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 4000);
     }
   };
 
@@ -1321,15 +1335,6 @@ export const AppProvider = ({ children }) => {
 
   const handleEditTeacherAction = (updatedTeacher, teacherId) => {
     const token = localStorage.getItem("auth_token");
-    setTeachers((prev) =>
-      prev.map((t) => (t.id === teacherId ? updatedTeacher : t)),
-    );
-    setToastMessage(
-      lang === "ar"
-        ? "تم تحديث بيانات المعلم بنجاح!"
-        : "Teacher details updated successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 4000);
 
     if (token) {
       const apiAssignments = (updatedTeacher.teachingAssignments || []).map(a => {
@@ -1357,11 +1362,36 @@ export const AppProvider = ({ children }) => {
       .then(data => {
         if (data.success) {
           fetchTeachers(token);
+          setToastMessage(
+            lang === "ar"
+              ? "تم تحديث بيانات المعلم بنجاح!"
+              : "Teacher details updated successfully!",
+          );
+          setTimeout(() => setToastMessage(""), 4000);
         } else {
-          console.error("Failed to update teacher:", data.message);
+          setToastMessage(
+            lang === "ar" ? `فشل تحديث المعلم: ${data.message}` : `Failed to update teacher: ${data.message}`
+          );
+          setTimeout(() => setToastMessage(""), 6000);
         }
       })
-      .catch(err => console.error("Error updating teacher:", err));
+      .catch(err => {
+        console.error("Error updating teacher:", err);
+        setToastMessage(
+          lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`
+        );
+        setTimeout(() => setToastMessage(""), 6000);
+      });
+    } else {
+      setTeachers((prev) =>
+        prev.map((t) => (t.id === teacherId ? updatedTeacher : t)),
+      );
+      setToastMessage(
+        lang === "ar"
+          ? "تم تحديث بيانات المعلم بنجاح!"
+          : "Teacher details updated successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 4000);
     }
   };
 
