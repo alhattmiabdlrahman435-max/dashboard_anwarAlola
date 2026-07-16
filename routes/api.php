@@ -144,6 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/classes', [TeacherController::class, 'getClasses']);
         Route::get('/classes/{classId}/students', [TeacherController::class, 'getStudents']);
         Route::put('/students/{studentId}/attendance', [TeacherController::class, 'markAttendance']);
+        Route::post('/classes/{classId}/submit-attendance', [TeacherController::class, 'submitClassAttendance']);
         Route::get('/classes/{classId}/attendance-history', [TeacherController::class, 'getClassAttendanceHistory']);
         Route::get('/attendance-history', [TeacherController::class, 'getTeacherAttendanceHistory']);
         Route::get('/reports', [TeacherController::class, 'getSupervisorReports']);

@@ -57,10 +57,26 @@ class AttendanceController extends Controller
             'note' => 'nullable|string',
         ]);
 
+        $student = Student::findOrFail($request->student_id);
+        $date = $request->date;
+        
+        if ($request->user()->role !== 'admin') {
+            $isLocked = \Illuminate\Support\Facades\DB::table('attendance_submissions')
+                ->where('class_id', $student->class_id)
+                ->where('record_date', $date)
+                ->exists();
+            if ($isLocked) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'تم إرسال تقرير التحضير بالفعل لهذا اليوم ولا يمكن تعديله. التعديل متاح للمسؤولين فقط.'
+                ], 403);
+            }
+        }
+
         $attendance = Attendance::updateOrCreate(
             [
                 'student_id' => $request->student_id,
-                'record_date' => $request->date,
+                'record_date' => $date,
             ],
             [
                 'status' => $request->status,
@@ -122,6 +138,22 @@ class AttendanceController extends Controller
             'arrival_time' => 'nullable|string',
             'note' => 'nullable|string',
         ]);
+
+        $student = Student::findOrFail($attendance->student_id);
+        $date = $attendance->record_date;
+        
+        if ($request->user()->role !== 'admin') {
+            $isLocked = \Illuminate\Support\Facades\DB::table('attendance_submissions')
+                ->where('class_id', $student->class_id)
+                ->where('record_date', $date)
+                ->exists();
+            if ($isLocked) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'تم إرسال تقرير التحضير بالفعل لهذا اليوم ولا يمكن تعديله. التعديل متاح للمسؤولين فقط.'
+                ], 403);
+            }
+        }
 
         $attendance->update([
             'status' => $request->status,

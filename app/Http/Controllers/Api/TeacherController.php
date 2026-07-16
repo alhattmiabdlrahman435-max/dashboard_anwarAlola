@@ -379,7 +379,15 @@ class TeacherController extends Controller implements HasMiddleware
         $students = Student::where('class_id', $classId)->get();
         $date = $request->input('date', today()->toDateString());
 
-        $result = $students->map(function($student) use ($date) {
+        $isLocked = false;
+        if ($request->user()->role !== 'admin') {
+            $isLocked = \Illuminate\Support\Facades\DB::table('attendance_submissions')
+                ->where('class_id', $classId)
+                ->where('record_date', $date)
+                ->exists();
+        }
+
+        $result = $students->map(function($student) use ($date, $isLocked) {
             $attendance = Attendance::where('student_id', $student->id)
                 ->where('record_date', $date)
                 ->first();
@@ -391,6 +399,7 @@ class TeacherController extends Controller implements HasMiddleware
                 'parentPhone' => $student->parentUser ? $student->parentUser->phone : 'غير محدد',
                 'photoUrl' => $student->photo_url,
                 'status' => $attendance ? $attendance->status : 'pending',
+                'isLocked' => $isLocked,
             ];
         });
 
@@ -418,6 +427,20 @@ class TeacherController extends Controller implements HasMiddleware
         $student = Student::where('id', $studentId)
             ->orWhere('student_code', $studentId)
             ->firstOrFail();
+
+        $date = today()->toDateString();
+        if ($request->user()->role !== 'admin') {
+            $isLocked = \Illuminate\Support\Facades\DB::table('attendance_submissions')
+                ->where('class_id', $student->class_id)
+                ->where('record_date', $date)
+                ->exists();
+            if ($isLocked) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'تم إرسال تقرير التحضير بالفعل لهذا اليوم ولا يمكن تعديله. التعديل متاح للمسؤولين فقط.'
+                ], 403);
+            }
+        }
 
         $attendance = Attendance::updateOrCreate(
             [
@@ -462,6 +485,113 @@ class TeacherController extends Controller implements HasMiddleware
             'message' => 'تم تسجيل الحضور بنجاح', 
             'attendance' => $attendance
         ]);
+    }
+
+    /**
+     * Submit bulk attendance for a class and lock it.
+     */
+    public function submitClassAttendance(Request $request, $classId)
+    {
+        // VERIFICATION: Check if user is allowed to submit attendance
+        if (!in_array($request->user()->role, ['admin', 'supervisor', 'preparation_supervisor'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتحضير الطلاب. التحضير من صلاحيات الإدارة ومشرفة التحضير فقط.'
+            ], 403);
+        }
+
+        $request->validate([
+            'attendance' => 'required|array',
+            'attendance.*.student_id' => 'required|integer',
+            'attendance.*.status' => 'required|in:present,absent',
+        ]);
+
+        $date = today()->toDateString();
+
+        // Check if already submitted/locked
+        $alreadySubmitted = \Illuminate\Support\Facades\DB::table('attendance_submissions')
+            ->where('class_id', $classId)
+            ->where('record_date', $date)
+            ->exists();
+
+        if ($alreadySubmitted && $request->user()->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'تم إرسال تقرير التحضير بالفعل لهذا اليوم لهذا الفصل ولا يمكن إعادة إرساله.'
+            ], 400);
+        }
+
+        try {
+            return DB::transaction(function () use ($request, $classId, $date) {
+                foreach ($request->attendance as $record) {
+                    $student = Student::findOrFail($record['student_id']);
+                    
+                    // Verify student belongs to this class
+                    if ($student->class_id != $classId) {
+                        throw new \Exception("الطالب {$student->name_ar} لا ينتمي لهذا الفصل.");
+                    }
+
+                    $attendance = Attendance::updateOrCreate(
+                        [
+                            'student_id' => $student->id,
+                            'record_date' => $date,
+                        ],
+                        [
+                            'status' => $record['status'],
+                            'arrival_time' => $record['status'] === 'present' ? now()->format('H:i:s') : null,
+                            'created_by' => $request->user()->id,
+                        ]
+                    );
+
+                    // Notify parent
+                    if ($student->parent_id) {
+                        $statusAr = $record['status'] === 'present' ? 'حاضراً' : 'غائباً';
+                        $title = 'تحديث سجل الحضور المدرسي';
+                        $content = "تم تسجيل الطالب {$student->name_ar} {$statusAr} اليوم.";
+
+                        \App\Models\Notification::create([
+                            'title' => $title,
+                            'content' => $content,
+                            'type' => 'attendance',
+                            'is_read' => false,
+                            'student_id' => $student->id,
+                        ]);
+
+                        $student->load('parentUser');
+                        $parentUser = $student->parentUser;
+                        if ($parentUser && $parentUser->fcm_token) {
+                            \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+                                'type' => 'attendance',
+                                'student_id' => $student->id
+                            ]);
+                        }
+                    }
+                }
+
+                // Create submission record
+                \Illuminate\Support\Facades\DB::table('attendance_submissions')->updateOrInsert(
+                    [
+                        'class_id' => $classId,
+                        'record_date' => $date,
+                    ],
+                    [
+                        'submitted_by' => $request->user()->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم إنهاء وإرسال تقرير حضور الطلاب بنجاح.'
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
