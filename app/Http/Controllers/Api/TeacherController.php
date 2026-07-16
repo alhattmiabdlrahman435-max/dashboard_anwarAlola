@@ -733,6 +733,9 @@ class TeacherController extends Controller implements HasMiddleware
      */
     public function getSupervisorReports(Request $request)
     {
+        // Support filtering by month (e.g. YYYY-MM)
+        $month = $request->input('month');
+
         $today = now()->format('Y-m-d');
         $totalStudents = Student::count();
         
@@ -741,9 +744,18 @@ class TeacherController extends Controller implements HasMiddleware
         $unmarkedToday = max(0, $totalStudents - ($presentToday + $absentToday));
 
         // Average attendance calculation over all recorded days
-        $totalDays = Attendance::select('record_date')->distinct()->count();
+        $totalDaysQuery = Attendance::select('record_date')->distinct();
+        if ($month) {
+            $totalDaysQuery->where('record_date', 'like', $month . '%');
+        }
+        $totalDays = $totalDaysQuery->count();
+
         if ($totalDays > 0) {
-            $totalPresent = Attendance::where('status', 'present')->count();
+            $totalPresentQuery = Attendance::where('status', 'present');
+            if ($month) {
+                $totalPresentQuery->where('record_date', 'like', $month . '%');
+            }
+            $totalPresent = $totalPresentQuery->count();
             $totalPossible = $totalStudents * $totalDays;
             $averageAttendance = $totalPossible > 0 ? round(($totalPresent / $totalPossible) * 100, 1) : 100.0;
         } else {
@@ -770,9 +782,19 @@ class TeacherController extends Controller implements HasMiddleware
         $studentReports = [];
         $students = Student::all();
         foreach ($students as $student) {
-            $pCount = Attendance::where('student_id', $student->id)->where('status', 'present')->count();
-            $aCount = Attendance::where('student_id', $student->id)->where('status', 'absent')->count();
+            $pQuery = Attendance::where('student_id', $student->id)->where('status', 'present');
+            $aQuery = Attendance::where('student_id', $student->id)->where('status', 'absent');
+
+            if ($month) {
+                $pQuery->where('record_date', 'like', $month . '%');
+                $aQuery->where('record_date', 'like', $month . '%');
+            }
+
+            $pCount = $pQuery->count();
+            $aCount = $aQuery->count();
+
             $studentReports[] = [
+                'id' => (string) $student->id,
                 'name' => $student->name_ar ?? 'غير معروف',
                 'nameEn' => $student->name_en ?? '',
                 'civilId' => $student->student_code ?? '',
