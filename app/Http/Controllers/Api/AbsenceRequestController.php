@@ -60,6 +60,25 @@ class AbsenceRequestController extends Controller
         // Use authenticated user ID if parent_id is not provided in body
         $parentId = $request->parent_id ?: auth()->id();
 
+        $startDate = $request->start_date;
+        $endDate = $request->end_date ?: $request->start_date;
+
+        // التحقق من وجود طلب غياب نشط (مقبول أو معلق) متداخل في التواريخ لنفس الطالب
+        $overlapExists = AbsenceRequest::where('student_id', $request->student_id)
+            ->where('status', '!=', 'rejected')
+            ->where(function($query) use ($startDate, $endDate) {
+                $query->where('start_date', '<=', $endDate)
+                      ->where('end_date', '>=', $startDate);
+            })
+            ->exists();
+
+        if ($overlapExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يوجد بالفعل طلب غياب مسجل لهذا الطالب في نفس التاريخ أو خلال هذه الفترة (مقبول أو قيد الانتظار).'
+            ], 400);
+        }
+
         $absenceRequest = AbsenceRequest::create([
             'student_id'     => $request->student_id,
             'parent_id'      => $parentId,
