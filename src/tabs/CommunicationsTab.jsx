@@ -21,6 +21,8 @@ export default function CommunicationsTab() {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [filterDate, setFilterDate] = useState('');
+  const [filterSender, setFilterSender] = useState('all');
 
   // Form states
   const [modalNotificationType, setModalNotificationType] = useState('parents');
@@ -137,7 +139,21 @@ export default function CommunicationsTab() {
     setTeacherSearchText('');
   };
 
-  // Filter sent notifications based on pills & search query
+  // Helper to determine simulated sender
+  const getNotificationSender = (notif) => {
+    if (notif.type === 'attendance') {
+      return {
+        name: lang === 'ar' ? 'مشرف التحضير' : 'Prep Supervisor',
+        key: 'supervisor'
+      };
+    }
+    return {
+      name: lang === 'ar' ? 'إدارة المدرسة' : 'School Administration',
+      key: 'admin'
+    };
+  };
+
+  // Filter sent notifications based on pills, search query, date, and sender
   const filteredNotifications = notifications.filter(notif => {
     // 1. Search Query filter
     const matchesSearch = 
@@ -146,7 +162,22 @@ export default function CommunicationsTab() {
     
     if (!matchesSearch) return false;
 
-    // 2. Tab Filter
+    // 2. Date Filter
+    if (filterDate) {
+      if (!notif.date.startsWith(filterDate)) {
+        return false;
+      }
+    }
+
+    // 3. Sender Filter
+    if (filterSender !== 'all') {
+      const sender = getNotificationSender(notif);
+      if (sender.key !== filterSender) {
+        return false;
+      }
+    }
+
+    // 4. Tab Filter
     if (activeFilter === 'all') return true;
     if (activeFilter === 'parents') return notif.type === 'parents' || notif.type === 'general';
     if (activeFilter === 'teachers') return notif.type === 'teachers' || notif.type === 'teacher';
@@ -693,6 +724,73 @@ export default function CommunicationsTab() {
           />
         </div>
 
+        {/* Date Filter & Sender Filter */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input 
+              type="date"
+              className="text-field"
+              style={{ 
+                height: '42px', 
+                padding: '0 12px', 
+                borderRadius: '14px', 
+                border: '1.5px solid var(--color-border)',
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-primary)',
+                fontSize: '13px',
+                outline: 'none'
+              }}
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              title={lang === 'ar' ? 'تصفية حسب التاريخ' : 'Filter by Date'}
+            />
+            {filterDate && (
+              <button
+                type="button"
+                onClick={() => setFilterDate('')}
+                style={{
+                  position: 'absolute',
+                  left: lang === 'ar' ? '8px' : 'auto',
+                  right: lang === 'ar' ? 'auto' : '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <select
+            className="text-field"
+            style={{ 
+              height: '42px', 
+              padding: '0 12px', 
+              borderRadius: '14px', 
+              border: '1.5px solid var(--color-border)',
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-text-primary)',
+              fontSize: '13px',
+              outline: 'none',
+              cursor: 'pointer',
+              minWidth: '120px'
+            }}
+            value={filterSender}
+            onChange={(e) => setFilterSender(e.target.value)}
+            title={lang === 'ar' ? 'تصفية حسب المرسل' : 'Filter by Sender'}
+          >
+            <option value="all">{lang === 'ar' ? 'كل المرسلين' : 'All Senders'}</option>
+            <option value="admin">{lang === 'ar' ? 'إدارة المدرسة' : 'School Admin'}</option>
+            <option value="supervisor">{lang === 'ar' ? 'مشرف التحضير' : 'Prep Supervisor'}</option>
+          </select>
+        </div>
+
         {/* Segmented Pills Filters */}
         <div className="filter-pills-modern">
           <button 
@@ -841,6 +939,9 @@ export default function CommunicationsTab() {
                 <div className="notif-footer-modern">
                   <div className="notif-footer-item">
                     <span>🕒 {notif.date}</span>
+                  </div>
+                  <div className="notif-footer-item" style={{ fontWeight: '600', color: 'var(--color-primary-ui)' }}>
+                    <span>✍️ {lang === 'ar' ? 'المرسل: ' : 'Sender: '}{getNotificationSender(notif).name}</span>
                   </div>
                   <div className="notif-footer-item" style={{ color: 'var(--color-success)' }}>
                     <CheckCircle2 size={12} />
