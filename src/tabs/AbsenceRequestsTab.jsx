@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X } from 'lucide-react';
+import { X, ArrowUp, ArrowDown } from 'lucide-react';
 
 export default function AbsenceRequestsTab() {
   const {
@@ -23,6 +23,11 @@ export default function AbsenceRequestsTab() {
   const [absenceSubTab, setAbsenceSubTab] = useState('requests');
   const [absenceFilter, setAbsenceFilter] = useState('pending');
   const [absenceNoteText, setAbsenceNoteText] = useState('');
+  const [dateSortOrder, setDateSortOrder] = useState('desc'); // 'desc' or 'asc'
+
+  const toggleDateSort = () => {
+    setDateSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
 
   const [attendanceRosterGrade, setAttendanceRosterGrade] = useState('الصف الأول');
   const [attendanceRosterSection, setAttendanceRosterSection] = useState('أ');
@@ -88,18 +93,41 @@ export default function AbsenceRequestsTab() {
 
       {absenceSubTab === 'requests' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }} className="no-print">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }} className="no-print">
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className={`chip ${absenceFilter === 'pending' ? 'selected' : ''}`}
+                onClick={() => setAbsenceFilter('pending')}
+              >
+                ⏳ {t.pendingStatus} ({absenceRequests.filter(r => r.status === 'pending').length})
+              </button>
+              <button 
+                className={`chip ${absenceFilter === 'all' ? 'selected' : ''}`}
+                onClick={() => setAbsenceFilter('all')}
+              >
+                🗂️ {t.filterAll} ({absenceRequests.length})
+              </button>
+            </div>
+            
             <button 
-              className={`chip ${absenceFilter === 'pending' ? 'selected' : ''}`}
-              onClick={() => setAbsenceFilter('pending')}
+              className="chip"
+              onClick={toggleDateSort}
+              style={{ 
+                border: '1px solid var(--color-border)', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '6px',
+                cursor: 'pointer',
+                backgroundColor: 'var(--color-surface-alt)',
+                color: 'var(--color-text-primary)',
+                margin: 0
+              }}
             >
-              ⏳ {t.pendingStatus} ({absenceRequests.filter(r => r.status === 'pending').length})
-            </button>
-            <button 
-              className={`chip ${absenceFilter === 'all' ? 'selected' : ''}`}
-              onClick={() => setAbsenceFilter('all')}
-            >
-              🗂️ {t.filterAll} ({absenceRequests.length})
+              📅 {lang === 'ar' ? 'فرز بالتاريخ:' : 'Sort Date:'} 
+              <span style={{ fontWeight: 'bold', color: 'var(--color-primary-ui)' }}>
+                {dateSortOrder === 'desc' ? (lang === 'ar' ? 'الأحدث أولاً' : 'Newest First') : (lang === 'ar' ? 'الأقدم أولاً' : 'Oldest First')}
+              </span>
+              {dateSortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
             </button>
           </div>
 
@@ -109,7 +137,18 @@ export default function AbsenceRequestsTab() {
                 <thead>
                   <tr>
                     <th>{t.studentName}</th>
-                    <th>{t.requestedDate}</th>
+                    <th 
+                      onClick={toggleDateSort}
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      title={lang === 'ar' ? 'اضغط للفرز بالتاريخ' : 'Click to sort by date'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{t.requestedDate}</span>
+                        <span style={{ display: 'inline-flex', color: 'var(--color-primary-ui)' }}>
+                          {dateSortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+                        </span>
+                      </div>
+                    </th>
                     <th>{t.reason}</th>
                     <th>{t.adminNoteLabel}</th>
                     <th>{t.status}</th>
@@ -117,8 +156,15 @@ export default function AbsenceRequestsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {absenceRequests
+                  {[...absenceRequests]
                     .filter(r => absenceFilter === 'all' || r.status === absenceFilter)
+                    .sort((a, b) => {
+                      const dateA = a.requestedDate || '';
+                      const dateB = b.requestedDate || '';
+                      return dateSortOrder === 'desc' 
+                        ? dateB.localeCompare(dateA) 
+                        : dateA.localeCompare(dateB);
+                    })
                     .map((req) => {
                       const student = students.find(s => s.id === req.studentId);
                       return (
