@@ -11,6 +11,21 @@ class ClassController extends Controller
     public function index()
     {
         $classes = SchoolClass::with(['gradeLevel', 'subjects'])->get();
+        
+        foreach ($classes as $class) {
+            // جلب معرفات المواد المسجلة في جدول الحصص الأسبوعي لهذا الفصل
+            $scheduleSubjectIds = \App\Models\Schedule::where('class_id', $class->id)->pluck('subject_id')->toArray();
+            
+            // جلب المواد المقابلة
+            $scheduleSubjects = \App\Models\Subject::whereIn('id', $scheduleSubjectIds)->get();
+            
+            // دمج المواد دون تكرار
+            $mergedSubjects = $class->subjects->concat($scheduleSubjects)->unique('id')->values();
+            
+            // تعيين القائمة المدمجة كعلاقة المواد المقررة للفصل
+            $class->setRelation('subjects', $mergedSubjects);
+        }
+
         return response()->json([
             'success' => true,
             'classes' => $classes
@@ -42,10 +57,19 @@ class ClassController extends Controller
 
     public function show(string $id)
     {
-        $class = SchoolClass::with('gradeLevel')->find($id);
+        $class = SchoolClass::with(['gradeLevel', 'subjects'])->find($id);
         if (!$class) {
             return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
         }
+        
+        // جلب معرفات المواد المسجلة في جدول الحصص الأسبوعي لهذا الفصل
+        $scheduleSubjectIds = \App\Models\Schedule::where('class_id', $class->id)->pluck('subject_id')->toArray();
+        $scheduleSubjects = \App\Models\Subject::whereIn('id', $scheduleSubjectIds)->get();
+        
+        // دمج المواد دون تكرار
+        $mergedSubjects = $class->subjects->concat($scheduleSubjects)->unique('id')->values();
+        $class->setRelation('subjects', $mergedSubjects);
+
         return response()->json(['success' => true, 'class' => $class]);
     }
 

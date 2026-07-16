@@ -42,6 +42,9 @@ class ScheduleController extends Controller
                     $teachersMapping[$className][$ts->subject->name_ar] = $ts->teacher->name_ar ?? $ts->teacher->name;
                 }
             }
+            if (empty($teachersMapping[$className])) {
+                $teachersMapping[$className] = (object)[];
+            }
         }
         
         foreach ($schedules as $sch) {
