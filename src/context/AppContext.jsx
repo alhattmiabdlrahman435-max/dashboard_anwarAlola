@@ -1397,9 +1397,6 @@ export const AppProvider = ({ children }) => {
 
   const handleAddSupervisorAction = (newSupervisor) => {
     const token = localStorage.getItem("auth_token");
-    setSupervisors(prev => [...prev, newSupervisor]);
-    setToastMessage(lang === 'ar' ? 'تم تسجيل مشرف التحضير بنجاح!' : 'Prep supervisor added successfully!');
-    setTimeout(() => setToastMessage(''), 4000);
 
     if (token) {
       api.post("/api/supervisors", {
@@ -1412,20 +1409,28 @@ export const AppProvider = ({ children }) => {
         })
       .then(data => {
         if (data.success) {
-          setSupervisors(prev => prev.map(s => s.jobId === newSupervisor.jobId ? data.supervisor : s));
+          setSupervisors(prev => [...prev, data.supervisor]);
+          setToastMessage(lang === 'ar' ? 'تم تسجيل مشرف التحضير بنجاح!' : 'Prep supervisor added successfully!');
+          setTimeout(() => setToastMessage(''), 4000);
         } else {
-          console.error("Failed to save supervisor:", data.message);
+          setToastMessage(lang === 'ar' ? `فشل تسجيل المشرف: ${data.message}` : `Failed to add supervisor: ${data.message}`);
+          setTimeout(() => setToastMessage(''), 6000);
         }
       })
-      .catch(err => console.error("Error saving supervisor:", err));
+      .catch(err => {
+        console.error("Error saving supervisor:", err);
+        setToastMessage(lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        setTimeout(() => setToastMessage(''), 6000);
+      });
+    } else {
+      setSupervisors(prev => [...prev, newSupervisor]);
+      setToastMessage(lang === 'ar' ? 'تم تسجيل مشرف التحضير بنجاح!' : 'Prep supervisor added successfully!');
+      setTimeout(() => setToastMessage(''), 4000);
     }
   };
 
   const handleEditSupervisorAction = (updatedSupervisor, supervisorId) => {
     const token = localStorage.getItem("auth_token");
-    setSupervisors(prev => prev.map(s => s.id === supervisorId ? updatedSupervisor : s));
-    setToastMessage(lang === 'ar' ? 'تم تحديث بيانات المشرف بنجاح!' : 'Supervisor details updated successfully!');
-    setTimeout(() => setToastMessage(''), 4000);
 
     if (token) {
       api.put(`/api/supervisors/${supervisorId}`, {
@@ -1437,28 +1442,51 @@ export const AppProvider = ({ children }) => {
           photo: updatedSupervisor.photo
         })
       .then(data => {
-        if (!data.success) {
-          console.error("Failed to update supervisor:", data.message);
+        if (data.success) {
+          setSupervisors(prev => prev.map(s => s.id === supervisorId ? { ...s, ...updatedSupervisor } : s));
+          setToastMessage(lang === 'ar' ? 'تم تحديث بيانات المشرف بنجاح!' : 'Supervisor details updated successfully!');
+          setTimeout(() => setToastMessage(''), 4000);
+        } else {
+          setToastMessage(lang === 'ar' ? `فشل تحديث المشرف: ${data.message}` : `Failed to update supervisor: ${data.message}`);
+          setTimeout(() => setToastMessage(''), 6000);
         }
       })
-      .catch(err => console.error("Error updating supervisor:", err));
+      .catch(err => {
+        console.error("Error updating supervisor:", err);
+        setToastMessage(lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        setTimeout(() => setToastMessage(''), 6000);
+      });
+    } else {
+      setSupervisors(prev => prev.map(s => s.id === supervisorId ? updatedSupervisor : s));
+      setToastMessage(lang === 'ar' ? 'تم تحديث بيانات المشرف بنجاح!' : 'Supervisor details updated successfully!');
+      setTimeout(() => setToastMessage(''), 4000);
     }
   };
 
   const handleDeleteSupervisorAction = (supervisorId) => {
     const token = localStorage.getItem("auth_token");
-    setSupervisors(prev => prev.filter(s => s.id !== supervisorId));
-    setToastMessage(lang === 'ar' ? 'تم حذف المشرف بنجاح!' : 'Supervisor deleted successfully!');
-    setTimeout(() => setToastMessage(''), 4000);
 
     if (token) {
       api.delete(`/api/supervisors/${supervisorId}`)
       .then(data => {
-        if (!data.success) {
-          console.error("Failed to delete supervisor:", data.message);
+        if (data.success) {
+          setSupervisors(prev => prev.filter(s => s.id !== supervisorId));
+          setToastMessage(lang === 'ar' ? 'تم حذف المشرف بنجاح!' : 'Supervisor deleted successfully!');
+          setTimeout(() => setToastMessage(''), 4000);
+        } else {
+          setToastMessage(lang === 'ar' ? `فشل حذف المشرف: ${data.message}` : `Failed to delete supervisor: ${data.message}`);
+          setTimeout(() => setToastMessage(''), 6000);
         }
       })
-      .catch(err => console.error("Error deleting supervisor:", err));
+      .catch(err => {
+        console.error("Error deleting supervisor:", err);
+        setToastMessage(lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        setTimeout(() => setToastMessage(''), 6000);
+      });
+    } else {
+      setSupervisors(prev => prev.filter(s => s.id !== supervisorId));
+      setToastMessage(lang === 'ar' ? 'تم حذف المشرف بنجاح!' : 'Supervisor deleted successfully!');
+      setTimeout(() => setToastMessage(''), 4000);
     }
   };
 
@@ -2272,34 +2300,13 @@ export const AppProvider = ({ children }) => {
       };
     });
 
-    setExamSchedules((prev) => [newSchedule, ...prev]);
-    setToastMessage(
-      lang === "ar"
-        ? "تم نشر جدول الاختبارات بنجاح!"
-        : "Exam schedule published successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 3000);
-
     const classStudents = students.filter(
       (s) => s.grade === newSchedule.grade && s.section === newSchedule.section,
     );
-    classStudents.forEach((student) => {
-      const smsText =
-        lang === "ar"
-          ? `تم نشر جدول اختبارات جديد (${newSchedule.period} - ${newSchedule.term}) للصف ${newSchedule.grade}. يرجى مراجعته في تطبيق ولي الأمر.`
-          : `New exam schedule published (${newSchedule.periodEn} - ${newSchedule.termEn}) for ${newSchedule.grade}. Please review it in the Parent App.`;
-      setSmsLogs((logs) => [
-        {
-          id: Date.now() + Math.random(),
-          studentId: student.id,
-          recipient: student.phone,
-          text: smsText,
-          time: "15:00",
-          type: "present",
-        },
-        ...logs,
-      ]);
-    });
+    const smsText =
+      lang === "ar"
+        ? `تم نشر جدول اختبارات جديد (${newSchedule.period} - ${newSchedule.term}) للصف ${newSchedule.grade}. يرجى مراجعته في تطبيق ولي الأمر.`
+        : `New exam schedule published (${newSchedule.periodEn} - ${newSchedule.termEn}) for ${newSchedule.grade}. Please review it in the Parent App.`;
 
     if (token && classId) {
       api.post("/api/exam-schedules", {
@@ -2311,11 +2318,44 @@ export const AppProvider = ({ children }) => {
         .then((data) => {
           if (data.success) {
             fetchExamSchedules(token);
+            setToastMessage(
+              lang === "ar"
+                ? "تم نشر جدول الاختبارات بنجاح!"
+                : "Exam schedule published successfully!",
+            );
+            setTimeout(() => setToastMessage(""), 4000);
+            
+            classStudents.forEach((student) => {
+              setSmsLogs((logs) => [
+                {
+                  id: Date.now() + Math.random(),
+                  studentId: student.id,
+                  recipient: student.phone,
+                  text: smsText,
+                  time: "15:00",
+                  type: "present",
+                },
+                ...logs,
+              ]);
+            });
           } else {
-            console.error("Failed to store exam schedule:", data.message);
+            setToastMessage(lang === "ar" ? `فشل النشر: ${data.message}` : `Publish failed: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 6000);
           }
         })
-        .catch((err) => console.error("Error storing exam schedule:", err));
+        .catch((err) => {
+          console.error("Error storing exam schedule:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 6000);
+        });
+    } else {
+      setExamSchedules((prev) => [newSchedule, ...prev]);
+      setToastMessage(
+        lang === "ar"
+          ? "تم نشر جدول الاختبارات بنجاح!"
+          : "Exam schedule published successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 3000);
     }
   };
 
@@ -2325,22 +2365,35 @@ export const AppProvider = ({ children }) => {
       title: lang === 'ar' ? 'حذف جدول الاختبارات' : 'Delete Exam Schedule',
       message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الجدول نهائياً؟' : 'Are you sure you want to permanently delete this schedule?',
       onConfirm: () => {
-        setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
-        setToastMessage(
-          lang === "ar"
-            ? "تم حذف جدول الاختبارات بنجاح"
-            : "Exam schedule deleted successfully",
-        );
-        setTimeout(() => setToastMessage(""), 3000);
-
         if (token) {
           api.delete(`/api/exam-schedules/${id}`)
             .then((data) => {
-              if (!data.success) {
-                console.error("Failed to delete exam schedule from backend:", data.message);
+              if (data.success) {
+                setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
+                setToastMessage(
+                  lang === "ar"
+                    ? "تم حذف جدول الاختبارات بنجاح"
+                    : "Exam schedule deleted successfully",
+                );
+                setTimeout(() => setToastMessage(""), 4000);
+              } else {
+                setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
+                setTimeout(() => setToastMessage(""), 6000);
               }
             })
-            .catch((err) => console.error("Error deleting exam schedule:", err));
+            .catch((err) => {
+              console.error("Error deleting exam schedule:", err);
+              setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+              setTimeout(() => setToastMessage(""), 6000);
+            });
+        } else {
+          setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
+          setToastMessage(
+            lang === "ar"
+              ? "تم حذف جدول الاختبارات بنجاح"
+              : "Exam schedule deleted successfully",
+          );
+          setTimeout(() => setToastMessage(""), 3000);
         }
       }
     });
@@ -2371,16 +2424,6 @@ export const AppProvider = ({ children }) => {
       };
     });
 
-    setExamSchedules((prev) =>
-      prev.map((sch) => (sch.id === id ? { ...sch, ...updatedSchedule } : sch))
-    );
-    setToastMessage(
-      lang === "ar"
-        ? "تم تحديث جدول الاختبارات بنجاح!"
-        : "Exam schedule updated successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 3000);
-
     if (token) {
       api.put(`/api/exam-schedules/${id}`, {
           title: updatedSchedule.period,
@@ -2391,11 +2434,32 @@ export const AppProvider = ({ children }) => {
         .then((data) => {
           if (data.success) {
             fetchExamSchedules(token);
+            setToastMessage(
+              lang === "ar"
+                ? "تم تحديث جدول الاختبارات بنجاح!"
+                : "Exam schedule updated successfully!",
+            );
+            setTimeout(() => setToastMessage(""), 4000);
           } else {
-            console.error("Failed to update exam schedule:", data.message);
+            setToastMessage(lang === "ar" ? `فشل التحديث: ${data.message}` : `Update failed: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 6000);
           }
         })
-        .catch((err) => console.error("Error updating exam schedule:", err));
+        .catch((err) => {
+          console.error("Error updating exam schedule:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 6000);
+        });
+    } else {
+      setExamSchedules((prev) =>
+        prev.map((sch) => (sch.id === id ? { ...sch, ...updatedSchedule } : sch))
+      );
+      setToastMessage(
+        lang === "ar"
+          ? "تم تحديث جدول الاختبارات بنجاح!"
+          : "Exam schedule updated successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 3000);
     }
   };
 
@@ -2404,29 +2468,11 @@ export const AppProvider = ({ children }) => {
   const handleAddPaymentAction = (newPayment) => {
     const token = localStorage.getItem("auth_token");
 
-    setTuitionFees((prev) => ({
-      ...prev,
-      payments: [...prev.payments, newPayment],
-    }));
-    setToastMessage(t.paymentSuccessToast);
-    setTimeout(() => setToastMessage(""), 3000);
-
     const student = students.find((s) => s.id === newPayment.studentId);
     const smsText =
       lang === "ar"
         ? `تم استلام دفعة مالية بقيمة ${newPayment.amount} ريال للسند رقم ${newPayment.referenceNo} بخصوص الطالب ${student?.name}. شكراً لكم. رياض و مدارس انوار العلى.`
         : `Payment of ${newPayment.amount} R.Y (Receipt: ${newPayment.referenceNo}) received for student ${student?.nameEn}. Thank you. Riyadh & Anwar Al-Ola.`;
-    setSmsLogs((logs) => [
-      {
-        id: Date.now(),
-        studentId: newPayment.studentId,
-        recipient: student?.phone,
-        text: smsText,
-        time: "11:30",
-        type: "present",
-      },
-      ...logs,
-    ]);
 
     if (token) {
       api.post("/api/finance/payment", {
@@ -2438,11 +2484,37 @@ export const AppProvider = ({ children }) => {
         .then((data) => {
           if (data.success) {
             fetchFinanceData(token);
+            setToastMessage(t.paymentSuccessToast);
+            setTimeout(() => setToastMessage(""), 4000);
+            
+            setSmsLogs((logs) => [
+              {
+                id: Date.now(),
+                studentId: newPayment.studentId,
+                recipient: student?.phone,
+                text: smsText,
+                time: "11:30",
+                type: "present",
+              },
+              ...logs,
+            ]);
           } else {
-            console.error("Failed to add payment:", data.message);
+            setToastMessage(lang === "ar" ? `فشل إضافة الدفعة: ${data.message}` : `Failed to add payment: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 6000);
           }
         })
-        .catch((err) => console.error("Error adding payment:", err));
+        .catch((err) => {
+          console.error("Error adding payment:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 6000);
+        });
+    } else {
+      setTuitionFees((prev) => ({
+        ...prev,
+        payments: [...prev.payments, newPayment],
+      }));
+      setToastMessage(t.paymentSuccessToast);
+      setTimeout(() => setToastMessage(""), 3000);
     }
   };
 
@@ -2624,21 +2696,6 @@ export const AppProvider = ({ children }) => {
   const handleCalculateSecretCodesAction = () => {
     const token = localStorage.getItem("auth_token");
 
-    setGrades((prev) =>
-      prev.map((row) => {
-        const calculatedCode =
-          row.studentId * Number(controlMultiplier) + Number(controlOffset);
-        return { ...row, secretCode: calculatedCode.toString() };
-      }),
-    );
-    setIsGradesEncrypted(true);
-    setToastMessage(
-      lang === "ar"
-        ? "تم توليد الأرقام السرية وتشفير الكشف بنجاح!"
-        : "Secret codes generated and grading sheet encrypted successfully!",
-    );
-    setTimeout(() => setToastMessage(""), 3000);
-
     if (token) {
       api.post("/api/grades/generate-codes", {
           prefix: controlPrefix,
@@ -2649,11 +2706,38 @@ export const AppProvider = ({ children }) => {
         .then((data) => {
           if (data.success) {
             fetchControlGrades(token);
+            setIsGradesEncrypted(true);
+            setToastMessage(
+              lang === "ar"
+                ? "تم توليد الأرقام السرية وتشفير الكشف بنجاح!"
+                : "Secret codes generated and grading sheet encrypted successfully!",
+            );
+            setTimeout(() => setToastMessage(""), 4000);
           } else {
-            console.error("Failed to generate secret codes:", data.message);
+            setToastMessage(lang === "ar" ? `فشل توليد الأرقام السرية: ${data.message}` : `Failed to generate secret codes: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 6000);
           }
         })
-        .catch((err) => console.error("Error generating secret codes:", err));
+        .catch((err) => {
+          console.error("Error generating secret codes:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 6000);
+        });
+    } else {
+      setGrades((prev) =>
+        prev.map((row) => {
+          const calculatedCode =
+            row.studentId * Number(controlMultiplier) + Number(controlOffset);
+          return { ...row, secretCode: calculatedCode.toString() };
+        }),
+      );
+      setIsGradesEncrypted(true);
+      setToastMessage(
+        lang === "ar"
+          ? "تم توليد الأرقام السرية وتشفير الكشف بنجاح!"
+          : "Secret codes generated and grading sheet encrypted successfully!",
+      );
+      setTimeout(() => setToastMessage(""), 3000);
     }
   };
 
