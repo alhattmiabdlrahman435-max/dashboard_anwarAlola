@@ -90,6 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Assignments - الواجبات
     Route::apiResource('assignments', AssignmentController::class);
+    Route::delete('/assignments-delete-all', [AssignmentController::class, 'deleteAll']);
     Route::get('/assignments/{id}/submissions', [AssignmentController::class, 'submissions']);
     Route::put('/assignments/{id}/submissions', [AssignmentController::class, 'updateSubmissions']);
 
@@ -127,6 +128,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/send', [NotificationController::class, 'send']);
     Route::put('/notifications/read-all', [NotificationController::class, 'readAll']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'read']);
+    Route::delete('/notifications-delete-all', [NotificationController::class, 'deleteAll']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+    Route::delete('/reports-delete-all', [ReportController::class, 'deleteAll']);
 
     // --- المعلم (Teacher) ---
     Route::group(['prefix' => 'teacher'], function () {

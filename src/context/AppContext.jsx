@@ -2619,6 +2619,168 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const handleDeleteNotificationAction = (id) => {
+    const token = localStorage.getItem("auth_token");
+
+    if (token) {
+      api.delete(`/api/notifications/${id}`)
+        .then((data) => {
+          if (data.success) {
+            setNotifications((prev) => prev.filter((n) => n.id !== id));
+            setToastMessage(lang === "ar" ? "تم حذف الإشعار بنجاح." : "Notification deleted successfully.");
+            setTimeout(() => setToastMessage(""), 3000);
+          } else {
+            setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 4000);
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting notification:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 4000);
+        });
+    } else {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setToastMessage(lang === "ar" ? "تم حذف الإشعار بنجاح." : "Notification deleted successfully.");
+      setTimeout(() => setToastMessage(""), 3000);
+    }
+  };
+
+  const handleDeleteTeacherReportAction = (reportId) => {
+    const token = localStorage.getItem("auth_token");
+
+    if (token) {
+      api.delete(`/api/reports/${reportId}`)
+        .then((data) => {
+          if (data.success) {
+            setTeacherReports((prev) => prev.filter((r) => r.id !== String(reportId)));
+            setToastMessage(lang === "ar" ? "تم حذف البلاغ بنجاح." : "Report deleted successfully.");
+            setTimeout(() => setToastMessage(""), 3000);
+          } else {
+            setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 4000);
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting teacher report:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 4000);
+        });
+    } else {
+      setTeacherReports((prev) => prev.filter((r) => r.id !== String(reportId)));
+      setToastMessage(lang === "ar" ? "تم حذف البلاغ بنجاح." : "Report deleted successfully.");
+      setTimeout(() => setToastMessage(""), 3000);
+    }
+  };
+
+  const handleDeleteAllNotificationsAction = () => {
+    const token = localStorage.getItem("auth_token");
+
+    if (token) {
+      api.delete("/api/notifications-delete-all")
+        .then((data) => {
+          if (data.success) {
+            setNotifications([]);
+            setToastMessage(lang === "ar" ? "تم حذف جميع الإشعارات بنجاح." : "All notifications deleted successfully.");
+            setTimeout(() => setToastMessage(""), 3000);
+          } else {
+            setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 4000);
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting all notifications:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 4000);
+        });
+    } else {
+      setNotifications([]);
+      setToastMessage(lang === "ar" ? "تم حذف جميع الإشعارات بنجاح." : "All notifications deleted successfully.");
+      setTimeout(() => setToastMessage(""), 3000);
+    }
+  };
+
+  const handleDeleteAllTeacherReportsAction = () => {
+    const token = localStorage.getItem("auth_token");
+
+    if (token) {
+      api.delete("/api/reports-delete-all")
+        .then((data) => {
+          if (data.success) {
+            setTeacherReports([]);
+            setToastMessage(lang === "ar" ? "تم حذف جميع البلاغات بنجاح." : "All reports deleted successfully.");
+            setTimeout(() => setToastMessage(""), 3000);
+          } else {
+            setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 4000);
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting all teacher reports:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 4000);
+        });
+    } else {
+      setTeacherReports([]);
+      setToastMessage(lang === "ar" ? "تم حذف جميع البلاغات بنجاح." : "All reports deleted successfully.");
+      setTimeout(() => setToastMessage(""), 3000);
+    }
+  };
+
+  const handleDeleteAssignmentAction = (assignmentId) => {
+    const token = localStorage.getItem("auth_token");
+
+    if (token) {
+      api.delete(`/api/assignments/${assignmentId}`)
+        .then((data) => {
+          if (data.success) {
+            setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
+            setToastMessage(lang === "ar" ? "تم حذف الواجب بنجاح." : "Assignment deleted successfully.");
+            setTimeout(() => setToastMessage(""), 3000);
+          } else {
+            setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 4000);
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting assignment:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 4000);
+        });
+    } else {
+      setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
+      setToastMessage(lang === "ar" ? "تم حذف الواجب بنجاح." : "Assignment deleted successfully.");
+      setTimeout(() => setToastMessage(""), 3000);
+    }
+  };
+
+  const handleDeleteAllAssignmentsAction = () => {
+    const token = localStorage.getItem("auth_token");
+
+    if (token) {
+      api.delete("/api/assignments-delete-all")
+        .then((data) => {
+          if (data.success) {
+            setAssignments([]);
+            setToastMessage(lang === "ar" ? "تم حذف جميع الواجبات بنجاح." : "All assignments deleted successfully.");
+            setTimeout(() => setToastMessage(""), 3000);
+          } else {
+            setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
+            setTimeout(() => setToastMessage(""), 4000);
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting all assignments:", err);
+          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          setTimeout(() => setToastMessage(""), 4000);
+        });
+    } else {
+      setAssignments([]);
+      setToastMessage(lang === "ar" ? "تم حذف جميع الواجبات بنجاح." : "All assignments deleted successfully.");
+      setTimeout(() => setToastMessage(""), 3000);
+    }
+  };
+
   const handleScheduleChangeAction = (
     dayKey,
     periodIdx,
@@ -3136,6 +3298,12 @@ export const AppProvider = ({ children }) => {
         handleAddPayment: handleAddPaymentAction,
         handleSendNotification: handleSendNotificationAction,
         handleMarkNotificationAsRead: handleMarkNotificationAsReadAction,
+        handleDeleteNotification: handleDeleteNotificationAction,
+        handleDeleteTeacherReport: handleDeleteTeacherReportAction,
+        handleDeleteAllNotifications: handleDeleteAllNotificationsAction,
+        handleDeleteAllTeacherReports: handleDeleteAllTeacherReportsAction,
+        handleDeleteAssignment: handleDeleteAssignmentAction,
+        handleDeleteAllAssignments: handleDeleteAllAssignmentsAction,
         handleScheduleChange: handleScheduleChangeAction,
         handleGradeCellChange: handleGradeCellChangeAction,
         handleCalculateSecretCodes: handleCalculateSecretCodesAction,

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   X, Search, Plus, Bell, Send, Users, User, GraduationCap, 
-  Layers, CheckCircle2, MessageSquare, Volume2, Info
+  Layers, CheckCircle2, MessageSquare, Volume2, Info, Trash2
 } from 'lucide-react';
 
 export default function CommunicationsTab() {
@@ -14,7 +14,10 @@ export default function CommunicationsTab() {
     notifications,
     availableGrades,
     handleSendNotification,
-    handleMarkNotificationAsRead
+    handleMarkNotificationAsRead,
+    handleDeleteNotification,
+    handleDeleteAllNotifications,
+    triggerConfirm
   } = useApp();
 
   // Local UI states
@@ -23,6 +26,27 @@ export default function CommunicationsTab() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [filterDate, setFilterDate] = useState('');
   const [filterSender, setFilterSender] = useState('all');
+
+  const onDeleteNotificationClick = (e, notifId) => {
+    e.stopPropagation();
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف الإشعار' : 'Delete Notification',
+      message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الإشعار نهائياً؟' : 'Are you sure you want to permanently delete this notification?',
+      onConfirm: () => {
+        handleDeleteNotification(notifId);
+      }
+    });
+  };
+
+  const onDeleteAllNotificationsClick = () => {
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف جميع الإشعارات' : 'Delete All Notifications',
+      message: lang === 'ar' ? 'هل أنت متأكد من حذف جميع الإشعارات نهائياً؟ هذا الإجراء لا يمكن التراجع عنه!' : 'Are you sure you want to delete all notifications permanently? This action cannot be undone!',
+      onConfirm: () => {
+        handleDeleteAllNotifications();
+      }
+    });
+  };
 
   // Form states
   const [modalNotificationType, setModalNotificationType] = useState('parents');
@@ -825,19 +849,44 @@ export default function CommunicationsTab() {
           </button>
         </div>
 
-        {/* Compose Button */}
-        <button 
-          className="btn-gradient-compose"
-          onClick={() => {
-            setModalNotificationType('parents');
-            setModalNotificationTitle('');
-            setModalNotificationContent('');
-            setShowNotificationModal(true);
-          }}
-        >
-          <Plus size={16} strokeWidth={3} />
-          <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {notifications.length > 0 && (
+            <button
+              className="btn-elevated"
+              style={{
+                borderRadius: '12px',
+                borderColor: 'rgba(239, 68, 68, 0.3)',
+                backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                color: 'var(--color-error)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                paddingInline: '16px',
+                fontWeight: '700',
+                minHeight: '40px',
+                cursor: 'pointer'
+              }}
+              onClick={onDeleteAllNotificationsClick}
+            >
+              <Trash2 size={16} />
+              <span>{lang === 'ar' ? 'حذف الكل' : 'Delete All'}</span>
+            </button>
+          )}
+
+          {/* Compose Button */}
+          <button 
+            className="btn-gradient-compose"
+            onClick={() => {
+              setModalNotificationType('parents');
+              setModalNotificationTitle('');
+              setModalNotificationContent('');
+              setShowNotificationModal(true);
+            }}
+          >
+            <Plus size={16} strokeWidth={3} />
+            <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Feed Timeline Section */}
@@ -917,19 +966,42 @@ export default function CommunicationsTab() {
                     </span>
                   </div>
                   
-                  {/* Localized Category Badge */}
-                  <span className={`badge-status ${cat.colorClass}`} style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    padding: '6px 14px',
-                    borderRadius: '12px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}>
-                    {cat.icon}
-                    <span>{cat.label}</span>
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
+                    {/* Localized Category Badge */}
+                    <span className={`badge-status ${cat.colorClass}`} style={{
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      padding: '6px 14px',
+                      borderRadius: '12px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      {cat.icon}
+                      <span>{cat.label}</span>
+                    </span>
+
+                    {/* Delete Button */}
+                    <button 
+                      className="btn-elevated"
+                      style={{ 
+                        padding: '6px', 
+                        borderRadius: '8px', 
+                        color: 'var(--color-error)', 
+                        border: '1px solid rgba(239, 68, 68, 0.2)', 
+                        backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: 'auto'
+                      }}
+                      onClick={(e) => onDeleteNotificationClick(e, notif.id)}
+                      title={lang === 'ar' ? 'حذف الإشعار' : 'Delete Notification'}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Message Content */}

@@ -30,8 +30,8 @@ export default function TeachersTab() {
     e.preventDefault();
     setFormError('');
 
-    if (!modalTeacherName.trim() || modalTeacherAssignments.length === 0 || !modalTeacherJobId.trim() || !modalTeacherPhone.trim()) {
-      setFormError(lang === 'ar' ? 'الرجاء تعبئة جميع الحقول وإضافة تكليف تدريس واحد على الأقل' : 'Please fill all fields and add at least one teaching assignment');
+    if (!modalTeacherName.trim() || !modalTeacherJobId.trim() || !modalTeacherPhone.trim()) {
+      setFormError(lang === 'ar' ? 'الرجاء تعبئة جميع الحقول المطلوبة (الاسم، الرقم الوظيفي، رقم الجوال)' : 'Please fill all required fields (name, job ID, phone)');
       return;
     }
 
@@ -41,8 +41,12 @@ export default function TeachersTab() {
       return;
     }
 
-    const uniqueSubjects = [...new Set(modalTeacherAssignments.map(a => a.subject))];
-    const uniqueClasses = [...new Set(modalTeacherAssignments.map(a => a.class))];
+    const uniqueSubjects = modalTeacherAssignments.length > 0
+      ? [...new Set(modalTeacherAssignments.map(a => a.subject))]
+      : [];
+    const uniqueClasses = modalTeacherAssignments.length > 0
+      ? [...new Set(modalTeacherAssignments.map(a => a.class))]
+      : [];
 
     const newId = 100 + teachers.length + 1;
     const nameEnFallback = modalTeacherName.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
@@ -82,8 +86,8 @@ export default function TeachersTab() {
     e.preventDefault();
     setFormError('');
 
-    if (!modalTeacherName.trim() || modalTeacherAssignments.length === 0 || !modalTeacherJobId.trim() || !modalTeacherPhone.trim()) {
-      setFormError(lang === 'ar' ? 'الرجاء تعبئة جميع الحقول وإضافة تكليف تدريس واحد على الأقل' : 'Please fill all fields and add at least one teaching assignment');
+    if (!modalTeacherName.trim() || !modalTeacherJobId.trim() || !modalTeacherPhone.trim()) {
+      setFormError(lang === 'ar' ? 'الرجاء تعبئة جميع الحقول المطلوبة (الاسم، الرقم الوظيفي، رقم الجوال)' : 'Please fill all required fields (name, job ID, phone)');
       return;
     }
 
@@ -93,8 +97,12 @@ export default function TeachersTab() {
       return;
     }
 
-    const uniqueSubjects = [...new Set(modalTeacherAssignments.map(a => a.subject))];
-    const uniqueClasses = [...new Set(modalTeacherAssignments.map(a => a.class))];
+    const uniqueSubjects = modalTeacherAssignments.length > 0
+      ? [...new Set(modalTeacherAssignments.map(a => a.subject))]
+      : [];
+    const uniqueClasses = modalTeacherAssignments.length > 0
+      ? [...new Set(modalTeacherAssignments.map(a => a.class))]
+      : [];
 
     const nameEnEn = modalTeacherName.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
 

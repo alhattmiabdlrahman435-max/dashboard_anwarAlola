@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   FileWarning, CheckCircle, XCircle, Clock, Eye, Image as ImageIcon, Filter, RefreshCw, 
-  User, School, GraduationCap, Calendar, RotateCcw, AlertCircle, ArrowLeftRight 
+  User, School, GraduationCap, Calendar, RotateCcw, AlertCircle, ArrowLeftRight, Trash2
 } from 'lucide-react';
 
 const TYPE_LABELS = {
@@ -21,15 +21,52 @@ const STATUS_LABELS = {
 };
 
 export default function TeacherReportsTab() {
-  const { lang, t, teacherReports, handleUpdateReportStatus, fetchTeacherReports } = useApp();
+  const { lang, t, teacherReports, handleUpdateReportStatus, fetchTeacherReports, handleDeleteTeacherReport, handleDeleteAllTeacherReports, triggerConfirm } = useApp();
+  const onDeleteReportClick = (e, reportId) => {
+    e.stopPropagation();
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف البلاغ' : 'Delete Report',
+      message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا البلاغ نهائياً؟' : 'Are you sure you want to permanently delete this report?',
+      onConfirm: () => {
+        handleDeleteTeacherReport(reportId);
+      }
+    });
+  };
+
+  const onDeleteAllReportsClick = () => {
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف جميع البلاغات' : 'Delete All Reports',
+      message: lang === 'ar' ? 'هل أنت متأكد من حذف جميع البلاغات نهائياً؟ هذا الإجراء لا يمكن التراجع عنه!' : 'Are you sure you want to delete all reports permanently? This action cannot be undone!',
+      onConfirm: () => {
+        handleDeleteAllTeacherReports();
+      }
+    });
+  };
+
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterDate, setFilterDate] = useState('');
+  const [searchTeacher, setSearchTeacher] = useState('');
   const [viewImage, setViewImage] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
 
   const filtered = (teacherReports || []).filter(r => {
     if (filterStatus !== 'all' && r.status !== filterStatus) return false;
     if (filterType !== 'all' && r.type !== filterType) return false;
+    
+    // Filter by specific report date (YYYY-MM-DD format)
+    if (filterDate) {
+      const reportDate = r.createdAt ? r.createdAt.substring(0, 10) : '';
+      if (reportDate !== filterDate) return false;
+    }
+    
+    // Filter by Teacher name or Student name
+    if (searchTeacher.trim()) {
+      const teacherMatches = (r.teacherName || '').toLowerCase().includes(searchTeacher.toLowerCase());
+      const studentMatches = (r.studentName || '').toLowerCase().includes(searchTeacher.toLowerCase());
+      if (!teacherMatches && !studentMatches) return false;
+    }
+    
     return true;
   });
 
@@ -57,10 +94,34 @@ export default function TeacherReportsTab() {
           <FileWarning size={22} className="color-primary-ui" style={{ color: 'var(--color-primary-ui)' }} />
           {lang === 'ar' ? t.teacherReportsTitle : t.teacherReportsTitle}
         </h3>
-        <button className="btn-elevated" onClick={handleRefresh} style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '10px' }}>
-          <RefreshCw size={15} />
-          {lang === 'ar' ? 'تحديث البيانات' : 'Refresh Data'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {teacherReports.length > 0 && (
+            <button
+              className="btn-elevated"
+              style={{
+                borderRadius: '10px',
+                borderColor: 'rgba(239, 68, 68, 0.3)',
+                backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                color: 'var(--color-error)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                paddingInline: '16px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+              onClick={onDeleteAllReportsClick}
+            >
+              <Trash2 size={15} />
+              <span>{lang === 'ar' ? 'حذف الكل' : 'Delete All'}</span>
+            </button>
+          )}
+
+          <button className="btn-elevated" onClick={handleRefresh} style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '10px' }}>
+            <RefreshCw size={15} />
+            {lang === 'ar' ? 'تحديث البيانات' : 'Refresh Data'}
+          </button>
+        </div>
       </div>
 
       {/* Summary cards (Bento style) */}
@@ -128,7 +189,6 @@ export default function TeacherReportsTab() {
         ))}
       </div>
 
-      {/* Filters & Actions Bar */}
       <div style={{ 
         display: 'flex', 
         gap: 'var(--space-md)', 
@@ -168,6 +228,68 @@ export default function TeacherReportsTab() {
           <option value="homework">{lang === 'ar' ? 'واجبات' : 'Homework'}</option>
           <option value="psychological">{lang === 'ar' ? 'نفسي' : 'Psychological'}</option>
         </select>
+
+        {/* Date Filter */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <input 
+            type="date"
+            className="text-field"
+            style={{ 
+              minHeight: '40px', 
+              fontSize: '13px', 
+              width: 'auto', 
+              borderRadius: '10px', 
+              paddingInline: '12px',
+              backgroundColor: 'var(--color-surface-alt)',
+              color: 'var(--color-text-primary)',
+              border: '1.5px solid var(--color-border)',
+              cursor: 'pointer'
+            }}
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            title={lang === 'ar' ? 'اختر التاريخ لتصفية البلاغات' : 'Choose Date'}
+          />
+          {filterDate && (
+            <button
+              type="button"
+              onClick={() => setFilterDate('')}
+              style={{
+                position: 'absolute',
+                left: lang === 'ar' ? '8px' : 'auto',
+                right: lang === 'ar' ? 'auto' : '8px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <XCircle size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Search Teacher/Student */}
+        <input 
+          type="text"
+          className="text-field"
+          placeholder={lang === 'ar' ? 'البحث باسم المعلم أو الطالب...' : 'Search teacher or student...'}
+          value={searchTeacher}
+          onChange={(e) => setSearchTeacher(e.target.value)}
+          style={{ 
+            minHeight: '40px', 
+            fontSize: '13px', 
+            width: '200px', 
+            borderRadius: '10px', 
+            paddingInline: '12px',
+            backgroundColor: 'var(--color-surface-alt)',
+            color: 'var(--color-text-primary)',
+            border: '1.5px solid var(--color-border)'
+          }}
+        />
 
         <div style={{ marginInlineStart: 'auto', fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
           {lang === 'ar' ? `إجمالي البلاغات: ${filtered.length}` : `Total Reports: ${filtered.length}`}
@@ -323,6 +445,29 @@ export default function TeacherReportsTab() {
                         {lang === 'ar' ? 'إعادة للمراجعة' : 'Reset to Pending'}
                       </button>
                     )}
+                    
+                    {/* Delete Report Button */}
+                    <button
+                      className="btn-elevated"
+                      style={{ 
+                        fontSize: '12px', 
+                        padding: '6px 14px', 
+                        borderRadius: '10px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        fontWeight: '700',
+                        color: 'var(--color-error)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.05)'
+                      }}
+                      onClick={(e) => onDeleteReportClick(e, report.id)}
+                      disabled={isLoading}
+                      title={lang === 'ar' ? 'حذف البلاغ نهائياً' : 'Delete Report'}
+                    >
+                      <Trash2 size={14} />
+                      {lang === 'ar' ? 'حذف' : 'Delete'}
+                    </button>
                   </div>
                 </div>
               </div>

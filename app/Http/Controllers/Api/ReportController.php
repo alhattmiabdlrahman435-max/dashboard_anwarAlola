@@ -220,5 +220,24 @@ class ReportController extends Controller
             'message' => $message,
             'report'  => $report,
         ]);
-    }
+     }
+
+     public function destroy($id)
+     {
+         $report = Report::findOrFail($id);
+         $report->delete();
+         return response()->json([
+             'success' => true,
+             'message' => 'تم حذف البلاغ بنجاح.'
+         ]);
+     }
+
+     public function deleteAll()
+     {
+         Report::query()->delete();
+         return response()->json([
+             'success' => true,
+             'message' => 'تم حذف جميع البلاغات بنجاح.'
+         ]);
+     }
 }

@@ -133,6 +133,9 @@ class AssignmentController extends Controller
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
         }
+        // Safely delete associated submissions from database
+        AssignmentSubmission::where('assignment_id', $assignment->id)->delete();
+        
         $assignment->delete();
         return response()->json(['success' => true, 'message' => 'تم حذف الواجب بنجاح']);
     }
@@ -178,6 +181,16 @@ class AssignmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث ورصد تسليمات الواجب بنجاح'
+        ]);
+    }
+
+    public function deleteAll()
+    {
+        AssignmentSubmission::query()->delete();
+        Assignment::query()->delete();
+        return response()->json([
+            'success' => true,
+            'message' => 'تم حذف جميع الواجبات بنجاح.'
         ]);
     }
 }

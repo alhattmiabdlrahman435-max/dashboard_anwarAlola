@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
-import { X, Filter, Calendar, User, BookOpen } from 'lucide-react';
+import { X, Filter, Calendar, User, BookOpen, Trash2 } from 'lucide-react';
 
 export default function AssignmentsTab() {
   const {
@@ -18,10 +18,14 @@ export default function AssignmentsTab() {
     availableGrades,
     availableSections,
     subjects,
-    classes
+    classes,
+    handleDeleteAssignment,
+    handleDeleteAllAssignments,
+    triggerConfirm
   } = useApp();
 
-  const [selectedAssignmentId, setSelectedAssignmentId] = useState(assignments[0]?.id || null);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   
   // Filter States
   const [filterDate, setFilterDate] = useState('');
@@ -228,19 +232,51 @@ export default function AssignmentsTab() {
     }));
   };
 
+  // Delete Handlers
+  const onDeleteAssignmentClick = (e, assignmentId) => {
+    e.stopPropagation();
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف الواجب' : 'Delete Assignment',
+      message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الواجب نهائياً؟ سيتم حذفه من عند المعلم وولي الأمر.' : 'Are you sure you want to permanently delete this assignment?',
+      type: 'danger',
+      onConfirm: () => handleDeleteAssignment(assignmentId),
+    });
+  };
+
+  const onDeleteAllAssignmentsClick = () => {
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف جميع الواجبات' : 'Delete All Assignments',
+      message: lang === 'ar' ? 'هل أنت متأكد من حذف جميع الواجبات نهائياً؟ هذا الإجراء لا يمكن التراجع عنه!' : 'Are you sure you want to delete ALL assignments? This action cannot be undone!',
+      type: 'danger',
+      onConfirm: () => handleDeleteAllAssignments(),
+    });
+  };
+
   return (
     <div className="section-card">
       <div className="section-card-header no-print">
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           📝 {t.assignmentsHubTitle}
         </h3>
-        
-        <button 
-          className="btn-accent"
-          onClick={() => setShowAssignmentModal(true)}
-        >
-          ➕ {t.addAssignmentBtn}
-        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {assignments.length > 0 && (
+            <button
+              className="btn-elevated"
+              onClick={onDeleteAllAssignmentsClick}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
+            >
+              <Trash2 size={15} />
+              <span>{lang === 'ar' ? 'حذف الكل' : 'Delete All'}</span>
+            </button>
+          )}
+          <button
+            className="btn-accent"
+            onClick={() => setShowAssignmentModal(true)}
+          >
+            ➕ {t.addAssignmentBtn}
+          </button>
+        </div>
       </div>
 
       {/* Filter Toolbar */}
@@ -326,7 +362,7 @@ export default function AssignmentsTab() {
         </div>
       </div>
 
-      <div className="dashboard-main-grid">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
         {/* Assignments List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           <h4 style={{ fontSize: '15px', fontWeight: 'bold', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
@@ -397,10 +433,51 @@ export default function AssignmentsTab() {
                     <span>📅 {lang === 'ar' ? 'تاريخ النشر:' : 'Published:'} {assign.dateCreated}</span>
                     <span>⌛ {t.dueDateLabel}: {assign.dueDate}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
-                    <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                      {lang === 'ar' ? 'عرض التسليمات' : 'View Submissions'} ➔
-                    </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                    <button
+                      onClick={(e) => onDeleteAssignmentClick(e, assign.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'none',
+                        border: '1px solid var(--color-error)',
+                        color: 'var(--color-error)',
+                        borderRadius: '8px',
+                        padding: '3px 10px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title={lang === 'ar' ? 'حذف الواجب نهائياً' : 'Delete Assignment'}
+                    >
+                      <Trash2 size={12} />
+                      {lang === 'ar' ? 'حذف' : 'Delete'}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAssignmentId(assign.id);
+                        setShowSubmissionsModal(true);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        background: 'var(--color-primary)',
+                        border: 'none',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        padding: '4px 12px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        fontWeight: '700',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      🎓 {lang === 'ar' ? 'عرض التسليمات' : 'View Submissions'}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -411,142 +488,155 @@ export default function AssignmentsTab() {
             </div>
           )}
         </div>
-
-        {/* Assignment Submissions List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          <h4 style={{ fontSize: '15px', fontWeight: 'bold', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
-            🎓 {t.submissionsTitle}
-          </h4>
-
-          {selectedAssignmentId ? (
-            (() => {
-              const selectedAssign = assignments.find(a => a.id === selectedAssignmentId);
-              if (!selectedAssign) return null;
-              
-              // Filter students who are in this class/section
-              const classStudents = students.filter(s => s.grade === selectedAssign.grade && s.section === selectedAssign.section);
-              
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-                  <div style={{ padding: 'var(--space-md)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)', border: '1px solid var(--color-border)' }}>
-                    <strong style={{ fontSize: '13px', color: 'var(--color-primary)' }}>{selectedAssign.title}</strong>
-                    <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--color-text-secondary)' }}>{selectedAssign.content}</p>
-                    {selectedAssign.attachments && selectedAssign.attachments.length > 0 && (
-                      <div style={{ marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '8px' }}>
-                        <strong style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
-                          📎 {lang === 'ar' ? 'المرفقات:' : 'Attachments:'}
-                        </strong>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {selectedAssign.attachments.map((file, idx) => (
-                            <button 
-                              key={idx}
-                              className="btn-elevated"
-                              style={{ 
-                                fontSize: '11px', 
-                                height: '28px', 
-                                padding: '0 8px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                cursor: 'pointer'
-                              }}
-                              onClick={() => {
-                                setToastMessage(lang === 'ar' ? `جاري تحميل المرفق: ${file}` : `Downloading attachment: ${file}`);
-                                setTimeout(() => setToastMessage(''), 3000);
-                              }}
-                            >
-                              📥 {file}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="students-table-container">
-                    <table className="students-table">
-                      <thead>
-                        <tr>
-                          <th>{t.studentName}</th>
-                          <th>{t.status}</th>
-                          <th>{t.teacherNoteLabel}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {classStudents.map(student => {
-                          const submission = selectedAssign.submissions.find(sub => sub.studentId === student.id) || { status: 'notSubmitted', teacherNote: '' };
-                          return (
-                            <tr key={student.id}>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  {renderAvatar(student.photo, "👨‍🎓")}
-                                  <span style={{ fontSize: '13px', fontWeight: '600' }}>{lang === 'ar' ? student.name : student.nameEn}</span>
-                                </div>
-                              </td>
-                              <td>
-                                <select 
-                                  value={submission.status}
-                                  onChange={(e) => handleUpdateSubmissionStatus(selectedAssign.id, student.id, e.target.value, submission.teacherNote)}
-                                  className="text-field"
-                                  style={{ height: '34px', padding: '4px 10px', fontSize: '12px', width: '130px' }}
-                                >
-                                  <option value="submitted">{t.submittedStatus}</option>
-                                  <option value="submittedLate">{t.submittedLateStatus}</option>
-                                  <option value="notSubmitted">{t.notSubmittedStatus}</option>
-                                </select>
-                              </td>
-                              <td>
-                                <input 
-                                  type="text" 
-                                  placeholder={lang === 'ar' ? 'ملاحظة المعلم...' : 'Note...'}
-                                  value={submission.teacherNote}
-                                  onChange={(e) => handleUpdateSubmissionStatus(selectedAssign.id, student.id, submission.status, e.target.value)}
-                                  className="text-field"
-                                  style={{ height: '34px', padding: '4px 10px', fontSize: '12px' }}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <button 
-                    className="btn-filled" 
-                    style={{ alignSelf: 'flex-end', height: '40px', minHeight: '40px' }}
-                    onClick={async () => {
-                      try {
-                        const payload = selectedAssign.submissions.map(sub => ({
-                          student_id: sub.studentId,
-                          status: sub.status === 'submittedLate' ? 'submitted_late' : (sub.status === 'submitted' ? 'submitted' : 'not_submitted'),
-                          teacher_note: sub.teacherNote || ''
-                        }));
-                        const res = await api.put(`/api/assignments/${selectedAssign.id}/submissions`, { submissions: payload });
-                        if (res.success) {
-                          setToastMessage(res.message || (lang === 'ar' ? 'تم حفظ بيانات تسليمات الطلاب بنجاح!' : 'Submissions updated successfully!'));
-                        } else {
-                          setToastMessage(res.message || (lang === 'ar' ? 'فشل الحفظ' : 'Error updating submissions'));
-                        }
-                      } catch(err) {
-                        setToastMessage(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
-                      }
-                      setTimeout(() => setToastMessage(''), 3000);
-
-                    }}
-                  >
-                    💾 {t.saveSubmissionsBtn}
-                  </button>
-                </div>
-              );
-            })()
-          ) : (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)', fontStyle: 'italic' }}>
-              👉 {lang === 'ar' ? 'اختر واجباً من القائمة لعرض تسليمات الطلاب وتعديلها' : 'Select an assignment from the list to view and manage student submissions'}
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* SUBMISSIONS MODAL */}
+      {showSubmissionsModal && (() => {
+        const selectedAssign = assignments.find(a => a.id === selectedAssignmentId);
+        if (!selectedAssign) return null;
+        const classStudents = students.filter(s => s.grade === selectedAssign.grade && s.section === selectedAssign.section);
+        // If the filter returns no students, fallback to using submission data directly
+        const displayStudents = classStudents.length > 0
+          ? classStudents
+          : (selectedAssign.submissions || []).map(sub => ({
+              id: sub.studentId,
+              name: sub.studentName || `طالب #${sub.studentId}`,
+              nameEn: sub.studentNameEn || sub.studentName || `Student #${sub.studentId}`,
+              photo: null
+            }));
+        const submittedCount = selectedAssign.submissions?.filter(s => s.status === 'submitted' || s.status === 'submittedLate').length || 0;
+        const totalCount = displayStudents.length;
+        return (
+          <div className="modal-overlay no-print" style={{ zIndex: 1000 }}>
+            <div className="modal-container" style={{ maxWidth: '750px', width: '95vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
+              <header className="modal-header">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <h3 className="modal-title">🎓 {lang === 'ar' ? 'تسليمات الواجب' : 'Assignment Submissions'}</h3>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+                    📝 {selectedAssign.title} — {lang === 'ar' ? selectedAssign.grade : selectedAssign.grade} / {selectedAssign.section}
+                  </span>
+                </div>
+                <button className="modal-close-btn" onClick={() => setShowSubmissionsModal(false)}>
+                  <X size={20} strokeWidth={2.5} />
+                </button>
+              </header>
+
+              {/* Stats bar */}
+              <div style={{ display: 'flex', gap: '16px', padding: '12px 24px', backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-success)' }}>
+                  ✅ {lang === 'ar' ? 'سلّم' : 'Submitted'}: {submittedCount}
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-error)' }}>
+                  ❌ {lang === 'ar' ? 'لم يسلّم' : 'Not Submitted'}: {totalCount - submittedCount}
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-text-secondary)' }}>
+                  👥 {lang === 'ar' ? 'الإجمالي' : 'Total'}: {totalCount}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                  ⌛ {lang === 'ar' ? 'موعد التسليم:' : 'Due:'} {selectedAssign.dueDate}
+                </span>
+              </div>
+
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '16px 24px' }}>
+                {/* Attachments */}
+                {selectedAssign.attachments && selectedAssign.attachments.length > 0 && (
+                  <div style={{ marginBottom: '16px', padding: '10px 14px', backgroundColor: 'var(--color-surface)', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
+                    <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '6px' }}>📎 {lang === 'ar' ? 'مرفقات الواجب:' : 'Attachments:'}</strong>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {selectedAssign.attachments.map((file, idx) => (
+                        <button key={idx} className="btn-elevated"
+                          style={{ fontSize: '11px', height: '28px', padding: '0 8px', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                          onClick={() => { setToastMessage(lang === 'ar' ? `جاري تحميل: ${file}` : `Downloading: ${file}`); setTimeout(() => setToastMessage(''), 3000); }}
+                        >📥 {file}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Submissions Table */}
+                <div className="students-table-container">
+                  <table className="students-table">
+                    <thead>
+                      <tr>
+                        <th>{t.studentName}</th>
+                        <th>{lang === 'ar' ? 'حالة التسليم' : 'Submission Status'}</th>
+                        <th>{t.teacherNoteLabel}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayStudents.map(student => {
+                        const submission = selectedAssign.submissions?.find(sub => sub.studentId === student.id) || { status: 'notSubmitted', teacherNote: '' };
+                        return (
+                          <tr key={student.id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>
+                                {renderAvatar(student.photo, '👨‍🎓')}
+                                <span style={{ fontSize: '13px', fontWeight: '600' }}>{lang === 'ar' ? student.name : student.nameEn}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <select
+                                value={submission.status}
+                                onChange={(e) => handleUpdateSubmissionStatus(selectedAssign.id, student.id, e.target.value, submission.teacherNote)}
+                                className="text-field"
+                                style={{ height: '34px', padding: '4px 10px', fontSize: '12px', width: '140px' }}
+                              >
+                                <option value="submitted">{t.submittedStatus}</option>
+                                <option value="submittedLate">{t.submittedLateStatus}</option>
+                                <option value="notSubmitted">{t.notSubmittedStatus}</option>
+                              </select>
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                placeholder={lang === 'ar' ? 'ملاحظة المعلم...' : 'Teacher note...'}
+                                value={submission.teacherNote || ''}
+                                onChange={(e) => handleUpdateSubmissionStatus(selectedAssign.id, student.id, submission.status, e.target.value)}
+                                className="text-field"
+                                style={{ height: '34px', padding: '4px 10px', fontSize: '12px' }}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <footer className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '14px 24px', borderTop: '1px solid var(--color-border)' }}>
+                <button className="btn-elevated" onClick={() => setShowSubmissionsModal(false)}>
+                  {lang === 'ar' ? 'إغلاق' : 'Close'}
+                </button>
+                <button
+                  className="btn-filled"
+                  onClick={async () => {
+                    try {
+                      const payload = (selectedAssign.submissions || []).map(sub => ({
+                        student_id: sub.studentId,
+                        status: sub.status === 'submittedLate' ? 'submitted_late' : (sub.status === 'submitted' ? 'submitted' : 'not_submitted'),
+                        teacher_note: sub.teacherNote || ''
+                      }));
+                      const res = await api.put(`/api/assignments/${selectedAssign.id}/submissions`, { submissions: payload });
+                      if (res.success) {
+                        setToastMessage(res.message || (lang === 'ar' ? 'تم حفظ بيانات التسليمات بنجاح!' : 'Submissions saved!'));
+                        setShowSubmissionsModal(false);
+                      } else {
+                        setToastMessage(res.message || (lang === 'ar' ? 'فشل الحفظ' : 'Save failed'));
+                      }
+                    } catch(err) {
+                      setToastMessage(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
+                    }
+                    setTimeout(() => setToastMessage(''), 3000);
+                  }}
+                >
+                  💾 {t.saveSubmissionsBtn}
+                </button>
+              </footer>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ADD ASSIGNMENT MODAL */}
       {showAssignmentModal && (

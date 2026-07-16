@@ -225,4 +225,23 @@ class NotificationController extends Controller
             'message' => 'تم تحديد جميع الإشعارات كمقروءة'
         ]);
     }
+
+    public function destroy($id)
+    {
+        $notif = Notification::findOrFail($id);
+        $notif->delete();
+        return response()->json([
+            'success' => true,
+            'message' => 'تم حذف الإشعار بنجاح.'
+        ]);
+    }
+
+    public function deleteAll()
+    {
+        Notification::query()->delete();
+        return response()->json([
+            'success' => true,
+            'message' => 'تم حذف جميع الإشعارات بنجاح.'
+        ]);
+    }
 }
