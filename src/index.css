@@ -186,16 +186,22 @@ body[dir="ltr"] {
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 99px;
+}
+
+:root.dark ::-webkit-scrollbar-track, 
+body.dark-mode ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--color-primary-ui);
   border-radius: 99px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -203,9 +209,25 @@ body[dir="ltr"] {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-text-secondary);
+  background-color: var(--color-primary);
   border: 2px solid transparent;
   background-clip: padding-box;
+}
+
+:root.dark ::-webkit-scrollbar-thumb:hover,
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background-color: #38bdf8; /* light blue/cyan for dark mode hover */
+}
+
+/* For Firefox compatibility */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary-ui) rgba(0, 0, 0, 0.05);
+}
+
+:root.dark *, 
+body.dark-mode * {
+  scrollbar-color: var(--color-primary-ui) rgba(255, 255, 255, 0.05);
 }
 
 /* Selection Highlight */
