@@ -11,20 +11,31 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->dropForeign(['teacher_id']);
+            });
+        } catch (\Exception $e) {}
+
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->dropUnique(['teacher_id', 'subject_id', 'class_id']);
+            });
+        } catch (\Exception $e) {}
+
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->foreignId('teacher_id')->nullable()->change();
+            });
+        } catch (\Exception $e) {}
+
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->foreign('teacher_id')->references('id')->on('users')->cascadeOnDelete();
+            });
+        } catch (\Exception $e) {}
+
         Schema::table('teacher_subjects', function (Blueprint $table) {
-            // Drop foreign key first
-            $table->dropForeign(['teacher_id']);
-            
-            // Drop old unique constraint
-            $table->dropUnique(['teacher_id', 'subject_id', 'class_id']);
-            
-            // Make teacher_id nullable
-            $table->foreignId('teacher_id')->nullable()->change();
-            
-            // Re-add foreign key constraint
-            $table->foreign('teacher_id')->references('id')->on('users')->cascadeOnDelete();
-            
-            // Add new unique constraint (only one teacher per subject per class)
             $table->unique(['class_id', 'subject_id']);
         });
     }
@@ -34,14 +45,34 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('teacher_subjects', function (Blueprint $table) {
-            $table->dropForeign(['teacher_id']);
-            $table->dropUnique(['class_id', 'subject_id']);
-            
-            $table->foreignId('teacher_id')->nullable(false)->change();
-            $table->foreign('teacher_id')->references('id')->on('users')->cascadeOnDelete();
-            
-            $table->unique(['teacher_id', 'subject_id', 'class_id']);
-        });
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->dropForeign(['teacher_id']);
+            });
+        } catch (\Exception $e) {}
+
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->dropUnique(['class_id', 'subject_id']);
+            });
+        } catch (\Exception $e) {}
+
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->foreignId('teacher_id')->nullable(false)->change();
+            });
+        } catch (\Exception $e) {}
+
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->foreign('teacher_id')->references('id')->on('users')->cascadeOnDelete();
+            });
+        } catch (\Exception $e) {}
+
+        try {
+            Schema::table('teacher_subjects', function (Blueprint $table) {
+                $table->unique(['teacher_id', 'subject_id', 'class_id']);
+            });
+        } catch (\Exception $e) {}
     }
 };
