@@ -62,6 +62,51 @@ class DatabaseSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
+        // 2. Classes
+        $classesData = [
+            ['grade_ar' => 'تمهيدي', 'grade_en' => 'KG', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'تمهيدي', 'grade_en' => 'KG', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الأول', 'grade_en' => 'Grade 1', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الأول', 'grade_en' => 'Grade 1', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الأول', 'grade_en' => 'Grade 1', 'section_ar' => 'ج', 'section_en' => 'C'],
+            ['grade_ar' => 'الصف الثاني', 'grade_en' => 'Grade 2', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثاني', 'grade_en' => 'Grade 2', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الثالث', 'grade_en' => 'Grade 3', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثالث', 'grade_en' => 'Grade 3', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الرابع', 'grade_en' => 'Grade 4', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الرابع', 'grade_en' => 'Grade 4', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الخامس', 'grade_en' => 'Grade 5', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الخامس', 'grade_en' => 'Grade 5', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف السادس', 'grade_en' => 'Grade 6', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف السادس', 'grade_en' => 'Grade 6', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف السابع', 'grade_en' => 'Grade 7', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف السابع', 'grade_en' => 'Grade 7', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف السابع', 'grade_en' => 'Grade 7', 'section_ar' => 'ج', 'section_en' => 'C'],
+            ['grade_ar' => 'الصف الثامن', 'grade_en' => 'Grade 8', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثامن', 'grade_en' => 'Grade 8', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الثامن', 'grade_en' => 'Grade 8', 'section_ar' => 'ج', 'section_en' => 'C'],
+            ['grade_ar' => 'الصف التاسع', 'grade_en' => 'Grade 9', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف التاسع', 'grade_en' => 'Grade 9', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف التاسع', 'grade_en' => 'Grade 9', 'section_ar' => 'ج', 'section_en' => 'C'],
+            ['grade_ar' => 'الصف العاشر', 'grade_en' => 'Grade 10', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف العاشر', 'grade_en' => 'Grade 10', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف العاشر', 'grade_en' => 'Grade 10', 'section_ar' => 'ج', 'section_en' => 'C'],
+            ['grade_ar' => 'الصف العاشر', 'grade_en' => 'Grade 10', 'section_ar' => 'د', 'section_en' => 'D'],
+            ['grade_ar' => 'الصف الثاني الثانوي', 'grade_en' => 'Grade 11', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثاني الثانوي', 'grade_en' => 'Grade 11', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الثاني الثانوي', 'grade_en' => 'Grade 11', 'section_ar' => 'ج', 'section_en' => 'C'],
+            ['grade_ar' => 'الصف الثالث الثانوي', 'grade_en' => 'Grade 12', 'section_ar' => 'أ', 'section_en' => 'A'],
+            ['grade_ar' => 'الصف الثالث الثانوي', 'grade_en' => 'Grade 12', 'section_ar' => 'ب', 'section_en' => 'B'],
+            ['grade_ar' => 'الصف الثالث الثانوي', 'grade_en' => 'Grade 12', 'section_ar' => 'ج', 'section_en' => 'C'],
+        ];
+
+        foreach ($classesData as $cData) {
+            DB::table('classes')->insert(array_merge($cData, [
+                'created_at' => now(),
+                'updated_at' => now()
+            ]));
+        }
+
       /*   $supervisorId = DB::table('users')->insertGetId([
             'name' => 'supervisor',
             'username' => 'supervisor',

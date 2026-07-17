@@ -1123,26 +1123,24 @@ export default function StudentsTab() {
             <div className="modal-body" style={{ padding: '24px' }}>
               {excelModalTab === 'import' ? (
                 <form onSubmit={handleImportExcel} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {/* Select Default Class Fallback */}
+                   {/* Select Default Class */}
                   <div className="form-group">
                     <label className="form-label" style={{ fontWeight: '600' }}>
-                      {lang === 'ar' ? 'الفصل الدراسي الافتراضي (في حال عدم تحديده بالملف)' : 'Default Class (If not detected in file)'}
+                      {lang === 'ar' ? 'حدد الفصل الدراسي المستهدف للاستيراد:' : 'Target Class for Import:'} <span style={{ color: 'var(--color-error)' }}>*</span>
                     </label>
                     <select
                       className="text-field"
                       value={excelDefaultClassId}
                       onChange={(e) => setExcelDefaultClassId(e.target.value)}
+                      required
                     >
-                      <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
+                      <option value="">{lang === 'ar' ? '-- اختر الفصل الدراسي --' : '-- Select Class --'}</option>
                       {classes.map(c => (
                         <option key={c.id} value={c.id}>
                           {lang === 'ar' ? c.name : c.nameEn}
                         </option>
                       ))}
                     </select>
-                    <small style={{ color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block', fontSize: '11px' }}>
-                      {lang === 'ar' ? 'ملاحظة: سيقوم النظام بقراءة الفصل تلقائياً من العنوان بداخل ملف الـ Excel (مثال: الصف الأول - أ). وفي حال لم يعثر عليه سيتم إدراجهم في هذا الفصل.' : 'Note: System will read class from Excel title banner automatically. This selection acts as a fallback.'}
-                    </small>
                   </div>
 
                   {/* Drag-n-drop file container */}

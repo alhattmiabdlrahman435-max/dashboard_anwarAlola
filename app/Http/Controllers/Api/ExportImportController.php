@@ -44,6 +44,9 @@ class ExportImportController extends Controller
     private function exportStudents(User $user): StreamedResponse
     {
         $classId = request()->query('class_id');
+        if ($classId && str_starts_with($classId, 'cls-')) {
+            $classId = (int) str_replace('cls-', '', $classId);
+        }
         $className = request()->query('class_name');
 
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
@@ -397,45 +400,21 @@ class ExportImportController extends Controller
             $bannerText = $data[0][0];
         }
 
-        // Extract class name from banner
+        // Load the class strictly from request parameter (dropdown selection)
         $class = null;
-        $classId = request()->input('class_id'); // default class_id from request parameter
-        
-        if ($hasBanner && !empty($bannerText)) {
-            if (preg_match('/\(([^)]+)\)/', $bannerText, $matches)) {
-                $classNameFromBanner = trim($matches[1]);
-                if (!empty($classNameFromBanner) && $classNameFromBanner !== 'كل الفصول') {
-                    $gradeAr = '';
-                    $sectionAr = '';
-                    if (str_contains($classNameFromBanner, '-')) {
-                        $parts = explode('-', $classNameFromBanner);
-                        $gradeAr = trim($parts[0] ?? '');
-                        $sectionAr = trim($parts[1] ?? '');
-                    } else {
-                        $parts = explode(' ', $classNameFromBanner);
-                        if (count($parts) >= 2) {
-                            $gradeAr = $parts[0] . ' ' . $parts[1];
-                            $sectionAr = $parts[2] ?? '';
-                        } else {
-                            $gradeAr = $classNameFromBanner;
-                        }
-                    }
-
-                    $class = SchoolClass::where('grade_ar', 'like', "%{$gradeAr}%")
-                        ->where('section_ar', 'like', "%{$sectionAr}%")
-                        ->first();
-                }
-            }
+        $classId = request()->input('class_id');
+        if ($classId && str_starts_with($classId, 'cls-')) {
+            $classId = (int) str_replace('cls-', '', $classId);
         }
-
-        if (!$class && $classId) {
+        
+        if ($classId) {
             $class = SchoolClass::find($classId);
         }
 
         if (!$class) {
             return response()->json([
                 'success' => false,
-                'message' => 'لم يتم تحديد الفصل الدراسي. يرجى اختيار الفصل الافتراضي من القائمة، أو التأكد من كتابة الفصل بشكل صحيح في عنوان ملف Excel (مثال: الصف الأول - أ).'
+                'message' => 'لم يتم تحديد الفصل الدراسي. يرجى اختيار الفصل الدراسي المستهدف من القائمة قبل الاستيراد.'
             ], 422);
         }
 
@@ -471,20 +450,19 @@ class ExportImportController extends Controller
         $errors = [];
 
         $getStageIndex = function ($grade) {
-            if (str_contains($grade, "تمهيدي أول") || str_contains($grade, "KG1") || str_contains($grade, "الروضة الأولى")) return 1;
-            if (str_contains($grade, "تمهيدي ثاني") || str_contains($grade, "KG2") || str_contains($grade, "الروضة الثانية")) return 2;
+            if (str_contains($grade, "تمهيدي") || str_contains($grade, "KG") || str_contains($grade, "الروضة")) return 1;
             if (str_contains($grade, "الأول") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 3;
             if (str_contains($grade, "الثاني") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 4;
             if (str_contains($grade, "الثالث") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 5;
             if (str_contains($grade, "الرابع")) return 6;
             if (str_contains($grade, "الخامس")) return 7;
             if (str_contains($grade, "السادس")) return 8;
-            if (str_contains($grade, "المتوسط") && str_contains($grade, "الأول")) return 9;
-            if (str_contains($grade, "المتوسط") && str_contains($grade, "الثاني")) return 10;
-            if (str_contains($grade, "المتوسط") && str_contains($grade, "الثالث")) return 11;
-            if (str_contains($grade, "الثانوي") && str_contains($grade, "الأول")) return 12;
-            if (str_contains($grade, "الثانوي") && str_contains($grade, "الثاني")) return 13;
-            if (str_contains($grade, "الثانوي") && str_contains($grade, "الثالث")) return 14;
+            if (str_contains($grade, "السابع") || (str_contains($grade, "المتوسط") && str_contains($grade, "الأول"))) return 9;
+            if (str_contains($grade, "الثامن") || (str_contains($grade, "المتوسط") && str_contains($grade, "الثاني"))) return 10;
+            if (str_contains($grade, "التاسع") || (str_contains($grade, "المتوسط") && str_contains($grade, "الثالث"))) return 11;
+            if (str_contains($grade, "العاشر") || (str_contains($grade, "الثانوي") && str_contains($grade, "الأول"))) return 12;
+            if (str_contains($grade, "الثاني الثانوي") || (str_contains($grade, "الثانوي") && str_contains($grade, "الثاني"))) return 13;
+            if (str_contains($grade, "الثالث الثانوي") || (str_contains($grade, "الثانوي") && str_contains($grade, "الثالث"))) return 14;
             return 3;
         };
 
@@ -915,6 +893,9 @@ class ExportImportController extends Controller
     {
         if ($module === 'students') {
             $classId = $request->query('class_id');
+            if ($classId && str_starts_with($classId, 'cls-')) {
+                $classId = (int) str_replace('cls-', '', $classId);
+            }
             $classNameStr = "الصف الثالث الثانوي - ج"; // standard default example
             if ($classId) {
                 $class = DB::table('classes')->where('id', $classId)->first();
