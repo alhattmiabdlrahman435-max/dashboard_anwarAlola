@@ -76,7 +76,7 @@ class SubjectController extends Controller
         }
 
         $request->validate([
-            'classes' => 'required|array',
+            'classes' => 'present|array',
         ]);
 
         // Look up class IDs by their grade_ar - section_ar (name_ar)
