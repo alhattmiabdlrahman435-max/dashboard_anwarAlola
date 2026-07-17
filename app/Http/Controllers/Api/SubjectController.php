@@ -101,7 +101,7 @@ class SubjectController extends Controller
 
         // Assign to new classes
         $defaultTeacher = \App\Models\User::where('role', 'teacher')->first() ?? \App\Models\User::where('role', 'admin')->first();
-        $defaultTeacherId = $defaultTeacher ? $defaultTeacher->id : 1;
+        $defaultTeacherId = $defaultTeacher ? $defaultTeacher->id : null;
 
         foreach ($classIds as $clsId) {
             $exists = \App\Models\TeacherSubject::where('class_id', $clsId)

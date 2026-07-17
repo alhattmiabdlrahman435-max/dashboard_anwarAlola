@@ -23,6 +23,7 @@ export default function SubjectsTab() {
   // Local state for searching & modals
   const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
   const [formError, setFormError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Modals visibility
   const [showSubjectModal, setShowSubjectModal] = useState(false);
@@ -50,6 +51,7 @@ export default function SubjectsTab() {
       return;
     }
 
+    setIsSaving(true);
     const token = localStorage.getItem('auth_token');
 
     api.post('/api/subjects', {
@@ -73,14 +75,19 @@ export default function SubjectsTab() {
         .catch(err => {
           console.error("Error syncing classes:", err);
           setFormError(lang === 'ar' ? 'حدث خطأ أثناء تعيين الفصول الدراسية' : 'Error assigning classes');
+        })
+        .finally(() => {
+          setIsSaving(false);
         });
       } else {
         setFormError(data.message || 'Error');
+        setIsSaving(false);
       }
     })
     .catch(err => {
       console.error("Error adding subject:", err);
       setFormError(lang === 'ar' ? 'حدث خطأ أثناء حفظ المادة' : 'Error saving subject');
+      setIsSaving(false);
     });
   };
 
@@ -95,6 +102,7 @@ export default function SubjectsTab() {
     const targetSub = subjects.find(s => s.id === selectedSubjectIdForEdit);
     if (!targetSub) return;
 
+    setIsSaving(true);
     const dbSubjectId = Number(String(selectedSubjectIdForEdit).replace('sub-', ''));
     const token = localStorage.getItem('auth_token');
 
@@ -119,14 +127,19 @@ export default function SubjectsTab() {
         .catch(err => {
           console.error("Error syncing classes:", err);
           setFormError(lang === 'ar' ? 'حدث خطأ أثناء تحديث الفصول الدراسية' : 'Error updating classes');
+        })
+        .finally(() => {
+          setIsSaving(false);
         });
       } else {
         setFormError(data.message || 'Error');
+        setIsSaving(false);
       }
     })
     .catch(err => {
       console.error("Error updating subject:", err);
       setFormError(lang === 'ar' ? 'حدث خطأ أثناء تعديل المادة' : 'Error editing subject');
+      setIsSaving(false);
     });
   };
 
@@ -372,8 +385,10 @@ export default function SubjectsTab() {
                 </div>
               </div>
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowSubjectModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowSubjectModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>
@@ -440,8 +455,10 @@ export default function SubjectsTab() {
                 </div>
               </div>
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowEditSubjectModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowEditSubjectModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>
