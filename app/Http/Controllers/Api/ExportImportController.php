@@ -433,10 +433,13 @@ class ExportImportController extends Controller
         }
 
         if (!$class) {
-            $class = SchoolClass::first();
+            return response()->json([
+                'success' => false,
+                'message' => 'لم يتم تحديد الفصل الدراسي. يرجى اختيار الفصل الافتراضي من القائمة، أو التأكد من كتابة الفصل بشكل صحيح في عنوان ملف Excel (مثال: الصف الأول - أ).'
+            ], 422);
         }
 
-        $classId = $class ? $class->id : null;
+        $classId = $class->id;
 
         // Set headers and rows index based on banner presence
         if ($hasBanner) {
