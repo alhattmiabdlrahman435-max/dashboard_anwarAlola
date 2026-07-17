@@ -790,29 +790,6 @@ export default function CommunicationsTab() {
               </button>
             )}
           </div>
-
-          <select
-            className="text-field"
-            style={{ 
-              height: '42px', 
-              padding: '0 12px', 
-              borderRadius: '14px', 
-              border: '1.5px solid var(--color-border)',
-              backgroundColor: 'var(--color-surface)',
-              color: 'var(--color-text-primary)',
-              fontSize: '13px',
-              outline: 'none',
-              cursor: 'pointer',
-              minWidth: '120px'
-            }}
-            value={filterSender}
-            onChange={(e) => setFilterSender(e.target.value)}
-            title={lang === 'ar' ? 'تصفية حسب المرسل' : 'Filter by Sender'}
-          >
-            <option value="all">{lang === 'ar' ? 'كل المرسلين' : 'All Senders'}</option>
-            <option value="admin">{lang === 'ar' ? 'إدارة المدرسة' : 'School Admin'}</option>
-            <option value="supervisor">{lang === 'ar' ? 'مشرف التحضير' : 'Prep Supervisor'}</option>
-          </select>
         </div>
 
         {/* Segmented Pills Filters */}
