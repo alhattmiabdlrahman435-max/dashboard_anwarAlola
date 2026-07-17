@@ -14,6 +14,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class ExportImportController extends Controller
 {
@@ -40,29 +43,139 @@ class ExportImportController extends Controller
 
     private function exportStudents(User $user): StreamedResponse
     {
+        $classId = request()->query('class_id');
+        $className = request()->query('class_name');
+
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
 
         $query = DB::table('students')
             ->leftJoin('classes', 'students.class_id', '=', 'classes.id')
             ->leftJoin('users as parents', 'students.parent_id', '=', 'parents.id')
-            ->select('students.id', 'students.name_ar', 'students.name_en', 'parents.national_id as parent_national_id', 'parents.phone as parent_phone', 'classes.grade_ar', 'classes.section_ar');
+            ->select('students.id', 'students.name_ar', 'parents.name_ar as parent_name', 'parents.national_id as parent_national_id', 'classes.grade_ar', 'classes.section_ar');
 
         if ($scopedClassIds !== null) {
             $query->whereIn('students.class_id', $scopedClassIds);
         }
 
-        $data = $query->get();
-        $rows = [];
-        foreach ($data as $row) {
-            $className = $row->grade_ar ? "{$row->grade_ar} - {$row->section_ar}" : '';
-            $rows[] = [$row->id, $row->name_ar, $row->name_en, $row->parent_national_id, $row->parent_phone, $className];
+        if ($classId) {
+            $query->where('students.class_id', $classId);
+            $class = DB::table('classes')->where('id', $classId)->first();
+            $classNameStr = $class ? "{$class->grade_ar} - {$class->section_ar}" : "محدد";
+        } elseif ($className && $className !== 'all') {
+            $query->where(DB::raw("CONCAT(classes.grade_ar, ' - ', classes.section_ar)"), $className);
+            $classNameStr = $className;
+        } else {
+            $classNameStr = "كل الفصول";
         }
 
-        return $this->streamCsv(
-            'students_export.csv',
-            ['#', 'الاسم (عربي)', 'الاسم (إنجليزي)', 'رقم الهوية', 'رقم الجوال', 'الفصل'],
-            $rows
-        );
+        $data = $query->get();
+
+        return new StreamedResponse(function () use ($classNameStr, $data) {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setRightToLeft(true);
+            $sheet->setShowGridlines(true);
+
+            // Title banner text
+            $titleText = "كشف بأسماء أولياء أمور طلاب الصف ( {$classNameStr} ) وأرقام بطائقهم الشخصية للعام 2026 - 2027م";
+            $sheet->mergeCells('A1:E1');
+            $sheet->setCellValue('A1', $titleText);
+
+            // Styling the Banner
+            $sheet->getRowDimension(1)->setRowHeight(45);
+            $sheet->getStyle('A1')->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['argb' => 'FFFFFFFF'],
+                    'size' => 14,
+                    'name' => 'Segoe UI'
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'color' => ['argb' => 'FF31859C'] // beautiful teal color from image
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER
+                ]
+            ]);
+
+            // Headers
+            $headers = ['م', 'اسم ولي الأمر', 'رقم البطاقة', 'اسم الطالب', 'ملاحظات'];
+            $sheet->fromArray([$headers], null, 'A2');
+            $sheet->getRowDimension(2)->setRowHeight(30);
+
+            // Header Styling
+            $sheet->getStyle('A2:E2')->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['argb' => 'FF000000'],
+                    'size' => 11,
+                    'name' => 'Segoe UI'
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'color' => ['argb' => 'FFF2F2F2']
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['argb' => 'FFCCCCCC']
+                    ]
+                ]
+            ]);
+
+            // Add Data Rows
+            $rowIndex = 3;
+            foreach ($data as $index => $row) {
+                $sheet->setCellValue('A' . $rowIndex, $index + 1);
+                $sheet->setCellValue('B' . $rowIndex, $row->parent_name ?: ('ولي أمر ' . $row->name_ar));
+                $sheet->setCellValueExplicit('C' . $rowIndex, $row->parent_national_id, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValue('D' . $rowIndex, $row->name_ar);
+                $sheet->setCellValue('E' . $rowIndex, '');
+
+                $sheet->getRowDimension($rowIndex)->setRowHeight(25);
+                $rowIndex++;
+            }
+
+            // Apply gridline border and alignment to data rows
+            if ($rowIndex > 3) {
+                $sheet->getStyle('A3:E' . ($rowIndex - 1))->applyFromArray([
+                    'font' => [
+                        'size' => 11,
+                        'name' => 'Segoe UI'
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color' => ['argb' => 'FFE0E0E0']
+                        ]
+                    ]
+                ]);
+            }
+
+            // Column Widths
+            $sheet->getColumnDimension('A')->setWidth(8);
+            $sheet->getColumnDimension('B')->setWidth(25);
+            $sheet->getColumnDimension('C')->setWidth(20);
+            $sheet->getColumnDimension('D')->setWidth(25);
+            $sheet->getColumnDimension('E')->setWidth(25);
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="students_export.xlsx"',
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 
     private function exportTeachers(User $user): StreamedResponse
@@ -263,10 +376,76 @@ class ExportImportController extends Controller
         } else {
             $parsed = $this->parseCsv($path);
         }
-        $headers = array_map('trim', $parsed['headers'] ?? []);
-        $rows = $parsed['rows'] ?? [];
-        $imported = 0;
-        $errors = [];
+        
+        $allRows = $parsed['rows'] ?? [];
+        $firstRow = $parsed['headers'] ?? [];
+        
+        // Combine headers and rows to analyze
+        $data = array_merge([$firstRow], $allRows);
+        if (empty($data)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الملف المرفوع فارغ أو غير صالح.'
+            ], 422);
+        }
+
+        // Detect banner
+        $hasBanner = false;
+        $bannerText = '';
+        if (isset($data[0][0]) && (str_contains($data[0][0], 'كشف') || str_contains($data[0][0], 'أولياء أمور'))) {
+            $hasBanner = true;
+            $bannerText = $data[0][0];
+        }
+
+        // Extract class name from banner
+        $class = null;
+        $classId = request()->input('class_id'); // default class_id from request parameter
+        
+        if ($hasBanner && !empty($bannerText)) {
+            if (preg_match('/\(([^)]+)\)/', $bannerText, $matches)) {
+                $classNameFromBanner = trim($matches[1]);
+                if (!empty($classNameFromBanner) && $classNameFromBanner !== 'كل الفصول') {
+                    $gradeAr = '';
+                    $sectionAr = '';
+                    if (str_contains($classNameFromBanner, '-')) {
+                        $parts = explode('-', $classNameFromBanner);
+                        $gradeAr = trim($parts[0] ?? '');
+                        $sectionAr = trim($parts[1] ?? '');
+                    } else {
+                        $parts = explode(' ', $classNameFromBanner);
+                        if (count($parts) >= 2) {
+                            $gradeAr = $parts[0] . ' ' . $parts[1];
+                            $sectionAr = $parts[2] ?? '';
+                        } else {
+                            $gradeAr = $classNameFromBanner;
+                        }
+                    }
+
+                    $class = SchoolClass::where('grade_ar', 'like', "%{$gradeAr}%")
+                        ->where('section_ar', 'like', "%{$sectionAr}%")
+                        ->first();
+                }
+            }
+        }
+
+        if (!$class && $classId) {
+            $class = SchoolClass::find($classId);
+        }
+
+        if (!$class) {
+            $class = SchoolClass::first();
+        }
+
+        $classId = $class ? $class->id : null;
+
+        // Set headers and rows index based on banner presence
+        if ($hasBanner) {
+            $headers = array_map('trim', $data[1] ?? []);
+            $rows = array_slice($data, 2);
+        } else {
+            $headers = array_map('trim', $data[0] ?? []);
+            $rows = array_slice($data, 1);
+        }
 
         // Helper to find column index based on search terms
         $findIdx = function($terms, $default) use ($headers) {
@@ -281,90 +460,99 @@ class ExportImportController extends Controller
         };
 
         // Determine column indexes dynamically
-        $nameIdx = $findIdx(['الاسم (عربي)', 'الاسم', 'اسم الطالب'], 0);
-        $parentNationalIdIdx = $findIdx(['رقم الهوية', 'الهوية', 'ولي الأمر'], 1);
-        $phoneIdx = $findIdx(['رقم الجوال', 'الجوال', 'الهاتف'], 2);
-        $classNameIdx = $findIdx(['الفصل', 'اسم الفصل', 'الصف'], 3);
+        $parentNameIdx = $findIdx(['اسم ولي الأمر', 'ولي الأمر', 'الاب', 'الأب'], 1);
+        $parentNationalIdIdx = $findIdx(['رقم البطاقة', 'الهوية', 'الرقم الوطني', 'national_id'], 2);
+        $studentNameIdx = $findIdx(['اسم الطالب', 'الطالب', 'الابن', 'الاسم'], 3);
+
+        $imported = 0;
+        $errors = [];
+
+        $getStageIndex = function ($grade) {
+            if (str_contains($grade, "تمهيدي أول") || str_contains($grade, "KG1") || str_contains($grade, "الروضة الأولى")) return 1;
+            if (str_contains($grade, "تمهيدي ثاني") || str_contains($grade, "KG2") || str_contains($grade, "الروضة الثانية")) return 2;
+            if (str_contains($grade, "الأول") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 3;
+            if (str_contains($grade, "الثاني") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 4;
+            if (str_contains($grade, "الثالث") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 5;
+            if (str_contains($grade, "الرابع")) return 6;
+            if (str_contains($grade, "الخامس")) return 7;
+            if (str_contains($grade, "السادس")) return 8;
+            if (str_contains($grade, "المتوسط") && str_contains($grade, "الأول")) return 9;
+            if (str_contains($grade, "المتوسط") && str_contains($grade, "الثاني")) return 10;
+            if (str_contains($grade, "المتوسط") && str_contains($grade, "الثالث")) return 11;
+            if (str_contains($grade, "الثانوي") && str_contains($grade, "الأول")) return 12;
+            if (str_contains($grade, "الثانوي") && str_contains($grade, "الثاني")) return 13;
+            if (str_contains($grade, "الثانوي") && str_contains($grade, "الثالث")) return 14;
+            return 3;
+        };
 
         foreach ($rows as $index => $row) {
-            $lineNum = $index + 2; // +2 because header is line 1
+            $lineNum = $hasBanner ? ($index + 3) : ($index + 2); // Excel line number
 
-            $nameAr = isset($row[$nameIdx]) ? trim($row[$nameIdx]) : '';
+            $studentName = isset($row[$studentNameIdx]) ? trim($row[$studentNameIdx]) : '';
             $parentNationalId = isset($row[$parentNationalIdIdx]) ? trim($row[$parentNationalIdIdx]) : '';
-            $phone = isset($row[$phoneIdx]) ? trim($row[$phoneIdx]) : '';
-            $className = isset($row[$classNameIdx]) ? trim($row[$classNameIdx]) : '';
+            $parentName = isset($row[$parentNameIdx]) ? trim($row[$parentNameIdx]) : '';
 
-            // Skip if the row is empty
-            if (empty($nameAr) || empty($parentNationalId)) {
-                $errors[] = "سطر {$lineNum}: الاسم أو رقم هوية ولي الأمر فارغ.";
+            // Check if row is completely empty (all cells empty or null)
+            $isEmptyRow = true;
+            foreach ($row as $val) {
+                if ($val !== null && trim((string)$val) !== '') {
+                    $isEmptyRow = false;
+                    break;
+                }
+            }
+            if ($isEmptyRow) {
+                continue; // Ignore completely empty rows silently
+            }
+
+            // Skip if the student name or parent ID is empty
+            if (empty($studentName) || empty($parentNationalId)) {
+                $errors[] = "سطر {$lineNum}: تم تجاهله لعدم توفر اسم الطالب أو رقم هوية ولي الأمر.";
                 continue;
             }
 
             // Find or create parent user
-            $parent = User::where('national_id', $parentNationalId)
-                ->orWhere('username', $parentNationalId)
-                ->first();
+            $parent = User::where('role', 'parent')
+                ->where(function($q) use ($parentNationalId) {
+                    $q->where('national_id', $parentNationalId)
+                      ->orWhere('username', $parentNationalId);
+                })->first();
 
             if (!$parent) {
-                // Let's create the parent user dynamically
+                // Let's create the parent user dynamically with password '12345678'
                 $parent = User::create([
-                    'name' => 'ولي أمر ' . $nameAr,
-                    'name_ar' => 'ولي أمر ' . $nameAr,
-                    'name_en' => 'Parent of ' . $nameAr,
+                    'name' => $parentName ?: 'ولي أمر ' . $studentName,
+                    'name_ar' => $parentName ?: 'ولي أمر ' . $studentName,
+                    'name_en' => $parentName ?: 'Parent of ' . $studentName,
                     'username' => $parentNationalId,
                     'national_id' => $parentNationalId,
-                    'phone' => $phone ?: '555555555',
-                    'password' => Hash::make($phone ?: '123456'),
+                    'phone' => '0555555555',
+                    'password' => Hash::make('12345678'), // default password 1-8
                     'role' => 'parent',
                     'is_active' => true,
                     'photo_url' => '🧔',
                 ]);
-            }
-
-            // Find class ID by splitting grade and section
-            $classId = null;
-            if (!empty($className)) {
-                $gradeAr = '';
-                $sectionAr = '';
-                if (str_contains($className, '-')) {
-                    $parts = explode('-', $className);
-                    $gradeAr = trim($parts[0] ?? '');
-                    $sectionAr = trim($parts[1] ?? '');
-                } else {
-                    $parts = explode(' ', $className);
-                    if (count($parts) >= 2) {
-                        $gradeAr = $parts[0] . ' ' . $parts[1];
-                        $sectionAr = $parts[2] ?? '';
-                    } else {
-                        $gradeAr = $className;
-                    }
+            } else {
+                // Update parent name if empty or changed
+                if (!empty($parentName) && $parentName !== $parent->name_ar) {
+                    $parent->update([
+                        'name' => $parentName,
+                        'name_ar' => $parentName,
+                    ]);
                 }
-
-                $class = SchoolClass::where('grade_ar', 'like', "%{$gradeAr}%")
-                    ->where('section_ar', 'like', "%{$sectionAr}%")
-                    ->first();
-                $classId = $class?->id;
             }
 
-            $getStageIndex = function ($grade) {
-                if (str_contains($grade, "تمهيدي أول") || str_contains($grade, "KG1") || str_contains($grade, "الروضة الأولى")) return 1;
-                if (str_contains($grade, "تمهيدي ثاني") || str_contains($grade, "KG2") || str_contains($grade, "الروضة الثانية")) return 2;
-                if (str_contains($grade, "الأول") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 3;
-                if (str_contains($grade, "الثاني") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 4;
-                if (str_contains($grade, "الثالث") && !str_contains($grade, "المتوسط") && !str_contains($grade, "الثانوي")) return 5;
-                if (str_contains($grade, "الرابع")) return 6;
-                if (str_contains($grade, "الخامس")) return 7;
-                if (str_contains($grade, "السادس")) return 8;
-                if (str_contains($grade, "المتوسط") && str_contains($grade, "الأول")) return 9;
-                if (str_contains($grade, "المتوسط") && str_contains($grade, "الثاني")) return 10;
-                if (str_contains($grade, "المتوسط") && str_contains($grade, "الثالث")) return 11;
-                if (str_contains($grade, "الثانوي") && str_contains($grade, "الأول")) return 12;
-                if (str_contains($grade, "الثانوي") && str_contains($grade, "الثاني")) return 13;
-                if (str_contains($grade, "الثانوي") && str_contains($grade, "الثالث")) return 14;
-                return 3;
-            };
+            // Check if student with same name is already linked to this parent
+            $studentExists = Student::where('name_ar', $studentName)
+                ->where('parent_id', $parent->id)
+                ->exists();
 
-            $stageNum = $getStageIndex($gradeAr ?: $className);
+            if ($studentExists) {
+                $errors[] = "سطر {$lineNum}: الطالب {$studentName} مسجل مسبقاً لولي الأمر.";
+                continue;
+            }
+
+            // Generate student code
+            $stageNum = $class ? $getStageIndex($class->grade_ar) : 3;
             $seqCount = DB::table('students')->where('class_id', $classId)->count() + 1;
             $studentCode = "2026" . $stageNum . $seqCount;
             while (DB::table('students')->where('student_code', $studentCode)->exists()) {
@@ -375,8 +563,8 @@ class ExportImportController extends Controller
             DB::table('students')->insert([
                 'id' => (int)$studentCode,
                 'student_code' => $studentCode,
-                'name_ar' => $nameAr,
-                'name_en' => $nameAr,
+                'name_ar' => $studentName,
+                'name_en' => $studentName,
                 'class_id' => $classId,
                 'parent_id' => $parent->id,
                 'qr_code' => $studentCode,
@@ -384,13 +572,11 @@ class ExportImportController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
             $imported++;
         }
 
         $msg = "تم استيراد {$imported} طالب بنجاح.";
-        if (count($errors) > 0) {
-            $msg .= " الأخطاء: " . implode(', ', $errors);
-        }
 
         return response()->json([
             'success' => true,
@@ -724,6 +910,93 @@ class ExportImportController extends Controller
 
     public function template(Request $request, string $module)
     {
+        if ($module === 'students') {
+            $classId = $request->query('class_id');
+            $classNameStr = "الصف الثالث الثانوي - ج"; // standard default example
+            if ($classId) {
+                $class = DB::table('classes')->where('id', $classId)->first();
+                if ($class) {
+                    $classNameStr = "{$class->grade_ar} - {$class->section_ar}";
+                }
+            }
+
+            return new StreamedResponse(function () use ($classNameStr) {
+                $spreadsheet = new Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+                $sheet->setRightToLeft(true);
+                $sheet->setShowGridlines(true);
+
+                // Title banner text
+                $titleText = "كشف بأسماء أولياء أمور طلاب الصف ( {$classNameStr} ) وأرقام بطائقهم الشخصية للعام 2026 - 2027م";
+                $sheet->mergeCells('A1:E1');
+                $sheet->setCellValue('A1', $titleText);
+
+                // Styling the Banner
+                $sheet->getRowDimension(1)->setRowHeight(45);
+                $sheet->getStyle('A1')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['argb' => 'FFFFFFFF'],
+                        'size' => 14,
+                        'name' => 'Segoe UI'
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'color' => ['argb' => 'FF31859C'] // beautiful teal color
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ]
+                ]);
+
+                // Headers
+                $headers = ['م', 'اسم ولي الأمر', 'رقم البطاقة', 'اسم الطالب', 'ملاحظات'];
+                $sheet->fromArray([$headers], null, 'A2');
+                $sheet->getRowDimension(2)->setRowHeight(30);
+
+                // Header Styling
+                $sheet->getStyle('A2:E2')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['argb' => 'FF000000'],
+                        'size' => 11,
+                        'name' => 'Segoe UI'
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'color' => ['argb' => 'FFF2F2F2']
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color' => ['argb' => 'FFCCCCCC']
+                        ]
+                    ]
+                ]);
+
+
+
+                // Column Widths
+                $sheet->getColumnDimension('A')->setWidth(8);
+                $sheet->getColumnDimension('B')->setWidth(25);
+                $sheet->getColumnDimension('C')->setWidth(20);
+                $sheet->getColumnDimension('D')->setWidth(25);
+                $sheet->getColumnDimension('E')->setWidth(25);
+
+                $writer = new Xlsx($spreadsheet);
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="students_template.xlsx"',
+                'Cache-Control' => 'max-age=0',
+            ]);
+        }
+
         if ($module === 'parents') {
             return new StreamedResponse(function () {
                 $spreadsheet = new Spreadsheet();
