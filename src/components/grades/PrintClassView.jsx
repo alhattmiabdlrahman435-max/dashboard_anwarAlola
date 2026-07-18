@@ -1,5 +1,5 @@
-import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { useStudents } from '../../contexts/Students/useStudents';
 import PrintHeader from '../PrintHeader';
 import { calculateMonthTotal, getSubjectPeriodGrade, calculateStudentClassRowTotal } from '../../utils/gradesHelper';
 
@@ -7,10 +7,11 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
   const {
     lang,
     t,
-    students,
     getStudentDetailedGrades,
     selectedGradeTerm
   } = useApp();
+
+  const { students } = useStudents();
 
   const getSubjectPeriodGradeLocal = (studentId, subject, term, period) => {
     return getSubjectPeriodGrade(studentId, subject, term, period, getStudentDetailedGrades);
@@ -130,7 +131,7 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
         <div className="class-detailed-print-container">
           {students
             .filter(s => `${s.grade} - ${s.section}` === selectedClass)
-            .map((s, sIdx) => {
+            .map((s) => {
               const subjectsList = ['الرياضيات', 'العلوم', 'اللغة العربية', 'اللغة الإنجليزية'];
               return (
                 <div key={s.id} className="student-report-card-page">

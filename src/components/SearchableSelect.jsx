@@ -1,8 +1,8 @@
-import React from 'react';
+import { memo } from 'react';
 import Select from 'react-select';
 import { useApp } from '../context/AppContext';
 
-export default function SearchableSelect({ options, value, onChange, placeholder, isDisabled = false }) {
+const SearchableSelect = memo(function SearchableSelect({ options, value, onChange, placeholder, isDisabled = false }) {
   const { lang } = useApp();
   
   const customStyles = {
@@ -42,7 +42,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
       ...provided,
       height: '42px',
     }),
-    singleValue: (provided, state) => ({
+    singleValue: (provided) => ({
       ...provided,
       color: 'var(--color-text-primary, #1e293b)',
     }),
@@ -94,4 +94,6 @@ export default function SearchableSelect({ options, value, onChange, placeholder
       classNamePrefix="react-select"
     />
   );
-}
+})
+
+export default SearchableSelect;

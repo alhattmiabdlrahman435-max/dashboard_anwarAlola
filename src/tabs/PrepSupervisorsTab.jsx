@@ -1,13 +1,23 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useTeachers } from '../contexts/Teachers/useTeachers';
+import { useClasses } from '../contexts/Classes/useClasses';
 import { Plus, X, Camera, User } from 'lucide-react';
 
 export default function PrepSupervisorsTab() {
   const {
-    lang, t, supervisors, classes,
-    handleAddSupervisor, handleEditSupervisor, handleDeleteSupervisor, renderAvatar,
+    lang, t, renderAvatar,
     setToastMessage, triggerConfirm
   } = useApp();
+
+  const {
+    supervisors,
+    handleAddSupervisor,
+    handleEditSupervisor,
+    handleDeleteSupervisor
+  } = useTeachers();
+
+  const { classes } = useClasses();
 
   // Local UI states
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);

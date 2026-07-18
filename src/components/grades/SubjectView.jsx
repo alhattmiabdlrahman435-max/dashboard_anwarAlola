@@ -1,6 +1,9 @@
-import React from 'react';
+import { memo, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useStudents } from '../../contexts/Students/useStudents';
+import { useSubjects } from '../../contexts/Subjects/useSubjects';
 import { calculateMonthTotal } from '../../utils/gradesHelper';
+import GradeInput from './GradeInput';
 
 const defaultDetailedGradeObj = (hw, att, beh, oral, wrt, final) => ({
   m1: { homework: hw, attendance: att, behavior: beh, oral: oral, written: wrt },
@@ -9,20 +12,26 @@ const defaultDetailedGradeObj = (hw, att, beh, oral, wrt, final) => ({
   finalExam: final
 });
 
-export default function SubjectView() {
+const SubjectView = memo(function SubjectView() {
   const {
     lang,
     t,
-    students,
     detailedGrades,
     getStudentDetailedGrades,
-    handleDetailedGradeChange,
+    handleDetailedGradeChange: handleDetailedGradeChangeContext,
     syncGeneralGrades,
     setToastMessage,
     selectedGradeStudentId,
     selectedGradeTerm,
     selectedGradeSubject
   } = useApp();
+
+  const { students } = useStudents();
+  const { subjects } = useSubjects();
+
+  const handleDetailedGradeChange = useCallback((studentId, subject, term, monthKey, field, val) => {
+    handleDetailedGradeChangeContext(studentId, subject, term, monthKey, field, val, students, subjects);
+  }, [handleDetailedGradeChangeContext, students, subjects]);
 
   const student = students.find(s => s.id === selectedGradeStudentId);
   const gradesData = getStudentDetailedGrades(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm);
@@ -67,38 +76,38 @@ export default function SubjectView() {
             <tr>
               <td style={{ fontWeight: 'bold' }}>{t.m1Label}</td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="15" 
+                <GradeInput 
+                  min="0" max="15" 
                   value={gradesData.m1.homework}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'homework', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'homework', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="15" 
+                <GradeInput 
+                  min="0" max="15" 
                   value={gradesData.m1.attendance}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'attendance', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'attendance', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="10" 
+                <GradeInput 
+                  min="0" max="10" 
                   value={gradesData.m1.behavior}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'behavior', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'behavior', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="10" 
+                <GradeInput 
+                  min="0" max="10" 
                   value={gradesData.m1.oral}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'oral', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'oral', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="50" 
+                <GradeInput 
+                  min="0" max="50" 
                   value={gradesData.m1.written}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'written', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'written', val)}
                 />
               </td>
               <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{m1_total}</td>
@@ -108,38 +117,38 @@ export default function SubjectView() {
             <tr>
               <td style={{ fontWeight: 'bold' }}>{t.m2Label}</td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="15" 
+                <GradeInput 
+                  min="0" max="15" 
                   value={gradesData.m2.homework}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'homework', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'homework', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="15" 
+                <GradeInput 
+                  min="0" max="15" 
                   value={gradesData.m2.attendance}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'attendance', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'attendance', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="10" 
+                <GradeInput 
+                  min="0" max="10" 
                   value={gradesData.m2.behavior}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'behavior', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'behavior', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="10" 
+                <GradeInput 
+                  min="0" max="10" 
                   value={gradesData.m2.oral}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'oral', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'oral', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="50" 
+                <GradeInput 
+                  min="0" max="50" 
                   value={gradesData.m2.written}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'written', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'written', val)}
                 />
               </td>
               <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{m2_total}</td>
@@ -149,38 +158,38 @@ export default function SubjectView() {
             <tr>
               <td style={{ fontWeight: 'bold' }}>{t.m3Label}</td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="15" 
+                <GradeInput 
+                  min="0" max="15" 
                   value={gradesData.m3.homework}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'homework', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'homework', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="15" 
+                <GradeInput 
+                  min="0" max="15" 
                   value={gradesData.m3.attendance}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'attendance', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'attendance', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="10" 
+                <GradeInput 
+                  min="0" max="10" 
                   value={gradesData.m3.behavior}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'behavior', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'behavior', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="10" 
+                <GradeInput 
+                  min="0" max="10" 
                   value={gradesData.m3.oral}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'oral', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'oral', val)}
                 />
               </td>
               <td>
-                <input 
-                  type="number" className="grades-input" min="0" max="50" 
+                <GradeInput 
+                  min="0" max="50" 
                   value={gradesData.m3.written}
-                  onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'written', e.target.value)}
+                  onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'written', val)}
                 />
               </td>
               <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{m3_total}</td>
@@ -215,13 +224,11 @@ export default function SubjectView() {
             📝 {t.finalExamLabel}
           </span>
           <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <input 
-              type="number" 
-              className="grades-input" 
+            <GradeInput 
               style={{ width: '100px', fontSize: '20px', height: '46px', textAlign: 'center', fontWeight: 'bold' }} 
               min="0" max="30"
               value={gradesData.finalExam}
-              onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'finalExam', '', e.target.value)}
+              onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'finalExam', '', val)}
             />
           </div>
         </div>
@@ -285,4 +292,6 @@ export default function SubjectView() {
       </button>
     </>
   );
-}
+})
+
+export default SubjectView;

@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useNotifications } from '../contexts/Notifications/useNotifications';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { 
   X, Search, Plus, Bell, Send, Users, User, GraduationCap, 
   Layers, CheckCircle2, MessageSquare, Volume2, Info, Trash2
@@ -9,23 +13,29 @@ export default function CommunicationsTab() {
   const {
     lang,
     t,
-    students,
-    teachers,
+    triggerConfirm
+  } = useApp();
+
+  const { availableGrades } = useClasses();
+
+  const {
     notifications,
-    availableGrades,
     handleSendNotification,
     handleMarkNotificationAsRead,
     handleDeleteNotification,
     handleDeleteAllNotifications,
-    triggerConfirm
-  } = useApp();
+  } = useNotifications();
+
+  const { students } = useStudents();
+  const { teachers } = useTeachers();
+
 
   // Local UI states
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [filterDate, setFilterDate] = useState('');
-  const [filterSender, setFilterSender] = useState('all');
+  const [filterSender] = useState('all');
 
   const onDeleteNotificationClick = (e, notifId) => {
     e.stopPropagation();
@@ -164,7 +174,8 @@ export default function CommunicationsTab() {
   };
 
   // Helper to determine simulated sender
-  const getNotificationSender = (notif) => {
+  // Helper to determine simulated sender
+  const getNotificationSender = useCallback((notif) => {
     if (notif.type === 'attendance') {
       return {
         name: lang === 'ar' ? 'مشرف التحضير' : 'Prep Supervisor',
@@ -175,59 +186,74 @@ export default function CommunicationsTab() {
       name: lang === 'ar' ? 'إدارة المدرسة' : 'School Administration',
       key: 'admin'
     };
-  };
+  }, [lang]);
 
   // Filter sent notifications based on pills, search query, date, and sender
-  const filteredNotifications = notifications.filter(notif => {
-    // 1. Search Query filter
-    const matchesSearch = 
-      notif.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      notif.content.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    if (!matchesSearch) return false;
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter(notif => {
+      // 1. Search Query filter
+      const matchesSearch = 
+        notif.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        notif.content.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      if (!matchesSearch) return false;
 
-    // 2. Date Filter
-    if (filterDate) {
-      if (!notif.date.startsWith(filterDate)) {
-        return false;
+      // 2. Date Filter
+      if (filterDate) {
+        if (!notif.date.startsWith(filterDate)) {
+          return false;
+        }
       }
-    }
 
-    // 3. Sender Filter
-    if (filterSender !== 'all') {
-      const sender = getNotificationSender(notif);
-      if (sender.key !== filterSender) {
-        return false;
+      // 3. Sender Filter
+      if (filterSender !== 'all') {
+        const sender = getNotificationSender(notif);
+        if (sender.key !== filterSender) {
+          return false;
+        }
       }
-    }
 
-    // 4. Tab Filter
-    if (activeFilter === 'all') return true;
-    if (activeFilter === 'parents') return notif.type === 'parents' || notif.type === 'general';
-    if (activeFilter === 'teachers') return notif.type === 'teachers' || notif.type === 'teacher';
-    if (activeFilter === 'classes') return notif.type === 'class';
-    if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private';
-    
-    return true;
-  });
+      // 4. Tab Filter
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'parents') return notif.type === 'parents' || notif.type === 'general';
+      if (activeFilter === 'teachers') return notif.type === 'teachers' || notif.type === 'teacher';
+      if (activeFilter === 'classes') return notif.type === 'class';
+      if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private';
+      
+      return true;
+    });
+  }, [notifications, searchQuery, filterDate, filterSender, activeFilter, getNotificationSender]);
 
   // Dynamic statistics calculations
   const statsTotal = notifications.length;
-  const statsParents = notifications.filter(n => n.type === 'parents' || n.type === 'general').length;
-  const statsClasses = notifications.filter(n => n.type === 'class').length;
-  const statsPrivate = notifications.filter(n => n.type === 'student' || n.type === 'private').length;
+  
+  const statsParents = useMemo(() => {
+    return notifications.filter(n => n.type === 'parents' || n.type === 'general').length;
+  }, [notifications]);
+
+  const statsClasses = useMemo(() => {
+    return notifications.filter(n => n.type === 'class').length;
+  }, [notifications]);
+
+  const statsPrivate = useMemo(() => {
+    return notifications.filter(n => n.type === 'student' || n.type === 'private').length;
+  }, [notifications]);
 
   // Filter helpers for student select in the modal
-  const filteredStudentsList = students.filter(s => 
-    s.name.toLowerCase().includes(studentSearchText.toLowerCase()) ||
-    s.id.toString().includes(studentSearchText)
-  );
+  const filteredStudentsList = useMemo(() => {
+    return students.filter(s => 
+      s.name.toLowerCase().includes(studentSearchText.toLowerCase()) ||
+      s.id.toString().includes(studentSearchText)
+    );
+  }, [students, studentSearchText]);
 
   // Filter helpers for teacher select in the modal
-  const filteredTeachersList = teachers.filter(teach => 
-    teach.name.toLowerCase().includes(teacherSearchText.toLowerCase()) ||
-    teach.id.toString().includes(teacherSearchText)
-  );
+  const filteredTeachersList = useMemo(() => {
+    return teachers.filter(teach => 
+      teach.name.toLowerCase().includes(teacherSearchText.toLowerCase()) ||
+      teach.id.toString().includes(teacherSearchText)
+    );
+  }, [teachers, teacherSearchText]);
 
   // Get localized category texts and details
   const getCategoryDetails = (type, grade, studentName, studentNameEn, teacherName, teacherNameEn) => {
@@ -894,11 +920,15 @@ export default function CommunicationsTab() {
 
         {filteredNotifications.length > 0 ? (
           filteredNotifications.map(notif => {
+            const student = notif.type === 'student' ? students.find(s => s.id === Number(notif.studentId)) : null;
+            const resolvedStudentName = student ? student.name : notif.studentName;
+            const resolvedStudentNameEn = student ? student.nameEn : notif.studentNameEn;
+
             const cat = getCategoryDetails(
               notif.type,
               notif.grade,
-              notif.studentName,
-              notif.studentNameEn,
+              resolvedStudentName,
+              resolvedStudentNameEn,
               notif.teacherName,
               notif.teacherNameEn
             );

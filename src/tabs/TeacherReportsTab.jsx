@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useReports } from '../contexts/Reports/useReports';
 import { 
   FileWarning, CheckCircle, XCircle, Clock, Eye, Image as ImageIcon, Filter, RefreshCw, 
-  User, School, GraduationCap, Calendar, RotateCcw, AlertCircle, ArrowLeftRight, Trash2
+  User, School, GraduationCap, Calendar, RotateCcw, Trash2
 } from 'lucide-react';
 
 const TYPE_LABELS = {
@@ -14,14 +15,15 @@ const TYPE_LABELS = {
 
 const STATUS_LABELS = {
   pending: { ar: 'قيد الانتظار', en: 'Pending', badgeClass: 'on-bus', icon: <Clock size={13} /> },
-  approved: { ar: 'تمت الموافقة', en: 'Approved', badgeClass: 'checked-in', icon: <CheckCircle size={13} /> }, // Swapped reached to checked-in (green)
+  approved: { ar: 'تمت الموافقة', en: 'Approved', badgeClass: 'checked-in', icon: <CheckCircle size={13} /> },
   rejected: { ar: 'مرفوض', en: 'Rejected', badgeClass: 'absent', icon: <XCircle size={13} /> },
-  reviewed: { ar: 'تمت المراجعة', en: 'Reviewed', badgeClass: 'reached', icon: <Eye size={13} /> }, // Swapped checked-in to reached (blue)
+  reviewed: { ar: 'تمت المراجعة', en: 'Reviewed', badgeClass: 'reached', icon: <Eye size={13} /> },
   archived: { ar: 'مؤرشف', en: 'Archived', badgeClass: '', icon: <Clock size={13} /> },
 };
 
 export default function TeacherReportsTab() {
-  const { lang, t, teacherReports, handleUpdateReportStatus, fetchTeacherReports, handleDeleteTeacherReport, handleDeleteAllTeacherReports, triggerConfirm } = useApp();
+  const { lang, t, triggerConfirm } = useApp();
+  const { teacherReports, handleUpdateReportStatus, fetchTeacherReports, handleDeleteTeacherReport, handleDeleteAllTeacherReports } = useReports();
   const onDeleteReportClick = (e, reportId) => {
     e.stopPropagation();
     triggerConfirm({

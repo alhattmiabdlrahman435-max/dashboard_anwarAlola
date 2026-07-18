@@ -1,20 +1,24 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useSettings } from '../contexts/Settings/useSettings';
 import { X } from 'lucide-react';
 
 export default function ExamSchedulesTab() {
   const {
     lang,
     t,
-    availableGrades,
-    availableSections,
-    examSchedules,
     setToastMessage,
+  } = useApp();
+
+  const {
+    examSchedules,
     handlePublishExamSchedule: publishExamSchedule,
     handleUpdateExamSchedule,
     handleDeleteExamSchedule,
-    classes
-  } = useApp();
+  } = useSettings();
+
+  const { classes } = useClasses();
 
   // Modal visibility & Edit State
   const [showExamScheduleModal, setShowExamScheduleModal] = useState(false);

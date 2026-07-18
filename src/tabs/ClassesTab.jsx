@@ -1,24 +1,33 @@
-import { api } from "../services/api";
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useTeachers } from '../contexts/Teachers/useTeachers';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useSubjects } from '../contexts/Subjects/useSubjects';
+import { classesService } from '../services/classes/classes.service';
 import { Plus, Search, X } from 'lucide-react';
 
 export default function ClassesTab() {
   const {
     lang,
     t,
-    classes,
-    setClasses,
-    students,
-    teachers,
-    subjects,
-    availableGrades,
-    availableSections,
     setToastMessage,
     triggerConfirm,
     renderAvatar,
-    fetchTeachers
   } = useApp();
+
+  const { subjects } = useSubjects();
+
+  const {
+    classes,
+    setClasses,
+    availableGrades,
+    availableSections,
+  } = useClasses();
+
+  const { teachers, fetchTeachers } = useTeachers();
+  const { students } = useStudents();
+
 
   // Local state for searching & modals
   const [classSearchQuery, setClassSearchQuery] = useState('');
@@ -32,7 +41,9 @@ export default function ClassesTab() {
   const [selectedClassIdForEdit, setSelectedClassIdForEdit] = useState(null);
 
   // Form Fields
+  // eslint-disable-next-line no-unused-vars
   const [modalClassNameAr, setModalClassNameAr] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [modalClassNameEn, setModalClassNameEn] = useState('');
   const [modalClassGrade, setModalClassGrade] = useState('الصف الأول');
   const [modalClassGradeEn, setModalClassGradeEn] = useState('Grade 1');
@@ -56,7 +67,7 @@ export default function ClassesTab() {
 
     const token = localStorage.getItem("auth_token");
     if (token) {
-      api.post("/api/classes", {
+      classesService.createClass({
         grade_ar: modalClassGrade,
         grade_en: modalClassGradeEn,
         section_ar: modalClassSection,
@@ -65,9 +76,7 @@ export default function ClassesTab() {
       .then(data => {
         if (data.success) {
           // Sync subjects with database
-          api.post(`/api/classes/${data.class.id}/subjects`, {
-            subjects: modalClassSubjects
-          })
+          classesService.syncSubjects(data.class.id, modalClassSubjects)
           .then(() => {
             const addedClass = {
               id: `cls-${data.class.id}`,
@@ -87,7 +96,6 @@ export default function ClassesTab() {
           })
           .catch(err => {
             console.error("Error syncing class subjects:", err);
-            // Fallback: still show class added but warn
             const addedClass = {
               id: `cls-${data.class.id}`,
               name: `${data.class.grade_ar} - ${data.class.section_ar}`,
@@ -142,7 +150,7 @@ export default function ClassesTab() {
     const token = localStorage.getItem("auth_token");
     if (token) {
       const numericId = Number(String(selectedClassIdForEdit).replace("cls-", ""));
-      api.put(`/api/classes/${numericId}`, {
+      classesService.updateClass(numericId, {
         grade_ar: modalClassGrade,
         grade_en: modalClassGradeEn,
         section_ar: modalClassSection,
@@ -150,10 +158,7 @@ export default function ClassesTab() {
       })
       .then(data => {
         if (data.success) {
-          // Sync subjects with database
-          api.post(`/api/classes/${numericId}/subjects`, {
-            subjects: modalClassSubjects
-          })
+          classesService.syncSubjects(numericId, modalClassSubjects)
           .then(() => {
             setClasses(prev => prev.map(c => {
               if (c.id === selectedClassIdForEdit) {
@@ -177,7 +182,6 @@ export default function ClassesTab() {
           })
           .catch(err => {
             console.error("Error syncing class subjects during update:", err);
-            // Fallback: still show class edited locally but warn
             setClasses(prev => prev.map(c => {
               if (c.id === selectedClassIdForEdit) {
                 return {
@@ -233,7 +237,7 @@ export default function ClassesTab() {
         const token = localStorage.getItem("auth_token");
         if (token) {
           const numericId = Number(String(id).replace("cls-", ""));
-          api.delete(`/api/classes/${numericId}`)
+          classesService.deleteClass(numericId)
           .then(data => {
             if (data.success) {
               setClasses(prev => prev.filter(c => c.id !== id));

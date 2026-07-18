@@ -1,16 +1,17 @@
-import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { useStudents } from '../../contexts/Students/useStudents';
 import PrintHeader from '../PrintHeader';
 
 export default function PrintTermView() {
   const {
     lang,
     t,
-    students,
     getStudentDetailedGrades,
     selectedGradeStudentId,
     selectedGradeTerm
   } = useApp();
+
+  const { students } = useStudents();
 
   const student = students.find(s => s.id === selectedGradeStudentId);
 
@@ -87,7 +88,7 @@ export default function PrintTermView() {
               totalTermSum += termSum;
 
               const pct = (termSum / 50) * 100;
-              let appreciation = '';
+              let appreciation;
               if (pct >= 90) appreciation = lang === 'ar' ? 'ممتاز' : 'Excellent';
               else if (pct >= 80) appreciation = lang === 'ar' ? 'جيد جداً' : 'Very Good';
               else if (pct >= 70) appreciation = lang === 'ar' ? 'جيد' : 'Good';
@@ -106,7 +107,7 @@ export default function PrintTermView() {
             });
 
             const avgPercentage = parseFloat(((totalTermSum / 200) * 100).toFixed(2));
-            let finalAppreciation = '';
+            let finalAppreciation;
             if (avgPercentage >= 90) finalAppreciation = lang === 'ar' ? 'ممتاز' : 'Excellent';
             else if (avgPercentage >= 80) finalAppreciation = lang === 'ar' ? 'جيد جداً' : 'Very Good';
             else if (avgPercentage >= 70) finalAppreciation = lang === 'ar' ? 'جيد' : 'Good';

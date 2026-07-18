@@ -1,7 +1,13 @@
-import { api } from "../services/api";
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
+import { api } from "../services/api";
+import { useClasses } from "../contexts/Classes/useClasses";
+import { classesService } from "../services/classes/classes.service";
 import { X } from "lucide-react";
+
+import { useSubjects } from "../contexts/Subjects/useSubjects";
+
+import { useSettings } from "../contexts/Settings/useSettings";
 
 const defaultWeekSchedule = {
   saturday: ["", "", "", "", "", "", ""],
@@ -15,14 +21,17 @@ export default function ScheduleTab() {
   const {
     lang,
     t,
-    classes,
-    setClasses,
-    subjects,
+    setToastMessage,
+  } = useApp();
+
+  const {
     schedules,
     setSchedules,
     handleScheduleChange,
-    setToastMessage,
-  } = useApp();
+  } = useSettings();
+
+  const { classes, setClasses } = useClasses();
+  const { subjects } = useSubjects();
 
   const [selectedScheduleGrade, setSelectedScheduleGrade] = useState(
     classes[0]?.name || "الصف الأول - أ",
@@ -33,7 +42,7 @@ export default function ScheduleTab() {
   const [modalClassSubjects, setModalClassSubjects] = useState([]);
   const [selectedClassForEdit, setSelectedClassForEdit] = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (selectedScheduleGrade && !schedules[selectedScheduleGrade]) {
       setSchedules((prev) => ({
         ...prev,
@@ -60,9 +69,7 @@ export default function ScheduleTab() {
     const token = localStorage.getItem("auth_token");
     if (token) {
       const numericId = Number(String(selectedClassForEdit.id).replace("cls-", ""));
-      api.post(`/api/classes/${numericId}/subjects`, {
-        subjects: modalClassSubjects
-      })
+      classesService.syncSubjects(numericId, modalClassSubjects)
       .then(data => {
         if (data.success) {
           setClasses((prev) =>

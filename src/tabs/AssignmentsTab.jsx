@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useSubjects } from '../contexts/Subjects/useSubjects';
+import { useTeachers } from '../contexts/Teachers/useTeachers';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useNotifications } from '../contexts/Notifications/useNotifications';
 import { api } from '../services/api';
 import { X, Filter, Calendar, User, BookOpen, Trash2 } from 'lucide-react';
 
@@ -7,22 +12,21 @@ export default function AssignmentsTab() {
   const {
     lang,
     t,
-    students,
-    teachers,
-    setTeachers,
     assignments,
     setAssignments,
     setToastMessage,
-    setSmsLogs,
     renderAvatar,
-    availableGrades,
-    availableSections,
-    subjects,
-    classes,
     handleDeleteAssignment,
     handleDeleteAllAssignments,
     triggerConfirm
   } = useApp();
+
+  const { classes, availableGrades, availableSections } = useClasses();
+  const { subjects } = useSubjects();
+  const { teachers, setTeachers } = useTeachers();
+  const { students } = useStudents();
+  const { setSmsLogs } = useNotifications();
+
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
@@ -45,8 +49,9 @@ export default function AssignmentsTab() {
   const [modalAssignmentAttachment, setModalAssignmentAttachment] = useState('');
 
   // Default subject once loaded
-  React.useEffect(() => {
+  useEffect(() => {
     if (subjects && subjects.length > 0 && !modalAssignmentSubject) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModalAssignmentSubject(subjects[0].name);
     }
   }, [subjects, modalAssignmentSubject]);
@@ -84,10 +89,11 @@ export default function AssignmentsTab() {
   });
 
   // Sync selected assignment with filtered list
-  React.useEffect(() => {
+  useEffect(() => {
     if (filteredAssignments.length > 0) {
       const exists = filteredAssignments.some(a => a.id === selectedAssignmentId);
       if (!exists) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedAssignmentId(filteredAssignments[0].id);
       }
     } else {
@@ -624,7 +630,8 @@ export default function AssignmentsTab() {
                       } else {
                         setToastMessage(res.message || (lang === 'ar' ? 'فشل الحفظ' : 'Save failed'));
                       }
-                    } catch(err) {
+                    } catch (err) {
+                      console.error(err);
                       setToastMessage(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
                     }
                     setTimeout(() => setToastMessage(''), 3000);

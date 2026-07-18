@@ -1,18 +1,27 @@
-import React from 'react';
+import { memo, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useStudents } from '../../contexts/Students/useStudents';
+import { useSubjects } from '../../contexts/Subjects/useSubjects';
+import GradeInput from './GradeInput';
 
-export default function MonthView({ selectedMonth }) {
+const MonthView = memo(function MonthView({ selectedMonth }) {
   const {
     lang,
     t,
-    students,
     getStudentDetailedGrades,
-    handleDetailedGradeChange,
+    handleDetailedGradeChange: handleDetailedGradeChangeContext,
     syncGeneralGrades,
     setToastMessage,
     selectedGradeStudentId,
     selectedGradeTerm
   } = useApp();
+
+  const { students } = useStudents();
+  const { subjects } = useSubjects();
+
+  const handleDetailedGradeChange = useCallback((studentId, subject, term, monthKey, field, val) => {
+    handleDetailedGradeChangeContext(studentId, subject, term, monthKey, field, val, students, subjects);
+  }, [handleDetailedGradeChangeContext, students, subjects]);
 
   const student = students.find(s => s.id === selectedGradeStudentId);
 
@@ -58,38 +67,38 @@ export default function MonthView({ selectedMonth }) {
                 <tr key={subj}>
                   <td style={{ fontWeight: 'bold' }}>{subjectLabel}</td>
                   <td>
-                    <input 
-                      type="number" className="grades-input" min="0" max="15" 
+                    <GradeInput 
+                      min="0" max="15" 
                       value={mData.homework ?? 0}
-                      onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'homework', e.target.value)}
+                      onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'homework', val)}
                     />
                   </td>
                   <td>
-                    <input 
-                      type="number" className="grades-input" min="0" max="15" 
+                    <GradeInput 
+                      min="0" max="15" 
                       value={mData.attendance ?? 0}
-                      onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'attendance', e.target.value)}
+                      onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'attendance', val)}
                     />
                   </td>
                   <td>
-                    <input 
-                      type="number" className="grades-input" min="0" max="10" 
+                    <GradeInput 
+                      min="0" max="10" 
                       value={mData.behavior ?? 0}
-                      onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'behavior', e.target.value)}
+                      onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'behavior', val)}
                     />
                   </td>
                   <td>
-                    <input 
-                      type="number" className="grades-input" min="0" max="10" 
+                    <GradeInput 
+                      min="0" max="10" 
                       value={mData.oral ?? 0}
-                      onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'oral', e.target.value)}
+                      onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'oral', val)}
                     />
                   </td>
                   <td>
-                    <input 
-                      type="number" className="grades-input" min="0" max="50" 
+                    <GradeInput 
+                      min="0" max="50" 
                       value={mData.written ?? 0}
-                      onChange={(e) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'written', e.target.value)}
+                      onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'written', val)}
                     />
                   </td>
                   <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
@@ -113,4 +122,6 @@ export default function MonthView({ selectedMonth }) {
       </button>
     </>
   );
-}
+})
+
+export default MonthView;
