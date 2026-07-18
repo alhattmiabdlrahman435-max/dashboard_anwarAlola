@@ -1,5 +1,5 @@
 import { studentsService } from "../services/students/students.service";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../contexts/Auth/useAuth';
 import { useStudents } from '../contexts/Students/useStudents';
@@ -16,8 +16,8 @@ export default function StudentsTab() {
   } = useApp();
   const { controlMultiplier, controlOffset } = useSettings();
 
-  const { classes } = useClasses();
-  const { parentUsers } = useParents();
+  const { classes, fetchClasses } = useClasses();
+  const { parentUsers, fetchParents } = useParents();
   const {
     students,
     setSelectedStudentForCard,
@@ -29,7 +29,14 @@ export default function StudentsTab() {
   } = useStudents();
   const { currentUser } = useAuth();
 
+  useEffect(() => {
+    fetchStudents();
+    fetchClasses();
+    fetchParents();
+  }, [fetchStudents, fetchClasses, fetchParents]);
+
   // Local UI states
+  const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
@@ -169,9 +176,21 @@ export default function StudentsTab() {
     };
 
     // Save to global context
-    handleAddStudent(newStudent, newGradeRow, newParentObj);
-
-    setShowStudentModal(false);
+    setIsSaving(true);
+    handleAddStudent(newStudent, newGradeRow, newParentObj)
+      .then((res) => {
+        if (res && res.success) {
+          setShowStudentModal(false);
+        } else {
+          setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+        }
+      })
+      .catch((err) => {
+        setFormError(err.message || 'Error occurred');
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const openEditModal = (student) => {
@@ -205,6 +224,7 @@ export default function StudentsTab() {
       return;
     }
 
+    setIsSaving(true);
     handleEditStudent(editingStudentId, {
       name: editStudentName,
       grade: classObj.grade,
@@ -213,25 +233,35 @@ export default function StudentsTab() {
       sectionEn: classObj.sectionEn || classObj.section,
       photo: editStudentPhoto,
       tuitionFee: Number(editTuitionFee || 10000)
-    });
-
-    setShowEditStudentModal(false);
-
-    // Reset inputs
-    setModalStudentName('');
-    if (classes.length > 0) {
-      setSelectedClassId(classes[0].id);
-    } else {
-      setSelectedClassId('');
-    }
-    setModalParentNationalId('');
-    setModalParentName('');
-    setModalPhone('');
-    setModalStudentPhoto('');
-    setModalParentPhoto('');
-    setModalTuitionFee('10000');
-    setSelectedParentLinkOption('');
-    setParentSearchText('');
+    })
+      .then((res) => {
+        if (res && res.success) {
+          setShowEditStudentModal(false);
+          // Reset inputs on success only
+          setModalStudentName('');
+          if (classes.length > 0) {
+            setSelectedClassId(classes[0].id);
+          } else {
+            setSelectedClassId('');
+          }
+          setModalParentNationalId('');
+          setModalParentName('');
+          setModalPhone('');
+          setModalStudentPhoto('');
+          setModalParentPhoto('');
+          setModalTuitionFee('10000');
+          setSelectedParentLinkOption('');
+          setParentSearchText('');
+        } else {
+          setEditFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+        }
+      })
+      .catch((err) => {
+        setEditFormError(err.message || 'Error occurred');
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const handleExportExcel = async (classId = '') => {
@@ -889,15 +919,17 @@ export default function StudentsTab() {
                   className="btn-elevated"
                   onClick={() => setShowStudentModal(false)}
                   style={{ height: '48px' }}
+                  disabled={isSaving}
                 >
                   {t.cancel}
                 </button>
                 <button 
                   type="submit" 
                   className="btn-filled"
-                  style={{ height: '48px' }}
+                  style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }}
+                  disabled={isSaving}
                 >
-                  {t.submit}
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
                 </button>
               </footer>
             </form>
@@ -1060,11 +1092,17 @@ export default function StudentsTab() {
                   className="btn-elevated" 
                   onClick={() => setShowEditStudentModal(false)}
                   style={{ height: '48px' }}
+                  disabled={isSaving}
                 >
                   {t.cancel}
                 </button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>
-                  {lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes'}
+                <button 
+                  type="submit" 
+                  className="btn-filled" 
+                  style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')}
                 </button>
               </footer>
             </form>

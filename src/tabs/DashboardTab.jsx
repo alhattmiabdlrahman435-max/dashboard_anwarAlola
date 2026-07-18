@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../contexts/Auth/useAuth';
 import { useStudents } from '../contexts/Students/useStudents';
@@ -10,12 +11,20 @@ export default function DashboardTab() {
   const {
     lang,
     grades,
+    fetchControlGrades,
   } = useApp();
-  const { dashboardStats } = useReports();
-  const { tuitionFees } = useFinance();
-  const { students } = useStudents();
+  const { dashboardStats, fetchDashboardStats } = useReports();
+  const { tuitionFees, fetchFinanceData } = useFinance();
+  const { students, fetchStudents } = useStudents();
   const { teachers } = useTeachers();
   const { currentUser } = useAuth();
+
+  useEffect(() => {
+    fetchDashboardStats();
+    fetchStudents();
+    fetchFinanceData();
+    fetchControlGrades();
+  }, [fetchDashboardStats, fetchStudents, fetchFinanceData, fetchControlGrades]);
 
   // Calculate school aggregates dynamically or use API stats
   const totalStudents = dashboardStats ? dashboardStats.total_students : students.length;

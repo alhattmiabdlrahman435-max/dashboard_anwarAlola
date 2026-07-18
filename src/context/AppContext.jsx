@@ -5,6 +5,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 
 const AppContext = createContext();
@@ -45,6 +46,11 @@ export const AppProvider = ({ children }) => {
   // New integrated features states
   const [assignments, setAssignments] = useState([]);
   const [detailedGrades, setDetailedGrades] = useState([]);
+  const [isStaleControl, setIsStaleControl] = useState(true);
+  const [isStaleAssignments, setIsStaleAssignments] = useState(true);
+
+  const fetchControlGradesRequestRef = useRef(0);
+  const fetchAssignmentsRequestRef = useRef(0);
 
 
   // Vice Principals (Supervisors) state
@@ -128,9 +134,17 @@ export const AppProvider = ({ children }) => {
 
 
 
-  const fetchControlGrades = useCallback(() => {
+  const fetchControlGrades = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    if (!force && !isStaleControl && grades.length > 0) {
+      return;
+    }
+    const reqId = ++fetchControlGradesRequestRef.current;
     settingsService.getGradesControl()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchControlGradesRequestRef.current) return;
         if (data.success) {
           const mapped = data.control_grades.map((g) => ({
             studentId: Number(g.student_id),
@@ -143,14 +157,27 @@ export const AppProvider = ({ children }) => {
             english: g.english !== null ? Number(g.english) : null,
           }));
           setGrades(mapped);
+          setIsStaleControl(false);
         }
       })
-      .catch((err) => console.error("Error fetching control grades:", err));
-  }, [setGrades]);
+      .catch((err) => {
+        if (reqId === fetchControlGradesRequestRef.current) {
+          console.error("Error fetching control grades:", err);
+        }
+      });
+  }, [isStaleControl, grades.length, setGrades]);
 
-  const fetchAssignments = useCallback(() => {
+  const fetchAssignments = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    if (!force && !isStaleAssignments && assignments.length > 0) {
+      return;
+    }
+    const reqId = ++fetchAssignmentsRequestRef.current;
     settingsService.getAssignments()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchAssignmentsRequestRef.current) return;
         if (data.success) {
           const mapped = data.assignments.map((ass) => {
             const classObj = ass.school_class || {};
@@ -187,27 +214,34 @@ export const AppProvider = ({ children }) => {
             };
           });
           setAssignments(mapped);
+          setIsStaleAssignments(false);
         }
       })
-      .catch((err) => console.error("Error fetching assignments:", err));
-  }, [setAssignments]);
+      .catch((err) => {
+        if (reqId === fetchAssignmentsRequestRef.current) {
+          console.error("Error fetching assignments:", err);
+        }
+      });
+  }, [isStaleAssignments, assignments.length, setAssignments]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem("auth_token");
-      if (token) {
-        fetchControlGrades();
-        fetchAssignments();
-      }
+    if (!isAuthenticated) {
+      setGrades([]);
+      setAssignments([]);
+      setDetailedGrades([]);
+      setIsStaleControl(true);
+      setIsStaleAssignments(true);
     }
-  }, [isAuthenticated, fetchControlGrades, fetchAssignments]);
+  }, [isAuthenticated]);
 
   // Load detailed grades dynamically for the selected student
   useEffect(() => {
+    let active = true;
     const token = localStorage.getItem("auth_token");
     if (token && selectedGradeStudentId) {
       settingsService.getDetailedGrades(selectedGradeStudentId)
         .then((data) => {
+          if (!active) return;
           if (data.success) {
             const gradesMap = {
               term1: {
@@ -258,6 +292,9 @@ export const AppProvider = ({ children }) => {
         })
         .catch((err) => console.error("Error fetching detailed grades:", err));
     }
+    return () => {
+      active = false;
+    };
   }, [selectedGradeStudentId, isAuthenticated]);
 
   // Set html page direction

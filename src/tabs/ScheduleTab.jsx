@@ -29,10 +29,17 @@ export default function ScheduleTab() {
     schedules,
     setSchedules,
     handleScheduleChange,
+    fetchWeeklySchedules,
   } = useSettings();
 
-  const { classes, setClasses } = useClasses();
-  const { subjects } = useSubjects();
+  const { classes, setClasses, fetchClasses } = useClasses();
+  const { subjects, fetchSubjects } = useSubjects();
+
+  useEffect(() => {
+    fetchWeeklySchedules();
+    fetchClasses();
+    fetchSubjects();
+  }, [fetchWeeklySchedules, fetchClasses, fetchSubjects]);
 
   const [selectedScheduleGrade, setSelectedScheduleGrade] = useState(
     classes[0]?.name || "الصف الأول - أ",
@@ -42,6 +49,7 @@ export default function ScheduleTab() {
   const [showEditSubjectsModal, setShowEditSubjectsModal] = useState(false);
   const [modalClassSubjects, setModalClassSubjects] = useState([]);
   const [selectedClassForEdit, setSelectedClassForEdit] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (selectedScheduleGrade && !schedules[selectedScheduleGrade]) {
@@ -67,6 +75,7 @@ export default function ScheduleTab() {
     e.preventDefault();
     if (!selectedClassForEdit) return;
 
+    setIsSaving(true);
     const token = localStorage.getItem("auth_token");
     if (token) {
       const numericId = Number(String(selectedClassForEdit.id).replace("cls-", ""));
@@ -91,6 +100,9 @@ export default function ScheduleTab() {
               : "Class subjects updated successfully!",
           );
           setTimeout(() => setToastMessage(""), 3000);
+        } else {
+          setToastMessage(data.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+          setTimeout(() => setToastMessage(''), 3000);
         }
       })
       .catch(err => {
@@ -101,6 +113,9 @@ export default function ScheduleTab() {
             : "Failed to save class subjects in database",
         );
         setTimeout(() => setToastMessage(""), 3000);
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
     } else {
       setClasses((prev) =>
@@ -121,6 +136,7 @@ export default function ScheduleTab() {
           : "Class subjects updated successfully!",
       );
       setTimeout(() => setToastMessage(""), 3000);
+      setIsSaving(false);
     }
   };
 
@@ -458,15 +474,17 @@ export default function ScheduleTab() {
                   className="btn-elevated"
                   onClick={() => setShowEditSubjectsModal(false)}
                   style={{ height: "48px" }}
+                  disabled={isSaving}
                 >
                   {t.cancel}
                 </button>
                 <button
                   type="submit"
                   className="btn-filled"
-                  style={{ height: "48px" }}
+                  style={{ height: "48px", opacity: isSaving ? 0.7 : 1 }}
+                  disabled={isSaving}
                 >
-                  {t.submit}
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
                 </button>
               </footer>
             </form>

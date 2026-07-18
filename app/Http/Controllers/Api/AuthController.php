@@ -109,6 +109,13 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        if ($request->has('fcm_token')) {
+            \App\Models\UserFcmToken::where('fcm_token', $request->fcm_token)->delete();
+            if ($request->user() && $request->user()->fcm_token === $request->fcm_token) {
+                $request->user()->update(['fcm_token' => null]);
+            }
+        }
+
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
@@ -217,6 +224,16 @@ class AuthController extends Controller
             'fcm_token' => 'required|string',
         ]);
 
+        // Enforce unique ownership: Delete this token from any other users
+        \App\Models\UserFcmToken::where('fcm_token', $request->fcm_token)->delete();
+        \App\Models\User::where('fcm_token', $request->fcm_token)->update(['fcm_token' => null]);
+
+        // Associate token with the current authenticated user
+        \App\Models\UserFcmToken::updateOrCreate(
+            ['fcm_token' => $request->fcm_token],
+            ['user_id' => $request->user()->id]
+        );
+
         $request->user()->update([
             'fcm_token' => $request->fcm_token
         ]);
@@ -224,6 +241,26 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث رمز FCM بنجاح'
+        ]);
+    }
+
+    /**
+     * حذف رمز FCM للجهاز
+     */
+    public function deleteFcmToken(Request $request)
+    {
+        $request->validate([
+            'fcm_token' => 'required|string',
+        ]);
+
+        \App\Models\UserFcmToken::where('fcm_token', $request->fcm_token)->delete();
+        if ($request->user() && $request->user()->fcm_token === $request->fcm_token) {
+            $request->user()->update(['fcm_token' => null]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم حذف رمز FCM بنجاح'
         ]);
     }
 }

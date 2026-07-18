@@ -153,17 +153,15 @@ class TeacherController extends Controller implements HasMiddleware
                                 'teacher_id' => $user->id,
                             ]);
 
-                            if ($user->fcm_token) {
-                                \App\Services\FcmService::sendNotification(
-                                    $user->fcm_token,
-                                    $title . ' 📅',
-                                    $body,
-                                    [
-                                        'type' => 'weekly_schedule',
-                                        'class_id' => (string)$cls->id
-                                    ]
-                                );
-                            }
+                            \App\Services\FcmService::sendToUser(
+                                $user,
+                                $title . ' 📅',
+                                $body,
+                                [
+                                    'type' => 'weekly_schedule',
+                                    'class_id' => (string)$cls->id
+                                ]
+                            );
                         }
                     }
                 }
@@ -302,17 +300,15 @@ class TeacherController extends Controller implements HasMiddleware
                                 ]);
 
                                 // Send push notification via FCM
-                                if ($teacher->fcm_token) {
-                                    \App\Services\FcmService::sendNotification(
-                                        $teacher->fcm_token,
-                                        $title . ' 📅',
-                                        $body,
-                                        [
-                                            'type' => 'weekly_schedule',
-                                            'class_id' => (string)$cls->id
-                                        ]
-                                    );
-                                }
+                                \App\Services\FcmService::sendToUser(
+                                    $teacher,
+                                    $title . ' 📅',
+                                    $body,
+                                    [
+                                        'type' => 'weekly_schedule',
+                                        'class_id' => (string)$cls->id
+                                    ]
+                                );
                             }
                         }
                     }
@@ -481,8 +477,8 @@ class TeacherController extends Controller implements HasMiddleware
             // Load parent relation to get the token
             $student->load('parentUser');
             $parentUser = $student->parentUser;
-            if ($parentUser && $parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+            if ($parentUser) {
+                \App\Services\FcmService::sendToUser($parentUser, $title, $content, [
                     'type' => 'attendance',
                     'student_id' => $student->id
                 ]);
@@ -568,8 +564,8 @@ class TeacherController extends Controller implements HasMiddleware
 
                         $student->load('parentUser');
                         $parentUser = $student->parentUser;
-                        if ($parentUser && $parentUser->fcm_token) {
-                            \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+                        if ($parentUser) {
+                            \App\Services\FcmService::sendToUser($parentUser, $title, $content, [
                                 'type' => 'attendance',
                                 'student_id' => $student->id
                             ]);

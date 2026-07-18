@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StudentsContext } from './StudentsContext';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../Auth/useAuth';
@@ -22,8 +22,11 @@ export default function StudentsProvider({ children }) {
     lang,
   } = useApp();
 
-  const [students, setStudents] = useState([]);
+  const [rawStudents, setRawStudents] = useState([]);
+  const [isStale, setIsStale] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  const fetchRequestRef = useRef(0);
 
   // Print & Modal states
   const [showCardVisualizerModal, setShowCardVisualizerModal] = useState(false);
@@ -36,10 +39,18 @@ export default function StudentsProvider({ children }) {
   const [printStudentObject, setPrintStudentObject] = useState(null);
 
   // Fetch students
-  const fetchStudents = useCallback(() => {
+  const fetchStudents = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    if (!force && !isStale && rawStudents.length > 0) {
+      return;
+    }
+    const reqId = ++fetchRequestRef.current;
     setLoading(true);
     studentsService.getStudents()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchRequestRef.current) return;
         if (data.success) {
           const mapped = data.students.map((st) => ({
             id: Number(st.id),
@@ -59,78 +70,65 @@ export default function StudentsProvider({ children }) {
             photo: st.photo,
             parentPhoto: "🧔",
           }));
-          setStudents(mapped);
+          setRawStudents(mapped);
+          setIsStale(false);
+        }
+        // On data.success === false: keep existing data, do not clear
+      })
+      .catch((err) => {
+        if (reqId === fetchRequestRef.current) {
+          console.error("Error fetching students:", err);
         }
       })
-      .catch((err) => console.error("Error fetching students:", err))
-      .finally(() => setLoading(false));
-  }, []);
+      // finally: always release loading; existing data is preserved on failure
+      .finally(() => {
+        if (reqId === fetchRequestRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [isStale, rawStudents.length]);
 
   // Fetch students when authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem("auth_token");
-      if (token) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchStudents();
-      }
-    } else {
-      setStudents([]);
+    if (!isAuthenticated) {
+      setRawStudents([]);
+      setIsStale(true);
     }
-  }, [isAuthenticated, fetchStudents]);
+  }, [isAuthenticated]);
 
-  // Sync parent info in students list dynamically
-  useEffect(() => {
-    if (students.length === 0) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStudents(prevStudents => {
-      let changed = false;
-      const updated = prevStudents.map(s => {
-        if (!s.parentNationalId) return s;
-        const parent = parentUsers.find(p => p.nationalId === s.parentNationalId);
-        if (!parent) {
-          changed = true;
-          return {
-            ...s,
-            parentName: "",
-            parentNameEn: "",
-            phone: "",
-            parentNationalId: "",
-          };
-        } else if (s.parentName !== parent.name || s.phone !== parent.phone) {
-          changed = true;
-          return {
-            ...s,
-            parentName: parent.name,
-            parentNameEn: parent.nameEn,
-            phone: parent.phone,
-          };
-        }
-        return s;
-      });
-      return changed ? updated : prevStudents;
-    });
-  }, [parentUsers, students.length]);
-
-  // Sync current attendance status in students list dynamically
   const todayStr = new Date().toISOString().split("T")[0];
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStudents(prev => {
-      let changed = false;
-      const updated = prev.map(s => {
-        const record = attendanceRecords.find(r => r.studentId === s.id && r.date === todayStr);
-        const status = record ? record.status : "absent";
-        const time = record ? record.time : "--:--";
-        if (s.status !== status || s.time !== time) {
-          changed = true;
-          return { ...s, status, time };
+
+  // Derived student representation from raw students + parent info + attendance
+  const students = useMemo(() => {
+    return rawStudents.map(s => {
+      let parentName = s.parentName;
+      let parentNameEn = s.parentNameEn;
+      let phone = s.phone;
+      let parentNationalId = s.parentNationalId;
+
+      if (parentNationalId) {
+        const parent = parentUsers.find(p => p.nationalId === parentNationalId);
+        if (parent) {
+          parentName = parent.name;
+          parentNameEn = parent.nameEn;
+          phone = parent.phone;
         }
-        return s;
-      });
-      return changed ? updated : prev;
+      }
+
+      const record = attendanceRecords.find(r => r.studentId === s.id && r.date === todayStr);
+      const status = record ? record.status : "absent";
+      const time = record ? record.time : "--:--";
+
+      return {
+        ...s,
+        parentName,
+        parentNameEn,
+        phone,
+        status,
+        time,
+      };
     });
-  }, [attendanceRecords, todayStr]);
+  }, [rawStudents, parentUsers, attendanceRecords, todayStr]);
 
   // Auto trigger absent parent SMS log alert after 10 AM (simulated)
   useEffect(() => {
@@ -176,11 +174,11 @@ export default function StudentsProvider({ children }) {
     const saveStudent = (parentId) => {
       if (!classId || !parentId) {
         console.error("Missing classId or parentId", { classId, parentId });
-        return;
+        return Promise.resolve({ success: false, message: "Missing classId or parentId" });
       }
       
       if (token) {
-        studentsService.createStudent({
+        return studentsService.createStudent({
             student_code: newStudent.qrCode,
             name_ar: newStudent.name,
             name_en: newStudent.nameEn,
@@ -198,7 +196,7 @@ export default function StudentsProvider({ children }) {
                 id: Number(data.student.id),
                 tuition_fee: Number(data.student.tuition_fee || newStudent.tuitionFee || 10000),
               };
-              setStudents((prev) => [...prev, addedStudent]);
+              setRawStudents((prev) => [...prev, addedStudent]);
               
               const addedGrade = {
                 ...newGradeRow,
@@ -208,27 +206,33 @@ export default function StudentsProvider({ children }) {
               
               setToastMessage(t.successToast);
               setTimeout(() => setToastMessage(""), 4000);
+              return { success: true, student: data.student };
             } else {
-              setToastMessage(lang === "ar" ? "فشل إضافة الطالب في قاعدة البيانات" : "Failed to add student to database");
+              const msg = lang === "ar" ? "فشل إضافة الطالب في قاعدة البيانات" : "Failed to add student to database";
+              setToastMessage(msg);
               setTimeout(() => setToastMessage(""), 4000);
+              return { success: false, message: msg };
             }
           })
           .catch((err) => {
             console.error("Error storing student:", err);
-            setToastMessage(lang === "ar" ? `فشل إضافة الطالب: ${err.message}` : `Failed to add student: ${err.message}`);
+            const msg = lang === "ar" ? `فشل إضافة الطالب: ${err.message}` : `Failed to add student: ${err.message}`;
+            setToastMessage(msg);
             setTimeout(() => setToastMessage(""), 5000);
+            return { success: false, message: msg };
           });
       } else {
-        setStudents((prev) => [...prev, newStudent]);
+        setRawStudents((prev) => [...prev, newStudent]);
         setGrades((prev) => [...prev, newGradeRow]);
         setToastMessage(t.successToast);
         setTimeout(() => setToastMessage(""), 4000);
+        return Promise.resolve({ success: true });
       }
     };
 
     if (newParentObj) {
       if (token) {
-        parentsService.createParent({
+        return parentsService.createParent({
             national_id: newParentObj.nationalId,
             name_ar: newParentObj.name,
             name_en: newParentObj.nameEn,
@@ -243,31 +247,35 @@ export default function StudentsProvider({ children }) {
                 id: createdParentId,
               };
               setParentUsers((prev) => [...prev, mappedParent]);
-              saveStudent(createdParentId);
+              return saveStudent(createdParentId);
             } else {
-              setToastMessage(lang === "ar" ? "فشل إضافة ولي الأمر في قاعدة البيانات" : "Failed to add parent to database");
+              const msg = lang === "ar" ? "فشل إضافة ولي الأمر في قاعدة البيانات" : "Failed to add parent to database";
+              setToastMessage(msg);
               setTimeout(() => setToastMessage(""), 4000);
+              return { success: false, message: msg };
             }
           })
           .catch((err) => {
             console.error("Error storing parent:", err);
-            setToastMessage(lang === "ar" ? `فشل إضافة ولي الأمر: ${err.message}` : `Failed to add parent: ${err.message}`);
+            const msg = lang === "ar" ? `فشل إضافة ولي الأمر: ${err.message}` : `Failed to add parent: ${err.message}`;
+            setToastMessage(msg);
             setTimeout(() => setToastMessage(""), 5000);
+            return { success: false, message: msg };
           });
       } else {
         setParentUsers((prev) => [...prev, newParentObj]);
-        saveStudent(newStudent.id);
+        return saveStudent(newStudent.id);
       }
     } else {
       const existingParent = parentUsers.find(p => p.nationalId === newStudent.parentNationalId);
       if (existingParent && existingParent.id) {
-        saveStudent(existingParent.id);
+        return saveStudent(existingParent.id);
       } else {
         console.error("Existing parent database ID not found");
-        saveStudent(1);
+        return saveStudent(1);
       }
     }
-  }, [classes, parentUsers, setStudents, setGrades, setParentUsers, setToastMessage, lang, t]);
+  }, [classes, parentUsers, setRawStudents, setGrades, setParentUsers, setToastMessage, lang, t]);
 
   const handleEditStudent = useCallback((studentId, updatedData) => {
     const token = localStorage.getItem("auth_token");
@@ -278,7 +286,7 @@ export default function StudentsProvider({ children }) {
     const classId = foundClass ? Number(String(foundClass.id).replace("cls-", "")) : null;
 
     if (token) {
-      studentsService.updateStudent(studentId, {
+      return studentsService.updateStudent(studentId, {
         name_ar: updatedData.name,
         name_en: updatedData.nameEn,
         class_id: classId,
@@ -288,7 +296,7 @@ export default function StudentsProvider({ children }) {
       })
       .then((data) => {
         if (data.success) {
-          setStudents((prev) =>
+          setRawStudents((prev) =>
             prev.map((s) => (s.id === studentId ? { ...s, ...updatedData } : s))
           );
           setToastMessage(
@@ -297,18 +305,23 @@ export default function StudentsProvider({ children }) {
               : "Student details updated successfully!",
           );
           setTimeout(() => setToastMessage(""), 3000);
+          return { success: true };
         } else {
-          setToastMessage(lang === "ar" ? "فشل تحديث بيانات الطالب" : "Failed to update student details");
+          const msg = lang === "ar" ? "فشل تحديث بيانات الطالب" : "Failed to update student details";
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 3000);
+          return { success: false, message: msg };
         }
       })
       .catch((err) => {
         console.error("Error updating student:", err);
-        setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
         setTimeout(() => setToastMessage(""), 3000);
+        return { success: false, message: msg };
       });
     } else {
-      setStudents((prev) =>
+      setRawStudents((prev) =>
         prev.map((s) => (s.id === studentId ? { ...s, ...updatedData } : s))
       );
       setToastMessage(
@@ -317,16 +330,17 @@ export default function StudentsProvider({ children }) {
           : "Student details updated successfully!",
       );
       setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: true });
     }
-  }, [classes, setStudents, setToastMessage, lang]);
+  }, [classes, setRawStudents, setToastMessage, lang]);
 
   const handleDeleteStudent = useCallback((studentId) => {
     const token = localStorage.getItem("auth_token");
     if (token) {
-      studentsService.deleteStudent(studentId)
+      return studentsService.deleteStudent(studentId)
         .then((data) => {
           if (data.success) {
-            setStudents((prev) => prev.filter((s) => s.id !== studentId));
+            setRawStudents((prev) => prev.filter((s) => s.id !== studentId));
             setGrades((prev) => prev.filter((g) => g.studentId !== studentId));
             setToastMessage(
               lang === "ar"
@@ -334,18 +348,23 @@ export default function StudentsProvider({ children }) {
                 : "Student deleted successfully!",
             );
             setTimeout(() => setToastMessage(""), 3000);
+            return { success: true };
           } else {
-            setToastMessage(lang === "ar" ? "فشل حذف الطالب" : "Failed to delete student");
+            const msg = lang === "ar" ? "فشل حذف الطالب" : "Failed to delete student";
+            setToastMessage(msg);
             setTimeout(() => setToastMessage(""), 3000);
+            return { success: false, message: msg };
           }
         })
         .catch((err) => {
           console.error("Error deleting student:", err);
-          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 3000);
+          return { success: false, message: msg };
         });
     } else {
-      setStudents((prev) => prev.filter((s) => s.id !== studentId));
+      setRawStudents((prev) => prev.filter((s) => s.id !== studentId));
       setGrades((prev) => prev.filter((g) => g.studentId !== studentId));
       setToastMessage(
         lang === "ar"
@@ -353,8 +372,9 @@ export default function StudentsProvider({ children }) {
           : "Student deleted successfully!",
       );
       setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: true });
     }
-  }, [setStudents, setGrades, setToastMessage, lang]);
+  }, [setRawStudents, setGrades, setToastMessage, lang]);
 
   const handleQrScan = useCallback((scannedStudentId) => {
     const token = localStorage.getItem("auth_token");
@@ -369,7 +389,7 @@ export default function StudentsProvider({ children }) {
     const isLate = arrivalTime > "07:45";
     const finalStatus = isLate ? "late" : "present";
 
-    setStudents((prev) =>
+    setRawStudents((prev) =>
       prev.map((s) => {
         if (s.id === scannedStudentId) {
           return {
@@ -437,7 +457,7 @@ export default function StudentsProvider({ children }) {
     }
 
     return { student, finalStatus, arrivalTime };
-  }, [students, lang, todayStr, setSmsLogs, setAttendanceRecords, setStudents]);
+  }, [students, lang, todayStr, setSmsLogs, setAttendanceRecords, setRawStudents]);
 
   const handleGateScan = handleQrScan;
 
@@ -458,17 +478,17 @@ export default function StudentsProvider({ children }) {
   );
 
   const handleManualAttendanceNoteChange = useCallback((studentId, noteText) => {
-    setStudents((prev) =>
+    setRawStudents((prev) =>
       prev.map((s) =>
         s.id === studentId ? { ...s, attendanceNote: noteText } : s,
       ),
     );
-  }, [setStudents]);
+  }, [setRawStudents]);
 
   const studentsContextValue = useMemo(() => ({
     handleManualAttendanceNoteChange,
     students,
-    setStudents,
+    setStudents: setRawStudents,
     loading,
     fetchStudents,
     handleAddStudent,

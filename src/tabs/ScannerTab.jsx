@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
@@ -18,6 +18,7 @@ export default function ScannerTab() {
     classes,
     availableGrades,
     availableSections,
+    fetchClasses,
   } = useClasses();
 
   const {
@@ -25,13 +26,21 @@ export default function ScannerTab() {
     handleCellAttendanceChange,
     selectedAttendanceMonth,
     setSelectedAttendanceMonth,
+    fetchAttendance,
   } = useAttendance();
 
   const {
     students,
     calculateStudentStats,
-    setPrintStudentObject
+    setPrintStudentObject,
+    fetchStudents,
   } = useStudents();
+
+  useEffect(() => {
+    fetchAttendance();
+    fetchClasses();
+    fetchStudents();
+  }, [fetchAttendance, fetchClasses, fetchStudents]);
 
   // Local navigation and filters
   const [attendanceSubTab, setAttendanceSubTab] = useState('monthlySheet');

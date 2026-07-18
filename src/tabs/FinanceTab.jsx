@@ -14,10 +14,16 @@ export default function FinanceTab() {
     setToastMessage,
     canAction
   } = useApp();
-  const { classes } = useClasses();
-  const { tuitionFees, handleAddPayment } = useFinance();
-  const { students } = useStudents();
+  const { classes, fetchClasses } = useClasses();
+  const { tuitionFees, handleAddPayment, fetchFinanceData } = useFinance();
+  const { students, fetchStudents } = useStudents();
   const { currentUser } = useAuth();
+
+  useEffect(() => {
+    fetchFinanceData();
+    fetchStudents();
+    fetchClasses();
+  }, [fetchFinanceData, fetchStudents, fetchClasses]);
 
   const currencySymbol = lang === 'ar' ? 'ر.ي' : 'R.Y';
 
@@ -96,6 +102,7 @@ export default function FinanceTab() {
   );
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [modalPaymentAmount, setModalPaymentAmount] = useState('');
   const [modalPaymentDate, setModalPaymentDate] = useState('');
@@ -151,13 +158,19 @@ export default function FinanceTab() {
       status: 'completed'
     };
 
-    handleAddPayment(newPayment, students);
-    
-    // Reset modal states
-    setShowPaymentModal(false);
-    setModalPaymentAmount('');
-    setModalPaymentDate('');
-    setModalPaymentRef('');
+    setIsSaving(true);
+    handleAddPayment(newPayment, students)
+      .then((res) => {
+        if (res && res.success) {
+          setShowPaymentModal(false);
+          setModalPaymentAmount('');
+          setModalPaymentDate('');
+          setModalPaymentRef('');
+        }
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   // Calculate aggregates
@@ -527,14 +540,17 @@ export default function FinanceTab() {
                   type="button" 
                   className="btn-elevated"
                   onClick={() => setShowPaymentModal(false)}
+                  disabled={isSaving}
                 >
                   {t.cancel}
                 </button>
                 <button 
                   type="submit" 
                   className="btn-filled"
+                  disabled={isSaving}
+                  style={{ opacity: isSaving ? 0.7 : 1 }}
                 >
-                  💾 {lang === 'ar' ? 'حفظ السند المالي' : 'Save Receipt'}
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? '💾 حفظ السند المالي' : '💾 Save Receipt')}
                 </button>
               </footer>
             </form>

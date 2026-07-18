@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AttendanceContext } from './AttendanceContext';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../Auth/useAuth';
@@ -20,14 +20,28 @@ export default function AttendanceProvider({ children }) {
   });
   const [absenceRequests, setAbsenceRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isStale, setIsStale] = useState(true);
 
-  const fetchAttendance = useCallback((token) => {
-    const activeToken = token || localStorage.getItem("auth_token");
+  const fetchAttendanceRequestRef = useRef(0);
+  const fetchAbsenceRequestsRequestRef = useRef(0);
+
+  const fetchAttendance = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    const tokenArg = args.find(a => typeof a === 'string');
+    const activeToken = tokenArg || localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    if (!force && !isStale && attendanceRecords.length > 0) {
+      return;
+    }
+
+    const reqId = ++fetchAttendanceRequestRef.current;
     setLoading(true);
     attendanceService.getAttendance()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchAttendanceRequestRef.current) return;
         if (data.success) {
           const mapped = data.attendance.map((rec) => ({
             id: rec.id,
@@ -37,18 +51,37 @@ export default function AttendanceProvider({ children }) {
             time: rec.arrival_time ? rec.arrival_time.substring(0, 5) : "--:--",
           }));
           setAttendanceRecords(mapped);
+          setIsStale(false);
         }
       })
-      .catch((err) => console.error("Error fetching attendance:", err))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchAttendanceRequestRef.current) {
+          console.error("Error fetching attendance:", err);
+        }
+      })
+      .finally(() => {
+        if (reqId === fetchAttendanceRequestRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [isStale, attendanceRecords.length]);
 
-  const fetchAbsenceRequests = useCallback((token) => {
-    const activeToken = token || localStorage.getItem("auth_token");
+  const fetchAbsenceRequests = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    const tokenArg = args.find(a => typeof a === 'string');
+    const activeToken = tokenArg || localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    if (!force && !isStale && absenceRequests.length > 0) {
+      return;
+    }
+
+    const reqId = ++fetchAbsenceRequestsRequestRef.current;
     attendanceService.getAbsenceRequests()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchAbsenceRequestsRequestRef.current) return;
         if (data.success) {
           const mapped = data.absence_requests.map((req) => {
             const studentName = req.student ? req.student.name_ar : "";
@@ -70,10 +103,15 @@ export default function AttendanceProvider({ children }) {
             };
           });
           setAbsenceRequests(mapped);
+          setIsStale(false);
         }
       })
-      .catch((err) => console.error("Error fetching absence requests:", err));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchAbsenceRequestsRequestRef.current) {
+          console.error("Error fetching absence requests:", err);
+        }
+      });
+  }, [isStale, absenceRequests.length]);
 
   const handleManualAttendanceChange = useCallback((
     studentId,
@@ -108,7 +146,7 @@ export default function AttendanceProvider({ children }) {
     });
 
     const student = students.find((s) => s.id === studentId);
-    if (!student) return;
+    if (!student) return Promise.resolve({ success: false, message: "Student not found" });
 
     if (newStatus === "absent") {
       const hasExcuse = absenceRequests.some(
@@ -142,6 +180,7 @@ export default function AttendanceProvider({ children }) {
         : "Attendance status updated successfully!",
     );
     setTimeout(() => setToastMessage(""), 3000);
+    return Promise.resolve({ success: true });
   }, [absenceRequests, lang, setToastMessage]);
 
   const handleCellAttendanceChange = useCallback((
@@ -182,7 +221,7 @@ export default function AttendanceProvider({ children }) {
     });
 
     if (token && newStatus) {
-      attendanceService.saveAttendance({
+      return attendanceService.saveAttendance({
           student_id: Number(studentId),
           date: date,
           status: newStatus === "late" ? "present" : newStatus,
@@ -190,11 +229,19 @@ export default function AttendanceProvider({ children }) {
           note: "تم التعديل يدوياً من لوحة الإدارة",
         })
         .then((data) => {
-          if (!data.success) {
+          if (data.success) {
+            return { success: true };
+          } else {
             console.error("Failed to sync attendance to backend:", data.message);
+            return { success: false, message: data.message };
           }
         })
-        .catch((err) => console.error("Error syncing attendance:", err));
+        .catch((err) => {
+          console.error("Error syncing attendance:", err);
+          return { success: false, message: err.message };
+        });
+    } else {
+      return Promise.resolve({ success: true });
     }
   }, []);
 
@@ -323,31 +370,37 @@ export default function AttendanceProvider({ children }) {
     if (token) {
       const action = newStatus === "approved" ? "approve" : "reject";
       const endpoint = `/api/absence-requests/${requestId}/${action}`;
-      attendanceService.updateAbsenceRequestStatus(endpoint, {
+      return attendanceService.updateAbsenceRequestStatus(endpoint, {
           admin_note_ar: adminNoteText,
         })
         .then((data) => {
           if (data.success) {
-            fetchAbsenceRequests(token);
+            fetchAbsenceRequests(token, true);
             if (newStatus === "approved") {
-              fetchAttendance(token);
+              fetchAttendance(token, true);
             }
+            return { success: true };
           } else {
             console.error("Failed to update leave request status:", data.message);
+            return { success: false, message: data.message };
           }
         })
-        .catch((err) => console.error("Error updating absence decision:", err));
+        .catch((err) => {
+          console.error("Error updating absence decision:", err);
+          return { success: false, message: err.message };
+        });
+    } else {
+      return Promise.resolve({ success: true });
     }
   }, [lang, t, setToastMessage, fetchAbsenceRequests, fetchAttendance]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem("auth_token");
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchAttendance(token);
-      fetchAbsenceRequests(token);
+    if (!isAuthenticated) {
+      setAttendanceRecords([]);
+      setAbsenceRequests([]);
+      setIsStale(true);
     }
-  }, [isAuthenticated, fetchAttendance, fetchAbsenceRequests]);
+  }, [isAuthenticated]);
 
   const attendanceContextValue = useMemo(() => ({
     attendanceRecords,

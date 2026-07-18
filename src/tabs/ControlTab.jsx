@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useSettings } from '../contexts/Settings/useSettings';
@@ -10,15 +10,21 @@ export default function ControlTab() {
     t,
     grades,
     setToastMessage,
-    canAction
+    canAction,
+    fetchControlGrades,
   } = useApp();
-  const { students } = useStudents();
+  const { students, fetchStudents } = useStudents();
   const {
     isGradesEncrypted,
     setIsGradesEncrypted,
     handleCalculateSecretCodes,
     handleEnterGradeBySecretCode,
   } = useSettings();
+
+  useEffect(() => {
+    fetchControlGrades();
+    fetchStudents();
+  }, [fetchControlGrades, fetchStudents]);
 
   const [secretTermInput, setSecretTermInput] = useState('term1');
   const [secretSubjectInput, setSecretSubjectInput] = useState('الرياضيات');

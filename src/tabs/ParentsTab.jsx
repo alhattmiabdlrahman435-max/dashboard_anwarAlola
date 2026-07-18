@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../contexts/Auth/useAuth';
 import { useParents } from '../contexts/Parents/useParents';
@@ -23,7 +23,13 @@ export default function ParentsTab() {
   const { students, fetchStudents } = useStudents();
   const { currentUser } = useAuth();
 
+  useEffect(() => {
+    fetchParents();
+    fetchStudents();
+  }, [fetchParents, fetchStudents]);
+
   // Local UI states
+  const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddParentModal, setShowAddParentModal] = useState(false);
   const [showEditParentModal, setShowEditParentModal] = useState(false);
@@ -68,14 +74,26 @@ export default function ParentsTab() {
       photo: '🧔'
     };
 
-    handleAddParent(newParent);
-    setShowAddParentModal(false);
-
-    // Reset fields
-    setModalParentNameAr('');
-    setModalParentNameEn('');
-    setModalParentPhoneNum('');
-    setModalParentNationalIdVal('');
+    setIsSaving(true);
+    handleAddParent(newParent)
+      .then((res) => {
+        if (res && res.success) {
+          setShowAddParentModal(false);
+          // Reset fields on success only
+          setModalParentNameAr('');
+          setModalParentNameEn('');
+          setModalParentPhoneNum('');
+          setModalParentNationalIdVal('');
+        } else {
+          setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+        }
+      })
+      .catch((err) => {
+        setFormError(err.message || 'Error occurred');
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const onEditSubmit = (e) => {
@@ -104,15 +122,27 @@ export default function ParentsTab() {
       photo: '🧔'
     };
 
-    handleEditParent(updatedParent, null, selectedParentIdForEdit);
-    setShowEditParentModal(false);
-
-    // Reset fields
-    setModalParentNameAr('');
-    setModalParentNameEn('');
-    setModalParentPhoneNum('');
-    setModalParentNationalIdVal('');
-    setSelectedParentIdForEdit('');
+    setIsSaving(true);
+    handleEditParent(updatedParent, null, selectedParentIdForEdit)
+      .then((res) => {
+        if (res && res.success) {
+          setShowEditParentModal(false);
+          // Reset fields on success only
+          setModalParentNameAr('');
+          setModalParentNameEn('');
+          setModalParentPhoneNum('');
+          setModalParentNationalIdVal('');
+          setSelectedParentIdForEdit('');
+        } else {
+          setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+        }
+      })
+      .catch((err) => {
+        setFormError(err.message || 'Error occurred');
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const handleExport = async () => {
@@ -421,8 +451,10 @@ export default function ParentsTab() {
                 </div>
               </div>
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowAddParentModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowAddParentModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>
@@ -470,8 +502,10 @@ export default function ParentsTab() {
                 </div>
               </div>
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowEditParentModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowEditParentModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>

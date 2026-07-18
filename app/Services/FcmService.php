@@ -92,13 +92,53 @@ class FcmService
                 return true;
             }
 
-            Log::error("FCM Send Error: " . $response->body());
+            $responseBody = $response->body();
+            Log::error("FCM Send Error: " . $responseBody);
+
+            // Automatically clean up invalid or unregistered tokens
+            if (str_contains($responseBody, 'UNREGISTERED') || str_contains($responseBody, 'INVALID_ARGUMENT') || $response->status() === 404 || $response->status() === 410) {
+                Log::info("FCM: Automatically removing invalid token: " . substr($fcmToken, 0, 15) . "...");
+                \App\Models\UserFcmToken::where('fcm_token', $fcmToken)->delete();
+                \App\Models\User::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
+            }
             return false;
 
         } catch (\Exception $e) {
             Log::error("FCM Exception: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Send push notification to all active devices of a user
+     */
+    public static function sendToUser($user, $title, $body, array $data = [])
+    {
+        if (!$user) {
+            return false;
+        }
+
+        $tokens = \App\Models\UserFcmToken::where('user_id', $user->id)
+            ->pluck('fcm_token')
+            ->toArray();
+
+        // Compatibility fallback
+        if ($user->fcm_token && !in_array($user->fcm_token, $tokens)) {
+            $tokens[] = $user->fcm_token;
+        }
+
+        if (empty($tokens)) {
+            return false;
+        }
+
+        $success = false;
+        foreach ($tokens as $token) {
+            $res = self::sendNotification($token, $title, $body, $data);
+            if ($res) {
+                $success = true;
+            }
+        }
+        return $success;
     }
 
     /**

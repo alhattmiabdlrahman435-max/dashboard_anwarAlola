@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { FinanceContext } from './FinanceContext';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../Auth/useAuth';
@@ -11,14 +11,27 @@ export default function FinanceProvider({ children }) {
 
   const [tuitionFees, setTuitionFees] = useState({ baseFees: {}, payments: [] });
   const [loading, setLoading] = useState(false);
+  const [isStale, setIsStale] = useState(true);
 
-  const fetchFinanceData = useCallback((token) => {
-    const activeToken = token || localStorage.getItem("auth_token");
+  const fetchRequestRef = useRef(0);
+
+  const fetchFinanceData = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    const tokenArg = args.find(a => typeof a === 'string');
+    const activeToken = tokenArg || localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    if (!force && !isStale && tuitionFees.payments.length > 0) {
+      return;
+    }
+
+    const reqId = ++fetchRequestRef.current;
     setLoading(true);
     financeService.getFinanceStudents()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchRequestRef.current) return;
         if (data.success) {
           const allPayments = [];
           data.students_fees.forEach((rec) => {
@@ -44,11 +57,20 @@ export default function FinanceProvider({ children }) {
             },
             payments: allPayments,
           });
+          setIsStale(false);
         }
       })
-      .catch((err) => console.error("Error fetching finance data:", err))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchRequestRef.current) {
+          console.error("Error fetching finance data:", err);
+        }
+      })
+      .finally(() => {
+        if (reqId === fetchRequestRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [isStale, tuitionFees.payments.length]);
 
   const handleAddPayment = useCallback((newPayment, students) => {
     const token = localStorage.getItem("auth_token");
@@ -60,7 +82,7 @@ export default function FinanceProvider({ children }) {
         : `Payment of ${newPayment.amount} R.Y (Receipt: ${newPayment.referenceNo}) received for student ${student?.nameEn}. Thank you. Riyadh & Anwar Al-Ola.`;
 
     if (token) {
-      financeService.addPayment({
+      return financeService.addPayment({
           student_id: Number(newPayment.studentId),
           amount: Number(newPayment.amount),
           payment_date: newPayment.paymentDate,
@@ -68,7 +90,7 @@ export default function FinanceProvider({ children }) {
         })
         .then((data) => {
           if (data.success) {
-            fetchFinanceData(token);
+            fetchFinanceData(token, true);
             setToastMessage(t.paymentSuccessToast);
             setTimeout(() => setToastMessage(""), 4000);
             
@@ -83,15 +105,20 @@ export default function FinanceProvider({ children }) {
               },
               ...logs,
             ]);
+            return { success: true };
           } else {
-            setToastMessage(lang === "ar" ? `فشل إضافة الدفعة: ${data.message}` : `Failed to add payment: ${data.message}`);
+            const msg = lang === "ar" ? `فشل إضافة الدفعة: ${data.message}` : `Failed to add payment: ${data.message}`;
+            setToastMessage(msg);
             setTimeout(() => setToastMessage(""), 6000);
+            return { success: false, message: msg };
           }
         })
         .catch((err) => {
           console.error("Error adding payment:", err);
-          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 6000);
+          return { success: false, message: msg };
         });
     } else {
       setTuitionFees((prev) => ({
@@ -100,16 +127,16 @@ export default function FinanceProvider({ children }) {
       }));
       setToastMessage(t.paymentSuccessToast);
       setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: true });
     }
   }, [lang, t, setToastMessage, fetchFinanceData]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem("auth_token");
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchFinanceData(token);
+    if (!isAuthenticated) {
+      setTuitionFees({ baseFees: {}, payments: [] });
+      setIsStale(true);
     }
-  }, [isAuthenticated, fetchFinanceData]);
+  }, [isAuthenticated]);
 
   const financeContextValue = useMemo(() => ({
     tuitionFees,

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useStudents } from '../contexts/Students/useStudents';
+import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { Download } from 'lucide-react';
 import '../styles/printGrades.css';
 
@@ -35,8 +36,15 @@ export default function DetailedGradesTab() {
     fetchClassGrades
   } = useApp();
 
-  const { classes } = useClasses();
-  const { students } = useStudents();
+  const { classes, fetchClasses } = useClasses();
+  const { students, fetchStudents } = useStudents();
+  const { fetchSubjects } = useSubjects();
+
+  useEffect(() => {
+    fetchClasses();
+    fetchStudents();
+    fetchSubjects();
+  }, [fetchClasses, fetchStudents, fetchSubjects]);
 
   // State for view controls
   const [viewMode, setViewMode] = useState('class'); // Default to class view for admin reviews

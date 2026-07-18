@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { useClasses } from '../contexts/Classes/useClasses';
@@ -20,7 +20,13 @@ export default function SubjectsTab() {
 
   const { classes, fetchClasses } = useClasses();
 
-  const { teachers } = useTeachers();
+  const { teachers, fetchTeachers } = useTeachers();
+
+  useEffect(() => {
+    fetchSubjects();
+    fetchClasses();
+    fetchTeachers();
+  }, [fetchSubjects, fetchClasses, fetchTeachers]);
 
 
   // Local state for searching & modals

@@ -253,8 +253,8 @@ class StudentController extends Controller implements HasMiddleware
             // Load parent relation to get the token
             $student->load('parentUser');
             $parentUser = $student->parentUser;
-            if ($parentUser && $parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+            if ($parentUser) {
+                \App\Services\FcmService::sendToUser($parentUser, $title, $content, [
                     'type' => 'attendance',
                     'student_id' => $student->id
                 ]);

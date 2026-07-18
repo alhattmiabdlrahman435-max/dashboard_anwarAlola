@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SettingsContext } from './SettingsContext';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../Auth/useAuth';
@@ -23,6 +23,7 @@ export default function SettingsProvider({ children }) {
   const [schedules, setSchedules] = useState({});
   // Exam schedules state
   const [examSchedules, setExamSchedules] = useState([]);
+  const [isStale, setIsStale] = useState(true);
 
   // Digital Control states
   const [isGradesEncrypted, setIsGradesEncrypted] = useState(false);
@@ -31,29 +32,64 @@ export default function SettingsProvider({ children }) {
   const [controlOffset, setControlOffset] = useState(1000);
   const [controlModulo, setControlModulo] = useState(10000);
 
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const fetchWeeklySchedulesRequestRef = useRef(0);
+  const fetchExamSchedulesRequestRef = useRef(0);
 
   // Fetch weekly schedules
-  const fetchWeeklySchedules = useCallback((token) => {
-    const activeToken = token || localStorage.getItem("auth_token");
+  const fetchWeeklySchedules = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    const tokenArg = args.find(a => typeof a === 'string');
+    const activeToken = tokenArg || localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    if (!force && !isStale && Object.keys(schedules).length > 0) {
+      return;
+    }
+
+    const reqId = ++fetchWeeklySchedulesRequestRef.current;
+    setLoading(true);
     settingsService.getSchedules()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchWeeklySchedulesRequestRef.current) return;
         if (data.success && data.schedules && Object.keys(data.schedules).length > 0) {
           setSchedules(data.schedules);
+          setIsStale(false);
         }
       })
-      .catch((err) => console.error("Error fetching weekly schedules:", err));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchWeeklySchedulesRequestRef.current) {
+          console.error("Error fetching weekly schedules:", err);
+        }
+      })
+      .finally(() => {
+        if (reqId === fetchWeeklySchedulesRequestRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [isStale, schedules]);
 
   // Fetch exam schedules
-  const fetchExamSchedules = useCallback((token) => {
-    const activeToken = token || localStorage.getItem("auth_token");
+  const fetchExamSchedules = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    const tokenArg = args.find(a => typeof a === 'string');
+    const activeToken = tokenArg || localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    if (!force && !isStale && examSchedules.length > 0) {
+      return;
+    }
+
+    const reqId = ++fetchExamSchedulesRequestRef.current;
+    setLoading(true);
     settingsService.getExamSchedules()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchExamSchedulesRequestRef.current) return;
         if (data.success) {
           const mapped = data.exam_schedules.map((sch) => {
             const classObj = sch.class || {};
@@ -77,10 +113,20 @@ export default function SettingsProvider({ children }) {
             };
           });
           setExamSchedules(mapped);
+          setIsStale(false);
         }
       })
-      .catch((err) => console.error("Error fetching exam schedules:", err));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchExamSchedulesRequestRef.current) {
+          console.error("Error fetching exam schedules:", err);
+        }
+      })
+      .finally(() => {
+        if (reqId === fetchExamSchedulesRequestRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [isStale, examSchedules.length]);
 
   // Publish exam schedule
   const handlePublishExamSchedule = useCallback((newSchedule, studentsList) => {
@@ -102,7 +148,7 @@ export default function SettingsProvider({ children }) {
       };
     });
 
-    const classStudents = studentsList.filter(
+    const classStudents = (studentsList || []).filter(
       (s) => s.grade === newSchedule.grade && s.section === newSchedule.section,
     );
     const smsText =
@@ -111,14 +157,14 @@ export default function SettingsProvider({ children }) {
         : `New exam schedule published (${newSchedule.periodEn} - ${newSchedule.termEn}) for ${newSchedule.grade}. Please review it in the Parent App.`;
 
     if (token) {
-      settingsService.addExamSchedule({
+      return settingsService.addExamSchedule({
           title: newSchedule.period,
           term: termKey,
           subjects: mappedSubjects,
         })
         .then((data) => {
           if (data.success) {
-            fetchExamSchedules(token);
+            fetchExamSchedules(token, true);
             setToastMessage(
               lang === "ar"
                 ? "تم نشر جدول الاختبارات بنجاح!"
@@ -139,15 +185,20 @@ export default function SettingsProvider({ children }) {
                 ...logs,
               ]);
             });
+            return { success: true };
           } else {
-            setToastMessage(lang === "ar" ? `فشل النشر: ${data.message}` : `Publish failed: ${data.message}`);
+            const msg = lang === "ar" ? `فشل النشر: ${data.message}` : `Publish failed: ${data.message}`;
+            setToastMessage(msg);
             setTimeout(() => setToastMessage(""), 6000);
+            return { success: false, message: msg };
           }
         })
         .catch((err) => {
           console.error("Error storing exam schedule:", err);
-          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 6000);
+          return { success: false, message: msg };
         });
     } else {
       setExamSchedules((prev) => [newSchedule, ...prev]);
@@ -157,6 +208,7 @@ export default function SettingsProvider({ children }) {
           : "Exam schedule published successfully!",
       );
       setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: true });
     }
   }, [subjects, lang, setToastMessage, fetchExamSchedules]);
 
@@ -181,29 +233,34 @@ export default function SettingsProvider({ children }) {
     });
 
     if (token) {
-      settingsService.editExamSchedule(id, {
+      return settingsService.editExamSchedule(id, {
           title: updatedSchedule.period,
           term: termKey,
           subjects: mappedSubjects,
         })
         .then((data) => {
           if (data.success) {
-            fetchExamSchedules(token);
+            fetchExamSchedules(token, true);
             setToastMessage(
               lang === "ar"
                 ? "تم تحديث جدول الاختبارات بنجاح!"
                 : "Exam schedule updated successfully!",
             );
             setTimeout(() => setToastMessage(""), 4000);
+            return { success: true };
           } else {
-            setToastMessage(lang === "ar" ? `فشل التحديث: ${data.message}` : `Update failed: ${data.message}`);
+            const msg = lang === "ar" ? `فشل التحديث: ${data.message}` : `Update failed: ${data.message}`;
+            setToastMessage(msg);
             setTimeout(() => setToastMessage(""), 6000);
+            return { success: false, message: msg };
           }
         })
         .catch((err) => {
           console.error("Error updating exam schedule:", err);
-          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 6000);
+          return { success: false, message: msg };
         });
     } else {
       setExamSchedules((prev) =>
@@ -215,47 +272,59 @@ export default function SettingsProvider({ children }) {
           : "Exam schedule updated successfully!",
       );
       setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: true });
     }
   }, [subjects, lang, setToastMessage, fetchExamSchedules]);
 
   // Delete exam schedule
   const handleDeleteExamSchedule = useCallback((id) => {
     const token = localStorage.getItem("auth_token");
-    triggerConfirm({
-      title: lang === 'ar' ? 'حذف جدول الاختبارات' : 'Delete Exam Schedule',
-      message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الجدول نهائياً؟' : 'Are you sure you want to permanently delete this schedule?',
-      onConfirm: () => {
-        if (token) {
-          settingsService.deleteExamSchedule(id)
-            .then((data) => {
-              if (data.success) {
-                setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
-                setToastMessage(
-                  lang === "ar"
-                    ? "تم حذف جدول الاختبارات بنجاح"
-                    : "Exam schedule deleted successfully",
-                );
-                setTimeout(() => setToastMessage(""), 4000);
-              } else {
-                setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
+    return new Promise((resolve) => {
+      triggerConfirm({
+        title: lang === 'ar' ? 'حذف جدول الاختبارات' : 'Delete Exam Schedule',
+        message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الجدول نهائياً؟' : 'Are you sure you want to permanently delete this schedule?',
+        onConfirm: () => {
+          if (token) {
+            settingsService.deleteExamSchedule(id)
+              .then((data) => {
+                if (data.success) {
+                  setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
+                  setToastMessage(
+                    lang === "ar"
+                      ? "تم حذف جدول الاختبارات بنجاح"
+                      : "Exam schedule deleted successfully",
+                  );
+                  setTimeout(() => setToastMessage(""), 4000);
+                  resolve({ success: true });
+                } else {
+                  const msg = lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`;
+                  setToastMessage(msg);
+                  setTimeout(() => setToastMessage(""), 6000);
+                  resolve({ success: false, message: msg });
+                }
+              })
+              .catch((err) => {
+                console.error("Error deleting exam schedule:", err);
+                const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+                setToastMessage(msg);
                 setTimeout(() => setToastMessage(""), 6000);
-              }
-            })
-            .catch((err) => {
-              console.error("Error deleting exam schedule:", err);
-              setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
-              setTimeout(() => setToastMessage(""), 6000);
-            });
-        } else {
-          setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
-          setToastMessage(
-            lang === "ar"
-              ? "تم حذف جدول الاختبارات بنجاح"
-              : "Exam schedule deleted successfully",
-          );
-          setTimeout(() => setToastMessage(""), 3000);
+                resolve({ success: false, message: msg });
+              });
+          } else {
+            setExamSchedules((prev) => prev.filter((sch) => sch.id !== id));
+            setToastMessage(
+              lang === "ar"
+                ? "تم حذف جدول الاختبارات بنجاح"
+                : "Exam schedule deleted successfully",
+            );
+            setTimeout(() => setToastMessage(""), 3000);
+            resolve({ success: true });
+          }
+        },
+        onCancel: () => {
+          resolve({ success: false, cancelled: true });
         }
-      }
+      });
     });
   }, [lang, setToastMessage, triggerConfirm]);
 
@@ -533,16 +602,12 @@ export default function SettingsProvider({ children }) {
   }, [grades, lang, setToastMessage, subjects, setGrades, setDetailedGrades]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem("auth_token");
-      fetchWeeklySchedules(token);
-      fetchExamSchedules(token);
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!isAuthenticated) {
       setSchedules({});
       setExamSchedules([]);
+      setIsStale(true);
     }
-  }, [isAuthenticated, fetchWeeklySchedules, fetchExamSchedules]);
+  }, [isAuthenticated]);
 
   const settingsContextValue = useMemo(() => ({
     schedules,

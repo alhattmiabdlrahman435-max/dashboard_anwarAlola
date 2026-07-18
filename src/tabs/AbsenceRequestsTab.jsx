@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
@@ -17,6 +17,7 @@ export default function AbsenceRequestsTab() {
   const {
     availableGrades,
     availableSections,
+    fetchClasses,
   } = useClasses();
 
   const {
@@ -25,9 +26,16 @@ export default function AbsenceRequestsTab() {
     attendanceRosterDate,
     setAttendanceRosterDate,
     handleManualAttendanceChange,
+    fetchAbsenceRequests,
   } = useAttendance();
 
-  const { students, handleManualAttendanceNoteChange } = useStudents();
+  const { students, handleManualAttendanceNoteChange, fetchStudents } = useStudents();
+
+  useEffect(() => {
+    fetchAbsenceRequests();
+    fetchStudents();
+    fetchClasses();
+  }, [fetchAbsenceRequests, fetchStudents, fetchClasses]);
 
   // Local tab/filters states
   const [absenceSubTab, setAbsenceSubTab] = useState('requests');

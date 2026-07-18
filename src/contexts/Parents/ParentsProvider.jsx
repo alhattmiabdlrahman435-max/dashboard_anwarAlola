@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ParentsContext } from './ParentsContext';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../Auth/useAuth';
@@ -10,14 +10,27 @@ export default function ParentsProvider({ children }) {
 
   const [parentUsers, setParentUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isStale, setIsStale] = useState(true);
 
-  const fetchParents = useCallback((token) => {
-    const activeToken = token || localStorage.getItem("auth_token");
+  const fetchRequestRef = useRef(0);
+
+  const fetchParents = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    const tokenArg = args.find(a => typeof a === 'string');
+    const activeToken = tokenArg || localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    if (!force && !isStale && parentUsers.length > 0) {
+      return;
+    }
+
+    const reqId = ++fetchRequestRef.current;
     setLoading(true);
     parentsService.getParents()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchRequestRef.current) return;
         if (data.success) {
           const mapped = data.parents.map((p) => ({
             id: p.id,
@@ -30,16 +43,25 @@ export default function ParentsProvider({ children }) {
             photo: p.photo_url || "🧔",
           }));
           setParentUsers(mapped);
+          setIsStale(false);
         }
       })
-      .catch((err) => console.error("Error fetching parents:", err))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchRequestRef.current) {
+          console.error("Error fetching parents:", err);
+        }
+      })
+      .finally(() => {
+        if (reqId === fetchRequestRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [isStale, parentUsers.length]);
 
   const handleAddParent = useCallback((newParent) => {
     const token = localStorage.getItem("auth_token");
     if (token) {
-      parentsService.createParent({
+      return parentsService.createParent({
         national_id: newParent.nationalId,
         name_ar: newParent.name,
         name_en: newParent.nameEn,
@@ -59,11 +81,21 @@ export default function ParentsProvider({ children }) {
               : "Parent account registered successfully!",
           );
           setTimeout(() => setToastMessage(""), 4000);
+          return { success: true };
         } else {
-          console.error("Failed to add parent:", data.message);
+          const msg = lang === "ar" ? `فشل تسجيل ولي الأمر: ${data.message}` : `Failed to add parent: ${data.message}`;
+          setToastMessage(msg);
+          setTimeout(() => setToastMessage(""), 4000);
+          return { success: false, message: msg };
         }
       })
-      .catch(err => console.error("Error adding parent:", err));
+      .catch(err => {
+        console.error("Error adding parent:", err);
+        const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(""), 4000);
+        return { success: false, message: msg };
+      });
     } else {
       setParentUsers((prev) => [...prev, newParent]);
       setToastMessage(
@@ -72,6 +104,7 @@ export default function ParentsProvider({ children }) {
           : "Parent account registered successfully!",
       );
       setTimeout(() => setToastMessage(""), 4000);
+      return Promise.resolve({ success: true });
     }
   }, [lang, setToastMessage]);
 
@@ -85,7 +118,7 @@ export default function ParentsProvider({ children }) {
     const token = localStorage.getItem("auth_token");
 
     if (token && parentId) {
-      parentsService.updateParent(parentId, {
+      return parentsService.updateParent(parentId, {
         name_ar: updatedParent.name,
         name_en: updatedParent.nameEn,
         phone: updatedParent.phone,
@@ -106,15 +139,20 @@ export default function ParentsProvider({ children }) {
               : "Parent account details updated successfully!",
           );
           setTimeout(() => setToastMessage(""), 4000);
+          return { success: true };
         } else {
-          setToastMessage(lang === "ar" ? "فشل تحديث بيانات ولي الأمر" : "Failed to update parent details");
+          const msg = lang === "ar" ? "فشل تحديث بيانات ولي الأمر" : "Failed to update parent details";
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 4000);
+          return { success: false, message: msg };
         }
       })
       .catch((err) => {
         console.error("Error updating parent:", err);
-        setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
         setTimeout(() => setToastMessage(""), 4000);
+        return { success: false, message: msg };
       });
 
     } else {
@@ -127,13 +165,14 @@ export default function ParentsProvider({ children }) {
           : "Parent account details updated successfully!",
       );
       setTimeout(() => setToastMessage(""), 4000);
+      return Promise.resolve({ success: true });
     }
   }, [parentUsers, lang, setToastMessage]);
 
   const handleDeleteParent = useCallback((parentId) => {
     const token = localStorage.getItem("auth_token");
     if (token) {
-      parentsService.deleteParent(parentId)
+      return parentsService.deleteParent(parentId)
         .then((data) => {
           if (data.success) {
             setParentUsers((prev) => prev.filter((p) => p.id !== parentId));
@@ -143,15 +182,20 @@ export default function ParentsProvider({ children }) {
                 : "Parent deleted successfully!",
             );
             setTimeout(() => setToastMessage(""), 3000);
+            return { success: true };
           } else {
-            setToastMessage(lang === "ar" ? "فشل حذف ولي الأمر" : "Failed to delete parent");
+            const msg = lang === "ar" ? "فشل حذف ولي الأمر" : "Failed to delete parent";
+            setToastMessage(msg);
             setTimeout(() => setToastMessage(""), 3000);
+            return { success: false, message: msg };
           }
         })
         .catch((err) => {
           console.error("Error deleting parent:", err);
-          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+          const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 3000);
+          return { success: false, message: msg };
         });
     } else {
       setParentUsers((prev) => prev.filter((p) => p.id !== parentId));
@@ -161,16 +205,16 @@ export default function ParentsProvider({ children }) {
           : "Parent deleted successfully!",
       );
       setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: true });
     }
   }, [lang, setToastMessage]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem("auth_token");
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchParents(token);
+    if (!isAuthenticated) {
+      setParentUsers([]);
+      setIsStale(true);
     }
-  }, [isAuthenticated, fetchParents]);
+  }, [isAuthenticated]);
 
   const parentsContextValue = useMemo(() => ({
     parentUsers,

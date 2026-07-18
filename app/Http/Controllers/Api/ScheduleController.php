@@ -321,9 +321,9 @@ class ScheduleController extends Controller implements HasMiddleware
                 ]);
 
                 $teacherUser = \App\Models\User::find($notif['teacher_id']);
-                if ($teacherUser && $teacherUser->fcm_token) {
-                    \App\Services\FcmService::sendNotification(
-                        $teacherUser->fcm_token,
+                if ($teacherUser) {
+                    \App\Services\FcmService::sendToUser(
+                        $teacherUser,
                         $notif['title'] . ' 📅',
                         $notif['body'],
                         [
@@ -346,17 +346,15 @@ class ScheduleController extends Controller implements HasMiddleware
             $students = \App\Models\Student::with('parentUser')->where('class_id', $cls->id)->get();
             $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
             foreach ($parentUsers as $parentUser) {
-                if ($parentUser->fcm_token) {
-                    \App\Services\FcmService::sendNotification(
-                        $parentUser->fcm_token,
-                        'تحديث الجدول الدراسي الأسبوعي 📅',
-                        'تم تحديث الجدول الدراسي الأسبوعي لصف ابنكم: ' . $className,
-                        [
-                            'type' => 'weekly_schedule',
-                            'class_id' => (string)$cls->id
-                        ]
-                    );
-                }
+                \App\Services\FcmService::sendToUser(
+                    $parentUser,
+                    'تحديث الجدول الدراسي الأسبوعي 📅',
+                    'تم تحديث الجدول الدراسي الأسبوعي لصف ابنكم: ' . $className,
+                    [
+                        'type' => 'weekly_schedule',
+                        'class_id' => (string)$cls->id
+                    ]
+                );
             }
 
             return response()->json([

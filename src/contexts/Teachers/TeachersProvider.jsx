@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TeachersContext from './TeachersContext';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../Auth/useAuth';
@@ -11,22 +11,33 @@ export default function TeachersProvider({ children }) {
   const { classes } = useClasses();
   const { subjects } = useSubjects();
   const { isAuthenticated } = useAuth();
-
-  // Teachers state
+  // Teachers & Supervisors state
   const [teachers, setTeachers] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // Supervisors (Prep supervisors) state
   const [supervisors, setSupervisors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [isStale, setIsStale] = useState(true);
+
+  const fetchTeachersRequestRef = useRef(0);
+  const fetchSupervisorsRequestRef = useRef(0);
 
   // ─── Fetch Teachers ────────────────────────────────────────────────
-  const fetchTeachers = useCallback((token) => {
-    const activeToken = token || localStorage.getItem("auth_token");
+  const fetchTeachers = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    const tokenArg = args.find(a => typeof a === 'string');
+    const activeToken = tokenArg || localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    if (!force && !isStale && teachers.length > 0) {
+      return;
+    }
+
+    const reqId = ++fetchTeachersRequestRef.current;
     setLoading(true);
     teachersService.getTeachers()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchTeachersRequestRef.current) return;
         if (data.success) {
           const mapped = data.teachers.map((t) => {
             const classNames = [];
@@ -72,37 +83,52 @@ export default function TeachersProvider({ children }) {
             };
           });
           setTeachers(mapped);
+          setIsStale(false);
         }
       })
-      .catch((err) => console.error("Error fetching teachers:", err))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchTeachersRequestRef.current) {
+          console.error("Error fetching teachers:", err);
+        }
+      })
+      .finally(() => {
+        if (reqId === fetchTeachersRequestRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [isStale, teachers.length]);
 
   // ─── Fetch Supervisors ─────────────────────────────────────────────
-  const fetchSupervisors = useCallback(() => {
+  const fetchSupervisors = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    if (!force && !isStale && supervisors.length > 0) {
+      return;
+    }
+    const reqId = ++fetchSupervisorsRequestRef.current;
     teachersService.getSupervisors()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchSupervisorsRequestRef.current) return;
         if (data.success) {
           setSupervisors(data.supervisors);
         }
       })
-      .catch((err) => console.error("Error fetching supervisors:", err));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchSupervisorsRequestRef.current) {
+          console.error("Error fetching supervisors:", err);
+        }
+      });
+  }, [isStale, supervisors.length]);
 
   // ─── Auto-fetch on authentication ─────────────────────────────────
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem("auth_token");
-      if (token) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchTeachers(token);
-        fetchSupervisors();
-      }
-    } else {
+    if (!isAuthenticated) {
       setTeachers([]);
       setSupervisors([]);
+      setIsStale(true);
     }
-  }, [isAuthenticated, fetchTeachers, fetchSupervisors]);
+  }, [isAuthenticated]);
 
   // ─── Teacher CRUD ──────────────────────────────────────────────────
   const handleAddTeacher = useCallback((newTeacher) => {
@@ -123,7 +149,7 @@ export default function TeachersProvider({ children }) {
         return { subject_id: subjectId, class_id: classId };
       }).filter(a => a.subject_id && a.class_id);
 
-      teachersService.createTeacher({
+      return teachersService.createTeacher({
         job_id: newTeacher.jobId,
         name_ar: newTeacher.name,
         name_en: newTeacher.nameEn,
@@ -134,23 +160,29 @@ export default function TeachersProvider({ children }) {
       })
       .then(data => {
         if (data.success) {
-          fetchTeachers(token);
+          fetchTeachers(token, true);
           setToastMessage(lang === "ar" ? "تم تسجيل المعلم بنجاح!" : "Teacher added successfully!");
           setTimeout(() => setToastMessage(""), 4000);
+          return { success: true };
         } else {
-          setToastMessage(lang === "ar" ? `فشل تسجيل المعلم: ${data.message}` : `Failed to add teacher: ${data.message}`);
+          const msg = lang === "ar" ? `فشل تسجيل المعلم: ${data.message}` : `Failed to add teacher: ${data.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 6000);
+          return { success: false, message: msg };
         }
       })
       .catch(err => {
         console.error("Error saving teacher:", err);
-        setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
         setTimeout(() => setToastMessage(""), 6000);
+        return { success: false, message: msg };
       });
     } else {
       setTeachers((prev) => [...prev, newTeacher]);
       setToastMessage(lang === "ar" ? "تم تسجيل المعلم بنجاح!" : "Teacher added successfully!");
       setTimeout(() => setToastMessage(""), 4000);
+      return Promise.resolve({ success: true });
     }
   }, [subjects, classes, lang, setToastMessage, fetchTeachers]);
 
@@ -172,7 +204,7 @@ export default function TeachersProvider({ children }) {
         return { subject_id: subjectId, class_id: classId };
       }).filter(a => a.subject_id && a.class_id);
 
-      teachersService.updateTeacher(teacherId, {
+      return teachersService.updateTeacher(teacherId, {
         name_ar: updatedTeacher.name,
         name_en: updatedTeacher.nameEn,
         phone: updatedTeacher.phone,
@@ -182,23 +214,29 @@ export default function TeachersProvider({ children }) {
       })
       .then(data => {
         if (data.success) {
-          fetchTeachers(token);
+          fetchTeachers(token, true);
           setToastMessage(lang === "ar" ? "تم تحديث بيانات المعلم بنجاح!" : "Teacher details updated successfully!");
           setTimeout(() => setToastMessage(""), 4000);
+          return { success: true };
         } else {
-          setToastMessage(lang === "ar" ? `فشل تحديث المعلم: ${data.message}` : `Failed to update teacher: ${data.message}`);
+          const msg = lang === "ar" ? `فشل تحديث المعلم: ${data.message}` : `Failed to update teacher: ${data.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(""), 6000);
+          return { success: false, message: msg };
         }
       })
       .catch(err => {
         console.error("Error updating teacher:", err);
-        setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
         setTimeout(() => setToastMessage(""), 6000);
+        return { success: false, message: msg };
       });
     } else {
       setTeachers((prev) => prev.map((t) => (t.id === teacherId ? updatedTeacher : t)));
       setToastMessage(lang === "ar" ? "تم تحديث بيانات المعلم بنجاح!" : "Teacher details updated successfully!");
       setTimeout(() => setToastMessage(""), 4000);
+      return Promise.resolve({ success: true });
     }
   }, [subjects, classes, lang, setToastMessage, fetchTeachers]);
 
@@ -207,7 +245,7 @@ export default function TeachersProvider({ children }) {
     const token = localStorage.getItem("auth_token");
 
     if (token) {
-      teachersService.createSupervisor({
+      return teachersService.createSupervisor({
         jobId: newSupervisor.jobId,
         name: newSupervisor.name,
         phone: newSupervisor.phone,
@@ -220,20 +258,26 @@ export default function TeachersProvider({ children }) {
           setSupervisors(prev => [...prev, data.supervisor]);
           setToastMessage(lang === 'ar' ? 'تم تسجيل مشرف التحضير بنجاح!' : 'Prep supervisor added successfully!');
           setTimeout(() => setToastMessage(''), 4000);
+          return { success: true };
         } else {
-          setToastMessage(lang === 'ar' ? `فشل تسجيل المشرف: ${data.message}` : `Failed to add supervisor: ${data.message}`);
+          const msg = lang === 'ar' ? `فشل تسجيل المشرف: ${data.message}` : `Failed to add supervisor: ${data.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(''), 6000);
+          return { success: false, message: msg };
         }
       })
       .catch(err => {
         console.error("Error saving supervisor:", err);
-        setToastMessage(lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        const msg = lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
         setTimeout(() => setToastMessage(''), 6000);
+        return { success: false, message: msg };
       });
     } else {
       setSupervisors(prev => [...prev, newSupervisor]);
       setToastMessage(lang === 'ar' ? 'تم تسجيل مشرف التحضير بنجاح!' : 'Prep supervisor added successfully!');
       setTimeout(() => setToastMessage(''), 4000);
+      return Promise.resolve({ success: true });
     }
   }, [lang, setToastMessage]);
 
@@ -241,7 +285,7 @@ export default function TeachersProvider({ children }) {
     const token = localStorage.getItem("auth_token");
 
     if (token) {
-      teachersService.updateSupervisor(supervisorId, {
+      return teachersService.updateSupervisor(supervisorId, {
         jobId: updatedSupervisor.jobId,
         name: updatedSupervisor.name,
         phone: updatedSupervisor.phone,
@@ -254,20 +298,26 @@ export default function TeachersProvider({ children }) {
           setSupervisors(prev => prev.map(s => s.id === supervisorId ? { ...s, ...updatedSupervisor } : s));
           setToastMessage(lang === 'ar' ? 'تم تحديث بيانات المشرف بنجاح!' : 'Supervisor details updated successfully!');
           setTimeout(() => setToastMessage(''), 4000);
+          return { success: true };
         } else {
-          setToastMessage(lang === 'ar' ? `فشل تحديث المشرف: ${data.message}` : `Failed to update supervisor: ${data.message}`);
+          const msg = lang === 'ar' ? `فشل تحديث المشرف: ${data.message}` : `Failed to update supervisor: ${data.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(''), 6000);
+          return { success: false, message: msg };
         }
       })
       .catch(err => {
         console.error("Error updating supervisor:", err);
-        setToastMessage(lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        const msg = lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
         setTimeout(() => setToastMessage(''), 6000);
+        return { success: false, message: msg };
       });
     } else {
       setSupervisors(prev => prev.map(s => s.id === supervisorId ? updatedSupervisor : s));
       setToastMessage(lang === 'ar' ? 'تم تحديث بيانات المشرف بنجاح!' : 'Supervisor details updated successfully!');
       setTimeout(() => setToastMessage(''), 4000);
+      return Promise.resolve({ success: true });
     }
   }, [lang, setToastMessage]);
 
@@ -275,26 +325,32 @@ export default function TeachersProvider({ children }) {
     const token = localStorage.getItem("auth_token");
 
     if (token) {
-      teachersService.deleteSupervisor(supervisorId)
+      return teachersService.deleteSupervisor(supervisorId)
       .then(data => {
         if (data.success) {
           setSupervisors(prev => prev.filter(s => s.id !== supervisorId));
           setToastMessage(lang === 'ar' ? 'تم حذف المشرف بنجاح!' : 'Supervisor deleted successfully!');
           setTimeout(() => setToastMessage(''), 4000);
+          return { success: true };
         } else {
-          setToastMessage(lang === 'ar' ? `فشل حذف المشرف: ${data.message}` : `Failed to delete supervisor: ${data.message}`);
+          const msg = lang === 'ar' ? `فشل حذف المشرف: ${data.message}` : `Failed to delete supervisor: ${data.message}`;
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(''), 6000);
+          return { success: false, message: msg };
         }
       })
       .catch(err => {
         console.error("Error deleting supervisor:", err);
-        setToastMessage(lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+        const msg = lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
         setTimeout(() => setToastMessage(''), 6000);
+        return { success: false, message: msg };
       });
     } else {
       setSupervisors(prev => prev.filter(s => s.id !== supervisorId));
       setToastMessage(lang === 'ar' ? 'تم حذف المشرف بنجاح!' : 'Supervisor deleted successfully!');
       setTimeout(() => setToastMessage(''), 4000);
+      return Promise.resolve({ success: true });
     }
   }, [lang, setToastMessage]);
 

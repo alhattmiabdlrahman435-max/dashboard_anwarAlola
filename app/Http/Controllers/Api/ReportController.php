@@ -178,9 +178,9 @@ class ReportController extends Controller implements HasMiddleware
                 'teacher_id' => $teacherId,
             ]);
 
-            if ($report->teacher && $report->teacher->fcm_token) {
-                \App\Services\FcmService::sendNotification(
-                    $report->teacher->fcm_token,
+            if ($report->teacher) {
+                \App\Services\FcmService::sendToUser(
+                    $report->teacher,
                     "✅ تمت الموافقة على بلاغك بشأن {$studentName}",
                     "قامت الإدارة بمراجعة البلاغ {$typeLabel} الذي قدمته بشأن الطالب {$studentName} والموافقة عليه.",
                     [
@@ -212,9 +212,9 @@ class ReportController extends Controller implements HasMiddleware
             ]);
 
             $parentUser = $report->student ? $report->student->parentUser : null;
-            if ($parentUser && $parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification(
-                    $parentUser->fcm_token,
+            if ($parentUser) {
+                \App\Services\FcmService::sendToUser(
+                    $parentUser,
                     "📋 إشعار من الإدارة: بلاغ {$typeLabel} بشأن {$studentName}",
                     $parentContent,
                     [
@@ -239,9 +239,9 @@ class ReportController extends Controller implements HasMiddleware
                 'teacher_id' => $teacherId,
             ]);
 
-            if ($report->teacher && $report->teacher->fcm_token) {
-                \App\Services\FcmService::sendNotification(
-                    $report->teacher->fcm_token,
+            if ($report->teacher) {
+                \App\Services\FcmService::sendToUser(
+                    $report->teacher,
                     "❌ تم رفض البلاغ بشأن {$studentName}",
                     "تم مراجعة البلاغ {$typeLabel} الذي قدمته بشأن الطالب {$studentName} من قِبَل الإدارة، وتقرر رفض البلاغ نهائياً.",
                     [

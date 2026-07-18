@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user/update-photo', [AuthController::class, 'updatePhoto']);
     Route::post('/user/update-password', [AuthController::class, 'updatePassword']);
     Route::post('/user/fcm-token', [AuthController::class, 'updateFcmToken']);
+    Route::delete('/user/fcm-token', [AuthController::class, 'deleteFcmToken']);
 
     // Dashboard - الرئيسية
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);

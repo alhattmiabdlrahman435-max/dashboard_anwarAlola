@@ -290,19 +290,16 @@ class GradeController extends Controller implements HasMiddleware
                     'student_id' => $student->id,
                 ]);
 
-                // Send FCM
-                if ($student->parentUser->fcm_token) {
-                    \App\Services\FcmService::sendNotification(
-                        $student->parentUser->fcm_token,
-                        'اعتماد الدرجات 📊',
-                        'تم اعتماد درجات ابنكم ' . ($student->name_ar ?? '') . ' ' . $monthName . '.',
-                        [
-                            'type' => 'grade',
-                            'student_id' => (string)$student->id,
-                            'month' => (string)$request->month,
-                        ]
-                    );
-                }
+                \App\Services\FcmService::sendToUser(
+                    $student->parentUser,
+                    'اعتماد الدرجات 📊',
+                    'تم اعتماد درجات ابنكم ' . ($student->name_ar ?? '') . ' ' . $monthName . '.',
+                    [
+                        'type' => 'grade',
+                        'student_id' => (string)$student->id,
+                        'month' => (string)$request->month,
+                    ]
+                );
                 $sentCount++;
             }
         }

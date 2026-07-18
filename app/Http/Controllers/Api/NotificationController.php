@@ -163,35 +163,57 @@ class NotificationController extends Controller implements HasMiddleware
         // Collect target FCM tokens
         $tokens = [];
         if ($request->target_type === 'all_parents') {
-            $tokens = \App\Models\User::where('role', 'parent')
+            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
+                    $q->where('role', 'parent');
+                })
+                ->pluck('fcm_token')
+                ->toArray();
+            
+            $oldTokens = \App\Models\User::where('role', 'parent')
                 ->whereNotNull('fcm_token')
                 ->where('fcm_token', '!=', '')
                 ->pluck('fcm_token')
                 ->toArray();
+            $tokens = array_unique(array_merge($tokens, $oldTokens));
         } elseif ($request->target_type === 'all_teachers') {
-            $tokens = \App\Models\User::where('role', 'teacher')
+            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
+                    $q->where('role', 'teacher');
+                })
+                ->pluck('fcm_token')
+                ->toArray();
+
+            $oldTokens = \App\Models\User::where('role', 'teacher')
                 ->whereNotNull('fcm_token')
                 ->where('fcm_token', '!=', '')
                 ->pluck('fcm_token')
                 ->toArray();
+            $tokens = array_unique(array_merge($tokens, $oldTokens));
         } elseif ($request->target_type === 'specific_teacher') {
             $teacher = \App\Models\User::find($teacherId);
-            if ($teacher && $teacher->fcm_token) {
-                $tokens[] = $teacher->fcm_token;
+            if ($teacher) {
+                $teacherTokens = \App\Models\UserFcmToken::where('user_id', $teacher->id)->pluck('fcm_token')->toArray();
+                if ($teacher->fcm_token) $teacherTokens[] = $teacher->fcm_token;
+                $tokens = array_unique($teacherTokens);
             }
         } elseif ($request->target_type === 'by_student') {
             $student = \App\Models\Student::with('parentUser')->find($studentId);
-            if ($student && $student->parentUser && $student->parentUser->fcm_token) {
-                $tokens[] = $student->parentUser->fcm_token;
+            if ($student && $student->parentUser) {
+                $parentUser = $student->parentUser;
+                $parentTokens = \App\Models\UserFcmToken::where('user_id', $parentUser->id)->pluck('fcm_token')->toArray();
+                if ($parentUser->fcm_token) $parentTokens[] = $parentUser->fcm_token;
+                $tokens = array_unique($parentTokens);
             }
         } elseif ($request->target_type === 'by_class') {
             $students = \App\Models\Student::with('parentUser')->where('class_id', $classId)->get();
-            $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
-            foreach ($parentUsers as $parentUser) {
-                if ($parentUser->fcm_token) {
-                    $tokens[] = $parentUser->fcm_token;
-                }
-            }
+            $parentIds = $students->pluck('parentUser')->filter()->pluck('id')->unique()->toArray();
+            $tokens = \App\Models\UserFcmToken::whereIn('user_id', $parentIds)->pluck('fcm_token')->toArray();
+            
+            $oldTokens = \App\Models\User::whereIn('id', $parentIds)
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->toArray();
+            $tokens = array_unique(array_merge($tokens, $oldTokens));
         }
 
         // Send FCM push notifications

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { useClasses } from '../contexts/Classes/useClasses';
@@ -12,8 +12,8 @@ export default function TeachersTab() {
     setToastMessage, canAction
   } = useApp();
 
-  const { classes } = useClasses();
-  const { subjects } = useSubjects();
+  const { classes, fetchClasses } = useClasses();
+  const { subjects, fetchSubjects } = useSubjects();
 
   const {
     teachers,
@@ -22,7 +22,14 @@ export default function TeachersTab() {
     handleEditTeacher
   } = useTeachers();
 
+  useEffect(() => {
+    fetchTeachers();
+    fetchClasses();
+    fetchSubjects();
+  }, [fetchTeachers, fetchClasses, fetchSubjects]);
+
   // Local UI states
+  const [isSaving, setIsSaving] = useState(false);
   const [showTeacherModal, setShowTeacherModal] = useState(false);
   const [showEditTeacherModal, setShowEditTeacherModal] = useState(false);
 
@@ -80,18 +87,30 @@ export default function TeachersTab() {
       photo: modalTeacherPhoto || '👨‍🏫'
     };
 
-    handleAddTeacher(newTeacher);
-    setShowTeacherModal(false);
-
-    // Reset fields
-    setModalTeacherName('');
-    setModalTeacherAssignments([]);
-    setModalTeacherPhoto('');
-    setModalTeacherJobId('');
-    setModalTeacherPhone('');
-    setModalTeacherAddress('');
-    setModalTeacherAssignmentSubject('');
-    setModalTeacherAssignmentClass('');
+    setIsSaving(true);
+    handleAddTeacher(newTeacher)
+      .then((res) => {
+        if (res && res.success) {
+          setShowTeacherModal(false);
+          // Reset fields on success only
+          setModalTeacherName('');
+          setModalTeacherAssignments([]);
+          setModalTeacherPhoto('');
+          setModalTeacherJobId('');
+          setModalTeacherPhone('');
+          setModalTeacherAddress('');
+          setModalTeacherAssignmentSubject('');
+          setModalTeacherAssignmentClass('');
+        } else {
+          setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+        }
+      })
+      .catch((err) => {
+        setFormError(err.message || 'Error occurred');
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const onEditSubmit = (e) => {
@@ -133,20 +152,32 @@ export default function TeachersTab() {
       photo: modalTeacherPhoto
     };
 
-    handleEditTeacher(updatedTeacher, selectedTeacherIdForEdit);
-    setShowEditTeacherModal(false);
-
-    // Reset fields
-    setModalTeacherName('');
-    setModalTeacherAssignments([]);
-    setModalTeacherPhoto('');
-    setModalTeacherJobId('');
-    setModalTeacherPhone('');
-    setModalTeacherAddress('');
-    setModalTeacherPhoto('');
-    setModalTeacherAssignmentSubject('');
-    setModalTeacherAssignmentClass('');
-    setSelectedTeacherIdForEdit(null);
+    setIsSaving(true);
+    handleEditTeacher(updatedTeacher, selectedTeacherIdForEdit)
+      .then((res) => {
+        if (res && res.success) {
+          setShowEditTeacherModal(false);
+          // Reset fields on success only
+          setModalTeacherName('');
+          setModalTeacherAssignments([]);
+          setModalTeacherPhoto('');
+          setModalTeacherJobId('');
+          setModalTeacherPhone('');
+          setModalTeacherAddress('');
+          setModalTeacherPhoto('');
+          setModalTeacherAssignmentSubject('');
+          setModalTeacherAssignmentClass('');
+          setSelectedTeacherIdForEdit(null);
+        } else {
+          setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+        }
+      })
+      .catch((err) => {
+        setFormError(err.message || 'Error occurred');
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const addAssignmentRow = () => {
@@ -566,15 +597,17 @@ export default function TeachersTab() {
                   className="btn-elevated"
                   onClick={() => setShowTeacherModal(false)}
                   style={{ height: '48px' }}
+                  disabled={isSaving}
                 >
                   {t.cancel}
                 </button>
                 <button 
                   type="submit" 
                   className="btn-filled"
-                  style={{ height: '48px' }}
+                  style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }}
+                  disabled={isSaving}
                 >
-                  {t.submit}
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
                 </button>
               </footer>
             </form>
@@ -741,8 +774,10 @@ export default function TeachersTab() {
                 </div>
               </div>
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowEditTeacherModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowEditTeacherModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>

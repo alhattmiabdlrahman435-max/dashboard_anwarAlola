@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ClassesContext from './ClassesContext';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../Auth/useAuth';
@@ -11,6 +11,9 @@ export default function ClassesProvider({ children }) {
   // ─── Classes state ────────────────────────────────────────────────
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isStale, setIsStale] = useState(true);
+
+  const fetchRequestRef = useRef(0);
 
   // ─── Available grades & sections configuration ────────────────────
   const [availableGrades, setAvailableGrades] = useState([
@@ -25,20 +28,28 @@ export default function ClassesProvider({ children }) {
     'الصف الأول المتوسط',
     'الصف الثاني المتوسط',
     'الصف الثالث المتوسط',
-    'الصف الأول الثانوي',
-    'الصف الثاني الثانوي',
-    'الصف الثالث الثانوي',
   ]);
 
   const [availableSections, setAvailableSections] = useState([
-    'أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز',
+    'أ',
+    'ب',
+    'ج',
+    'د',
   ]);
 
   // ─── Fetch Classes ────────────────────────────────────────────────
-  const fetchClasses = useCallback(() => {
+  const fetchClasses = useCallback((...args) => {
+    const force = args.find(a => typeof a === 'boolean') || false;
+    if (!force && !isStale && classes.length > 0) {
+      return;
+    }
+    const reqId = ++fetchRequestRef.current;
     setLoading(true);
     classesService.getClasses()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchRequestRef.current) return;
         if (data.success) {
           const mapped = data.classes.map((cls) => {
             const classSubjects = cls.subjects
@@ -56,6 +67,7 @@ export default function ClassesProvider({ children }) {
             };
           });
           setClasses(mapped);
+          setIsStale(false);
 
           // Merge DB sections into availableSections to prevent deletion
           const dbSections = data.classes.map((c) => c.section_ar);
@@ -67,20 +79,25 @@ export default function ClassesProvider({ children }) {
           }
         }
       })
-      .catch((err) => console.error('Error fetching classes:', err))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((err) => {
+        if (reqId === fetchRequestRef.current) {
+          console.error('Error fetching classes:', err);
+        }
+      })
+      .finally(() => {
+        if (reqId === fetchRequestRef.current) {
+          setLoading(false);
+        }
+      });
+  }, [isStale, classes.length]);
 
   // ─── Auto-fetch on auth ───────────────────────────────────────────
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchClasses();
-      }
+    if (!isAuthenticated) {
+      setClasses([]);
+      setIsStale(true);
     }
-  }, [isAuthenticated, fetchClasses]);
+  }, [isAuthenticated]);
 
   // ─── CRUD: Classes ────────────────────────────────────────────────
   const handleAddClass = useCallback((newClass) => {

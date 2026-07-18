@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useNotifications } from '../contexts/Notifications/useNotifications';
@@ -17,7 +17,7 @@ export default function CommunicationsTab() {
     canAction
   } = useApp();
 
-  const { availableGrades } = useClasses();
+  const { availableGrades, fetchClasses } = useClasses();
 
   const {
     notifications,
@@ -27,8 +27,14 @@ export default function CommunicationsTab() {
     handleDeleteAllNotifications,
   } = useNotifications();
 
-  const { students } = useStudents();
-  const { teachers } = useTeachers();
+  const { students, fetchStudents } = useStudents();
+  const { teachers, fetchTeachers } = useTeachers();
+
+  useEffect(() => {
+    fetchClasses();
+    fetchStudents();
+    fetchTeachers();
+  }, [fetchClasses, fetchStudents, fetchTeachers]);
 
 
   // Local UI states

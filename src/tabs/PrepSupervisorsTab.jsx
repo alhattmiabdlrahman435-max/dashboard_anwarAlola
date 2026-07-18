@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { useClasses } from '../contexts/Classes/useClasses';
@@ -14,12 +14,19 @@ export default function PrepSupervisorsTab() {
     supervisors,
     handleAddSupervisor,
     handleEditSupervisor,
-    handleDeleteSupervisor
+    handleDeleteSupervisor,
+    fetchSupervisors,
   } = useTeachers();
 
-  const { classes } = useClasses();
+  const { classes, fetchClasses } = useClasses();
+
+  useEffect(() => {
+    fetchSupervisors();
+    fetchClasses();
+  }, [fetchSupervisors, fetchClasses]);
 
   // Local UI states
+  const [isSaving, setIsSaving] = useState(false);
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
   const [showEditSupervisorModal, setShowEditSupervisorModal] = useState(false);
 
@@ -61,16 +68,28 @@ export default function PrepSupervisorsTab() {
       phone: modalPhone.trim()
     };
 
-    handleAddSupervisor(newSupervisor);
-    setShowSupervisorModal(false);
-
-    // Reset fields
-    setModalName('');
-    setModalJobId('');
-    setModalPhone('');
-    setModalPhoto('');
-    setModalClasses([]);
-    setModalSelectedClass('');
+    setIsSaving(true);
+    handleAddSupervisor(newSupervisor)
+      .then((res) => {
+        if (res && res.success) {
+          setShowSupervisorModal(false);
+          // Reset fields on success only
+          setModalName('');
+          setModalJobId('');
+          setModalPhone('');
+          setModalPhoto('');
+          setModalClasses([]);
+          setModalSelectedClass('');
+        } else {
+          setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+        }
+      })
+      .catch((err) => {
+        setFormError(err.message || 'Error occurred');
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const onEditSubmit = (e) => {
@@ -100,17 +119,29 @@ export default function PrepSupervisorsTab() {
       phone: modalPhone.trim()
     };
 
-    handleEditSupervisor(updatedSupervisor, selectedSupervisorIdForEdit);
-    setShowEditSupervisorModal(false);
-
-    // Reset fields
-    setModalName('');
-    setModalJobId('');
-    setModalPhone('');
-    setModalPhoto('');
-    setModalClasses([]);
-    setModalSelectedClass('');
-    setSelectedSupervisorIdForEdit(null);
+    setIsSaving(true);
+    handleEditSupervisor(updatedSupervisor, selectedSupervisorIdForEdit)
+      .then((res) => {
+        if (res && res.success) {
+          setShowEditSupervisorModal(false);
+          // Reset fields on success only
+          setModalName('');
+          setModalJobId('');
+          setModalPhone('');
+          setModalPhoto('');
+          setModalClasses([]);
+          setModalSelectedClass('');
+          setSelectedSupervisorIdForEdit(null);
+        } else {
+          setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+        }
+      })
+      .catch((err) => {
+        setFormError(err.message || 'Error occurred');
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const addClassRow = () => {
@@ -412,8 +443,10 @@ export default function PrepSupervisorsTab() {
               </div>
 
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowSupervisorModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowSupervisorModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>
@@ -590,8 +623,10 @@ export default function PrepSupervisorsTab() {
               </div>
 
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowEditSupervisorModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowEditSupervisorModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>

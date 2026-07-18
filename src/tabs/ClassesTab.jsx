@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { useStudents } from '../contexts/Students/useStudents';
@@ -17,20 +17,29 @@ export default function ClassesTab() {
     canAction,
   } = useApp();
 
-  const { subjects } = useSubjects();
+  const { subjects, fetchSubjects } = useSubjects();
 
   const {
     classes,
     setClasses,
     availableGrades,
     availableSections,
+    fetchClasses,
   } = useClasses();
 
   const { teachers, fetchTeachers } = useTeachers();
-  const { students } = useStudents();
+  const { students, fetchStudents } = useStudents();
+
+  useEffect(() => {
+    fetchClasses();
+    fetchTeachers();
+    fetchStudents();
+    fetchSubjects();
+  }, [fetchClasses, fetchTeachers, fetchStudents, fetchSubjects]);
 
 
   // Local state for searching & modals
+  const [isSaving, setIsSaving] = useState(false);
   const [classSearchQuery, setClassSearchQuery] = useState('');
   const [formError, setFormError] = useState('');
   
@@ -67,6 +76,7 @@ export default function ClassesTab() {
     }
 
     const token = localStorage.getItem("auth_token");
+    setIsSaving(true);
     if (token) {
       classesService.createClass({
         grade_ar: modalClassGrade,
@@ -77,7 +87,7 @@ export default function ClassesTab() {
       .then(data => {
         if (data.success) {
           // Sync subjects with database
-          classesService.syncSubjects(data.class.id, modalClassSubjects)
+          return classesService.syncSubjects(data.class.id, modalClassSubjects)
           .then(() => {
             const addedClass = {
               id: `cls-${data.class.id}`,
@@ -117,6 +127,9 @@ export default function ClassesTab() {
       .catch(err => {
         console.error("Error creating class:", err);
         setFormError(lang === 'ar' ? 'حدث خطأ أثناء حفظ الفصل.' : 'Error saving class.');
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
     } else {
       const newClass = {
@@ -133,6 +146,7 @@ export default function ClassesTab() {
       setShowClassModal(false);
       setToastMessage(lang === 'ar' ? 'تمت إضافة الفصل الدراسي بنجاح!' : 'Class created successfully!');
       setTimeout(() => setToastMessage(''), 3000);
+      setIsSaving(false);
     }
   };
 
@@ -149,6 +163,7 @@ export default function ClassesTab() {
     }
 
     const token = localStorage.getItem("auth_token");
+    setIsSaving(true);
     if (token) {
       const numericId = Number(String(selectedClassIdForEdit).replace("cls-", ""));
       classesService.updateClass(numericId, {
@@ -159,7 +174,7 @@ export default function ClassesTab() {
       })
       .then(data => {
         if (data.success) {
-          classesService.syncSubjects(numericId, modalClassSubjects)
+          return classesService.syncSubjects(numericId, modalClassSubjects)
           .then(() => {
             setClasses(prev => prev.map(c => {
               if (c.id === selectedClassIdForEdit) {
@@ -207,6 +222,9 @@ export default function ClassesTab() {
       .catch(err => {
         console.error("Error updating class:", err);
         setFormError(lang === 'ar' ? 'حدث خطأ أثناء تحديث بيانات الفصل.' : 'Error updating class details.');
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
     } else {
       setClasses(prev => prev.map(c => {
@@ -227,6 +245,7 @@ export default function ClassesTab() {
       setShowEditClassModal(false);
       setToastMessage(lang === 'ar' ? 'تم تحديث بيانات الفصل بنجاح!' : 'Class details updated successfully!');
       setTimeout(() => setToastMessage(''), 3000);
+      setIsSaving(false);
     }
   };
 
@@ -538,8 +557,10 @@ export default function ClassesTab() {
                 </div>
               </div>
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowClassModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowClassModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>
@@ -647,8 +668,10 @@ export default function ClassesTab() {
                 </div>
               </div>
               <footer className="modal-footer">
-                <button type="button" className="btn-elevated" onClick={() => setShowEditClassModal(false)} style={{ height: '48px' }}>{t.cancel}</button>
-                <button type="submit" className="btn-filled" style={{ height: '48px' }}>{t.submit}</button>
+                <button type="button" className="btn-elevated" onClick={() => setShowEditClassModal(false)} style={{ height: '48px' }} disabled={isSaving}>{t.cancel}</button>
+                <button type="submit" className="btn-filled" style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                </button>
               </footer>
             </form>
           </div>

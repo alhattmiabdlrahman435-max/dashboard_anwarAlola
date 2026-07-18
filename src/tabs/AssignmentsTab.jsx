@@ -19,14 +19,23 @@ export default function AssignmentsTab() {
     handleDeleteAssignment,
     handleDeleteAllAssignments,
     triggerConfirm,
-    canAction
+    canAction,
+    fetchAssignments,
   } = useApp();
 
-  const { classes, availableGrades, availableSections } = useClasses();
-  const { subjects } = useSubjects();
-  const { teachers, setTeachers } = useTeachers();
-  const { students } = useStudents();
+  const { classes, availableGrades, availableSections, fetchClasses } = useClasses();
+  const { subjects, fetchSubjects } = useSubjects();
+  const { teachers, setTeachers, fetchTeachers } = useTeachers();
+  const { students, fetchStudents } = useStudents();
   const { setSmsLogs } = useNotifications();
+
+  useEffect(() => {
+    fetchAssignments();
+    fetchClasses();
+    fetchSubjects();
+    fetchTeachers();
+    fetchStudents();
+  }, [fetchAssignments, fetchClasses, fetchSubjects, fetchTeachers, fetchStudents]);
 
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);

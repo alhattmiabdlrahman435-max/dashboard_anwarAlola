@@ -1,11 +1,19 @@
+import { useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useAttendance } from '../contexts/Attendance/useAttendance';
 
 export default function ReportsTab() {
-  const { lang, t, grades, assignments } = useApp();
-  const { attendanceRecords } = useAttendance();
-  const { students } = useStudents();
+  const { lang, t, grades, assignments, fetchControlGrades, fetchAssignments } = useApp();
+  const { attendanceRecords, fetchAttendance } = useAttendance();
+  const { students, fetchStudents } = useStudents();
+
+  useEffect(() => {
+    fetchControlGrades();
+    fetchAssignments();
+    fetchAttendance();
+    fetchStudents();
+  }, [fetchControlGrades, fetchAssignments, fetchAttendance, fetchStudents]);
 
   // 1. Attendance Rates
   const totalStudents = students.length;

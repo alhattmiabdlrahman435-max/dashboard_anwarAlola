@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { NotificationsContext } from './NotificationsContext';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../Auth/useAuth';
@@ -13,12 +13,18 @@ export default function NotificationsProvider({ children }) {
   const [smsLogs, setSmsLogs] = useState([]);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
 
+  const fetchRequestRef = useRef(0);
+
   const fetchNotifications = useCallback((token) => {
     const activeToken = token || localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    const reqId = ++fetchRequestRef.current;
     notificationsService.getNotifications()
       .then((data) => {
+        // Guard: ignore response if user has logged out
+        if (!localStorage.getItem('auth_token')) return;
+        if (reqId !== fetchRequestRef.current) return;
         if (data.success) {
           const mapped = data.notifications.map((notif) => {
             let type = "parents";
@@ -57,7 +63,11 @@ export default function NotificationsProvider({ children }) {
           setNotifications(mapped);
         }
       })
-      .catch((err) => console.error("Error fetching notifications:", err));
+      .catch((err) => {
+        if (reqId === fetchRequestRef.current) {
+          console.error("Error fetching notifications:", err);
+        }
+      });
   }, []);
 
   const handleSendNotification = useCallback((newNotification, extraLogs = []) => {
@@ -184,6 +194,9 @@ export default function NotificationsProvider({ children }) {
     if (isAuthenticated) {
       const token = localStorage.getItem("auth_token");
       fetchNotifications(token);
+    } else {
+      setNotifications([]);
+      setSmsLogs([]);
     }
   }, [isAuthenticated, fetchNotifications]);
 

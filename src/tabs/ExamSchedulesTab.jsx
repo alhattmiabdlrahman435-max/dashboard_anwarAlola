@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useSettings } from '../contexts/Settings/useSettings';
+import { useStudents } from '../contexts/Students/useStudents';
 import { X } from 'lucide-react';
 
 export default function ExamSchedulesTab() {
@@ -17,11 +18,20 @@ export default function ExamSchedulesTab() {
     handlePublishExamSchedule: publishExamSchedule,
     handleUpdateExamSchedule,
     handleDeleteExamSchedule,
+    fetchExamSchedules,
   } = useSettings();
 
-  const { classes } = useClasses();
+  const { classes, fetchClasses } = useClasses();
+  const { students, fetchStudents } = useStudents();
+
+  useEffect(() => {
+    fetchExamSchedules();
+    fetchClasses();
+    fetchStudents();
+  }, [fetchExamSchedules, fetchClasses, fetchStudents]);
 
   // Modal visibility & Edit State
+  const [isSaving, setIsSaving] = useState(false);
   const [showExamScheduleModal, setShowExamScheduleModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingScheduleId, setEditingScheduleId] = useState(null);
@@ -94,16 +104,27 @@ export default function ExamSchedulesTab() {
       subjects: modalExamSubjects
     };
 
-    if (isEditing) {
-      handleUpdateExamSchedule(editingScheduleId, scheduleData);
-    } else {
-      publishExamSchedule(scheduleData);
-    }
-    
-    setModalExamSubjects([]);
-    setShowExamScheduleModal(false);
-    setIsEditing(false);
-    setEditingScheduleId(null);
+    setIsSaving(true);
+    const actionPromise = isEditing
+      ? handleUpdateExamSchedule(editingScheduleId, scheduleData)
+      : publishExamSchedule(scheduleData, students);
+
+    actionPromise
+      .then((res) => {
+        if (res && res.success) {
+          setModalExamSubjects([]);
+          setShowExamScheduleModal(false);
+          setIsEditing(false);
+          setEditingScheduleId(null);
+        }
+      })
+      .catch((err) => {
+        setToastMessage(err.message || 'Error occurred');
+        setTimeout(() => setToastMessage(''), 3000);
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   return (
@@ -388,6 +409,7 @@ export default function ExamSchedulesTab() {
                   setShowExamScheduleModal(false);
                   setModalExamSubjects([]);
                 }}
+                disabled={isSaving}
               >
                 {t.cancel}
               </button>
@@ -395,8 +417,10 @@ export default function ExamSchedulesTab() {
                 type="button" 
                 className="btn-filled"
                 onClick={handlePublishExamSchedule}
+                disabled={isSaving}
+                style={{ opacity: isSaving ? 0.7 : 1 }}
               >
-                📢 {isEditing ? (lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes') : (lang === 'ar' ? 'نشر الجدول نهائياً' : 'Publish Timetable')}
+                {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (isEditing ? (lang === 'ar' ? '💾 حفظ التغييرات' : '💾 Save Changes') : (lang === 'ar' ? '📢 نشر الجدول نهائياً' : '📢 Publish Timetable'))}
               </button>
             </footer>
           </div>

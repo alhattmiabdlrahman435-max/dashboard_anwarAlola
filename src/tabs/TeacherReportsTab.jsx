@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useReports } from '../contexts/Reports/useReports';
 import { 
@@ -24,6 +24,10 @@ const STATUS_LABELS = {
 export default function TeacherReportsTab() {
   const { lang, t, triggerConfirm, canAction } = useApp();
   const { teacherReports, handleUpdateReportStatus, fetchTeacherReports, handleDeleteTeacherReport, handleDeleteAllTeacherReports } = useReports();
+
+  useEffect(() => {
+    fetchTeacherReports();
+  }, [fetchTeacherReports]);
   const onDeleteReportClick = (e, reportId) => {
     e.stopPropagation();
     triggerConfirm({
