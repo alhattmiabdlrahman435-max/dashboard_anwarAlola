@@ -51,3 +51,8 @@ app/anwaralola-firebase-adminsdk-fbsvc-*.json
 graphify-out/
 .graphifyignore
 check_db.php
+
+# Clockwork
+/storage/clockwork/
+clockwork.json
+/config/clockwork.php
