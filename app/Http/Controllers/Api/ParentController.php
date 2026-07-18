@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 use App\Services\PermissionService;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
 class ParentController extends Controller implements HasMiddleware
 {
@@ -29,7 +31,7 @@ class ParentController extends Controller implements HasMiddleware
 
         $query = User::parents();
         if ($scopedClassIds !== null) {
-            $query->whereHas('students', function($q) use ($scopedClassIds) {
+            $query->whereHas('children', function($q) use ($scopedClassIds) {
                 $q->whereIn('class_id', $scopedClassIds);
             });
         }

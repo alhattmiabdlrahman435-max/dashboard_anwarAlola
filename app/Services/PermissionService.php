@@ -41,6 +41,19 @@ class PermissionService
             }
         }
 
+        // Preparation Supervisors permissions
+        if ($user->role === 'preparation_supervisor') {
+            if ($module === 'absenceRequests' && in_array($action, ['view', 'approve', 'reject'])) {
+                return true;
+            }
+            if ($module === 'scanner' && in_array($action, ['view', 'create'])) {
+                return true;
+            }
+            if ($action === 'view') {
+                return true;
+            }
+        }
+
         // Only supervisors can have custom permissions
         if ($user->role !== 'supervisor') {
             return false;

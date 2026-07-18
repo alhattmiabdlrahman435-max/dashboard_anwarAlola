@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -30,7 +31,7 @@ class AssignmentController extends Controller implements HasMiddleware
         if ($user && $user->role === 'teacher') {
             $query->where('teacher_id', $user->id);
         } elseif ($user && $user->role === 'parent') {
-            $classIds = \App\Models\Student::where('parent_id', $user->id)->pluck('class_id')->filter()->unique();
+            $classIds = Student::where('parent_id', $user->id)->pluck('class_id')->filter()->unique();
             $query->whereIn('class_id', $classIds);
         } else {
             $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
@@ -40,6 +41,7 @@ class AssignmentController extends Controller implements HasMiddleware
         }
         
         $assignments = $query->orderBy('created_at', 'desc')->get();
+        $this->ensureSubmissionsExist($assignments);
         
         return response()->json([
             'success' => true,
@@ -135,7 +137,35 @@ class AssignmentController extends Controller implements HasMiddleware
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
         }
+        $this->ensureSubmissionsExist(collect([$assignment]));
         return response()->json(['success' => true, 'assignment' => $assignment]);
+    }
+
+    /**
+     * Ensure that all students in the class have a submission record for the assignment.
+     */
+    private function ensureSubmissionsExist($assignments)
+    {
+        $needsReload = false;
+        foreach ($assignments as $assignment) {
+            $studentIds = Student::where('class_id', $assignment->class_id)->pluck('id')->toArray();
+            $existingStudentIds = $assignment->submissions->pluck('student_id')->toArray();
+            $missingStudentIds = array_diff($studentIds, $existingStudentIds);
+
+            if (!empty($missingStudentIds)) {
+                foreach ($missingStudentIds as $studentId) {
+                    AssignmentSubmission::create([
+                        'assignment_id' => $assignment->id,
+                        'student_id' => $studentId,
+                        'status' => 'pending',
+                    ]);
+                }
+                $needsReload = true;
+            }
+        }
+        if ($needsReload) {
+            $assignments->load('submissions.student');
+        }
     }
 
     public function update(Request $request, string $id)
