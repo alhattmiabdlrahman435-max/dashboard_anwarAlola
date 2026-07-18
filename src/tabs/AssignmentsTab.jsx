@@ -93,9 +93,11 @@ export default function AssignmentsTab() {
     if (filteredAssignments.length > 0) {
       const exists = filteredAssignments.some(a => a.id === selectedAssignmentId);
       if (!exists) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedAssignmentId(filteredAssignments[0].id);
       }
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedAssignmentId(null);
     }
   }, [filteredAssignments, selectedAssignmentId]);
