@@ -45,6 +45,18 @@ export default function TeachersTab() {
   const [modalTeacherAssignmentClass, setModalTeacherAssignmentClass] = useState('');
   const [formError, setFormError] = useState('');
 
+  // Excel Modal States for Teachers
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [excelModalTab, setExcelModalTab] = useState('import'); // 'import' | 'export'
+  const [importFile, setImportFile] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importStatus, setImportStatus] = useState('');
+  const [importErrors, setImportErrors] = useState([]);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
+
   const onAddSubmit = (e) => {
     e.preventDefault();
     setFormError('');
@@ -209,9 +221,11 @@ export default function TeachersTab() {
 
   const handleExport = async () => {
     try {
+      setIsExporting(true);
       const res = await teachersService.exportTeachers();
       if (!res.ok) {
         alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
+        setIsExporting(false);
         return;
       }
       const blob = await res.blob();
@@ -224,42 +238,92 @@ export default function TeachersTab() {
       a.remove();
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  const handleImport = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const data = await teachersService.importTeachers(formData);
-      if (data.success) {
-        setToastMessage(data.message);
-        fetchTeachers(localStorage.getItem('auth_token'));
-      } else {
-        alert(data.message || (lang === 'ar' ? 'حدث خطأ أثناء الاستيراد' : 'Error importing'));
-      }
-    } catch (err) {
-      console.error(err);
+      alert(lang === 'ar' ? 'حدث خطأ أثناء التصدير' : 'Error exporting');
+    } finally {
+      setIsExporting(false);
     }
   };
 
   const handleDownloadTemplate = async () => {
     try {
+      setIsLoadingTemplate(true);
       const res = await teachersService.downloadTemplate();
+      if (!res.ok) {
+        alert(lang === 'ar' ? 'فشل تحميل النموذج' : 'Failed to download template');
+        setIsLoadingTemplate(false);
+        return;
+      }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'teachers_template.csv';
+      a.download = 'teachers_template.xlsx';
       document.body.appendChild(a);
       a.click();
       a.remove();
     } catch (err) {
       console.error(err);
+      alert(lang === 'ar' ? 'حدث خطأ أثناء تحميل النموذج' : 'Error downloading template');
+    } finally {
+      setIsLoadingTemplate(false);
+    }
+  };
+
+  const handleImportExcel = async (e) => {
+    if (e) e.preventDefault();
+    if (!importFile) {
+      alert(lang === 'ar' ? 'يرجى اختيار ملف أولاً' : 'Please select a file first');
+      return;
+    }
+
+    setIsImporting(true);
+    setImportProgress(10);
+    setImportStatus(lang === 'ar' ? 'جاري رفع الملف...' : 'Uploading file...');
+    setImportErrors([]);
+    setImportSuccess(false);
+
+    const formData = new FormData();
+    formData.append('file', importFile);
+
+    // Mock progress animation
+    const interval = setInterval(() => {
+      setImportProgress(prev => {
+        if (prev >= 85) {
+          clearInterval(interval);
+          return 85;
+        }
+        return prev + 15;
+      });
+    }, 150);
+
+    try {
+      const data = await teachersService.importTeachers(formData);
+      clearInterval(interval);
+      setImportProgress(100);
+      if (data.success) {
+        setImportSuccess(true);
+        setImportStatus(data.message);
+        if (data.errors && data.errors.length > 0) {
+          setImportErrors(data.errors);
+        }
+        setToastMessage(data.message);
+        fetchTeachers(localStorage.getItem('auth_token'), true);
+      } else {
+        setImportStatus(lang === 'ar' ? 'فشل استيراد البيانات' : 'Import failed');
+        if (data.errors && data.errors.length > 0) {
+          setImportErrors(data.errors);
+        } else {
+          setImportErrors([data.message || (lang === 'ar' ? 'فشل استيراد البيانات' : 'Import failed')]);
+        }
+      }
+    } catch (err) {
+      clearInterval(interval);
+      setImportProgress(100);
+      setImportStatus(lang === 'ar' ? 'حدث خطأ أثناء الاتصال بالخادم' : 'Error communicating with server');
+      setImportErrors([err.message || 'Error']);
+      console.error(err);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -270,24 +334,29 @@ export default function TeachersTab() {
           {t.teachersTitle}
         </h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {canAction('teachers', 'export') && (
-            <button className="btn-secondary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Download size={16} />
-              {lang === 'ar' ? 'تصدير' : 'Export'}
+          {(canAction('teachers', 'export') || canAction('teachers', 'import')) && (
+            <button 
+              className="btn-elevated" 
+              onClick={() => {
+                setImportFile(null);
+                setImportProgress(0);
+                setImportStatus('');
+                setImportErrors([]);
+                setImportSuccess(false);
+                setShowExcelModal(true);
+              }} 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                backgroundColor: 'rgba(49, 133, 156, 0.08)', 
+                borderColor: 'rgba(49, 133, 156, 0.25)', 
+                color: '#31859C' 
+              }}
+            >
+              <Upload size={16} />
+              {lang === 'ar' ? 'الاستيراد والتصدير (Excel)' : 'Excel Import & Export'}
             </button>
-          )}
-          {canAction('teachers', 'import') && (
-            <>
-              <button className="btn-secondary" onClick={handleDownloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}>
-                <FileSpreadsheet size={16} />
-                {lang === 'ar' ? 'النموذج' : 'Template'}
-              </button>
-              <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0 }}>
-                <Upload size={16} />
-                {lang === 'ar' ? 'استيراد' : 'Import'}
-                <input type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} />
-              </label>
-            </>
           )}
           {canAction('teachers', 'create') && (
             <button 
@@ -780,6 +849,272 @@ export default function TeachersTab() {
                 </button>
               </footer>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showExcelModal && (
+        <div className="modal-overlay no-print">
+          <div className="modal-container" style={{ maxWidth: '580px', width: '90%' }}>
+            <header className="modal-header" style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#31859C' }}>
+                <Upload size={22} />
+                {lang === 'ar' ? 'الاستيراد والتصدير الذكي (Excel)' : 'Smart Import & Export (Excel)'}
+              </h3>
+              <button 
+                className="modal-close-btn" 
+                onClick={() => setShowExcelModal(false)}
+                aria-label="Close Modal"
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </header>
+
+            {/* Custom Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', backgroundColor: 'rgba(0,0,0,0.02)' }}>
+              <button
+                type="button"
+                onClick={() => setExcelModalTab('import')}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  borderBottom: excelModalTab === 'import' ? '3px solid #31859C' : '3px solid transparent',
+                  color: excelModalTab === 'import' ? '#31859C' : 'var(--color-text-secondary)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {lang === 'ar' ? '📥 استيراد المعلمين' : '📥 Import Teachers'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setExcelModalTab('export')}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  borderBottom: excelModalTab === 'export' ? '3px solid #31859C' : '3px solid transparent',
+                  color: excelModalTab === 'export' ? '#31859C' : 'var(--color-text-secondary)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {lang === 'ar' ? '📤 التصدير والنموذج' : '📤 Export & Template'}
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '24px' }}>
+              {excelModalTab === 'import' ? (
+                <form onSubmit={handleImportExcel} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Drag-n-drop file container */}
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: '600' }}>
+                      {lang === 'ar' ? 'ملف Excel أو CSV المراد استيراده (.xlsx, .csv)' : 'Excel or CSV File to Import (.xlsx, .csv)'}
+                    </label>
+                    <div 
+                      style={{
+                        border: '2px dashed rgba(49, 133, 156, 0.3)',
+                        borderRadius: '16px',
+                        padding: '30px 20px',
+                        textAlign: 'center',
+                        backgroundColor: importFile ? 'rgba(49, 133, 156, 0.02)' : 'rgba(0,0,0,0.01)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        position: 'relative'
+                      }}
+                      onClick={() => document.getElementById('excel-file-uploader').click()}
+                      onDragOver={(e) => { e.preventDefault(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files[0];
+                        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+                          setImportFile(file);
+                        } else {
+                          alert(lang === 'ar' ? 'يرجى اختيار ملف Excel أو CSV صالح.' : 'Please choose a valid Excel or CSV file.');
+                        }
+                      }}
+                    >
+                      <input 
+                        type="file" 
+                        id="excel-file-uploader" 
+                        accept=".xlsx, .xls, .csv"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) setImportFile(file);
+                        }}
+                      />
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                        <Upload size={32} style={{ color: '#31859C', opacity: 0.8 }} />
+                        {importFile ? (
+                          <div>
+                            <div style={{ fontWeight: 'bold', color: 'var(--color-text)', fontSize: '14px' }}>{importFile.name}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                              {(importFile.size / 1024).toFixed(1)} KB
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                              {lang === 'ar' ? 'اسحب وأفلت الملف هنا أو انقر للتصفح' : 'Drag & drop file here or click to browse'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                              {lang === 'ar' ? 'صيغة الملف المدعومة: Excel (.xlsx) أو CSV' : 'Supported extension: Excel (.xlsx) or CSV'}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress & Feedback State */}
+                  {(isImporting || importProgress > 0) && (
+                    <div style={{ padding: '16px', background: 'rgba(0,0,0,0.02)', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#31859C' }}>
+                          {importStatus}
+                        </span>
+                        <span style={{ fontSize: '13px', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
+                          {importProgress}%
+                        </span>
+                      </div>
+                      
+                      {/* Progress Bar Container */}
+                      <div style={{ width: '100%', height: '8px', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div 
+                          style={{ 
+                            width: `${importProgress}%`, 
+                            height: '100%', 
+                            backgroundColor: importSuccess ? '#10b981' : '#31859C', 
+                            borderRadius: '999px', 
+                            transition: 'width 0.2s ease-out' 
+                          }} 
+                        />
+                      </div>
+
+                      {/* Warnings / Error list */}
+                      {importErrors.length > 0 && (
+                        <div style={{ marginTop: '14px', borderTop: '1px dashed var(--color-border)', paddingTop: '12px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
+                            <span>⚠️ {lang === 'ar' ? 'تنبيهات وتفاصيل الأخطاء:' : 'Warnings & Error Details:'}</span>
+                          </div>
+                          <ul style={{ 
+                            maxHeight: '120px', 
+                            overflowY: 'auto', 
+                            paddingInlineStart: '16px', 
+                            margin: 0, 
+                            fontSize: '12px', 
+                            color: 'var(--color-text-secondary)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px'
+                          }}>
+                            {importErrors.map((err, i) => (
+                              <li key={i} style={{ direction: 'rtl', textAlign: 'right' }}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                    <button
+                      type="button"
+                      className="btn-elevated"
+                      onClick={() => setShowExcelModal(false)}
+                      disabled={isImporting}
+                      style={{ height: '44px', padding: '0 18px' }}
+                    >
+                      {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-filled"
+                      disabled={isImporting || !importFile}
+                      style={{ height: '44px', padding: '0 24px', backgroundColor: '#31859C', borderColor: '#31859C', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      {isImporting ? (
+                        <>
+                          {lang === 'ar' ? 'جاري الاستيراد...' : 'Importing...'}
+                        </>
+                      ) : (
+                        lang === 'ar' ? 'بدء الاستيراد' : 'Start Import'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  {/* Download Template Box */}
+                  <div style={{ padding: '20px', border: '1px solid var(--color-border)', borderRadius: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: 'var(--color-text)' }}>
+                      {lang === 'ar' ? '1. تحميل نموذج Excel فارغ' : '1. Download Empty Excel Template'}
+                    </h4>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '0 0 16px 0' }}>
+                      {lang === 'ar' ? 'قم بتحميل القالب لتعبئة بيانات المعلمين مع حقل الرقم الوطني الاختياري.' : 'Download template to fill in teachers\' data with optional national ID.'}
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-accent"
+                      onClick={handleDownloadTemplate}
+                      disabled={isLoadingTemplate}
+                      style={{ height: '42px', padding: '0 20px', backgroundColor: '#31859C', borderColor: '#31859C' }}
+                    >
+                      {isLoadingTemplate ? (
+                        lang === 'ar' ? 'جاري التحميل...' : 'Downloading...'
+                      ) : (
+                        lang === 'ar' ? 'تحميل القالب (.xlsx)' : 'Download Template (.xlsx)'
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Export Teachers Box */}
+                  <div style={{ padding: '20px', border: '1px solid var(--color-border)', borderRadius: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: 'var(--color-text)' }}>
+                      {lang === 'ar' ? '2. تصدير بيانات المعلمين الحالية' : '2. Export Current Teachers Data'}
+                    </h4>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '0 0 16px 0' }}>
+                      {lang === 'ar' ? 'تصدير كافة المعلمين المسجلين في النظام بصيغة CSV تدعم اللغة العربية.' : 'Export all registered teachers into an Arabic-friendly CSV file.'}
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-filled"
+                      onClick={handleExport}
+                      disabled={isExporting}
+                      style={{ height: '42px', padding: '0 20px', backgroundColor: '#31859C', borderColor: '#31859C' }}
+                    >
+                      {isExporting ? (
+                        lang === 'ar' ? 'جاري التصدير...' : 'Exporting...'
+                      ) : (
+                        lang === 'ar' ? 'تصدير البيانات' : 'Export Data'
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Close Footer button */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                    <button
+                      type="button"
+                      className="btn-elevated"
+                      onClick={() => setShowExcelModal(false)}
+                      style={{ height: '44px', padding: '0 18px' }}
+                    >
+                      {lang === 'ar' ? 'إغلاق' : 'Close'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
