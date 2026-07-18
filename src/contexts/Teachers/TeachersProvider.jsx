@@ -94,6 +94,7 @@ export default function TeachersProvider({ children }) {
     if (isAuthenticated) {
       const token = localStorage.getItem("auth_token");
       if (token) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchTeachers(token);
         fetchSupervisors();
       }

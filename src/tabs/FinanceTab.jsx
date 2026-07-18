@@ -118,7 +118,6 @@ export default function FinanceTab() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedFinanceStudentId(filteredStudents[0].id);
     } else if (filteredStudents.length === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedFinanceStudentId(null);
     }
   }, [filteredStudents, selectedFinanceStudentId, setSelectedFinanceStudentId]);
@@ -130,7 +129,6 @@ export default function FinanceTab() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setModalPaymentDate(today);
       const randomId = Math.floor(100000 + Math.random() * 900000);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModalPaymentRef(`PAY-${randomId}`);
     }
   }, [showPaymentModal]);

@@ -97,7 +97,6 @@ export default function AssignmentsTab() {
         setSelectedAssignmentId(filteredAssignments[0].id);
       }
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedAssignmentId(null);
     }
   }, [filteredAssignments, selectedAssignmentId]);
