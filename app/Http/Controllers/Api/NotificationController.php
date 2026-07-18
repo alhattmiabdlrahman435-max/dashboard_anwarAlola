@@ -6,12 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class NotificationController extends Controller
+class NotificationController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:communications,view', only: ['index', 'markAllRead']),
+            new Middleware('check.permission:communications,create', only: ['send']),
+            new Middleware('check.permission:communications,delete', only: ['destroy', 'deleteAll']),
+        ];
+    }
+
     public function index(Request $request)
     {
-        $user = auth()->user();
+        $user = $request->user();
         $query = Notification::orderBy('created_at', 'desc');
 
         if ($user->role === 'parent') {
@@ -42,6 +54,21 @@ class NotificationController extends Controller
             // - notifications with teacher_id set are private feedback for that teacher only.
             $query->whereNotIn('type', ['alert', 'attendance', 'excuse_status'])
                   ->whereNull('teacher_id');
+
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'communications');
+            if ($scopedClassIds !== null) {
+                $query->where(function($q) use ($scopedClassIds) {
+                    $q->whereIn('class_id', $scopedClassIds)
+                      ->orWhereHas('student', function($sq) use ($scopedClassIds) {
+                          $sq->whereIn('class_id', $scopedClassIds);
+                      })
+                      ->orWhere(function($subQ) {
+                          $subQ->whereNull('student_id')
+                               ->whereNull('class_id')
+                               ->whereNull('teacher_id');
+                      });
+                });
+            }
         }
 
         $notifications = $query->get()->map(function($notif) use ($request) {
@@ -93,6 +120,23 @@ class NotificationController extends Controller
             'target_type' => 'required|string|in:all_parents,by_class,by_student,all_teachers,specific_teacher',
             'target_id' => 'nullable|integer',
         ]);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'communications');
+        if ($scopedClassIds !== null) {
+            if ($request->target_type === 'by_class' && !in_array($request->target_id, $scopedClassIds)) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بنشر إشعار لهذا الصف الدراسي.'], 403);
+            }
+            if ($request->target_type === 'by_student') {
+                $student = Student::find($request->target_id);
+                if ($student && !in_array($student->class_id, $scopedClassIds)) {
+                    return response()->json(['success' => false, 'message' => 'غير مصرح لك بنشر إشعار لهذا الطالب.'], 403);
+                }
+            }
+            if (in_array($request->target_type, ['all_parents', 'all_teachers', 'specific_teacher'])) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بنشر إشعارات عامة لجميع المعلمين أو أولياء الأمور.'], 403);
+            }
+        }
 
         $studentId = null;
         $classId = null;
@@ -226,9 +270,27 @@ class NotificationController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $notif = Notification::findOrFail($id);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'communications');
+        if ($scopedClassIds !== null) {
+            if ($notif->class_id && !in_array($notif->class_id, $scopedClassIds)) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بحذف هذا الإشعار.'], 403);
+            }
+            if ($notif->student_id) {
+                $student = Student::find($notif->student_id);
+                if ($student && !in_array($student->class_id, $scopedClassIds)) {
+                    return response()->json(['success' => false, 'message' => 'غير مصرح لك بحذف هذا الإشعار.'], 403);
+                }
+            }
+            if (!$notif->class_id && !$notif->student_id) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بحذف الإشعارات العامة.'], 403);
+            }
+        }
+
         $notif->delete();
         return response()->json([
             'success' => true,

@@ -11,8 +11,20 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 
-class PrepSupervisorController extends Controller
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class PrepSupervisorController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:prepSupervisors,view', only: ['index']),
+            new Middleware('check.permission:prepSupervisors,create', only: ['store']),
+            new Middleware('check.permission:prepSupervisors,update', only: ['update']),
+            new Middleware('check.permission:prepSupervisors,delete', only: ['destroy']),
+        ];
+    }
     public function index()
     {
         $supervisors = User::preparationSupervisors()

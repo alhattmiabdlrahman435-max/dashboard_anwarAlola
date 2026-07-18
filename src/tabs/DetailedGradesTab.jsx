@@ -204,7 +204,7 @@ export default function DetailedGradesTab() {
           )}
           {viewMode === 'class' ? (
             <div style={{ display: 'flex', gap: '8px' }}>
-              {['m1', 'm2', 'm3', 'termTotal'].includes(classPeriod) && (
+              {['m1', 'm2', 'm3', 'termTotal'].includes(classPeriod) && canAction('detailedGrades', 'publish') && (
                 <button
                   className="btn-primary"
                   onClick={handlePublishGrades}

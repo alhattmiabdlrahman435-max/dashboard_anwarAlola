@@ -538,7 +538,7 @@ export default function StudentsTab() {
                           🪪 {t.viewCard}
                         </button>
                         
-                        {canAction('edit') && (
+                        {canAction('students', 'update') && (
                           <button 
                             onClick={() => openEditModal(student)} 
                             title={lang === 'ar' ? 'تعديل' : 'Edit'}
@@ -568,7 +568,7 @@ export default function StudentsTab() {
                           </button>
                         )}
 
-                        {canAction('delete') && (
+                        {canAction('students', 'delete') && (
                           <button 
                             onClick={() => {
                               triggerConfirm({

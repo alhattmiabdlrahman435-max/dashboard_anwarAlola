@@ -7,12 +7,31 @@ use App\Models\Payment;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class FinanceController extends Controller
+class FinanceController extends Controller implements HasMiddleware
 {
-    public function index()
+    public static function middleware(): array
     {
-        $students = Student::with('payments')->get();
+        return [
+            new Middleware('check.permission:finance,view', only: ['index', 'show', 'stats']),
+            new Middleware('check.permission:finance,collect', only: ['addPayment']),
+        ];
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'finance');
+
+        $query = Student::query();
+        if ($scopedClassIds !== null) {
+            $query->whereIn('class_id', $scopedClassIds);
+        }
+
+        $students = $query->with('payments')->get();
         
         $records = $students->map(function($student) {
             $totalFees = (float)($student->tuition_fee ?? 10000.00);
@@ -43,9 +62,19 @@ class FinanceController extends Controller
     /**
      * كشف حساب مالي ودفعات لطالب محدد
      */
-    public function show(string $studentId)
+    public function show(Request $request, string $studentId)
     {
         $student = Student::with('payments')->findOrFail($studentId);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'finance');
+        if ($scopedClassIds !== null && !in_array($student->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك باستعراض الحساب المالي لطالب خارج فصولك المحددة.',
+            ], 403);
+        }
+
         $totalFees = (float)($student->tuition_fee ?? 10000.00);
         $paid = $student->payments->sum('amount');
         $remaining = $totalFees - $paid;
@@ -77,6 +106,17 @@ class FinanceController extends Controller
             'payment_date' => 'required|date',
             'reference_no' => 'nullable|string',
         ]);
+
+        $student = Student::findOrFail($request->student_id);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'finance');
+        if ($scopedClassIds !== null && !in_array($student->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتسجيل سند مالي لطالب خارج فصولك المحددة.',
+            ], 403);
+        }
 
         $payment = Payment::create([
             'student_id' => $request->student_id,
@@ -119,10 +159,22 @@ class FinanceController extends Controller
     /**
      * إحصائيات مالية إجمالية للمدرسة
      */
-    public function stats()
+    public function stats(Request $request)
     {
-        $totalRequired = (float)Student::sum('tuition_fee');
-        $totalPaid = (float)Payment::sum('amount');
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'finance');
+
+        $studentQuery = Student::query();
+        $paymentQuery = Payment::query();
+        if ($scopedClassIds !== null) {
+            $studentQuery->whereIn('class_id', $scopedClassIds);
+            $paymentQuery->whereHas('student', function($q) use ($scopedClassIds) {
+                $q->whereIn('class_id', $scopedClassIds);
+            });
+        }
+
+        $totalRequired = (float)$studentQuery->sum('tuition_fee');
+        $totalPaid = (float)$paymentQuery->sum('amount');
         $totalRemaining = $totalRequired - $totalPaid;
 
         return response()->json([

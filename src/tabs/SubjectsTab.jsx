@@ -13,6 +13,7 @@ export default function SubjectsTab() {
     setToastMessage,
     triggerConfirm,
     renderAvatar,
+    canAction,
   } = useApp();
 
   const { subjects, fetchSubjects } = useSubjects();
@@ -176,19 +177,21 @@ export default function SubjectsTab() {
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           {lang === 'ar' ? 'سجل المواد الدراسية والمناهج' : 'Subjects & Curriculum Registry'}
         </h3>
-        <button 
-          className="btn-accent"
-          onClick={() => {
-            setFormError('');
-            setModalSubjectNameAr('');
-            setModalSubjectNameEn('');
-            setModalSubjectClasses([]);
-            setShowSubjectModal(true);
-          }}
-        >
-          <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
-          {lang === 'ar' ? 'إضافة مادة جديدة' : 'Add New Subject'}
-        </button>
+        {canAction('subjects', 'create') && (
+          <button 
+            className="btn-accent"
+            onClick={() => {
+              setFormError('');
+              setModalSubjectNameAr('');
+              setModalSubjectNameEn('');
+              setModalSubjectClasses([]);
+              setShowSubjectModal(true);
+            }}
+          >
+            <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
+            {lang === 'ar' ? 'إضافة مادة جديدة' : 'Add New Subject'}
+          </button>
+        )}
       </div>
 
       {/* Search Box */}
@@ -293,27 +296,31 @@ export default function SubjectsTab() {
                   >
                     🔍 {lang === 'ar' ? 'عرض التفاصيل' : 'Details'}
                   </button>
-                  <button 
-                    className="btn-elevated"
-                    style={{ padding: '8px 10px', fontSize: '12px' }}
-                    onClick={() => {
-                      setFormError('');
-                      setSelectedSubjectIdForEdit(sub.id);
-                      setModalSubjectNameAr(sub.name);
-                      setModalSubjectNameEn(sub.nameEn);
-                      setModalSubjectClasses(classes.filter(c => c.subjects.includes(sub.name)).map(c => c.name));
-                      setShowEditSubjectModal(true);
-                    }}
-                  >
-                    📝
-                  </button>
-                  <button 
-                    className="btn-elevated danger"
-                    style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--color-error)' }}
-                    onClick={() => handleDeleteSubject(sub.id)}
-                  >
-                    🗑️
-                  </button>
+                  {canAction('subjects', 'update') && (
+                    <button 
+                      className="btn-elevated"
+                      style={{ padding: '8px 10px', fontSize: '12px' }}
+                      onClick={() => {
+                        setFormError('');
+                        setSelectedSubjectIdForEdit(sub.id);
+                        setModalSubjectNameAr(sub.name);
+                        setModalSubjectNameEn(sub.nameEn);
+                        setModalSubjectClasses(classes.filter(c => c.subjects.includes(sub.name)).map(c => c.name));
+                        setShowEditSubjectModal(true);
+                      }}
+                    >
+                      📝
+                    </button>
+                  )}
+                  {canAction('subjects', 'delete') && (
+                    <button 
+                      className="btn-elevated danger"
+                      style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--color-error)' }}
+                      onClick={() => handleDeleteSubject(sub.id)}
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
             );

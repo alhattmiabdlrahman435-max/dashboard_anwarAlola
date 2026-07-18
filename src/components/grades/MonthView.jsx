@@ -13,7 +13,8 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
     syncGeneralGrades,
     setToastMessage,
     selectedGradeStudentId,
-    selectedGradeTerm
+    selectedGradeTerm,
+    canAction
   } = useApp();
 
   const { students } = useStudents();
@@ -71,6 +72,7 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
                       min="0" max="15" 
                       value={mData.homework ?? 0}
                       onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'homework', val)}
+                      disabled={!canAction('detailedGrades', 'update')}
                     />
                   </td>
                   <td>
@@ -78,6 +80,7 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
                       min="0" max="15" 
                       value={mData.attendance ?? 0}
                       onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'attendance', val)}
+                      disabled={!canAction('detailedGrades', 'update')}
                     />
                   </td>
                   <td>
@@ -85,6 +88,7 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
                       min="0" max="10" 
                       value={mData.behavior ?? 0}
                       onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'behavior', val)}
+                      disabled={!canAction('detailedGrades', 'update')}
                     />
                   </td>
                   <td>
@@ -92,6 +96,7 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
                       min="0" max="10" 
                       value={mData.oral ?? 0}
                       onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'oral', val)}
+                      disabled={!canAction('detailedGrades', 'update')}
                     />
                   </td>
                   <td>
@@ -99,6 +104,7 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
                       min="0" max="50" 
                       value={mData.written ?? 0}
                       onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, subj, selectedGradeTerm, selectedMonth, 'written', val)}
+                      disabled={!canAction('detailedGrades', 'update')}
                     />
                   </td>
                   <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>

@@ -9,20 +9,42 @@ use App\Models\Schedule;
 use App\Models\TeacherSubject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class ScheduleController extends Controller
+class ScheduleController extends Controller implements HasMiddleware
 {
-    public function index()
+    public static function middleware(): array
     {
+        return [
+            new Middleware('check.permission:schedule,view', only: ['index']),
+            new Middleware('check.permission:schedule,update', only: ['store']),
+        ];
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'schedule');
+
+        $scheduleQuery = Schedule::query();
+        $classQuery = SchoolClass::query();
+
+        if ($scopedClassIds !== null) {
+            $scheduleQuery->whereIn('class_id', $scopedClassIds);
+            $classQuery->whereIn('id', $scopedClassIds);
+        }
+
         // Fetch all schedules with classes and subjects
-        $schedules = Schedule::with(['schoolClass', 'subject'])->get();
+        $schedules = $scheduleQuery->with(['schoolClass', 'subject'])->get();
         
         // Group by class name (e.g. "الصف الأول - أ")
         $grouped = [];
         $teachersMapping = [];
         
         // Load all classes with teacher subjects
-        $classes = SchoolClass::with(['teacherSubjects.teacher', 'teacherSubjects.subject'])->get();
+        $classes = $classQuery->with(['teacherSubjects.teacher', 'teacherSubjects.subject'])->get();
         foreach ($classes as $cls) {
             $className = $cls->grade_ar . ' - ' . $cls->section_ar;
             
@@ -84,6 +106,15 @@ class ScheduleController extends Controller
         $cls = SchoolClass::where('grade_ar', $grade)->where('section_ar', $section)->first();
         if (!$cls) {
             return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'schedule');
+        if ($scopedClassIds !== null && !in_array($cls->id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتعديل جدول هذا الفصل الدراسي.',
+            ], 403);
         }
 
         // Check for teacher conflicts before saving

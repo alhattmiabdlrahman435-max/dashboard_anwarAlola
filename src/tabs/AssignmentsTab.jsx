@@ -18,7 +18,8 @@ export default function AssignmentsTab() {
     renderAvatar,
     handleDeleteAssignment,
     handleDeleteAllAssignments,
-    triggerConfirm
+    triggerConfirm,
+    canAction
   } = useApp();
 
   const { classes, availableGrades, availableSections } = useClasses();
@@ -266,7 +267,7 @@ export default function AssignmentsTab() {
         </h3>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {assignments.length > 0 && (
+          {assignments.length > 0 && canAction('assignments', 'delete') && (
             <button
               className="btn-elevated"
               onClick={onDeleteAllAssignmentsClick}
@@ -276,12 +277,14 @@ export default function AssignmentsTab() {
               <span>{lang === 'ar' ? 'حذف الكل' : 'Delete All'}</span>
             </button>
           )}
-          <button
-            className="btn-accent"
-            onClick={() => setShowAssignmentModal(true)}
-          >
-            ➕ {t.addAssignmentBtn}
-          </button>
+          {canAction('assignments', 'create') && (
+            <button
+              className="btn-accent"
+              onClick={() => setShowAssignmentModal(true)}
+            >
+              ➕ {t.addAssignmentBtn}
+            </button>
+          )}
         </div>
       </div>
 
@@ -440,27 +443,29 @@ export default function AssignmentsTab() {
                     <span>⌛ {t.dueDateLabel}: {assign.dueDate}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-                    <button
-                      onClick={(e) => onDeleteAssignmentClick(e, assign.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        background: 'none',
-                        border: '1px solid var(--color-error)',
-                        color: 'var(--color-error)',
-                        borderRadius: '8px',
-                        padding: '3px 10px',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        transition: 'all 0.2s ease'
-                      }}
-                      title={lang === 'ar' ? 'حذف الواجب نهائياً' : 'Delete Assignment'}
-                    >
-                      <Trash2 size={12} />
-                      {lang === 'ar' ? 'حذف' : 'Delete'}
-                    </button>
+                    {canAction('assignments', 'delete') && (
+                      <button
+                        onClick={(e) => onDeleteAssignmentClick(e, assign.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: 'none',
+                          border: '1px solid var(--color-error)',
+                          color: 'var(--color-error)',
+                          borderRadius: '8px',
+                          padding: '3px 10px',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'all 0.2s ease'
+                        }}
+                        title={lang === 'ar' ? 'حذف الواجب نهائياً' : 'Delete Assignment'}
+                      >
+                        <Trash2 size={12} />
+                        {lang === 'ar' ? 'حذف' : 'Delete'}
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -584,6 +589,7 @@ export default function AssignmentsTab() {
                               <select
                                 value={submission.status}
                                 onChange={(e) => handleUpdateSubmissionStatus(selectedAssign.id, student.id, e.target.value, submission.teacherNote)}
+                                disabled={!canAction('assignments', 'update')}
                                 className="text-field"
                                 style={{ height: '34px', padding: '4px 10px', fontSize: '12px', width: '140px' }}
                               >
@@ -598,6 +604,7 @@ export default function AssignmentsTab() {
                                 placeholder={lang === 'ar' ? 'ملاحظة المعلم...' : 'Teacher note...'}
                                 value={submission.teacherNote || ''}
                                 onChange={(e) => handleUpdateSubmissionStatus(selectedAssign.id, student.id, submission.status, e.target.value)}
+                                disabled={!canAction('assignments', 'update')}
                                 className="text-field"
                                 style={{ height: '34px', padding: '4px 10px', fontSize: '12px' }}
                               />
@@ -614,31 +621,33 @@ export default function AssignmentsTab() {
                 <button className="btn-elevated" onClick={() => setShowSubmissionsModal(false)}>
                   {lang === 'ar' ? 'إغلاق' : 'Close'}
                 </button>
-                <button
-                  className="btn-filled"
-                  onClick={async () => {
-                    try {
-                      const payload = (selectedAssign.submissions || []).map(sub => ({
-                        student_id: sub.studentId,
-                        status: sub.status === 'submittedLate' ? 'submitted_late' : (sub.status === 'submitted' ? 'submitted' : 'not_submitted'),
-                        teacher_note: sub.teacherNote || ''
-                      }));
-                      const res = await api.put(`/api/assignments/${selectedAssign.id}/submissions`, { submissions: payload });
-                      if (res.success) {
-                        setToastMessage(res.message || (lang === 'ar' ? 'تم حفظ بيانات التسليمات بنجاح!' : 'Submissions saved!'));
-                        setShowSubmissionsModal(false);
-                      } else {
-                        setToastMessage(res.message || (lang === 'ar' ? 'فشل الحفظ' : 'Save failed'));
+                {canAction('assignments', 'update') && (
+                  <button
+                    className="btn-filled"
+                    onClick={async () => {
+                      try {
+                        const payload = (selectedAssign.submissions || []).map(sub => ({
+                          student_id: sub.studentId,
+                          status: sub.status === 'submittedLate' ? 'submitted_late' : (sub.status === 'submitted' ? 'submitted' : 'not_submitted'),
+                          teacher_note: sub.teacherNote || ''
+                        }));
+                        const res = await api.put(`/api/assignments/${selectedAssign.id}/submissions`, { submissions: payload });
+                        if (res.success) {
+                          setToastMessage(res.message || (lang === 'ar' ? 'تم حفظ بيانات التسليمات بنجاح!' : 'Submissions saved!'));
+                          setShowSubmissionsModal(false);
+                        } else {
+                          setToastMessage(res.message || (lang === 'ar' ? 'فشل الحفظ' : 'Save failed'));
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        setToastMessage(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
                       }
-                    } catch (err) {
-                      console.error(err);
-                      setToastMessage(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
-                    }
-                    setTimeout(() => setToastMessage(''), 3000);
-                  }}
-                >
-                  💾 {t.saveSubmissionsBtn}
-                </button>
+                      setTimeout(() => setToastMessage(''), 3000);
+                    }}
+                  >
+                    💾 {t.saveSubmissionsBtn}
+                  </button>
+                )}
               </footer>
             </div>
           </div>

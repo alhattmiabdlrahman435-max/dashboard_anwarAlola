@@ -8,8 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
 class ParentController extends Controller implements HasMiddleware
 {
@@ -23,9 +22,19 @@ class ParentController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $parents = User::parents()->get();
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'parents');
+
+        $query = User::parents();
+        if ($scopedClassIds !== null) {
+            $query->whereHas('students', function($q) use ($scopedClassIds) {
+                $q->whereIn('class_id', $scopedClassIds);
+            });
+        }
+
+        $parents = $query->get();
         return response()->json([
             'success' => true,
             'parents' => $parents

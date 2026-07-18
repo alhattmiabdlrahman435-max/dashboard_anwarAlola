@@ -7,12 +7,33 @@ use App\Models\ExamSchedule;
 use App\Models\ExamSubject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class ExamScheduleController extends Controller
+class ExamScheduleController extends Controller implements HasMiddleware
 {
-    public function index()
+    public static function middleware(): array
     {
-        $schedules = ExamSchedule::with(['examSubjects.subject', 'schoolClass'])->orderBy('created_at', 'desc')->get()->map(function($sch) {
+        return [
+            new Middleware('check.permission:examSchedules,view', only: ['index', 'show']),
+            new Middleware('check.permission:examSchedules,create', only: ['store']),
+            new Middleware('check.permission:examSchedules,update', only: ['update']),
+            new Middleware('check.permission:examSchedules,delete', only: ['destroy']),
+        ];
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'examSchedules');
+
+        $query = ExamSchedule::with(['examSubjects.subject', 'schoolClass']);
+        if ($scopedClassIds !== null) {
+            $query->whereIn('class_id', $scopedClassIds);
+        }
+
+        $schedules = $query->orderBy('created_at', 'desc')->get()->map(function($sch) {
             $subjectsArray = $sch->examSubjects->map(function($item) {
                 return [
                     'id' => $item->id,
@@ -51,6 +72,15 @@ class ExamScheduleController extends Controller
             'term' => 'nullable|string',
             'subjects' => 'required|array',
         ]);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'examSchedules');
+        if ($scopedClassIds !== null && !in_array($request->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بإنشاء جدول اختبارات لهذا الفصل الدراسي.',
+            ], 403);
+        }
 
         return DB::transaction(function() use ($request) {
             $schedule = ExamSchedule::create([
@@ -143,6 +173,15 @@ class ExamScheduleController extends Controller
             return response()->json(['success' => false, 'message' => 'الجدول غير موجود'], 404);
         }
 
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'examSchedules');
+        if ($scopedClassIds !== null && !in_array($schedule->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتعديل جدول اختبارات في هذا الفصل الدراسي.',
+            ], 403);
+        }
+
         $request->validate([
             'title' => 'required|string',
             'class_id' => 'nullable|integer',
@@ -206,6 +245,15 @@ class ExamScheduleController extends Controller
         $schedule = ExamSchedule::find($id);
         if (!$schedule) {
             return response()->json(['success' => false, 'message' => 'الجدول غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'examSchedules');
+        if ($scopedClassIds !== null && !in_array($schedule->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بحذف جدول اختبارات في هذا الفصل الدراسي.',
+            ], 403);
         }
         $schedule->delete();
         return response()->json([

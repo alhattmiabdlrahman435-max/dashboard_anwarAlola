@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }) => {
               role: data.user.role,
               photo: data.user.photo_url || "أ ع",
               email: null,
+              permissions: data.user.permissions || {},
             };
             setCurrentUser(mappedUser);
           } else {
@@ -71,6 +72,7 @@ export const AuthProvider = ({ children }) => {
         role: data.user.role,
         photo: data.user.photo_url || "أ ع",
         email: null,
+        permissions: data.user.permissions || {},
       };
       setCurrentUser(mappedUser);
       return mappedUser;

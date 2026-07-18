@@ -14,6 +14,7 @@ export default function ClassesTab() {
     setToastMessage,
     triggerConfirm,
     renderAvatar,
+    canAction,
   } = useApp();
 
   const { subjects } = useSubjects();
@@ -265,23 +266,25 @@ export default function ClassesTab() {
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           {lang === 'ar' ? 'سجل الفصول الدراسية والشُعب' : 'Classes & Sections Registry'}
         </h3>
-        <button 
-          className="btn-accent"
-          onClick={() => {
-            setFormError('');
-            setModalClassNameAr('');
-            setModalClassNameEn('');
-            setModalClassGrade('الصف الأول');
-            setModalClassGradeEn('Grade 1');
-            setModalClassSection('أ');
-            setModalClassSectionEn('A');
-            setModalClassSubjects([]);
-            setShowClassModal(true);
-          }}
-        >
-          <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
-          {lang === 'ar' ? 'إضافة فصل جديد' : 'Add New Class'}
-        </button>
+        {canAction('classes', 'create') && (
+          <button 
+            className="btn-accent"
+            onClick={() => {
+              setFormError('');
+              setModalClassNameAr('');
+              setModalClassNameEn('');
+              setModalClassGrade('الصف الأول');
+              setModalClassGradeEn('Grade 1');
+              setModalClassSection('أ');
+              setModalClassSectionEn('A');
+              setModalClassSubjects([]);
+              setShowClassModal(true);
+            }}
+          >
+            <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
+            {lang === 'ar' ? 'إضافة فصل جديد' : 'Add New Class'}
+          </button>
+        )}
       </div>
 
       {/* Search Box */}
@@ -398,31 +401,35 @@ export default function ClassesTab() {
                   >
                     🔍 {lang === 'ar' ? 'عرض التفاصيل' : 'Details'}
                   </button>
-                  <button 
-                    className="btn-elevated"
-                    style={{ padding: '8px 10px', fontSize: '12px' }}
-                    onClick={() => {
-                      setFormError('');
-                      setSelectedClassIdForEdit(cls.id);
-                      setModalClassNameAr(cls.name);
-                      setModalClassNameEn(cls.nameEn || '');
-                      setModalClassGrade(cls.grade);
-                      setModalClassGradeEn(cls.gradeEn || '');
-                      setModalClassSection(cls.section);
-                      setModalClassSectionEn(cls.sectionEn || '');
-                      setModalClassSubjects(cls.subjects || []);
-                      setShowEditClassModal(true);
-                    }}
-                  >
-                    📝
-                  </button>
-                  <button 
-                    className="btn-elevated danger"
-                    style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--color-error)' }}
-                    onClick={() => handleDeleteClass(cls.id)}
-                  >
-                    🗑️
-                  </button>
+                  {canAction('classes', 'update') && (
+                    <button 
+                      className="btn-elevated"
+                      style={{ padding: '8px 10px', fontSize: '12px' }}
+                      onClick={() => {
+                        setFormError('');
+                        setSelectedClassIdForEdit(cls.id);
+                        setModalClassNameAr(cls.name);
+                        setModalClassNameEn(cls.nameEn || '');
+                        setModalClassGrade(cls.grade);
+                        setModalClassGradeEn(cls.gradeEn || '');
+                        setModalClassSection(cls.section);
+                        setModalClassSectionEn(cls.sectionEn || '');
+                        setModalClassSubjects(cls.subjects || []);
+                        setShowEditClassModal(true);
+                      }}
+                    >
+                      📝
+                    </button>
+                  )}
+                  {canAction('classes', 'delete') && (
+                    <button 
+                      className="btn-elevated danger"
+                      style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--color-error)' }}
+                      onClick={() => handleDeleteClass(cls.id)}
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
             );

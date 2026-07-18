@@ -11,7 +11,8 @@ export default function FinanceTab() {
     lang,
     t,
     renderAvatar,
-    setToastMessage
+    setToastMessage,
+    canAction
   } = useApp();
   const { classes } = useClasses();
   const { tuitionFees, handleAddPayment } = useFinance();
@@ -379,7 +380,7 @@ export default function FinanceTab() {
                     {lang === 'ar' ? selectedStudent.name : selectedStudent.nameEn}
                   </span>
                 </div>
-                {currentUser?.role !== 'parent' && (
+                {currentUser?.role !== 'parent' && canAction('finance', 'collect') && (
                   <button 
                     className="btn-accent"
                     style={{ height: '36px', minHeight: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}

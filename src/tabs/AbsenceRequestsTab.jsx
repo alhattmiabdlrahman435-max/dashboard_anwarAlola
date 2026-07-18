@@ -10,7 +10,8 @@ export default function AbsenceRequestsTab() {
     lang,
     t,
     renderAvatar,
-    setToastMessage
+    setToastMessage,
+    canAction
   } = useApp();
 
   const {
@@ -267,44 +268,48 @@ export default function AbsenceRequestsTab() {
                           <td className="no-print">
                             {req.status === 'pending' ? (
                               <div style={{ display: 'flex', gap: '8px' }}>
-                                <button 
-                                  className="btn-filled"
-                                  style={{ 
-                                    padding: '6px 14px', 
-                                    fontSize: '12px', 
-                                    backgroundColor: 'var(--color-success, #16a34a)', 
-                                    color: 'white', 
-                                    borderRadius: '8px', 
-                                    border: 'none', 
-                                    cursor: 'pointer',
-                                    fontWeight: '600',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}
-                                  onClick={() => openDecisionModal(req, 'approved')}
-                                >
-                                  ✓ {t.approveBtn || 'موافقة'}
-                                </button>
-                                <button 
-                                  className="btn-filled"
-                                  style={{ 
-                                    padding: '6px 14px', 
-                                    fontSize: '12px', 
-                                    backgroundColor: 'var(--color-error, #dc2626)', 
-                                    color: 'white', 
-                                    borderRadius: '8px', 
-                                    border: 'none', 
-                                    cursor: 'pointer',
-                                    fontWeight: '600',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}
-                                  onClick={() => openDecisionModal(req, 'rejected')}
-                                >
-                                  ✗ {t.rejectBtn || 'رفض'}
-                                </button>
+                                {canAction('absenceRequests', 'approve') && (
+                                  <button 
+                                    className="btn-filled"
+                                    style={{ 
+                                      padding: '6px 14px', 
+                                      fontSize: '12px', 
+                                      backgroundColor: 'var(--color-success, #16a34a)', 
+                                      color: 'white', 
+                                      borderRadius: '8px', 
+                                      border: 'none', 
+                                      cursor: 'pointer',
+                                      fontWeight: '600',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                    onClick={() => openDecisionModal(req, 'approved')}
+                                  >
+                                    ✓ {t.approveBtn || 'موافقة'}
+                                  </button>
+                                )}
+                                {canAction('absenceRequests', 'reject') && (
+                                  <button 
+                                    className="btn-filled"
+                                    style={{ 
+                                      padding: '6px 14px', 
+                                      fontSize: '12px', 
+                                      backgroundColor: 'var(--color-error, #dc2626)', 
+                                      color: 'white', 
+                                      borderRadius: '8px', 
+                                      border: 'none', 
+                                      cursor: 'pointer',
+                                      fontWeight: '600',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                    onClick={() => openDecisionModal(req, 'rejected')}
+                                  >
+                                    ✗ {t.rejectBtn || 'رفض'}
+                                  </button>
+                                )}
                               </div>
                             ) : (
                               <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>

@@ -22,6 +22,7 @@ export default function ScheduleTab() {
     lang,
     t,
     setToastMessage,
+    canAction,
   } = useApp();
 
   const {
@@ -161,21 +162,23 @@ export default function ScheduleTab() {
               </option>
             ))}
           </select>
-          <button
-            className="btn-accent"
-            style={{
-              padding: "8px 12px",
-              fontSize: "13px",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              height: "40px",
-              cursor: "pointer",
-            }}
-            onClick={handleOpenEditSubjects}
-          >
-            📚 {lang === "ar" ? "تعديل مواد الفصل" : "Edit Class Subjects"}
-          </button>
+          {canAction('classes', 'update') && (
+            <button
+              className="btn-accent"
+              style={{
+                padding: "8px 12px",
+                fontSize: "13px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                height: "40px",
+                cursor: "pointer",
+              }}
+              onClick={handleOpenEditSubjects}
+            >
+              📚 {lang === "ar" ? "تعديل مواد الفصل" : "Edit Class Subjects"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -288,6 +291,7 @@ export default function ScheduleTab() {
                                 selectedScheduleGrade,
                               )
                             }
+                            disabled={!canAction('schedule', 'update')}
                             aria-label={`${t[dayKey]} Period ${idx + 1}`}
                           >
                             {allOptionNames.map((optName) => {
@@ -331,48 +335,50 @@ export default function ScheduleTab() {
         }}
         className="no-print"
       >
-        <button
-          className="btn-filled"
-          onClick={() => {
-            const token = localStorage.getItem("auth_token");
-            if (token && schedules[selectedScheduleGrade]) {
-              api.post("/api/schedules", {
-                class_name: selectedScheduleGrade,
-                schedule: schedules[selectedScheduleGrade],
-              })
-                .then((data) => {
-                  if (data.success) {
+        {canAction('schedule', 'update') && (
+          <button
+            className="btn-filled"
+            onClick={() => {
+              const token = localStorage.getItem("auth_token");
+              if (token && schedules[selectedScheduleGrade]) {
+                api.post("/api/schedules", {
+                  class_name: selectedScheduleGrade,
+                  schedule: schedules[selectedScheduleGrade],
+                })
+                  .then((data) => {
+                    if (data.success) {
+                      setToastMessage(
+                        lang === "ar"
+                          ? "تم حفظ التعديلات على الجدول بنجاح!"
+                          : "Timetable changes saved successfully!",
+                      );
+                      setTimeout(() => setToastMessage(""), 3000);
+                    } else {
+                      setToastMessage(
+                        lang === "ar"
+                          ? "فشل حفظ الجدول: " + (data.message || "")
+                          : "Failed to save schedule: " + (data.message || ""),
+                        "error"
+                      );
+                      setTimeout(() => setToastMessage(""), 6000);
+                    }
+                  })
+                  .catch((err) => {
+                    console.error("Error saving schedule:", err);
                     setToastMessage(
                       lang === "ar"
-                        ? "تم حفظ التعديلات على الجدول بنجاح!"
-                        : "Timetable changes saved successfully!",
-                    );
-                    setTimeout(() => setToastMessage(""), 3000);
-                  } else {
-                    setToastMessage(
-                      lang === "ar"
-                        ? "فشل حفظ الجدول: " + (data.message || "")
-                        : "Failed to save schedule: " + (data.message || ""),
+                        ? "فشل حفظ الجدول: " + (err.message || "حدث خطأ أثناء حفظ الجدول")
+                        : "Failed to save schedule: " + (err.message || "Error saving schedule"),
                       "error"
                     );
                     setTimeout(() => setToastMessage(""), 6000);
-                  }
-                })
-                .catch((err) => {
-                  console.error("Error saving schedule:", err);
-                  setToastMessage(
-                    lang === "ar"
-                      ? "فشل حفظ الجدول: " + (err.message || "حدث خطأ أثناء حفظ الجدول")
-                      : "Failed to save schedule: " + (err.message || "Error saving schedule"),
-                    "error"
-                  );
-                  setTimeout(() => setToastMessage(""), 6000);
-                });
-            }
-          }}
-        >
-          💾 {t.saveSchedule}
-        </button>
+                  });
+              }
+            }}
+          >
+            💾 {t.saveSchedule}
+          </button>
+        )}
       </div>
 
       {/* EDIT SUBJECTS MODAL */}

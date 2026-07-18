@@ -330,27 +330,29 @@ export default function TeachersTab() {
                 <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.gradesEntered} %</td>
                 <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.assignments}</td>
                 <td className="no-print">
-                  <button 
-                    className="btn-elevated"
-                    style={{ padding: '6px 12px', fontSize: '11px' }}
-                    onClick={() => {
-                      setFormError('');
-                      setSelectedTeacherIdForEdit(teacher.id);
-                      setModalTeacherName(teacher.name);
-                      setModalTeacherAssignments(teacher.teachingAssignments || [
-                        { subject: teacher.subject, class: teacher.classes[0] || 'الصف الأول - أ' }
-                      ]);
-                      setModalTeacherJobId(teacher.jobId || `T${teacher.id}`);
-                      setModalTeacherPhone(teacher.phone || '');
-                      setModalTeacherAddress(teacher.address || '');
-                      setModalTeacherPhoto(teacher.photo || '');
-                      setShowEditTeacherModal(true);
-                      setModalTeacherAssignmentSubject('');
-                      setModalTeacherAssignmentClass('');
-                    }}
-                  >
-                    📝 {lang === 'ar' ? 'تعديل / إعادة تعيين' : 'Edit / Reset'}
-                  </button>
+                  {canAction('teachers', 'update') && (
+                    <button 
+                      className="btn-elevated"
+                      style={{ padding: '6px 12px', fontSize: '11px' }}
+                      onClick={() => {
+                        setFormError('');
+                        setSelectedTeacherIdForEdit(teacher.id);
+                        setModalTeacherName(teacher.name);
+                        setModalTeacherAssignments(teacher.teachingAssignments || [
+                          { subject: teacher.subject, class: teacher.classes[0] || 'الصف الأول - أ' }
+                        ]);
+                        setModalTeacherJobId(teacher.jobId || `T${teacher.id}`);
+                        setModalTeacherPhone(teacher.phone || '');
+                        setModalTeacherAddress(teacher.address || '');
+                        setModalTeacherPhoto(teacher.photo || '');
+                        setShowEditTeacherModal(true);
+                        setModalTeacherAssignmentSubject('');
+                        setModalTeacherAssignmentClass('');
+                      }}
+                    >
+                      📝 {lang === 'ar' ? 'تعديل / إعادة تعيين' : 'Edit / Reset'}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

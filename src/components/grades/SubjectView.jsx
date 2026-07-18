@@ -23,7 +23,8 @@ const SubjectView = memo(function SubjectView() {
     setToastMessage,
     selectedGradeStudentId,
     selectedGradeTerm,
-    selectedGradeSubject
+    selectedGradeSubject,
+    canAction
   } = useApp();
 
   const { students } = useStudents();
@@ -80,6 +81,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="15" 
                   value={gradesData.m1.homework}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'homework', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -87,6 +89,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="15" 
                   value={gradesData.m1.attendance}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'attendance', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -94,6 +97,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="10" 
                   value={gradesData.m1.behavior}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'behavior', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -101,6 +105,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="10" 
                   value={gradesData.m1.oral}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'oral', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -108,6 +113,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="50" 
                   value={gradesData.m1.written}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm1', 'written', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{m1_total}</td>
@@ -121,6 +127,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="15" 
                   value={gradesData.m2.homework}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'homework', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -128,6 +135,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="15" 
                   value={gradesData.m2.attendance}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'attendance', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -135,6 +143,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="10" 
                   value={gradesData.m2.behavior}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'behavior', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -142,6 +151,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="10" 
                   value={gradesData.m2.oral}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'oral', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -149,6 +159,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="50" 
                   value={gradesData.m2.written}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm2', 'written', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{m2_total}</td>
@@ -162,6 +173,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="15" 
                   value={gradesData.m3.homework}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'homework', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -169,6 +181,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="15" 
                   value={gradesData.m3.attendance}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'attendance', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -176,6 +189,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="10" 
                   value={gradesData.m3.behavior}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'behavior', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -183,6 +197,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="10" 
                   value={gradesData.m3.oral}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'oral', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td>
@@ -190,6 +205,7 @@ const SubjectView = memo(function SubjectView() {
                   min="0" max="50" 
                   value={gradesData.m3.written}
                   onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'm3', 'written', val)}
+                  disabled={!canAction('detailedGrades', 'update')}
                 />
               </td>
               <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{m3_total}</td>
@@ -229,6 +245,7 @@ const SubjectView = memo(function SubjectView() {
               min="0" max="30"
               value={gradesData.finalExam}
               onChange={(val) => handleDetailedGradeChange(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm, 'finalExam', '', val)}
+              disabled={!canAction('detailedGrades', 'update')}
             />
           </div>
         </div>

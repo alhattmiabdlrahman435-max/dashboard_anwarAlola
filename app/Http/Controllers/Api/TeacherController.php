@@ -12,8 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
 class TeacherController extends Controller implements HasMiddleware
 {
@@ -27,9 +26,19 @@ class TeacherController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $teachers = User::teachers()->with('teacherSubjects.subject', 'teacherSubjects.schoolClass')->get()->map(function($t) {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'teachers');
+
+        $query = User::teachers()->with('teacherSubjects.subject', 'teacherSubjects.schoolClass');
+        if ($scopedClassIds !== null) {
+            $query->whereHas('teacherSubjects', function($q) use ($scopedClassIds) {
+                $q->whereIn('class_id', $scopedClassIds);
+            });
+        }
+
+        $teachers = $query->get()->map(function($t) {
             return [
                 'id' => $t->id,
                 'job_id' => $t->job_id,

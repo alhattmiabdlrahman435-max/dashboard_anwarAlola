@@ -5,12 +5,33 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\SchoolClass;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class ClassController extends Controller
+class ClassController extends Controller implements HasMiddleware
 {
-    public function index()
+    public static function middleware(): array
     {
-        $classes = SchoolClass::with(['gradeLevel', 'subjects'])->get();
+        return [
+            new Middleware('check.permission:classes,view', only: ['index', 'show']),
+            new Middleware('check.permission:classes,create', only: ['store']),
+            new Middleware('check.permission:classes,update', only: ['update', 'syncSubjects']),
+            new Middleware('check.permission:classes,delete', only: ['destroy']),
+        ];
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'classes');
+
+        $query = SchoolClass::query();
+        if ($scopedClassIds !== null) {
+            $query->whereIn('id', $scopedClassIds);
+        }
+
+        $classes = $query->with(['gradeLevel', 'subjects'])->get();
         
         foreach ($classes as $class) {
             // جلب معرفات المواد المسجلة في جدول الحصص الأسبوعي لهذا الفصل

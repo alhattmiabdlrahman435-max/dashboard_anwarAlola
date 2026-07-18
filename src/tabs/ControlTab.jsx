@@ -10,6 +10,7 @@ export default function ControlTab() {
     t,
     grades,
     setToastMessage,
+    canAction
   } = useApp();
   const { students } = useStudents();
   const {
@@ -68,12 +69,14 @@ export default function ControlTab() {
 
         <div style={{ display: 'flex', gap: '8px' }}>
           {/* Encrypted switch toggle */}
-          <button 
-            className="btn-accent"
-            onClick={handleToggleEncryption}
-          >
-            🔒 {isGradesEncrypted ? t.decryptNames : t.generateSecretCodes}
-          </button>
+          {canAction('control', 'generateSecretCodes') && (
+            <button 
+              className="btn-accent"
+              onClick={handleToggleEncryption}
+            >
+              🔒 {isGradesEncrypted ? t.decryptNames : t.generateSecretCodes}
+            </button>
+          )}
 
           <button 
             className="btn-elevated"

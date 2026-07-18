@@ -99,6 +99,7 @@ class AuthController extends Controller
                 'national_id' => $user->national_id,
                 'phone'       => $user->phone,
                 'address'     => $user->address,
+                'permissions' => $user->permissions,
             ],
         ]);
     }

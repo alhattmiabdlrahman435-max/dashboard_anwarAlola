@@ -13,7 +13,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
     getStudentDetailedGrades,
     handleDetailedGradeChange: handleDetailedGradeChangeContext,
     syncGeneralGrades,
-    setToastMessage
+    setToastMessage,
+    canAction
   } = useApp();
 
   const { students } = useStudents();
@@ -222,6 +223,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                               min="0" max="15" 
                               value={mData.homework ?? 0}
                               onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'homework', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
                             />
                           </td>
                           <td>
@@ -229,6 +231,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                               min="0" max="15" 
                               value={mData.attendance ?? 0}
                               onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'attendance', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
                             />
                           </td>
                           <td>
@@ -236,6 +239,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                               min="0" max="10" 
                               value={mData.behavior ?? 0}
                               onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'behavior', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
                             />
                           </td>
                           <td>
@@ -243,6 +247,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                               min="0" max="10" 
                               value={mData.oral ?? 0}
                               onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'oral', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
                             />
                           </td>
                           <td>
@@ -250,6 +255,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                               min="0" max="50" 
                               value={mData.written ?? 0}
                               onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'written', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
                             />
                           </td>
                           <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
@@ -277,6 +283,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                               min="0" max="30" 
                               value={sData.finalExam ?? 0}
                               onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, 'finalExam', '', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
                             />
                           </td>
                           <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
@@ -481,6 +488,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                             min="0" max="15" 
                             value={mData.homework ?? 0}
                             onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'homework', val)}
+                            disabled={!canAction('detailedGrades', 'update')}
                           />
                         </td>
                         <td>
@@ -488,6 +496,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                             min="0" max="15" 
                             value={mData.attendance ?? 0}
                             onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'attendance', val)}
+                            disabled={!canAction('detailedGrades', 'update')}
                           />
                         </td>
                         <td>
@@ -495,6 +504,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                             min="0" max="10" 
                             value={mData.behavior ?? 0}
                             onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'behavior', val)}
+                            disabled={!canAction('detailedGrades', 'update')}
                           />
                         </td>
                         <td>
@@ -502,6 +512,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                             min="0" max="10" 
                             value={mData.oral ?? 0}
                             onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'oral', val)}
+                            disabled={!canAction('detailedGrades', 'update')}
                           />
                         </td>
                         <td>
@@ -509,6 +520,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                             min="0" max="50" 
                             value={mData.written ?? 0}
                             onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'written', val)}
+                            disabled={!canAction('detailedGrades', 'update')}
                           />
                         </td>
                         <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
@@ -535,6 +547,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                             min="0" max="30" 
                             value={sData.finalExam ?? 0}
                             onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, 'finalExam', '', val)}
+                            disabled={!canAction('detailedGrades', 'update')}
                           />
                         </td>
                         <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>

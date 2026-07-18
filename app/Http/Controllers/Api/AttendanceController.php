@@ -7,12 +7,32 @@ use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\Notification;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class AttendanceController extends Controller
+class AttendanceController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:scanner,view', only: ['index']),
+            new Middleware('check.permission:scanner,create', only: ['store']),
+        ];
+    }
+
     public function index(Request $request)
     {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'scanner');
+
         $query = Attendance::with('student');
+
+        if ($scopedClassIds !== null) {
+            $query->whereHas('student', function($q) use ($scopedClassIds) {
+                $q->whereIn('class_id', $scopedClassIds);
+            });
+        }
 
         if ($request->has('date')) {
             $query->where('record_date', $request->date);
@@ -58,6 +78,15 @@ class AttendanceController extends Controller
         ]);
 
         $student = Student::findOrFail($request->student_id);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'scanner');
+        if ($scopedClassIds !== null && !in_array($student->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتحضير طالب خارج فصولك المحددة.',
+            ], 403);
+        }
         $date = $request->date;
         
         if ($request->user()->role !== 'admin') {

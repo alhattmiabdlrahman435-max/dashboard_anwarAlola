@@ -7,9 +7,22 @@ use App\Models\AbsenceRequest;
 use App\Models\Attendance;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class AbsenceRequestController extends Controller
+class AbsenceRequestController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:absenceRequests,view', only: ['index', 'show']),
+            new Middleware('check.permission:absenceRequests,approve', only: ['approve']),
+            new Middleware('check.permission:absenceRequests,reject', only: ['reject']),
+            new Middleware('check.permission:absenceRequests,delete', only: ['destroy']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -17,6 +30,13 @@ class AbsenceRequestController extends Controller
 
         if ($user && $user->role === 'parent') {
             $query->where('parent_id', $user->id);
+        } else {
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'absenceRequests');
+            if ($scopedClassIds !== null) {
+                $query->whereHas('student', function($q) use ($scopedClassIds) {
+                    $q->whereIn('class_id', $scopedClassIds);
+                });
+            }
         }
 
         $requests = $query->orderBy('created_at', 'desc')->get()->map(function($req) {

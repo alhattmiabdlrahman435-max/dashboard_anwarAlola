@@ -22,7 +22,7 @@ const STATUS_LABELS = {
 };
 
 export default function TeacherReportsTab() {
-  const { lang, t, triggerConfirm } = useApp();
+  const { lang, t, triggerConfirm, canAction } = useApp();
   const { teacherReports, handleUpdateReportStatus, fetchTeacherReports, handleDeleteTeacherReport, handleDeleteAllTeacherReports } = useReports();
   const onDeleteReportClick = (e, reportId) => {
     e.stopPropagation();
@@ -97,7 +97,7 @@ export default function TeacherReportsTab() {
           {lang === 'ar' ? t.teacherReportsTitle : t.teacherReportsTitle}
         </h3>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {teacherReports.length > 0 && (
+          {teacherReports.length > 0 && canAction('teacherReports', 'delete') && (
             <button
               className="btn-elevated"
               style={{
@@ -416,27 +416,31 @@ export default function TeacherReportsTab() {
                     )}
                     {report.status === 'pending' && (
                       <>
-                        <button
-                          className="btn-filled"
-                          style={{ fontSize: '12px', padding: '6px 16px', borderRadius: '10px', background: 'var(--gradient-success, #10b981)', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontWeight: '700' }}
-                          onClick={() => handleStatusChange(report.id, 'approved')}
-                          disabled={isLoading}
-                        >
-                          <CheckCircle size={14} />
-                          {lang === 'ar' ? 'اعتماد' : 'Approve'}
-                        </button>
-                        <button
-                          className="btn-filled"
-                          style={{ fontSize: '12px', padding: '6px 16px', borderRadius: '10px', background: 'var(--gradient-error, #ef4444)', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontWeight: '700' }}
-                          onClick={() => handleStatusChange(report.id, 'rejected')}
-                          disabled={isLoading}
-                        >
-                          <XCircle size={14} />
-                          {lang === 'ar' ? 'رفض' : 'Reject'}
-                        </button>
+                        {canAction('teacherReports', 'approve') && (
+                          <button
+                            className="btn-filled"
+                            style={{ fontSize: '12px', padding: '6px 16px', borderRadius: '10px', background: 'var(--gradient-success, #10b981)', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontWeight: '700' }}
+                            onClick={() => handleStatusChange(report.id, 'approved')}
+                            disabled={isLoading}
+                          >
+                            <CheckCircle size={14} />
+                            {lang === 'ar' ? 'اعتماد' : 'Approve'}
+                          </button>
+                        )}
+                        {canAction('teacherReports', 'reject') && (
+                          <button
+                            className="btn-filled"
+                            style={{ fontSize: '12px', padding: '6px 16px', borderRadius: '10px', background: 'var(--gradient-error, #ef4444)', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontWeight: '700' }}
+                            onClick={() => handleStatusChange(report.id, 'rejected')}
+                            disabled={isLoading}
+                          >
+                            <XCircle size={14} />
+                            {lang === 'ar' ? 'رفض' : 'Reject'}
+                          </button>
+                        )}
                       </>
                     )}
-                    {report.status !== 'pending' && (
+                    {report.status !== 'pending' && (canAction('teacherReports', 'approve') || canAction('teacherReports', 'reject')) && (
                       <button
                         className="btn-elevated"
                         style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}
@@ -449,27 +453,29 @@ export default function TeacherReportsTab() {
                     )}
                     
                     {/* Delete Report Button */}
-                    <button
-                      className="btn-elevated"
-                      style={{ 
-                        fontSize: '12px', 
-                        padding: '6px 14px', 
-                        borderRadius: '10px', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '6px', 
-                        fontWeight: '700',
-                        color: 'var(--color-error)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
-                        backgroundColor: 'rgba(239, 68, 68, 0.05)'
-                      }}
-                      onClick={(e) => onDeleteReportClick(e, report.id)}
-                      disabled={isLoading}
-                      title={lang === 'ar' ? 'حذف البلاغ نهائياً' : 'Delete Report'}
-                    >
-                      <Trash2 size={14} />
-                      {lang === 'ar' ? 'حذف' : 'Delete'}
-                    </button>
+                    {canAction('teacherReports', 'delete') && (
+                      <button
+                        className="btn-elevated"
+                        style={{ 
+                          fontSize: '12px', 
+                          padding: '6px 14px', 
+                          borderRadius: '10px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '6px', 
+                          fontWeight: '700',
+                          color: 'var(--color-error)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          backgroundColor: 'rgba(239, 68, 68, 0.05)'
+                        }}
+                        onClick={(e) => onDeleteReportClick(e, report.id)}
+                        disabled={isLoading}
+                        title={lang === 'ar' ? 'حذف البلاغ نهائياً' : 'Delete Report'}
+                      >
+                        <Trash2 size={14} />
+                        {lang === 'ar' ? 'حذف' : 'Delete'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

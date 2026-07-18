@@ -6,9 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Report;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class ReportController extends Controller
+class ReportController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:teacherReports,view', only: ['index']),
+            new Middleware('check.permission:teacherReports,delete', only: ['destroy', 'deleteAll']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -18,6 +29,13 @@ class ReportController extends Controller
         // المعلم يرى بلاغاته فقط، الإدارة والمشرف يرون الكل
         if ($user->role === 'teacher') {
             $query->where('teacher_id', $user->id);
+        } else {
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'teacherReports');
+            if ($scopedClassIds !== null) {
+                $query->whereHas('student', function($q) use ($scopedClassIds) {
+                    $q->whereIn('class_id', $scopedClassIds);
+                });
+            }
         }
 
         $reports = $query->orderBy('created_at', 'desc')
@@ -101,9 +119,34 @@ class ReportController extends Controller
             'status' => 'required|in:pending,approved,rejected,reviewed,archived',
         ]);
 
-        $report    = Report::findOrFail($id);
+        $report    = Report::with('student')->findOrFail($id);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'teacherReports');
+        if ($scopedClassIds !== null && $report->student && !in_array($report->student->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتحديث بلاغ لطالب خارج فصولك المحددة.',
+            ], 403);
+        }
+
+        $status = $request->status;
+        if ($status === 'approved') {
+            if (!PermissionService::can($user, 'teacherReports', 'approve')) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك باعتماد بلاغات المعلمين.'], 403);
+            }
+        } elseif ($status === 'rejected') {
+            if (!PermissionService::can($user, 'teacherReports', 'reject')) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك برفض بلاغات المعلمين.'], 403);
+            }
+        } else {
+            if (!PermissionService::can($user, 'teacherReports', 'approve') && !PermissionService::can($user, 'teacherReports', 'reject')) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بتعديل حالة بلاغات المعلمين.'], 403);
+            }
+        }
+
         $oldStatus = $report->status;
-        $report->status = $request->status;
+        $report->status = $status;
         $report->save();
 
         // تحميل العلاقات للاستخدام في الإشعارات

@@ -6,9 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use App\Services\PermissionService;
 
-class AssignmentController extends Controller
+class AssignmentController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:assignments,view', only: ['index', 'show', 'submissions']),
+            new Middleware('check.permission:assignments,create', only: ['store']),
+            new Middleware('check.permission:assignments,update', only: ['update', 'updateSubmissions']),
+            new Middleware('check.permission:assignments,delete', only: ['destroy', 'deleteAll']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -19,6 +32,11 @@ class AssignmentController extends Controller
         } elseif ($user && $user->role === 'parent') {
             $classIds = \App\Models\Student::where('parent_id', $user->id)->pluck('class_id')->filter()->unique();
             $query->whereIn('class_id', $classIds);
+        } else {
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
+            if ($scopedClassIds !== null) {
+                $query->whereIn('class_id', $scopedClassIds);
+            }
         }
         
         $assignments = $query->orderBy('created_at', 'desc')->get();
@@ -39,6 +57,15 @@ class AssignmentController extends Controller
             'due_date' => 'required|date',
             'attachment' => 'nullable|file|max:10240', // max 10MB
         ]);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
+        if ($scopedClassIds !== null && !in_array($request->input('class_id'), $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بنشر واجب لهذا الفصل الدراسي.',
+            ], 403);
+        }
 
         $teacherId = $request->input('teacher_id') ?: $request->user()->id;
         $attachmentUrl = null;
@@ -118,6 +145,15 @@ class AssignmentController extends Controller
             return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
         }
 
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
+        if ($scopedClassIds !== null && !in_array($assignment->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتعديل واجب في هذا الفصل الدراسي.',
+            ], 403);
+        }
+
         $assignment->update($request->all());
 
         return response()->json([
@@ -133,6 +169,15 @@ class AssignmentController extends Controller
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
         }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
+        if ($scopedClassIds !== null && !in_array($assignment->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بحذف واجب في هذا الفصل الدراسي.',
+            ], 403);
+        }
         // Safely delete associated submissions from database
         AssignmentSubmission::where('assignment_id', $assignment->id)->delete();
         
@@ -143,8 +188,22 @@ class AssignmentController extends Controller
     /**
      * عرض تسليمات الواجب
      */
-    public function submissions(string $id)
+    public function submissions(Request $request, string $id)
     {
+        $assignment = Assignment::find($id);
+        if (!$assignment) {
+            return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
+        if ($scopedClassIds !== null && !in_array($assignment->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك باستعراض تسليمات واجب في هذا الفصل الدراسي.',
+            ], 403);
+        }
+
         $submissions = AssignmentSubmission::with('student')
                                             ->where('assignment_id', $id)
                                             ->get();
@@ -160,6 +219,20 @@ class AssignmentController extends Controller
      */
     public function updateSubmissions(Request $request, string $id)
     {
+        $assignment = Assignment::find($id);
+        if (!$assignment) {
+            return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
+        if ($scopedClassIds !== null && !in_array($assignment->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتعديل ورصد تسليمات واجب في هذا الفصل الدراسي.',
+            ], 403);
+        }
+
         $request->validate([
             'submissions' => 'required|array', // array of { student_id, status, teacher_note }
         ]);

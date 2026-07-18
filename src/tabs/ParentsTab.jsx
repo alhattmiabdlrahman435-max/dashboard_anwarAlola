@@ -249,7 +249,7 @@ export default function ParentsTab() {
               <th>{t.parentPhone}</th>
               <th>{t.parentSonsCount}</th>
               <th>{t.parentSonsList}</th>
-              {currentUser?.role === 'admin' && <th className="no-print">{t.action}</th>}
+              {(currentUser?.role === 'admin' || canAction('parents', 'update') || canAction('parents', 'delete')) && <th className="no-print">{t.action}</th>}
             </tr>
           </thead>
           <tbody>
@@ -283,46 +283,48 @@ export default function ParentsTab() {
                         )}
                       </div>
                     </td>
-                    {currentUser?.role === 'admin' && (
+                    {(currentUser?.role === 'admin' || canAction('parents', 'update') || canAction('parents', 'delete')) && (
                       <td className="no-print">
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button 
-                            className="btn-elevated"
-                            style={{ 
-                              padding: '6px',
-                              borderRadius: '8px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              border: '1px solid rgba(37, 99, 235, 0.15)',
-                              background: 'rgba(37, 99, 235, 0.06)',
-                              color: '#2563eb',
-                              width: '32px',
-                              height: '32px',
-                              transition: 'all 0.15s ease'
-                            }}
-                            onMouseOver={e => {
-                              e.currentTarget.style.background = 'rgba(37, 99, 235, 0.12)';
-                              e.currentTarget.style.borderColor = '#2563eb';
-                            }}
-                            onMouseOut={e => {
-                              e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
-                              e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.15)';
-                            }}
-                            onClick={() => {
-                              setFormError('');
-                              setSelectedParentIdForEdit(parent.nationalId);
-                              setModalParentNameAr(parent.name);
-                              setModalParentNameEn(parent.nameEn || '');
-                              setModalParentPhoneNum(parent.phone);
-                              setModalParentNationalIdVal(parent.nationalId);
-                              setShowEditParentModal(true);
-                            }}
-                            title={lang === 'ar' ? 'تعديل' : 'Edit'}
-                          >
-                            <Edit3 size={15} />
-                          </button>
+                          {canAction('parents', 'update') && (
+                            <button 
+                              className="btn-elevated"
+                              style={{ 
+                                padding: '6px',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                border: '1px solid rgba(37, 99, 235, 0.15)',
+                                background: 'rgba(37, 99, 235, 0.06)',
+                                color: '#2563eb',
+                                width: '32px',
+                                height: '32px',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseOver={e => {
+                                e.currentTarget.style.background = 'rgba(37, 99, 235, 0.12)';
+                                e.currentTarget.style.borderColor = '#2563eb';
+                              }}
+                              onMouseOut={e => {
+                                e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.15)';
+                              }}
+                              onClick={() => {
+                                setFormError('');
+                                setSelectedParentIdForEdit(parent.nationalId);
+                                setModalParentNameAr(parent.name);
+                                setModalParentNameEn(parent.nameEn || '');
+                                setModalParentPhoneNum(parent.phone);
+                                setModalParentNationalIdVal(parent.nationalId);
+                                setShowEditParentModal(true);
+                              }}
+                              title={lang === 'ar' ? 'تعديل' : 'Edit'}
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                          )}
 
                           {canAction('parents', 'delete') && (
                             <button 

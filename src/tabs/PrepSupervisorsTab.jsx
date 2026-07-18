@@ -7,7 +7,7 @@ import { Plus, X, Camera, User } from 'lucide-react';
 export default function PrepSupervisorsTab() {
   const {
     lang, t, renderAvatar,
-    setToastMessage, triggerConfirm
+    setToastMessage, triggerConfirm, canAction
   } = useApp();
 
   const {
@@ -149,22 +149,24 @@ export default function PrepSupervisorsTab() {
           <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
             {lang === 'ar' ? 'إدارة مشرفي التحضير وفصول التكليف' : 'Prep Supervisors Management'}
           </h3>
-          <button 
-            className="btn-accent"
-            onClick={() => {
-              setFormError('');
-              setModalName('');
-              setModalJobId('');
-              setModalPhone('');
-              setModalPhoto('');
-              setModalClasses([]);
-              setModalSelectedClass('');
-              setShowSupervisorModal(true);
-            }}
-          >
-            <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
-            {lang === 'ar' ? 'إضافة مشرف تحضير' : 'Add Prep Supervisor'}
-          </button>
+          {canAction('prepSupervisors', 'create') && (
+            <button 
+              className="btn-accent"
+              onClick={() => {
+                setFormError('');
+                setModalName('');
+                setModalJobId('');
+                setModalPhone('');
+                setModalPhoto('');
+                setModalClasses([]);
+                setModalSelectedClass('');
+                setShowSupervisorModal(true);
+              }}
+            >
+              <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
+              {lang === 'ar' ? 'إضافة مشرف تحضير' : 'Add Prep Supervisor'}
+            </button>
+          )}
         </div>
 
         <div className="students-table-container">
@@ -175,7 +177,7 @@ export default function PrepSupervisorsTab() {
                 <th>{lang === 'ar' ? 'اسم المشرف' : 'Supervisor Name'}</th>
                 <th>{lang === 'ar' ? 'الفصول المكلف بها للتحضير' : 'Assigned Classes'}</th>
                 <th>{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'}</th>
-                <th className="no-print">{t.action}</th>
+                {(canAction('prepSupervisors', 'update') || canAction('prepSupervisors', 'delete')) && <th className="no-print">{t.action}</th>}
               </tr>
             </thead>
             <tbody>
@@ -196,34 +198,40 @@ export default function PrepSupervisorsTab() {
                     </div>
                   </td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{supervisor.phone || supervisor.password}</td>
-                  <td className="no-print">
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        className="btn-elevated"
-                        style={{ padding: '6px 12px', fontSize: '11px' }}
-                        onClick={() => {
-                          setFormError('');
-                          setSelectedSupervisorIdForEdit(supervisor.id);
-                          setModalName(supervisor.name);
-                          setModalJobId(supervisor.jobId);
-                          setModalPhone(supervisor.phone || supervisor.password);
-                          setModalPhoto(supervisor.photo);
-                          setModalClasses(supervisor.classes || []);
-                          setModalSelectedClass('');
-                          setShowEditSupervisorModal(true);
-                        }}
-                      >
-                        📝 {lang === 'ar' ? 'تعديل' : 'Edit'}
-                      </button>
-                      <button 
-                        className="btn-elevated"
-                        style={{ padding: '6px 12px', fontSize: '11px', backgroundColor: 'rgba(220, 38, 38, 0.1)', color: 'var(--color-error)' }}
-                        onClick={() => handleDeleteClick(supervisor.id)}
-                      >
-                        🗑️ {lang === 'ar' ? 'حذف' : 'Delete'}
-                      </button>
-                    </div>
-                  </td>
+                  {(canAction('prepSupervisors', 'update') || canAction('prepSupervisors', 'delete')) && (
+                    <td className="no-print">
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {canAction('prepSupervisors', 'update') && (
+                          <button 
+                            className="btn-elevated"
+                            style={{ padding: '6px 12px', fontSize: '11px' }}
+                            onClick={() => {
+                              setFormError('');
+                              setSelectedSupervisorIdForEdit(supervisor.id);
+                              setModalName(supervisor.name);
+                              setModalJobId(supervisor.jobId);
+                              setModalPhone(supervisor.phone || supervisor.password);
+                              setModalPhoto(supervisor.photo);
+                              setModalClasses(supervisor.classes || []);
+                              setModalSelectedClass('');
+                              setShowEditSupervisorModal(true);
+                            }}
+                          >
+                            📝 {lang === 'ar' ? 'تعديل' : 'Edit'}
+                          </button>
+                        )}
+                        {canAction('prepSupervisors', 'delete') && (
+                          <button 
+                            className="btn-elevated"
+                            style={{ padding: '6px 12px', fontSize: '11px', backgroundColor: 'rgba(220, 38, 38, 0.1)', color: 'var(--color-error)' }}
+                            onClick={() => handleDeleteClick(supervisor.id)}
+                          >
+                            🗑️ {lang === 'ar' ? 'حذف' : 'Delete'}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

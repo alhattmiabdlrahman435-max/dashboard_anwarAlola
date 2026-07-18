@@ -9,6 +9,7 @@ export default function ExamSchedulesTab() {
     lang,
     t,
     setToastMessage,
+    canAction,
   } = useApp();
 
   const {
@@ -112,17 +113,19 @@ export default function ExamSchedulesTab() {
           📅 {t.examSchedulesTitle}
         </h3>
         
-        <button 
-          className="btn-accent"
-          onClick={() => {
-            setIsEditing(false);
-            setEditingScheduleId(null);
-            setModalExamSubjects([]);
-            setShowExamScheduleModal(true);
-          }}
-        >
-          ➕ {t.addExamScheduleBtn}
-        </button>
+        {canAction('examSchedules', 'create') && (
+          <button 
+            className="btn-accent"
+            onClick={() => {
+              setIsEditing(false);
+              setEditingScheduleId(null);
+              setModalExamSubjects([]);
+              setShowExamScheduleModal(true);
+            }}
+          >
+            ➕ {t.addExamScheduleBtn}
+          </button>
+        )}
       </div>
 
       {/* Schedules Grid List */}
@@ -160,22 +163,26 @@ export default function ExamSchedulesTab() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button 
-                      type="button" 
-                      className="btn-elevated no-print" 
-                      style={{ color: 'var(--color-primary-ui)', borderColor: 'rgba(6, 42, 90, 0.2)', padding: '2px 8px', fontSize: '10px' }}
-                      onClick={() => handleStartEdit(sched)}
-                    >
-                      {lang === 'ar' ? 'تعديل' : 'Edit'}
-                    </button>
-                    <button 
-                      type="button" 
-                      className="btn-elevated no-print" 
-                      style={{ color: 'var(--color-error)', borderColor: 'rgba(220, 38, 38, 0.2)', padding: '2px 8px', fontSize: '10px' }}
-                      onClick={() => handleDeleteExamSchedule(sched.id)}
-                    >
-                      {lang === 'ar' ? 'حذف' : 'Delete'}
-                    </button>
+                    {canAction('examSchedules', 'create') && (
+                      <button 
+                        type="button" 
+                        className="btn-elevated no-print" 
+                        style={{ color: 'var(--color-primary-ui)', borderColor: 'rgba(6, 42, 90, 0.2)', padding: '2px 8px', fontSize: '10px' }}
+                        onClick={() => handleStartEdit(sched)}
+                      >
+                        {lang === 'ar' ? 'تعديل' : 'Edit'}
+                      </button>
+                    )}
+                    {canAction('examSchedules', 'delete') && (
+                      <button 
+                        type="button" 
+                        className="btn-elevated no-print" 
+                        style={{ color: 'var(--color-error)', borderColor: 'rgba(220, 38, 38, 0.2)', padding: '2px 8px', fontSize: '10px' }}
+                        onClick={() => handleDeleteExamSchedule(sched.id)}
+                      >
+                        {lang === 'ar' ? 'حذف' : 'Delete'}
+                      </button>
+                    )}
                     <span style={{ fontSize: '20px' }}>📅</span>
                   </div>
                 </div>

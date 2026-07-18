@@ -13,7 +13,8 @@ export default function CommunicationsTab() {
   const {
     lang,
     t,
-    triggerConfirm
+    triggerConfirm,
+    canAction
   } = useApp();
 
   const { availableGrades } = useClasses();
@@ -853,7 +854,7 @@ export default function CommunicationsTab() {
         </div>
 
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {notifications.length > 0 && (
+          {notifications.length > 0 && canAction('communications', 'delete') && (
             <button
               className="btn-elevated"
               style={{
@@ -877,18 +878,20 @@ export default function CommunicationsTab() {
           )}
 
           {/* Compose Button */}
-          <button 
-            className="btn-gradient-compose"
-            onClick={() => {
-              setModalNotificationType('parents');
-              setModalNotificationTitle('');
-              setModalNotificationContent('');
-              setShowNotificationModal(true);
-            }}
-          >
-            <Plus size={16} strokeWidth={3} />
-            <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
-          </button>
+          {canAction('communications', 'create') && (
+            <button 
+              className="btn-gradient-compose"
+              onClick={() => {
+                setModalNotificationType('parents');
+                setModalNotificationTitle('');
+                setModalNotificationContent('');
+                setShowNotificationModal(true);
+              }}
+            >
+              <Plus size={16} strokeWidth={3} />
+              <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -989,25 +992,27 @@ export default function CommunicationsTab() {
                     </span>
 
                     {/* Delete Button */}
-                    <button 
-                      className="btn-elevated"
-                      style={{ 
-                        padding: '6px', 
-                        borderRadius: '8px', 
-                        color: 'var(--color-error)', 
-                        border: '1px solid rgba(239, 68, 68, 0.2)', 
-                        backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: 'auto'
-                      }}
-                      onClick={(e) => onDeleteNotificationClick(e, notif.id)}
-                      title={lang === 'ar' ? 'حذف الإشعار' : 'Delete Notification'}
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {canAction('communications', 'delete') && (
+                      <button 
+                        className="btn-elevated"
+                        style={{ 
+                          padding: '6px', 
+                          borderRadius: '8px', 
+                          color: 'var(--color-error)', 
+                          border: '1px solid rgba(239, 68, 68, 0.2)', 
+                          backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minHeight: 'auto'
+                        }}
+                        onClick={(e) => onDeleteNotificationClick(e, notif.id)}
+                        title={lang === 'ar' ? 'حذف الإشعار' : 'Delete Notification'}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
 

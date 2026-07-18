@@ -21,14 +21,24 @@ class PermissionService
             return true;
         }
 
-        // Parents can view grades and assignments
-        if ($user->role === 'parent' && $action === 'view') {
-            return true;
+        // Parents permissions
+        if ($user->role === 'parent') {
+            if ($module === 'absenceRequests' && in_array($action, ['view', 'create', 'delete'])) {
+                return true;
+            }
+            if ($action === 'view') {
+                return true;
+            }
         }
 
-        // Teachers can view and update grades/assignments
-        if ($user->role === 'teacher' && ($action === 'view' || $action === 'update')) {
-            return true;
+        // Teachers permissions
+        if ($user->role === 'teacher') {
+            if ($module === 'assignments' && in_array($action, ['view', 'create', 'update', 'delete'])) {
+                return true;
+            }
+            if ($action === 'view' || $action === 'update') {
+                return true;
+            }
         }
 
         // Only supervisors can have custom permissions

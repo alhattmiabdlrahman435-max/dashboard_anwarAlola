@@ -6,8 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\Subject;
 use Illuminate\Http\Request;
 
-class SubjectController extends Controller
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class SubjectController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:subjects,view', only: ['index', 'show']),
+            new Middleware('check.permission:subjects,create', only: ['store']),
+            new Middleware('check.permission:subjects,update', only: ['update']),
+            new Middleware('check.permission:subjects,delete', only: ['destroy']),
+        ];
+    }
+
     public function index()
     {
         $subjects = Subject::all();

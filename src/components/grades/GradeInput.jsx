@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export default function GradeInput({ value, onChange, min, max, className }) {
+export default function GradeInput({ value, onChange, min, max, className, disabled }) {
   const [localValue, setLocalValue] = useState(value ?? 0);
 
   useEffect(() => {
@@ -34,6 +34,7 @@ export default function GradeInput({ value, onChange, min, max, className }) {
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
+      disabled={disabled}
     />
   );
 }

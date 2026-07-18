@@ -71,6 +71,21 @@ const withSuspense = (Component) => (
   </Suspense>
 );
 
+function ProtectedRoute({ module, adminOnly, children }) {
+  const { hasPermission } = useApp();
+  const { currentUser } = useAuth();
+
+  if (adminOnly && currentUser?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (module && !hasPermission(module)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
 export default function AppRouter() {
   const { darkMode, lang } = useApp();
   const { isAuthenticated } = useAuth();
@@ -98,25 +113,25 @@ export default function AppRouter() {
       <Route path="/" element={<DashboardLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={withSuspense(DashboardPage)} />
-        <Route path="students" element={withSuspense(StudentsPage)} />
-        <Route path="teachers" element={withSuspense(TeachersPage)} />
-        <Route path="parents" element={withSuspense(ParentsPage)} />
-        <Route path="classes" element={withSuspense(ClassesPage)} />
-        <Route path="subjects" element={withSuspense(SubjectsPage)} />
-        <Route path="attendance" element={withSuspense(AttendancePage)} />
-        <Route path="finance" element={withSuspense(FinancePage)} />
-        <Route path="reports" element={withSuspense(ReportsPage)} />
-        <Route path="notifications" element={withSuspense(NotificationsPage)} />
-        <Route path="settings" element={withSuspense(SettingsPage)} />
-        <Route path="prep-supervisors" element={withSuspense(PrepSupervisorsPage)} />
-        <Route path="supervisors" element={withSuspense(SupervisorsPage)} />
-        <Route path="control" element={withSuspense(ControlPage)} />
-        <Route path="teacher-reports" element={withSuspense(TeacherReportsPage)} />
-        <Route path="absence-requests" element={withSuspense(AbsenceRequestsPage)} />
-        <Route path="assignments" element={withSuspense(AssignmentsPage)} />
-        <Route path="detailed-grades" element={withSuspense(DetailedGradesPage)} />
-        <Route path="exam-schedules" element={withSuspense(ExamSchedulesPage)} />
-        <Route path="schedule" element={withSuspense(SchedulePage)} />
+        <Route path="students" element={<ProtectedRoute module="students">{withSuspense(StudentsPage)}</ProtectedRoute>} />
+        <Route path="teachers" element={<ProtectedRoute module="teachers">{withSuspense(TeachersPage)}</ProtectedRoute>} />
+        <Route path="parents" element={<ProtectedRoute module="parents">{withSuspense(ParentsPage)}</ProtectedRoute>} />
+        <Route path="classes" element={<ProtectedRoute module="classes">{withSuspense(ClassesPage)}</ProtectedRoute>} />
+        <Route path="subjects" element={<ProtectedRoute module="subjects">{withSuspense(SubjectsPage)}</ProtectedRoute>} />
+        <Route path="attendance" element={<ProtectedRoute module="scanner">{withSuspense(AttendancePage)}</ProtectedRoute>} />
+        <Route path="finance" element={<ProtectedRoute module="finance">{withSuspense(FinancePage)}</ProtectedRoute>} />
+        <Route path="reports" element={<ProtectedRoute module="reports">{withSuspense(ReportsPage)}</ProtectedRoute>} />
+        <Route path="notifications" element={<ProtectedRoute module="communications">{withSuspense(NotificationsPage)}</ProtectedRoute>} />
+        <Route path="settings" element={<ProtectedRoute adminOnly>{withSuspense(SettingsPage)}</ProtectedRoute>} />
+        <Route path="prep-supervisors" element={<ProtectedRoute module="prepSupervisors">{withSuspense(PrepSupervisorsPage)}</ProtectedRoute>} />
+        <Route path="supervisors" element={<ProtectedRoute adminOnly>{withSuspense(SupervisorsPage)}</ProtectedRoute>} />
+        <Route path="control" element={<ProtectedRoute module="control">{withSuspense(ControlPage)}</ProtectedRoute>} />
+        <Route path="teacher-reports" element={<ProtectedRoute module="teacherReports">{withSuspense(TeacherReportsPage)}</ProtectedRoute>} />
+        <Route path="absence-requests" element={<ProtectedRoute module="absenceRequests">{withSuspense(AbsenceRequestsPage)}</ProtectedRoute>} />
+        <Route path="assignments" element={<ProtectedRoute module="assignments">{withSuspense(AssignmentsPage)}</ProtectedRoute>} />
+        <Route path="detailed-grades" element={<ProtectedRoute module="detailedGrades">{withSuspense(DetailedGradesPage)}</ProtectedRoute>} />
+        <Route path="exam-schedules" element={<ProtectedRoute module="examSchedules">{withSuspense(ExamSchedulesPage)}</ProtectedRoute>} />
+        <Route path="schedule" element={<ProtectedRoute module="schedule">{withSuspense(SchedulePage)}</ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
       {/* Route for login when authenticated, will redirect to dashboard */}

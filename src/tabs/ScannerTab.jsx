@@ -11,6 +11,7 @@ export default function ScannerTab() {
     lang,
     t,
     renderAvatar,
+    canAction,
   } = useApp();
 
   const {
@@ -172,23 +173,25 @@ export default function ScannerTab() {
                 {lang === 'ar' ? 'طباعة كشف الفصل' : 'Print Class Sheet'}
               </button>
 
-              <button 
-                type="button"
-                className="btn-accent"
-                onClick={() => {
-                  const initialStudents = students.filter(s => s.grade === attendanceMonthGrade && s.section === attendanceMonthSection);
-                  setQuickGrade(attendanceMonthGrade);
-                  setQuickSection(attendanceMonthSection);
-                  setQuickStudentId(initialStudents.length > 0 ? initialStudents[0].id : '');
-                  setQuickDate(new Date().toISOString().substring(0, 10));
-                  setQuickStatus('present');
-                  setShowQuickAttendanceModal(true);
-                }}
-                style={{ minHeight: '36px', height: '36px', padding: '0 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-              >
-                <Clock size={16} />
-                {lang === 'ar' ? 'تحضير سريع (منفرد)' : 'Quick Attendance'}
-              </button>
+              {canAction('scanner', 'create') && (
+                <button 
+                  type="button"
+                  className="btn-accent"
+                  onClick={() => {
+                    const initialStudents = students.filter(s => s.grade === attendanceMonthGrade && s.section === attendanceMonthSection);
+                    setQuickGrade(attendanceMonthGrade);
+                    setQuickSection(attendanceMonthSection);
+                    setQuickStudentId(initialStudents.length > 0 ? initialStudents[0].id : '');
+                    setQuickDate(new Date().toISOString().substring(0, 10));
+                    setQuickStatus('present');
+                    setShowQuickAttendanceModal(true);
+                  }}
+                  style={{ minHeight: '36px', height: '36px', padding: '0 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                >
+                  <Clock size={16} />
+                  {lang === 'ar' ? 'تحضير سريع (منفرد)' : 'Quick Attendance'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -290,14 +293,14 @@ export default function ScannerTab() {
                                 style={{ 
                                   padding: '6px 2px', 
                                   backgroundColor: 'transparent',
-                                  cursor: 'pointer',
+                                  cursor: canAction('scanner', 'update') ? 'pointer' : 'default',
                                   fontSize: '12px',
                                   userSelect: 'none',
                                   borderLeft: '1px solid var(--color-border)',
                                   borderBottom: '1px solid var(--color-border)',
                                   textAlign: 'center'
                                 }}
-                                onClick={() => handleToggleDayAttendance(student.id, day)}
+                                onClick={() => canAction('scanner', 'update') && handleToggleDayAttendance(student.id, day)}
                               >
                                 {statusIcon}
                               </td>

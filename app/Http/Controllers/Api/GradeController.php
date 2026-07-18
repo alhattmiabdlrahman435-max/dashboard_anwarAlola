@@ -16,8 +16,11 @@ class GradeController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('check.permission:grades,view', only: ['detailed', 'control', 'getByClassAndSubject', 'getByClass']),
-            new Middleware('check.permission:grades,update', only: ['saveDetailed', 'updateControl', 'generateSecretCodes']),
+            new Middleware('check.permission:detailedGrades,view', only: ['detailed', 'getByClassAndSubject', 'getByClass']),
+            new Middleware('check.permission:detailedGrades,update', only: ['saveDetailed', 'publishMonthGrades']),
+            new Middleware('check.permission:control,view', only: ['control']),
+            new Middleware('check.permission:control,generateSecretCodes', only: ['generateSecretCodes']),
+            new Middleware('check.permission:control,enterGrades', only: ['updateControl']),
         ];
     }
     /**
@@ -44,7 +47,7 @@ class GradeController extends Controller implements HasMiddleware
                 ], 403);
             }
         } elseif ($user && $user->role === 'supervisor') {
-            $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'detailedGrades');
             if ($scopedClassIds !== null && !in_array((int)$student->class_id, $scopedClassIds)) {
                 return response()->json([
                     'success' => false,
@@ -119,6 +122,17 @@ class GradeController extends Controller implements HasMiddleware
             'wrt_grade' => 'numeric',
             'final_exam' => 'nullable|numeric',
         ]);
+
+        $student = Student::findOrFail($request->student_id);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'detailedGrades');
+        if ($scopedClassIds !== null && !in_array($student->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك برصد درجات لطالب خارج فصولك المحددة.',
+            ], 403);
+        }
 
         // Mapping from string format (term1/term2) to integer (1/2)
         $termVal = ($request->term === 'term2' || $request->term === '2') ? 2 : 1;
@@ -231,7 +245,7 @@ class GradeController extends Controller implements HasMiddleware
         ]);
 
         $user = $request->user();
-        $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'detailedGrades');
 
         if ($scopedClassIds !== null && !in_array((int)$request->class_id, $scopedClassIds)) {
             return response()->json([
@@ -305,7 +319,7 @@ class GradeController extends Controller implements HasMiddleware
     public function control(Request $request)
     {
         $user = $request->user();
-        $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'control');
 
         $query = Student::query();
         if ($scopedClassIds !== null) {
@@ -365,6 +379,15 @@ class GradeController extends Controller implements HasMiddleware
         ]);
 
         $student = Student::findOrFail($studentId);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'control');
+        if ($scopedClassIds !== null && !in_array($student->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك برصد درجات الكنترول لطالب خارج فصولك المحددة.',
+            ], 403);
+        }
 
         $subjectsMapping = [
             'math' => 1,
@@ -459,7 +482,15 @@ class GradeController extends Controller implements HasMiddleware
         ]);
 
         $prefix = $request->prefix ?: 'SEC-';
-        $students = Student::all();
+        
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'control');
+
+        $query = Student::query();
+        if ($scopedClassIds !== null) {
+            $query->whereIn('class_id', $scopedClassIds);
+        }
+        $students = $query->get();
 
         foreach ($students as $student) {
             $reg = $student->id;
@@ -481,7 +512,7 @@ class GradeController extends Controller implements HasMiddleware
     public function getByClass(Request $request, string $classId)
     {
         $user = $request->user();
-        $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'detailedGrades');
 
         if ($scopedClassIds !== null && !in_array((int)$classId, $scopedClassIds)) {
             return response()->json([
@@ -552,7 +583,7 @@ class GradeController extends Controller implements HasMiddleware
     public function getByClassAndSubject(Request $request, string $classId, string $subjectId)
     {
         $user = $request->user();
-        $scopedClassIds = PermissionService::getScopedClassIds($user, 'grades');
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'detailedGrades');
 
         if ($scopedClassIds !== null && !in_array((int)$classId, $scopedClassIds)) {
             return response()->json([

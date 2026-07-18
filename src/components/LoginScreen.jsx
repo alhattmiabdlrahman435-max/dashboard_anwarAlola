@@ -163,39 +163,7 @@ export default function LoginScreen() {
             </button>
           </form>
 
-          {/* Quick Demo Fill Panel */}
-          <div className="demo-credentials-container">
-            <div className="demo-credentials-header">
-              <KeyRound size={14} />
-              <span>{t.quickFill}</span>
-            </div>
-            <div className="demo-credentials-body">
-              {loginRole === 'admin' && (
-                <button
-                  className="demo-credential-chip"
-                  onClick={() => {
-                    setLoginUsername('admin');
-                    setLoginPassword('admin123');
-                  }}
-                  type="button"
-                >
-                  <strong>Admin:</strong> admin / admin123
-                </button>
-              )}
-              {loginRole === 'supervisor' && (
-                <button
-                  className="demo-credential-chip"
-                  onClick={() => {
-                    setLoginUsername('supervisor');
-                    setLoginPassword('super123');
-                  }}
-                  type="button"
-                >
-                  <strong>Supervisor:</strong> supervisor / super123
-                </button>
-              )}
-            </div>
-          </div>
+
         </div>
       </div>
 
