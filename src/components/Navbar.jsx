@@ -1,39 +1,52 @@
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../contexts/Auth/useAuth';
+import { useNotifications } from '../contexts/Notifications/useNotifications';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, Globe, Sun, Moon, Bell, Mail, Settings, LogOut } from 'lucide-react';
 
 export default function Navbar() {
   const {
     lang, setLang, t,
     darkMode, setDarkMode,
-    activeTab, setActiveTab,
-    isMobileMenuOpen, setIsMobileMenuOpen,
-    showNotificationsDropdown, setShowNotificationsDropdown,
+    setIsMobileMenuOpen,
     showProfileDropdown, setShowProfileDropdown,
-    currentUser, smsLogs, notifications, handleLogout, handleMarkNotificationAsRead,
-    renderAvatar
+    renderAvatar, setToastMessage
   } = useApp();
 
+  const {
+    showNotificationsDropdown, setShowNotificationsDropdown,
+    smsLogs, notifications, handleMarkNotificationAsRead,
+  } = useNotifications();
+
+  const { currentUser, logout } = useAuth();
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const getTabLabel = () => {
-    const tabNames = {
-      dashboard: t.dashboard,
-      students: t.students,
-      parents: t.parents,
-      teachers: t.teachers,
-      classes: t.classes,
-      subjects: t.subjects,
-      schedule: t.schedule,
-      scanner: t.qrScanner,
-      absenceRequests: t.absenceRequests,
-      assignments: t.assignmentsHub,
-      examSchedules: t.examSchedulesBuilder,
-      detailedGrades: t.detailedGrades,
-      finance: t.finance,
-      communications: t.communications,
-      control: t.control,
-      reports: t.reports,
-      settings: t.settings
+    const pathToLabelMap = {
+      '/dashboard': t.dashboard,
+      '/students': t.students,
+      '/parents': t.parents,
+      '/prep-supervisors': t.prepSupervisors,
+      '/teachers': t.teachers,
+      '/classes': t.classes,
+      '/subjects': t.subjects,
+      '/schedule': t.schedule,
+      '/attendance': t.qrScanner,
+      '/absence-requests': t.absenceRequests,
+      '/assignments': t.assignmentsHub,
+      '/exam-schedules': t.examSchedulesBuilder,
+      '/detailed-grades': t.detailedGrades,
+      '/finance': t.finance,
+      '/notifications': t.communications,
+      '/control': t.control,
+      '/reports': t.reports,
+      '/teacher-reports': t.teacherReports,
+      '/supervisors': lang === 'ar' ? 'إدارة الوكلاء' : 'Vice Principals',
+      '/settings': t.settings
     };
-    return tabNames[activeTab] || t.dashboard;
+    return pathToLabelMap[location.pathname] || t.dashboard;
   };
 
   return (
@@ -50,7 +63,7 @@ export default function Navbar() {
 
         {/* Breadcrumbs Navigation */}
         <div className="header-breadcrumbs">
-          {activeTab !== 'dashboard' ? (
+          {location.pathname !== '/dashboard' ? (
             <>
               <span className="breadcrumb-sub">{lang === 'ar' ? 'الرئيسية' : 'Main'}</span>
               <span className="breadcrumb-separator">/</span>
@@ -124,7 +137,7 @@ export default function Navbar() {
                       
                       let className = null;
                       let monthKey = 'm1';
-                      let termKey = 'term1';
+                      let termKey;
 
                       if (notif.title.includes('درجات جاهزة للمراجعة:')) {
                         className = notif.title.replace('📊 درجات جاهزة للمراجعة:', '').trim();
@@ -155,7 +168,7 @@ export default function Navbar() {
                         localStorage.setItem('goto_term', termKey);
                         window.dispatchEvent(new Event('goto_class_changed'));
                         
-                        setActiveTab('detailedGrades');
+                        navigate('/detailed-grades');
                         setShowNotificationsDropdown(false);
                       }
                     }}
@@ -190,7 +203,7 @@ export default function Navbar() {
                 )}
               </div>
               <div className="dropdown-footer">
-                <button onClick={() => { setActiveTab('communications'); setShowNotificationsDropdown(false); }}>
+                <button onClick={() => { navigate('/notifications'); setShowNotificationsDropdown(false); }}>
                   {lang === 'ar' ? 'عرض جميع المراسلات' : 'View All Communications'}
                 </button>
               </div>
@@ -221,7 +234,7 @@ export default function Navbar() {
                 {currentUser?.role === 'admin' && (
                   <button 
                     className="dropdown-link-btn"
-                    onClick={() => { setActiveTab('settings'); setShowProfileDropdown(false); }}
+                    onClick={() => { navigate('/settings'); setShowProfileDropdown(false); }}
                   >
                     <Settings size={14} />
                     <span>{t.settings}</span>
@@ -231,7 +244,9 @@ export default function Navbar() {
                   className="dropdown-link-btn danger"
                   onClick={() => {
                     setShowProfileDropdown(false);
-                    handleLogout();
+                    logout();
+                    setToastMessage(lang === 'ar' ? 'تم تسجيل الخروج بنجاح!' : 'Logged out successfully!');
+                    setTimeout(() => setToastMessage(''), 3000);
                   }}
                 >
                   <LogOut size={14} />

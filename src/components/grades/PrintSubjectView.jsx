@@ -1,5 +1,5 @@
-import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { useStudents } from '../../contexts/Students/useStudents';
 import PrintHeader from '../PrintHeader';
 import { calculateMonthTotal } from '../../utils/gradesHelper';
 
@@ -14,7 +14,6 @@ export default function PrintSubjectView() {
   const {
     lang,
     t,
-    students,
     detailedGrades,
     getStudentDetailedGrades,
     selectedGradeStudentId,
@@ -22,6 +21,8 @@ export default function PrintSubjectView() {
     selectedGradeSubject,
     printSelectedMonth
   } = useApp();
+
+  const { students } = useStudents();
 
   const student = students.find(s => s.id === selectedGradeStudentId);
   const gradesData = getStudentDetailedGrades(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm);

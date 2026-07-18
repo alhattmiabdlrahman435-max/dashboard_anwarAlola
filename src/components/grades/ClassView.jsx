@@ -1,18 +1,27 @@
-import React from 'react';
+import { memo, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useStudents } from '../../contexts/Students/useStudents';
+import { useSubjects } from '../../contexts/Subjects/useSubjects';
 import { calculateMonthTotal, getSubjectPeriodGrade, calculateStudentClassRowTotal } from '../../utils/gradesHelper';
+import GradeInput from './GradeInput';
 
-export default function ClassView({ selectedClass, classPeriod, classSubject }) {
+const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSubject }) {
   const {
     lang,
     t,
-    students,
     selectedGradeTerm,
     getStudentDetailedGrades,
-    handleDetailedGradeChange,
+    handleDetailedGradeChange: handleDetailedGradeChangeContext,
     syncGeneralGrades,
     setToastMessage
   } = useApp();
+
+  const { students } = useStudents();
+  const { subjects } = useSubjects();
+
+  const handleDetailedGradeChange = useCallback((studentId, subject, term, monthKey, field, val) => {
+    handleDetailedGradeChangeContext(studentId, subject, term, monthKey, field, val, students, subjects);
+  }, [handleDetailedGradeChangeContext, students, subjects]);
 
   const getSubjectPeriodGradeLocal = (studentId, subject, term, period) => {
     return getSubjectPeriodGrade(studentId, subject, term, period, getStudentDetailedGrades);
@@ -66,7 +75,6 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
             </thead>
             <tbody>
               {(() => {
-                const { selectedGradeTerm } = useApp();
                 const classStudents = students.filter(s => `${s.grade} - ${s.section}` === selectedClass);
                 if (classStudents.length === 0) {
                   return (
@@ -175,7 +183,6 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
             </thead>
             <tbody>
               {(() => {
-                const { selectedGradeTerm } = useApp();
                 const classStudents = students.filter(s => `${s.grade} - ${s.section}` === selectedClass);
                 if (classStudents.length === 0) {
                   return (
@@ -211,38 +218,38 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
                           )}
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
                           <td>
-                            <input 
-                              type="number" className="grades-input" min="0" max="15" 
+                            <GradeInput 
+                              min="0" max="15" 
                               value={mData.homework ?? 0}
-                              onChange={(e) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'homework', e.target.value)}
+                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'homework', val)}
                             />
                           </td>
                           <td>
-                            <input 
-                              type="number" className="grades-input" min="0" max="15" 
+                            <GradeInput 
+                              min="0" max="15" 
                               value={mData.attendance ?? 0}
-                              onChange={(e) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'attendance', e.target.value)}
+                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'attendance', val)}
                             />
                           </td>
                           <td>
-                            <input 
-                              type="number" className="grades-input" min="0" max="10" 
+                            <GradeInput 
+                              min="0" max="10" 
                               value={mData.behavior ?? 0}
-                              onChange={(e) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'behavior', e.target.value)}
+                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'behavior', val)}
                             />
                           </td>
                           <td>
-                            <input 
-                              type="number" className="grades-input" min="0" max="10" 
+                            <GradeInput 
+                              min="0" max="10" 
                               value={mData.oral ?? 0}
-                              onChange={(e) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'oral', e.target.value)}
+                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'oral', val)}
                             />
                           </td>
                           <td>
-                            <input 
-                              type="number" className="grades-input" min="0" max="50" 
+                            <GradeInput 
+                              min="0" max="50" 
                               value={mData.written ?? 0}
-                              onChange={(e) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'written', e.target.value)}
+                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, classPeriod, 'written', val)}
                             />
                           </td>
                           <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
@@ -266,10 +273,10 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
                           <td>{avg}</td>
                           <td>
-                            <input 
-                              type="number" className="grades-input" min="0" max="30" 
+                            <GradeInput 
+                              min="0" max="30" 
                               value={sData.finalExam ?? 0}
-                              onChange={(e) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, 'finalExam', '', e.target.value)}
+                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, 'finalExam', '', val)}
                             />
                           </td>
                           <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
@@ -436,7 +443,6 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
             </thead>
             <tbody>
               {(() => {
-                const { selectedGradeTerm } = useApp();
                 const classStudents = students.filter(s => `${s.grade} - ${s.section}` === selectedClass);
                 if (classStudents.length === 0) {
                   return (
@@ -471,38 +477,38 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
                         <td>{index + 1}</td>
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
                         <td>
-                          <input 
-                            type="number" className="grades-input" min="0" max="15" 
+                          <GradeInput 
+                            min="0" max="15" 
                             value={mData.homework ?? 0}
-                            onChange={(e) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'homework', e.target.value)}
+                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'homework', val)}
                           />
                         </td>
                         <td>
-                          <input 
-                            type="number" className="grades-input" min="0" max="15" 
+                          <GradeInput 
+                            min="0" max="15" 
                             value={mData.attendance ?? 0}
-                            onChange={(e) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'attendance', e.target.value)}
+                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'attendance', val)}
                           />
                         </td>
                         <td>
-                          <input 
-                            type="number" className="grades-input" min="0" max="10" 
+                          <GradeInput 
+                            min="0" max="10" 
                             value={mData.behavior ?? 0}
-                            onChange={(e) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'behavior', e.target.value)}
+                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'behavior', val)}
                           />
                         </td>
                         <td>
-                          <input 
-                            type="number" className="grades-input" min="0" max="10" 
+                          <GradeInput 
+                            min="0" max="10" 
                             value={mData.oral ?? 0}
-                            onChange={(e) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'oral', e.target.value)}
+                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'oral', val)}
                           />
                         </td>
                         <td>
-                          <input 
-                            type="number" className="grades-input" min="0" max="50" 
+                          <GradeInput 
+                            min="0" max="50" 
                             value={mData.written ?? 0}
-                            onChange={(e) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'written', e.target.value)}
+                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'written', val)}
                           />
                         </td>
                         <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
@@ -525,10 +531,10 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
                         <td>{avg}</td>
                         <td>
-                          <input 
-                            type="number" className="grades-input" min="0" max="30" 
+                          <GradeInput 
+                            min="0" max="30" 
                             value={sData.finalExam ?? 0}
-                            onChange={(e) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, 'finalExam', '', e.target.value)}
+                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, 'finalExam', '', val)}
                           />
                         </td>
                         <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
@@ -627,4 +633,6 @@ export default function ClassView({ selectedClass, classPeriod, classSubject }) 
       )}
     </>
   );
-}
+})
+
+export default ClassView;

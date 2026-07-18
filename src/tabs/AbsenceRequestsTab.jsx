@@ -1,28 +1,36 @@
-import React, { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useAttendance } from '../contexts/Attendance/useAttendance';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 
 export default function AbsenceRequestsTab() {
   const {
     lang,
     t,
-    students,
+    renderAvatar,
+    setToastMessage
+  } = useApp();
+
+  const {
+    availableGrades,
+    availableSections,
+  } = useClasses();
+
+  const {
     absenceRequests,
     handleAbsenceDecision,
     attendanceRosterDate,
     setAttendanceRosterDate,
     handleManualAttendanceChange,
-    handleManualAttendanceNoteChange,
-    renderAvatar,
-    availableGrades,
-    availableSections,
-    setToastMessage
-  } = useApp();
+  } = useAttendance();
+
+  const { students, handleManualAttendanceNoteChange } = useStudents();
 
   // Local tab/filters states
   const [absenceSubTab, setAbsenceSubTab] = useState('requests');
   const [absenceFilter, setAbsenceFilter] = useState('pending');
-  const [absenceNoteText, setAbsenceNoteText] = useState('');
   const [dateSortOrder, setDateSortOrder] = useState('desc'); // 'desc' or 'asc'
   const [filterDate, setFilterDate] = useState('');
 
@@ -39,6 +47,27 @@ export default function AbsenceRequestsTab() {
   const [decisionType, setDecisionType] = useState(''); // 'approved' or 'rejected'
   const [decisionNote, setDecisionNote] = useState('');
 
+  const filteredRequests = useMemo(() => {
+    return [...absenceRequests]
+      .filter(r => absenceFilter === 'all' || r.status === absenceFilter)
+      .filter(r => !filterDate || r.requestedDate === filterDate)
+      .sort((a, b) => {
+        const dateA = a.requestedDate || '';
+        const dateB = b.requestedDate || '';
+        return dateSortOrder === 'desc' 
+          ? dateB.localeCompare(dateA) 
+          : dateA.localeCompare(dateB);
+      });
+  }, [absenceRequests, absenceFilter, filterDate, dateSortOrder]);
+
+  const pendingRequestsCount = useMemo(() => {
+    return absenceRequests.filter(r => r.status === 'pending').length;
+  }, [absenceRequests]);
+
+  const rosterStudents = useMemo(() => {
+    return students.filter(s => s.grade === attendanceRosterGrade && s.section === attendanceRosterSection);
+  }, [students, attendanceRosterGrade, attendanceRosterSection]);
+
   const openDecisionModal = (req, type) => {
     setActiveRequest(req);
     setDecisionType(type);
@@ -53,16 +82,12 @@ export default function AbsenceRequestsTab() {
       setTimeout(() => setToastMessage(''), 3000);
       return;
     }
-    handleAbsenceDecision(activeRequest.id, decisionType, decisionNote);
+    handleAbsenceDecision(activeRequest.id, decisionType, decisionNote, students);
     setDecisionModalOpen(false);
     setActiveRequest(null);
     setDecisionNote('');
   };
 
-  const handleDecision = (requestId, status) => {
-    handleAbsenceDecision(requestId, status, absenceNoteText);
-    setAbsenceNoteText('');
-  };
 
   return (
     <div className="section-card">
@@ -90,28 +115,16 @@ export default function AbsenceRequestsTab() {
             </button>
           </div>
         </div>
-      </div>      {absenceSubTab === 'requests' ? (
-        (() => {
-          const filteredRequests = [...absenceRequests]
-            .filter(r => absenceFilter === 'all' || r.status === absenceFilter)
-            .filter(r => !filterDate || r.requestedDate === filterDate)
-            .sort((a, b) => {
-              const dateA = a.requestedDate || '';
-              const dateB = b.requestedDate || '';
-              return dateSortOrder === 'desc' 
-                ? dateB.localeCompare(dateA) 
-                : dateA.localeCompare(dateB);
-            });
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }} className="no-print">
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <button 
-                    className={`chip ${absenceFilter === 'pending' ? 'selected' : ''}`}
-                    onClick={() => setAbsenceFilter('pending')}
-                  >
-                    ⏳ {t.pendingStatus} ({absenceRequests.filter(r => r.status === 'pending').length})
-                  </button>
+      </div>      {absenceSubTab === 'requests' ?
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }} className="no-print">
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button 
+                  className={`chip ${absenceFilter === 'pending' ? 'selected' : ''}`}
+                  onClick={() => setAbsenceFilter('pending')}
+                >
+                  ⏳ {t.pendingStatus} ({pendingRequestsCount})
+                </button>
                   <button 
                     className={`chip ${absenceFilter === 'all' ? 'selected' : ''}`}
                     onClick={() => setAbsenceFilter('all')}
@@ -186,7 +199,7 @@ export default function AbsenceRequestsTab() {
                 </button>
               </div>
 
-              {filteredRequests.length > 0 ? (
+              {filteredRequests.length > 0 ?
                 <div className="students-table-container">
                   <table className="students-table">
                     <thead>
@@ -309,15 +322,13 @@ export default function AbsenceRequestsTab() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          :
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)' }}>
               ⏳ {t.noAbsenceRequests}
             </div>
-          )}
+          }
         </div>
-      );
-    })()
-  ) : (
+      :
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           
           {/* Roster Filters Header */}
@@ -366,12 +377,8 @@ export default function AbsenceRequestsTab() {
           </div>
 
           {/* Roster Table Grid */}
-          {(() => {
-            const rosterStudents = students.filter(s => s.grade === attendanceRosterGrade && s.section === attendanceRosterSection);
-            
-            if (rosterStudents.length > 0) {
-              return (
-                <div className="students-table-container">
+          {rosterStudents.length > 0 ?
+            <div className="students-table-container">
                   <table className="students-table">
                     <thead>
                       <tr>
@@ -427,7 +434,7 @@ export default function AbsenceRequestsTab() {
                                     cursor: 'pointer',
                                     margin: 0
                                   }}
-                                  onClick={() => handleManualAttendanceChange(student.id, 'present', attendanceRosterDate)}
+                                  onClick={() => handleManualAttendanceChange(student.id, 'present', attendanceRosterDate, students)}
                                 >
                                   🟢 {t.present}
                                 </button>
@@ -441,7 +448,7 @@ export default function AbsenceRequestsTab() {
                                     cursor: 'pointer',
                                     margin: 0
                                   }}
-                                  onClick={() => handleManualAttendanceChange(student.id, 'absent', attendanceRosterDate)}
+                                  onClick={() => handleManualAttendanceChange(student.id, 'absent', attendanceRosterDate, students)}
                                 >
                                   🔴 {t.absent}
                                 </button>
@@ -452,18 +459,14 @@ export default function AbsenceRequestsTab() {
                       })}
                     </tbody>
                   </table>
-                </div>
-              );
-            } else {
-              return (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)' }}>
-                  ℹ️ {lang === 'ar' ? 'لا يوجد طلاب مسجلين في هذا الصف والشعبة حالياً.' : 'No registered students in this grade and section currently.'}
-                </div>
-              );
-            }
-          })()}
+            </div>
+          :
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)' }}>
+              ℹ️ {lang === 'ar' ? 'لا يوجد طلاب مسجلين في هذا الصف والشعبة حالياً.' : 'No registered students in this grade and section currently.'}
+            </div>
+          }
         </div>
-      )}
+      }
 
       {/* DECISION POPUP MODAL */}
       {decisionModalOpen && activeRequest && (

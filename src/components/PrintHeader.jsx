@@ -1,8 +1,7 @@
-import { useApp } from '../context/AppContext';
+import { memo } from 'react';
 import sloganLogo from '../assets/slogan.jpeg';
 
-export default function PrintHeader({ title, subtitle }) {
-  const { lang } = useApp();
+const PrintHeader = memo(function PrintHeader({ title, subtitle }) {
 
   return (
     <div className="printable-only-header" style={{ 
@@ -59,4 +58,6 @@ export default function PrintHeader({ title, subtitle }) {
       </div>
     </div>
   );
-}
+})
+
+export default PrintHeader;

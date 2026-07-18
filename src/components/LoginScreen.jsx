@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useApp, dictionary } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
+import { useAuth } from '../contexts/Auth/useAuth';
 import sloganLogo from '../assets/slogan.jpeg';
 import { 
   Globe, Sun, Moon, ShieldAlert, Users, User, Lock, EyeOff, Eye, LogIn, KeyRound, AlertCircle 
@@ -9,9 +10,9 @@ export default function LoginScreen() {
   const {
     lang, setLang, t,
     darkMode, setDarkMode,
-    setIsAuthenticated, setCurrentUser,
-    setToastMessage, teachers, parentUsers
+    setToastMessage
   } = useApp();
+  const { login } = useAuth();
 
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -32,37 +33,16 @@ export default function LoginScreen() {
     }
 
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          username: usernameTrimmed,
-          password: passwordTrimmed,
-          role: loginRole
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        if (data.user.role !== 'admin' && data.user.role !== 'supervisor') {
-          setLoginError(lang === 'ar' ? 'عذراً، غير مصرح لك بالدخول إلى لوحة التحكم الإدارية.' : 'Sorry, you are not authorized to access the admin dashboard.');
-          return;
-        }
-        localStorage.setItem('auth_token', data.token);
-        setIsAuthenticated(true);
-        setCurrentUser(data.user);
-        setToastMessage(lang === 'ar' ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!');
-        setTimeout(() => setToastMessage(''), 3000);
-      } else {
-        setLoginError(lang === 'ar' ? data.message : 'Invalid credentials');
-      }
+      await login(usernameTrimmed, passwordTrimmed, loginRole);
+      setToastMessage(lang === 'ar' ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!');
+      setTimeout(() => setToastMessage(''), 3000);
     } catch (err) {
       console.error(err);
-      setLoginError(lang === 'ar' ? 'خطأ في الاتصال بالسيرفر' : 'Server connection error');
+      if (err.message === 'Unauthorized') {
+        setLoginError(lang === 'ar' ? 'عذراً، غير مصرح لك بالدخول إلى لوحة التحكم الإدارية.' : 'Sorry, you are not authorized to access the admin dashboard.');
+      } else {
+        setLoginError(lang === 'ar' ? err.message : 'Invalid credentials');
+      }
     }
   };
 

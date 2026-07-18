@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useSettings } from '../contexts/Settings/useSettings';
 import PrintHeader from '../components/PrintHeader';
 
 export default function ControlTab() {
@@ -7,13 +9,15 @@ export default function ControlTab() {
     lang,
     t,
     grades,
-    students,
+    setToastMessage,
+  } = useApp();
+  const { students } = useStudents();
+  const {
     isGradesEncrypted,
     setIsGradesEncrypted,
-    setToastMessage,
     handleCalculateSecretCodes,
-    handleEnterGradeBySecretCode
-  } = useApp();
+    handleEnterGradeBySecretCode,
+  } = useSettings();
 
   const [secretTermInput, setSecretTermInput] = useState('term1');
   const [secretSubjectInput, setSecretSubjectInput] = useState('الرياضيات');
@@ -41,7 +45,8 @@ export default function ControlTab() {
       secretCodeInput,
       secretGradeInput,
       secretSubjectInput,
-      secretTermInput
+      secretTermInput,
+      students
     );
 
     if (success) {

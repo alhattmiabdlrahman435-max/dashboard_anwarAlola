@@ -1,17 +1,18 @@
-import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { useStudents } from '../../contexts/Students/useStudents';
 import PrintHeader from '../PrintHeader';
 
 export default function PrintMonthView() {
   const {
     lang,
     t,
-    students,
     getStudentDetailedGrades,
     selectedGradeStudentId,
     selectedGradeTerm,
     printSelectedMonth
   } = useApp();
+
+  const { students } = useStudents();
 
   const student = students.find(s => s.id === selectedGradeStudentId);
 

@@ -1,7 +1,8 @@
 import { api } from "../services/api";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Edit3, Trash2, Copy, Shield, ShieldCheck, ChevronDown, Search, X } from 'lucide-react';
+import { Plus, Edit3, Trash2, Copy, Shield, ShieldCheck, Search, X } from 'lucide-react';
+import { useClasses } from '../contexts/Classes/useClasses';
 
 const ALL_MODULES = [
   { key: 'students', labelAr: 'الطلاب', labelEn: 'Students', actions: ['view', 'create', 'update', 'delete', 'export', 'import'] },
@@ -92,11 +93,12 @@ const actionStyles = {
 };
 
 export default function SupervisorsTab() {
-  const { lang, currentUser, vicePrincipals, setVicePrincipals, classes, setToastMessage, triggerConfirm } = useApp();
+  const { lang, vicePrincipals, setVicePrincipals, setToastMessage, triggerConfirm } = useApp();
+  const { classes } = useClasses();
+
   const t = ACTION_LABELS[lang] || ACTION_LABELS.ar;
 
   const API_BASE = '/api';
-  const getToken = () => localStorage.getItem('auth_token');
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -115,19 +117,19 @@ export default function SupervisorsTab() {
   const [showCopyDropdown, setShowCopyDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch vice principals on mount
-  useEffect(() => {
-    fetchVicePrincipals();
-  }, []);
-
-  const fetchVicePrincipals = async () => {
+  const fetchVicePrincipals = useCallback(async () => {
     try {
       const data = await api.get('/api/vice-principals');
       if (data.success) setVicePrincipals(data.data);
     } catch (err) {
       console.error('Failed to fetch vice principals:', err);
     }
-  };
+  }, [setVicePrincipals]);
+
+  // Fetch vice principals on mount
+  useEffect(() => {
+    fetchVicePrincipals();
+  }, [fetchVicePrincipals]);
 
   const openAddModal = () => {
     setEditingVP(null);
@@ -258,7 +260,6 @@ export default function SupervisorsTab() {
 
     try {
       const url = editingVP ? `${API_BASE}/vice-principals/${editingVP.id}` : `${API_BASE}/vice-principals`;
-      const method = editingVP ? 'PUT' : 'POST';
       const data = await (editingVP ? api.put(url, body) : api.post(url, body));
       if (data.success) {
         setShowModal(false);
@@ -268,6 +269,7 @@ export default function SupervisorsTab() {
         setFormError(data.message || 'Error');
       }
     } catch (err) {
+      console.error(err);
       setFormError(lang === 'ar' ? 'حدث خطأ في الاتصال.' : 'Connection error.');
     }
   };
@@ -297,16 +299,18 @@ export default function SupervisorsTab() {
 
   const getScopeValueOptions = (moduleKey, scope) => {
     if (scope === 'stage') return STAGES;
-    if (scope === 'grade') return AVAILABLE_GRADES.map((g, i) => ({ id: g, labelAr: g, labelEn: g }));
+    if (scope === 'grade') return AVAILABLE_GRADES.map(g => ({ id: g, labelAr: g, labelEn: g }));
     if (scope === 'class') return (classes || []).map(c => ({ id: c.id, labelAr: c.name || c.nameAr || `${c.grade} - ${c.section}`, labelEn: c.nameEn || c.name || `${c.gradeEn} - ${c.sectionEn}` }));
     return [];
   };
 
-  const filteredVPs = vicePrincipals.filter(vp => 
-    vp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (vp.jobId && vp.jobId.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (vp.phone && vp.phone.includes(searchQuery))
-  );
+  const filteredVPs = useMemo(() => {
+    return vicePrincipals.filter(vp => 
+      vp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (vp.jobId && vp.jobId.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (vp.phone && vp.phone.includes(searchQuery))
+    );
+  }, [vicePrincipals, searchQuery]);
 
   return (
     <div className="section-card">

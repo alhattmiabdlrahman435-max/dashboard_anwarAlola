@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../contexts/Auth/useAuth';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useFinance } from '../contexts/Finance/useFinance';
 import { X } from 'lucide-react';
 
 export default function FinanceTab() {
   const {
     lang,
     t,
-    students,
-    classes,
-    tuitionFees,
-    currentUser,
     renderAvatar,
-    handleAddPayment,
     setToastMessage
   } = useApp();
+  const { classes } = useClasses();
+  const { tuitionFees, handleAddPayment } = useFinance();
+  const { students } = useStudents();
+  const { currentUser } = useAuth();
 
   const currencySymbol = lang === 'ar' ? 'ر.ي' : 'R.Y';
 
@@ -81,9 +84,11 @@ export default function FinanceTab() {
     return result + ' ريال يمني لا غير';
   };
 
-  const parentStudents = currentUser?.role === 'parent'
-    ? students.filter(s => s.parentNationalId === currentUser.username)
-    : students;
+  const parentStudents = useMemo(() => {
+    return currentUser?.role === 'parent'
+      ? students.filter(s => s.parentNationalId === currentUser.username)
+      : students;
+  }, [students, currentUser]);
 
   const [selectedFinanceStudentId, setSelectedFinanceStudentId] = useState(
     parentStudents.length > 0 ? parentStudents[0].id : null
@@ -95,32 +100,37 @@ export default function FinanceTab() {
   const [modalPaymentDate, setModalPaymentDate] = useState('');
   const [modalPaymentRef, setModalPaymentRef] = useState('');
 
-  const filteredStudents = parentStudents.filter(s => {
-    const name = s.name || '';
-    const nameEn = s.nameEn || '';
-    const idStr = String(s.id);
-    const searchLower = searchTerm.toLowerCase();
-    return name.toLowerCase().includes(searchLower) || 
-           nameEn.toLowerCase().includes(searchLower) || 
-           idStr.includes(searchLower);
-  });
+  const filteredStudents = useMemo(() => {
+    return parentStudents.filter(s => {
+      const name = s.name || '';
+      const nameEn = s.nameEn || '';
+      const idStr = String(s.id);
+      const searchLower = searchTerm.toLowerCase();
+      return name.toLowerCase().includes(searchLower) || 
+             nameEn.toLowerCase().includes(searchLower) || 
+             idStr.includes(searchLower);
+    });
+  }, [parentStudents, searchTerm]);
 
   // Update selection if the parent students list changes or filter updates
   useEffect(() => {
     if (filteredStudents.length > 0 && (!selectedFinanceStudentId || !filteredStudents.some(s => s.id === selectedFinanceStudentId))) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedFinanceStudentId(filteredStudents[0].id);
     } else if (filteredStudents.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedFinanceStudentId(null);
     }
-  }, [searchTerm, students, currentUser]);
+  }, [filteredStudents, selectedFinanceStudentId, setSelectedFinanceStudentId]);
 
   // Auto-populate current date and generate unique reference when modal opens
   useEffect(() => {
     if (showPaymentModal) {
       const today = new Date().toISOString().split('T')[0];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModalPaymentDate(today);
-      
       const randomId = Math.floor(100000 + Math.random() * 900000);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModalPaymentRef(`PAY-${randomId}`);
     }
   }, [showPaymentModal]);
@@ -142,7 +152,7 @@ export default function FinanceTab() {
       status: 'completed'
     };
 
-    handleAddPayment(newPayment);
+    handleAddPayment(newPayment, students);
     
     // Reset modal states
     setShowPaymentModal(false);
@@ -152,23 +162,48 @@ export default function FinanceTab() {
   };
 
   // Calculate aggregates
-  const parentStudentIds = parentStudents.map(s => s.id);
-  const globalRequired = parentStudents.reduce((sum, s) => sum + (s.tuition_fee ?? s.tuitionFee ?? 10000), 0);
-  const globalPaid = tuitionFees.payments
-    .filter(p => parentStudentIds.includes(p.studentId))
-    .reduce((sum, p) => sum + p.amount, 0);
-  const globalRemaining = globalRequired - globalPaid;
+  // Calculate aggregates
+  const parentStudentIds = useMemo(() => parentStudents.map(s => s.id), [parentStudents]);
+  
+  const globalRequired = useMemo(() => {
+    return parentStudents.reduce((sum, s) => sum + (s.tuition_fee ?? s.tuitionFee ?? 10000), 0);
+  }, [parentStudents]);
 
-  const selectedStudent = students.find(s => s.id === selectedFinanceStudentId);
-  const selectedRequired = selectedStudent ? (selectedStudent.tuition_fee ?? selectedStudent.tuitionFee ?? 10000) : 0;
-  const selectedPayments = selectedStudent
-    ? tuitionFees.payments.filter(p => p.studentId === selectedStudent.id)
-    : [];
-  const selectedPaid = selectedPayments.reduce((sum, p) => sum + p.amount, 0);
-  const selectedRemaining = selectedRequired - selectedPaid;
+  const globalPaid = useMemo(() => {
+    return tuitionFees.payments
+      .filter(p => parentStudentIds.includes(p.studentId))
+      .reduce((sum, p) => sum + p.amount, 0);
+  }, [tuitionFees.payments, parentStudentIds]);
 
-  const selectedStudentClass = selectedStudent ? classes.find(c => c.id === selectedStudent.classId) : null;
-  const selectedStudentClassName = selectedStudentClass ? (lang === 'ar' ? selectedStudentClass.name : selectedStudentClass.nameEn) : '';
+  const globalRemaining = useMemo(() => globalRequired - globalPaid, [globalRequired, globalPaid]);
+
+  const selectedStudent = useMemo(() => {
+    return students.find(s => s.id === selectedFinanceStudentId);
+  }, [students, selectedFinanceStudentId]);
+
+  const selectedRequired = useMemo(() => {
+    return selectedStudent ? (selectedStudent.tuition_fee ?? selectedStudent.tuitionFee ?? 10000) : 0;
+  }, [selectedStudent]);
+
+  const selectedPayments = useMemo(() => {
+    return selectedStudent
+      ? tuitionFees.payments.filter(p => p.studentId === selectedStudent.id)
+      : [];
+  }, [tuitionFees.payments, selectedStudent]);
+
+  const selectedPaid = useMemo(() => {
+    return selectedPayments.reduce((sum, p) => sum + p.amount, 0);
+  }, [selectedPayments]);
+
+  const selectedRemaining = useMemo(() => selectedRequired - selectedPaid, [selectedRequired, selectedPaid]);
+
+  const selectedStudentClass = useMemo(() => {
+    return selectedStudent ? classes.find(c => c.id === selectedStudent.classId) : null;
+  }, [selectedStudent, classes]);
+
+  const selectedStudentClassName = useMemo(() => {
+    return selectedStudentClass ? (lang === 'ar' ? selectedStudentClass.name : selectedStudentClass.nameEn) : '';
+  }, [selectedStudentClass, lang]);
 
   return (
     <div className="section-card">
@@ -615,7 +650,7 @@ export default function FinanceTab() {
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px dashed #cbd5e1', width: '70px', height: '70px', borderRadius: '4px', backgroundColor: '#f8fafc', padding: '4px' }}>
                        {/* Placeholder for QR Code */}
                        <div style={{ width: '100%', height: '100%', display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
-                         {Array(16).fill(0).map((_, i) => <div key={i} style={{ width: 'calc(25% - 2px)', height: 'calc(25% - 2px)', backgroundColor: Math.random() > 0.5 ? '#1e293b' : 'transparent' }} />)}
+                         {Array(16).fill(0).map((_, i) => <div key={i} style={{ width: 'calc(25% - 2px)', height: 'calc(25% - 2px)', backgroundColor: (i * 7 + 3) % 2 === 0 ? '#1e293b' : 'transparent' }} />)}
                        </div>
                     </div>
                   </div>

@@ -1,4 +1,5 @@
 import { useApp } from '../context/AppContext';
+import { useClasses } from '../contexts/Classes/useClasses';
 
 export default function SettingsTab() {
   const {
@@ -7,11 +8,14 @@ export default function SettingsTab() {
     t,
     darkMode,
     setDarkMode,
+  } = useApp();
+
+  const {
     availableGrades,
     availableSections,
     handleAddSection,
     handleRemoveSection
-  } = useApp();
+  } = useClasses();
 
   return (
     <div className="section-card no-print">

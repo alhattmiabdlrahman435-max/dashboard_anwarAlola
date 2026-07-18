@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useAttendance } from '../contexts/Attendance/useAttendance';
 import PrintHeader from '../components/PrintHeader';
 import { X, Calendar, BarChart3, Printer, Clock, Search } from 'lucide-react';
 
@@ -7,18 +10,27 @@ export default function ScannerTab() {
   const {
     lang,
     t,
-    students,
-    attendanceRecords,
-    handleCellAttendanceChange,
-    calculateStudentStats,
     renderAvatar,
-    setPrintStudentObject,
+  } = useApp();
+
+  const {
+    classes,
     availableGrades,
     availableSections,
+  } = useClasses();
+
+  const {
+    attendanceRecords,
+    handleCellAttendanceChange,
     selectedAttendanceMonth,
     setSelectedAttendanceMonth,
-    classes
-  } = useApp();
+  } = useAttendance();
+
+  const {
+    students,
+    calculateStudentStats,
+    setPrintStudentObject
+  } = useStudents();
 
   // Local navigation and filters
   const [attendanceSubTab, setAttendanceSubTab] = useState('monthlySheet');

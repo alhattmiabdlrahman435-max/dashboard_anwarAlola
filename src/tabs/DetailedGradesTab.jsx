@@ -1,6 +1,8 @@
 import { api } from "../services/api";
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useStudents } from '../contexts/Students/useStudents';
 import { Download } from 'lucide-react';
 import '../styles/printGrades.css';
 
@@ -20,8 +22,6 @@ export default function DetailedGradesTab() {
   const {
     lang,
     t,
-    classes,
-    students,
     setToastMessage,
     triggerConfirm,
     selectedGradeStudentId,
@@ -35,18 +35,21 @@ export default function DetailedGradesTab() {
     fetchClassGrades
   } = useApp();
 
+  const { classes } = useClasses();
+  const { students } = useStudents();
+
   // State for view controls
-  const [viewMode, setViewMode] = React.useState('class'); // Default to class view for admin reviews
-  const [selectedMonth, setSelectedMonth] = React.useState('m1'); // 'm1', 'm2', 'm3'
+  const [viewMode, setViewMode] = useState('class'); // Default to class view for admin reviews
+  const [selectedMonth, setSelectedMonth] = useState('m1'); // 'm1', 'm2', 'm3'
   
   // Calculate unique classes list from students
   const classesList = Array.from(new Set(students.map(s => `${s.grade} - ${s.section}`))).sort();
-  const [selectedClass, setSelectedClass] = React.useState(localStorage.getItem('goto_class') || classesList[0] || '');
-  const [classPeriod, setClassPeriod] = React.useState(localStorage.getItem('goto_period') || 'm1'); // 'm1', 'm2', 'm3', 'termTotal', 'yearlyTotal'
-  const [classSubject, setClassSubject] = React.useState('all'); // 'all', 'detailed', and subjects
+  const [selectedClass, setSelectedClass] = useState(localStorage.getItem('goto_class') || classesList[0] || '');
+  const [classPeriod, setClassPeriod] = useState(localStorage.getItem('goto_period') || 'm1'); // 'm1', 'm2', 'm3', 'termTotal', 'yearlyTotal'
+  const [classSubject, setClassSubject] = useState('all'); // 'all', 'detailed', and subjects
 
   // Listen for notification click events to jump straight to the correct ready grades page
-  React.useEffect(() => {
+  useEffect(() => {
     const handleGotoChange = () => {
       const cls = localStorage.getItem('goto_class');
       const period = localStorage.getItem('goto_period');
@@ -76,14 +79,15 @@ export default function DetailedGradesTab() {
   }, [setSelectedGradeTerm]);
 
   // Synchronize default class selector when students list changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (classesList.length > 0 && !selectedClass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedClass(classesList[0]);
     }
   }, [classesList, selectedClass]);
 
   // Auto-load grades from database when selected class changes (class view mode)
-  React.useEffect(() => {
+  useEffect(() => {
     if (!selectedClass || viewMode !== 'class') return;
     // Map class name back to numeric class ID
     const [grade, section] = selectedClass.split(' - ');

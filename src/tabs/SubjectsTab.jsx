@@ -1,24 +1,26 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useTeachers } from '../contexts/Teachers/useTeachers';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useSubjects } from '../contexts/Subjects/useSubjects';
+import { subjectsService } from '../services/subjects/subjects.service';
 import { Plus, Search, X } from 'lucide-react';
-import { api } from '../services/api';
 
 export default function SubjectsTab() {
   const {
     lang,
     t,
-    classes,
-    setClasses,
-    teachers,
-    setTeachers,
-    subjects,
-    setSubjects,
     setToastMessage,
     triggerConfirm,
     renderAvatar,
-    fetchSubjects,
-    fetchClasses
   } = useApp();
+
+  const { subjects, fetchSubjects } = useSubjects();
+
+  const { classes, fetchClasses } = useClasses();
+
+  const { teachers } = useTeachers();
+
 
   // Local state for searching & modals
   const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
@@ -54,15 +56,13 @@ export default function SubjectsTab() {
     setIsSaving(true);
     const token = localStorage.getItem('auth_token');
 
-    api.post('/api/subjects', {
+    subjectsService.createSubject({
       name_ar: modalSubjectNameAr.trim(),
       name_en: modalSubjectNameEn.trim()
     })
     .then(data => {
       if (data.success && data.subject) {
-        api.post(`/api/subjects/${data.subject.id}/classes`, {
-          classes: modalSubjectClasses
-        })
+        subjectsService.syncClasses(data.subject.id, modalSubjectClasses)
         .then(() => {
           if (token) {
             fetchSubjects(token);
@@ -106,15 +106,13 @@ export default function SubjectsTab() {
     const dbSubjectId = Number(String(selectedSubjectIdForEdit).replace('sub-', ''));
     const token = localStorage.getItem('auth_token');
 
-    api.put(`/api/subjects/${dbSubjectId}`, {
+    subjectsService.updateSubject(dbSubjectId, {
       name_ar: modalSubjectNameAr.trim(),
       name_en: modalSubjectNameEn.trim()
     })
     .then(data => {
       if (data.success) {
-        api.post(`/api/subjects/${dbSubjectId}/classes`, {
-          classes: modalSubjectClasses
-        })
+        subjectsService.syncClasses(dbSubjectId, modalSubjectClasses)
         .then(() => {
           if (token) {
             fetchSubjects(token);
@@ -153,7 +151,7 @@ export default function SubjectsTab() {
         const dbSubjectId = Number(String(id).replace('sub-', ''));
         const token = localStorage.getItem('auth_token');
 
-        api.delete(`/api/subjects/${dbSubjectId}`)
+        subjectsService.deleteSubject(dbSubjectId)
         .then(data => {
           if (data.success) {
             if (token) {

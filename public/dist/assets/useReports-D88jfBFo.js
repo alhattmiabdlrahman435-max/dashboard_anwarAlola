@@ -1,0 +1,1 @@
+import{f as e,m as t}from"./AppContext--62sVfXp.js";import{A as n}from"./index-CGE6CGp4.js";var r=t(e(),1);function i(){let e=(0,r.useContext)(n);if(!e)throw Error(`useReports must be used within a ReportsProvider`);return e}export{i as t};

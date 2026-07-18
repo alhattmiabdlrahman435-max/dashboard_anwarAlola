@@ -1,13 +1,15 @@
-import React from 'react';
 import { useApp } from '../context/AppContext';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useAttendance } from '../contexts/Attendance/useAttendance';
 
 export default function ReportsTab() {
-  const { lang, t, students, attendanceRecords, grades, assignments } = useApp();
+  const { lang, t, grades, assignments } = useApp();
+  const { attendanceRecords } = useAttendance();
+  const { students } = useStudents();
 
   // 1. Attendance Rates
   const totalStudents = students.length;
   const presentToday = students.filter(s => s.status === 'present').length;
-  const absentToday = students.filter(s => s.status === 'absent').length;
   const lateToday = students.filter(s => s.status === 'late').length;
 
   const attendanceRate = totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 100;

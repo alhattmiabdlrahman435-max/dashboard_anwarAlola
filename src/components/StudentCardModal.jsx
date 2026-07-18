@@ -1,21 +1,25 @@
 import { useApp } from '../context/AppContext';
+import { useStudents } from '../contexts/Students/useStudents';
 import { X, Printer, Calendar, BookOpen, FileText } from 'lucide-react';
 import sloganLogo from '../assets/slogan.jpeg';
 
 export default function StudentCardModal() {
   const {
-    lang, t, students,
+    lang, t,
+    selectedGradeStudentId,
+    selectedGradeTerm,
+    selectedGradeSubject,
+    renderAvatar
+  } = useApp();
+
+  const {
+    students,
     showCardVisualizerModal, setShowCardVisualizerModal,
     selectedStudentForCard, setSelectedStudentForCard,
     showPrintModal, setShowPrintModal,
     printMode, setPrintMode,
-    printSelectedMonth, setPrintSelectedMonth,
-    selectedGradeStudentId,
-    selectedGradeTerm,
-    selectedGradeSubject,
-    printStudentObject, setPrintStudentObject,
-    renderAvatar
-  } = useApp();
+    printSelectedMonth, setPrintSelectedMonth
+  } = useStudents();
 
   const handlePrint = () => {
     window.print();

@@ -1,16 +1,21 @@
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../contexts/Auth/useAuth';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useTeachers } from '../contexts/Teachers/useTeachers';
+import { useFinance } from '../contexts/Finance/useFinance';
+import { useReports } from '../contexts/Reports/useReports';
 import { Users, User, ClipboardCheck, DollarSign } from 'lucide-react';
 
 export default function DashboardTab() {
   const {
     lang,
-    students,
-    teachers,
-    tuitionFees,
     grades,
-    currentUser,
-    dashboardStats
   } = useApp();
+  const { dashboardStats } = useReports();
+  const { tuitionFees } = useFinance();
+  const { students } = useStudents();
+  const { teachers } = useTeachers();
+  const { currentUser } = useAuth();
 
   // Calculate school aggregates dynamically or use API stats
   const totalStudents = dashboardStats ? dashboardStats.total_students : students.length;

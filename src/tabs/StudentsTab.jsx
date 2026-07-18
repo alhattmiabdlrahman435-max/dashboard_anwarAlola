@@ -1,15 +1,33 @@
-import { api } from "../services/api";
-import { useState } from 'react';
+import { studentsService } from "../services/students/students.service";
+import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../contexts/Auth/useAuth';
+import { useStudents } from '../contexts/Students/useStudents';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useParents } from '../contexts/Parents/useParents';
+import { useSettings } from '../contexts/Settings/useSettings';
 import { Plus, Search, X, Download, Upload, Camera, User, Edit3, Trash2 } from 'lucide-react';
 
 export default function StudentsTab() {
   const {
-    lang, t, students, parentUsers, availableGrades, availableSections,
-    setSelectedStudentForCard, setShowCardVisualizerModal,
-    handleAddStudent, handleEditStudent, handleDeleteStudent, renderAvatar, currentUser, controlMultiplier, controlOffset,
-    canAction, fetchStudents, setToastMessage, classes, triggerConfirm
+    lang, t,
+    renderAvatar,
+    canAction, setToastMessage, triggerConfirm
   } = useApp();
+  const { controlMultiplier, controlOffset } = useSettings();
+
+  const { classes } = useClasses();
+  const { parentUsers } = useParents();
+  const {
+    students,
+    setSelectedStudentForCard,
+    setShowCardVisualizerModal,
+    handleAddStudent,
+    handleEditStudent,
+    handleDeleteStudent,
+    fetchStudents
+  } = useStudents();
+  const { currentUser } = useAuth();
 
   // Local UI states
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,18 +57,6 @@ export default function StudentsTab() {
   const [selectedParentLinkOption, setSelectedParentLinkOption] = useState('');
   const [parentSearchText, setParentSearchText] = useState('');
 
-  const handleNationalIdChange = (val) => {
-    setModalParentNationalId(val);
-    const cleanId = val.replace(/\D/g, '');
-    if (cleanId.length === 10) {
-      const existingRelation = students.find(s => s.parentNationalId === cleanId);
-      if (existingRelation) {
-        setModalParentName(existingRelation.parentName);
-        setModalPhone(existingRelation.phone);
-        setModalParentPhoto(existingRelation.parentPhoto || "🧔");
-      }
-    }
-  };
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -215,7 +221,7 @@ export default function StudentsTab() {
 
   const handleExport = async () => {
     try {
-      const res = await api.get('/api/students/export');
+      const res = await studentsService.exportStudents();
       if (!res.ok) {
         alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
         return;
@@ -241,7 +247,7 @@ export default function StudentsTab() {
     formData.append('file', file);
 
     try {
-      const data = await api.post('/api/students/import', formData);
+      const data = await studentsService.importStudents(formData);
       if (data.success) {
         setToastMessage(data.message);
         fetchStudents(localStorage.getItem('auth_token'));
@@ -255,7 +261,7 @@ export default function StudentsTab() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await api.get('/api/students/template');
+      const res = await studentsService.downloadTemplate();
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -269,32 +275,36 @@ export default function StudentsTab() {
     }
   };
 
-  const filteredStudents = students.filter(student => {
-    if (currentUser?.role === 'parent' && student.parentNationalId !== currentUser.username) {
-      return false;
-    }
-    
-    const matchesSearch = lang === 'ar'
-      ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (student.qrCode && student.qrCode.includes(searchQuery)) ||
-        (student.parentNationalId && student.parentNationalId.includes(searchQuery))
-      : student.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (student.qrCode && student.qrCode.includes(searchQuery)) ||
-        (student.parentNationalId && student.parentNationalId.includes(searchQuery));
-    
-    const matchesFilter = statusFilter === 'all' || student.status === statusFilter;
+  const filteredStudents = useMemo(() => {
+    return students.filter(student => {
+      if (currentUser?.role === 'parent' && student.parentNationalId !== currentUser.username) {
+        return false;
+      }
+      
+      const matchesSearch = lang === 'ar'
+        ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          (student.qrCode && student.qrCode.includes(searchQuery)) ||
+          (student.parentNationalId && student.parentNationalId.includes(searchQuery))
+        : student.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          (student.qrCode && student.qrCode.includes(searchQuery)) ||
+          (student.parentNationalId && student.parentNationalId.includes(searchQuery));
+      
+      const matchesFilter = statusFilter === 'all' || student.status === statusFilter;
 
-    const studentClass = `${student.grade} - ${student.section}`;
-    const matchesClass = classFilter === 'all' || studentClass === classFilter;
-    
-    return matchesSearch && matchesFilter && matchesClass;
-  });
+      const studentClass = `${student.grade} - ${student.section}`;
+      const matchesClass = classFilter === 'all' || studentClass === classFilter;
+      
+      return matchesSearch && matchesFilter && matchesClass;
+    });
+  }, [students, currentUser, lang, searchQuery, statusFilter, classFilter]);
 
-  const filteredParentUsers = parentUsers.filter(p => {
-    const term = parentSearchText.trim().toLowerCase();
-    if (!term) return true;
-    return p.name.toLowerCase().includes(term) || p.nationalId.includes(term);
-  });
+  const filteredParentUsers = useMemo(() => {
+    return parentUsers.filter(p => {
+      const term = parentSearchText.trim().toLowerCase();
+      if (!term) return true;
+      return p.name.toLowerCase().includes(term) || p.nationalId.includes(term);
+    });
+  }, [parentUsers, parentSearchText]);
 
   return (
     <>

@@ -1,14 +1,26 @@
-import { api } from "../services/api";
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useTeachers } from '../contexts/Teachers/useTeachers';
+import { useClasses } from '../contexts/Classes/useClasses';
+import { useSubjects } from '../contexts/Subjects/useSubjects';
+import { teachersService } from '../services/teachers/teachers.service';
 import { Plus, X, Trash2, Download, Upload, FileSpreadsheet } from 'lucide-react';
 
 export default function TeachersTab() {
   const {
-    lang, t, teachers, subjects, classes,
-    handleAddTeacher, handleEditTeacher, renderAvatar,
-    setToastMessage, canAction, fetchTeachers
+    lang, t, renderAvatar,
+    setToastMessage, canAction
   } = useApp();
+
+  const { classes } = useClasses();
+  const { subjects } = useSubjects();
+
+  const {
+    teachers,
+    fetchTeachers,
+    handleAddTeacher,
+    handleEditTeacher
+  } = useTeachers();
 
   // Local UI states
   const [showTeacherModal, setShowTeacherModal] = useState(false);
@@ -166,7 +178,7 @@ export default function TeachersTab() {
 
   const handleExport = async () => {
     try {
-      const res = await api.get('/api/teachers/export');
+      const res = await teachersService.exportTeachers();
       if (!res.ok) {
         alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
         return;
@@ -192,7 +204,7 @@ export default function TeachersTab() {
     formData.append('file', file);
 
     try {
-      const data = await api.post('/api/teachers/import', formData);
+      const data = await teachersService.importTeachers(formData);
       if (data.success) {
         setToastMessage(data.message);
         fetchTeachers(localStorage.getItem('auth_token'));
@@ -206,7 +218,7 @@ export default function TeachersTab() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await api.get('/api/teachers/template');
+      const res = await teachersService.downloadTemplate();
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

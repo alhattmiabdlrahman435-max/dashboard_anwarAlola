@@ -1,13 +1,27 @@
-import { api } from "../services/api";
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../contexts/Auth/useAuth';
+import { useParents } from '../contexts/Parents/useParents';
+import { useStudents } from '../contexts/Students/useStudents';
+import { parentsService } from '../services/parents/parents.service';
 import { Search, X, Download, Upload, FileSpreadsheet, Edit3, Trash2 } from 'lucide-react';
+
 export default function ParentsTab() {
   const {
-    lang, t, parentUsers, students,
-    handleAddParent, handleEditParent, handleDeleteParent, renderAvatar, currentUser,
-    canAction, fetchParents, fetchStudents, setToastMessage, triggerConfirm
+    lang, t, renderAvatar,
+    canAction, setToastMessage, triggerConfirm
   } = useApp();
+
+  const {
+    parentUsers,
+    fetchParents,
+    handleAddParent,
+    handleEditParent,
+    handleDeleteParent
+  } = useParents();
+
+  const { students, fetchStudents } = useStudents();
+  const { currentUser } = useAuth();
 
   // Local UI states
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,7 +117,7 @@ export default function ParentsTab() {
 
   const handleExport = async () => {
     try {
-      const res = await api.get('/api/parents/export');
+      const res = await parentsService.exportParents();
       if (!res.ok) {
         alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
         return;
@@ -129,7 +143,7 @@ export default function ParentsTab() {
     formData.append('file', file);
 
     try {
-      const data = await api.post('/api/parents/import', formData);
+      const data = await parentsService.importParents(formData);
       if (data.success) {
         setToastMessage(data.message);
         const token = localStorage.getItem('auth_token');
@@ -145,7 +159,7 @@ export default function ParentsTab() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await api.get('/api/parents/template');
+      const res = await parentsService.downloadTemplate();
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
