@@ -152,8 +152,14 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
   const pushToUrl = useCallback(
     (state) => {
       const params = new URLSearchParams();
-      params.set('page', String(state.page));
-      params.set('per_page', String(state.perPage));
+      // Only set page in URL if page > 1 or searchParams already contains page
+      if (state.page > 1 || searchParams.has('page')) {
+        params.set('page', String(state.page));
+      }
+      // Only set per_page in URL if non-default or searchParams already contains per_page
+      if (state.perPage !== defaultPerPage || searchParams.has('per_page')) {
+        params.set('per_page', String(state.perPage));
+      }
       if (state.search) params.set('search', state.search);
       if (state.sort) params.set('sort', state.sort);
       if (state.direction && state.direction !== 'desc') params.set('direction', state.direction);
@@ -167,7 +173,7 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
         setSearchParams(params, { replace: true });
       }
     },
-    [searchParams, setSearchParams]
+    [searchParams, setSearchParams, defaultPerPage]
   );
 
   // ── Public setters ──
