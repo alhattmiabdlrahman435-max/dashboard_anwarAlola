@@ -1,7 +1,8 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useStudents } from '../../contexts/Students/useStudents';
 import { useSubjects } from '../../contexts/Subjects/useSubjects';
+import { useClasses } from '../../contexts/Classes/useClasses';
 import { calculateMonthTotal, getSubjectPeriodGrade, calculateStudentClassRowTotal } from '../../utils/gradesHelper';
 import GradeInput from './GradeInput';
 
@@ -12,13 +13,57 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
     selectedGradeTerm,
     getStudentDetailedGrades,
     handleDetailedGradeChange: handleDetailedGradeChangeContext,
-    syncGeneralGrades,
-    setToastMessage,
     canAction
   } = useApp();
 
   const { students } = useStudents();
   const { subjects } = useSubjects();
+  const { classes } = useClasses();
+
+  // Find target class object matching selectedClass name
+  const targetClassObj = useMemo(() => {
+    if (!selectedClass) return null;
+    return classes.find(c =>
+      c.name === selectedClass ||
+      `${c.grade} - ${c.section}` === selectedClass ||
+      `${c.grade_ar} - ${c.section_ar}` === selectedClass ||
+      `${c.gradeEn} - ${c.sectionEn}` === selectedClass
+    );
+  }, [classes, selectedClass]);
+
+  const targetClassId = useMemo(() => {
+    if (!targetClassObj) return null;
+    return typeof targetClassObj.id === 'string'
+      ? targetClassObj.id.replace('cls-', '')
+      : String(targetClassObj.id);
+  }, [targetClassObj]);
+
+  // Dynamic list of real students associated with selectedClass
+  const classStudents = useMemo(() => {
+    if (!selectedClass) return [];
+    return students.filter(s => {
+      // 1. Direct class_id match
+      if (targetClassId && (String(s.class_id) === String(targetClassId) || String(s.class_id) === String(targetClassObj?.id))) {
+        return true;
+      }
+      // 2. Grade and section string match
+      const sName = `${s.grade} - ${s.section}`;
+      const sNameAr = `${s.grade_ar || s.grade} - ${s.section_ar || s.section}`;
+      const sNameEn = `${s.gradeEn} - ${s.sectionEn}`;
+      return sName === selectedClass || sNameAr === selectedClass || sNameEn === selectedClass;
+    });
+  }, [students, selectedClass, targetClassObj, targetClassId]);
+
+  // Dynamic list of real subjects associated with selectedClass or overall subjects
+  const classSubjectsList = useMemo(() => {
+    if (targetClassObj && targetClassObj.subjects && targetClassObj.subjects.length > 0) {
+      return targetClassObj.subjects;
+    }
+    if (subjects && subjects.length > 0) {
+      return subjects.map(sub => lang === 'ar' ? sub.name : (sub.nameEn || sub.name));
+    }
+    return ['الرياضيات', 'العلوم', 'لغتي', 'اللغة الإنجليزية'];
+  }, [targetClassObj, subjects, lang]);
 
   const handleDetailedGradeChange = useCallback((studentId, subject, term, monthKey, field, val) => {
     handleDetailedGradeChangeContext(studentId, subject, term, monthKey, field, val, students, subjects);
@@ -33,6 +78,10 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
       <div style={{ padding: 'var(--space-md)', background: 'var(--gradient-brand)', color: '#ffffff', borderRadius: 'var(--radius-card)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <strong>{lang === 'ar' ? 'فصل: ' : 'Class: '} {selectedClass}</strong>
+          <span style={{ marginInline: '8px', opacity: 0.7 }}>|</span>
+          <span style={{ fontSize: '13px', opacity: 0.9 }}>
+            👥 {lang === 'ar' ? `عدد الطلاب: ${classStudents.length}` : `Students: ${classStudents.length}`}
+          </span>
         </div>
         <div>
           <strong>{lang === 'ar' ? 'الترم: ' : 'Term: '} </strong>
@@ -67,66 +116,64 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
               <tr>
                 <th>#</th>
                 <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
-                <th>{t.math}</th>
-                <th>{t.science}</th>
-                <th>{t.arabic}</th>
-                <th>{t.english}</th>
+                {classSubjectsList.map((subj, idx) => (
+                  <th key={idx}>{subj}</th>
+                ))}
                 <th>{lang === 'ar' ? 'المعدل / المجموع' : 'Avg / Total'}</th>
               </tr>
             </thead>
             <tbody>
               {(() => {
-                const classStudents = students.filter(s => `${s.grade} - ${s.section}` === selectedClass);
                 if (classStudents.length === 0) {
                   return (
                     <tr>
-                      <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
-                        {lang === 'ar' ? 'لا يوجد طلاب مسجلين في هذا الفصل.' : 'No students registered in this class.'}
+                      <td colSpan={classSubjectsList.length + 3} style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '24px' }}>📂</span>
+                          <span style={{ fontWeight: '600' }}>
+                            {lang === 'ar' ? `لا يوجد طلاب مسجلين في ${selectedClass}` : `No students registered in ${selectedClass}`}
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   );
                 }
 
-                let mathSum = 0;
-                let scienceSum = 0;
-                let arabicSum = 0;
-                let englishSum = 0;
+                const subjectSums = {};
+                classSubjectsList.forEach(s => { subjectSums[s] = 0; });
                 let overallPercentageSum = 0;
 
                 const rows = classStudents.map((s, index) => {
-                  const mathVal = getSubjectPeriodGradeLocal(s.id, 'الرياضيات', selectedGradeTerm, classPeriod);
-                  const scienceVal = getSubjectPeriodGradeLocal(s.id, 'العلوم', selectedGradeTerm, classPeriod);
-                  const arabicVal = getSubjectPeriodGradeLocal(s.id, 'اللغة العربية', selectedGradeTerm, classPeriod);
-                  const englishVal = getSubjectPeriodGradeLocal(s.id, 'اللغة الإنجليزية', selectedGradeTerm, classPeriod);
+                  const subjectVals = classSubjectsList.map(subj => {
+                    const val = getSubjectPeriodGradeLocal(s.id, subj, selectedGradeTerm, classPeriod);
+                    subjectSums[subj] = (subjectSums[subj] || 0) + val;
+                    return val;
+                  });
 
-                  mathSum += mathVal;
-                  scienceSum += scienceVal;
-                  arabicSum += arabicVal;
-                  englishSum += englishVal;
-
-                  const { val: percentVal, text: totalText } = calculateStudentClassRowTotal(mathVal, scienceVal, arabicVal, englishVal, classPeriod);
+                  const rowSum = subjectVals.reduce((acc, v) => acc + v, 0);
+                  const maxPerSubj = (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' || classPeriod === 'yearlyTotal') ? 100 : 50;
+                  const maxTotal = classSubjectsList.length * maxPerSubj;
+                  const percentVal = maxTotal > 0 ? parseFloat(((rowSum / maxTotal) * 100).toFixed(1)) : 0;
                   overallPercentageSum += percentVal;
+
+                  const totalText = (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' || classPeriod === 'yearlyTotal')
+                    ? `${percentVal}%`
+                    : `${rowSum} / ${maxTotal}`;
 
                   return (
                     <tr key={s.id}>
                       <td>{index + 1}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
-                      <td>{mathVal}</td>
-                      <td>{scienceVal}</td>
-                      <td>{arabicVal}</td>
-                      <td>{englishVal}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                      {subjectVals.map((val, vIdx) => (
+                        <td key={vIdx}>{val}</td>
+                      ))}
                       <td style={{ fontWeight: 'bold' }}>{totalText}</td>
                     </tr>
                   );
                 });
 
                 const count = classStudents.length;
-                const mathAvg = parseFloat((mathSum / count).toFixed(2));
-                const scienceAvg = parseFloat((scienceSum / count).toFixed(2));
-                const arabicAvg = parseFloat((arabicSum / count).toFixed(2));
-                const englishAvg = parseFloat((englishSum / count).toFixed(2));
-                const classOverallAvg = parseFloat((overallPercentageSum / count).toFixed(2));
-
+                const classOverallAvg = parseFloat((overallPercentageSum / count).toFixed(1));
                 const maxPossible = (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' || classPeriod === 'yearlyTotal') ? 100 : 50;
 
                 return (
@@ -136,10 +183,14 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                       <td colSpan="2" style={{ textAlign: 'right' }}>
                         {lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}
                       </td>
-                      <td style={{ color: 'var(--color-primary)' }}>{mathAvg} / {maxPossible}</td>
-                      <td style={{ color: 'var(--color-primary)' }}>{scienceAvg} / {maxPossible}</td>
-                      <td style={{ color: 'var(--color-primary)' }}>{arabicAvg} / {maxPossible}</td>
-                      <td style={{ color: 'var(--color-primary)' }}>{englishAvg} / {maxPossible}</td>
+                      {classSubjectsList.map((subj, idx) => {
+                        const avg = parseFloat(((subjectSums[subj] || 0) / count).toFixed(1));
+                        return (
+                          <td key={idx} style={{ color: 'var(--color-primary)' }}>
+                            {avg} / {maxPossible}
+                          </td>
+                        );
+                      })}
                       <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{classOverallAvg}%</td>
                     </tr>
                   </>
@@ -184,37 +235,31 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
             </thead>
             <tbody>
               {(() => {
-                const classStudents = students.filter(s => `${s.grade} - ${s.section}` === selectedClass);
                 if (classStudents.length === 0) {
                   return (
                     <tr>
-                      <td colSpan="9" style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
-                        {lang === 'ar' ? 'لا يوجد طلاب مسجلين في هذا الفصل.' : 'No students registered in this class.'}
+                      <td colSpan="9" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
+                        {lang === 'ar' ? `لا يوجد طلاب مسجلين في ${selectedClass}` : `No students registered in ${selectedClass}`}
                       </td>
                     </tr>
                   );
                 }
 
-                const subjectsList = ['الرياضيات', 'العلوم', 'اللغة العربية', 'اللغة الإنجليزية'];
-
                 const rows = classStudents.flatMap((s, sIdx) => {
-                  return subjectsList.map((subj, subIdx) => {
+                  return classSubjectsList.map((subj, subIdx) => {
                     const sData = getStudentDetailedGrades(s.id, subj, selectedGradeTerm);
-                    const subjectLabel = subj === 'الرياضيات' ? t.math 
-                      : subj === 'العلوم' ? t.science 
-                      : subj === 'اللغة العربية' ? t.arabic 
-                      : t.english;
+                    const subjectLabel = subj;
 
                     if (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3') {
                       const mData = sData[classPeriod] || {};
                       const total = (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
 
                       return (
-                        <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === 3 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
+                        <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === classSubjectsList.length - 1 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
                           {subIdx === 0 && (
                             <>
-                              <td rowSpan={4} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={4} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                             </>
                           )}
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
@@ -258,7 +303,9 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                               disabled={!canAction('detailedGrades', 'update')}
                             />
                           </td>
-                          <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>
+                            {total} / 100
+                          </td>
                         </tr>
                       );
                     } else if (classPeriod === 'termTotal') {
@@ -269,43 +316,47 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                       const total = parseFloat((avg + (sData.finalExam || 0)).toFixed(2));
 
                       return (
-                        <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === 3 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
+                        <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === classSubjectsList.length - 1 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
                           {subIdx === 0 && (
                             <>
-                              <td rowSpan={4} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={4} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                             </>
                           )}
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
-                          <td>{avg}</td>
+                          <td style={{ fontWeight: 'bold' }}>{avg} / 20</td>
                           <td>
                             <GradeInput 
                               min="0" max="30" 
                               value={sData.finalExam ?? 0}
-                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, 'finalExam', '', val)}
+                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, 'finalExam', 'finalExam', val)}
                               disabled={!canAction('detailedGrades', 'update')}
                             />
                           </td>
-                          <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>
+                            {total} / 50
+                          </td>
                         </tr>
                       );
                     } else {
-                      const t1Val = getSubjectPeriodGradeLocal(s.id, subj, selectedGradeTerm, 'termTotal');
+                      const t1Val = getSubjectPeriodGradeLocal(s.id, subj, 'term1', 'termTotal');
                       const t2Val = getSubjectPeriodGradeLocal(s.id, subj, 'term2', 'termTotal');
-                      const yearlyVal = Math.round(t1Val + t2Val);
+                      const yearlyTotal = Math.round(t1Val + t2Val);
 
                       return (
-                        <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === 3 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
+                        <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === classSubjectsList.length - 1 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
                           {subIdx === 0 && (
                             <>
-                              <td rowSpan={4} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={4} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                             </>
                           )}
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
-                          <td>{t1Val}</td>
-                          <td>{t2Val}</td>
-                          <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{yearlyVal}</td>
+                          <td style={{ fontWeight: 'bold' }}>{t1Val} / 50</td>
+                          <td style={{ fontWeight: 'bold' }}>{t2Val} / 50</td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)', fontSize: '15px' }}>
+                            {yearlyTotal} / 100
+                          </td>
                         </tr>
                       );
                     }
@@ -313,28 +364,23 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 });
 
                 const count = classStudents.length;
-
-                const averageRows = subjectsList.map((subj, subIdx) => {
-                  const subjectLabel = subj === 'الرياضيات' ? t.math 
-                    : subj === 'العلوم' ? t.science 
-                    : subj === 'اللغة العربية' ? t.arabic 
-                    : t.english;
-
+                const averageRows = classSubjectsList.map((subj, subIdx) => {
+                  const subjectLabel = subj;
                   let hwSum = 0, attSum = 0, behSum = 0, oralSum = 0, wrtSum = 0, monthTotSum = 0;
                   let avgSum = 0, finalSum = 0, termTotSum = 0;
                   let t1Sum = 0, t2Sum = 0, yearlySum = 0;
 
                   classStudents.forEach(s => {
                     const sData = getStudentDetailedGrades(s.id, subj, selectedGradeTerm);
+
                     if (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3') {
                       const mData = sData[classPeriod] || {};
-                      const total = (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
                       hwSum += mData.homework || 0;
                       attSum += mData.attendance || 0;
                       behSum += mData.behavior || 0;
                       oralSum += mData.oral || 0;
                       wrtSum += mData.written || 0;
-                      monthTotSum += total;
+                      monthTotSum += (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
                     } else if (classPeriod === 'termTotal') {
                       const tm1 = calculateMonthTotal(sData.m1);
                       const tm2 = calculateMonthTotal(sData.m2);
@@ -357,7 +403,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                     return (
                       <tr key={`avg-${subj}`} style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
                         {subIdx === 0 && (
-                          <td rowSpan={4} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
+                          <td rowSpan={classSubjectsList.length} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
                             {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
                           </td>
                         )}
@@ -376,7 +422,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                     return (
                       <tr key={`avg-${subj}`} style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
                         {subIdx === 0 && (
-                          <td rowSpan={4} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
+                          <td rowSpan={classSubjectsList.length} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
                             {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
                           </td>
                         )}
@@ -392,7 +438,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                     return (
                       <tr key={`avg-${subj}`} style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
                         {subIdx === 0 && (
-                          <td rowSpan={4} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
+                          <td rowSpan={classSubjectsList.length} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
                             {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
                           </td>
                         )}
@@ -450,12 +496,11 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
             </thead>
             <tbody>
               {(() => {
-                const classStudents = students.filter(s => `${s.grade} - ${s.section}` === selectedClass);
                 if (classStudents.length === 0) {
                   return (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
-                        {lang === 'ar' ? 'لا يوجد طلاب مسجلين في هذا الفصل.' : 'No students registered in this class.'}
+                      <td colSpan="8" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
+                        {lang === 'ar' ? `لا يوجد طلاب مسجلين في ${selectedClass}` : `No students registered in ${selectedClass}`}
                       </td>
                     </tr>
                   );
@@ -482,7 +527,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                     return (
                       <tr key={s.id}>
                         <td>{index + 1}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                         <td>
                           <GradeInput 
                             min="0" max="15" 
@@ -523,7 +568,9 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                             disabled={!canAction('detailedGrades', 'update')}
                           />
                         </td>
-                        <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>
+                          {total} / 100
+                        </td>
                       </tr>
                     );
                   } else if (classPeriod === 'termTotal') {
@@ -532,7 +579,6 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                     const tm3 = calculateMonthTotal(sData.m3);
                     const avg = parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
                     const total = parseFloat((avg + (sData.finalExam || 0)).toFixed(2));
-
                     avgSum += avg;
                     finalSum += sData.finalExam || 0;
                     termTotSum += total;
@@ -540,35 +586,38 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                     return (
                       <tr key={s.id}>
                         <td>{index + 1}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
-                        <td>{avg}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                        <td style={{ fontWeight: 'bold' }}>{avg} / 20</td>
                         <td>
                           <GradeInput 
                             min="0" max="30" 
                             value={sData.finalExam ?? 0}
-                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, 'finalExam', '', val)}
+                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, 'finalExam', 'finalExam', val)}
                             disabled={!canAction('detailedGrades', 'update')}
                           />
                         </td>
-                        <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>
+                          {total} / 50
+                        </td>
                       </tr>
                     );
                   } else {
                     const t1Val = getSubjectPeriodGradeLocal(s.id, classSubject, 'term1', 'termTotal');
                     const t2Val = getSubjectPeriodGradeLocal(s.id, classSubject, 'term2', 'termTotal');
-                    const yearlyVal = Math.round(t1Val + t2Val);
-
+                    const yearlyTotal = Math.round(t1Val + t2Val);
                     t1Sum += t1Val;
                     t2Sum += t2Val;
-                    yearlySum += yearlyVal;
+                    yearlySum += yearlyTotal;
 
                     return (
                       <tr key={s.id}>
                         <td>{index + 1}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : s.nameEn}</td>
-                        <td>{t1Val}</td>
-                        <td>{t2Val}</td>
-                        <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{yearlyVal}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                        <td style={{ fontWeight: 'bold' }}>{t1Val} / 50</td>
+                        <td style={{ fontWeight: 'bold' }}>{t2Val} / 50</td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)', fontSize: '15px' }}>
+                          {yearlyTotal} / 100
+                        </td>
                       </tr>
                     );
                   }
@@ -576,76 +625,45 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                 const count = classStudents.length;
 
-                if (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3') {
-                  return (
-                    <>
-                      {rows}
-                      <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                        <td colSpan="2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}</td>
-                        <td>{parseFloat((hwSum / count).toFixed(2))}</td>
-                        <td>{parseFloat((attSum / count).toFixed(2))}</td>
-                        <td>{parseFloat((behSum / count).toFixed(2))}</td>
-                        <td>{parseFloat((oralSum / count).toFixed(2))}</td>
-                        <td>{parseFloat((wrtSum / count).toFixed(2))}</td>
-                        <td style={{ color: 'var(--color-success)', fontFamily: 'var(--font-mono)' }}>
-                          {parseFloat((monthTotSum / count).toFixed(2))}
-                        </td>
-                      </tr>
-                    </>
-                  );
-                } else if (classPeriod === 'termTotal') {
-                  return (
-                    <>
-                      {rows}
-                      <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                        <td colSpan="2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}</td>
-                        <td>{parseFloat((avgSum / count).toFixed(2))}</td>
-                        <td>{parseFloat((finalSum / count).toFixed(2))}</td>
-                        <td style={{ color: 'var(--color-success)', fontFamily: 'var(--font-mono)' }}>
-                          {parseFloat((termTotSum / count).toFixed(2))}
-                        </td>
-                      </tr>
-                    </>
-                  );
-                } else {
-                  return (
-                    <>
-                      {rows}
-                      <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                        <td colSpan="2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}</td>
-                        <td>{parseFloat((t1Sum / count).toFixed(2))}</td>
-                        <td>{parseFloat((t2Sum / count).toFixed(2))}</td>
-                        <td style={{ color: 'var(--color-success)', fontFamily: 'var(--font-mono)' }}>
-                          {parseFloat((yearlySum / count).toFixed(2))}
-                        </td>
-                      </tr>
-                    </>
-                  );
-                }
+                return (
+                  <>
+                    {rows}
+                    <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
+                      <td colSpan="2" style={{ textAlign: 'right' }}>
+                        {lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}
+                      </td>
+                      {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
+                        <>
+                          <td>{parseFloat((hwSum / count).toFixed(2))}</td>
+                          <td>{parseFloat((attSum / count).toFixed(2))}</td>
+                          <td>{parseFloat((behSum / count).toFixed(2))}</td>
+                          <td>{parseFloat((oralSum / count).toFixed(2))}</td>
+                          <td>{parseFloat((wrtSum / count).toFixed(2))}</td>
+                          <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((monthTotSum / count).toFixed(2))} / 100</td>
+                        </>
+                      ) : classPeriod === 'termTotal' ? (
+                        <>
+                          <td>{parseFloat((avgSum / count).toFixed(2))}</td>
+                          <td>{parseFloat((finalSum / count).toFixed(2))}</td>
+                          <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((termTotSum / count).toFixed(2))} / 50</td>
+                        </>
+                      ) : (
+                        <>
+                          <td>{parseFloat((t1Sum / count).toFixed(2))}</td>
+                          <td>{parseFloat((t2Sum / count).toFixed(2))}</td>
+                          <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((yearlySum / count).toFixed(2))} / 100</td>
+                        </>
+                      )}
+                    </tr>
+                  </>
+                );
               })()}
             </tbody>
           </table>
         )}
       </div>
-
-      {classSubject !== 'all' && (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' || classPeriod === 'termTotal') && (
-        <button 
-          className="btn-filled" 
-          style={{ alignSelf: 'flex-end', marginTop: 'var(--space-md)' }}
-          onClick={() => {
-            const classStudents = students.filter(s => `${s.grade} - ${s.section}` === selectedClass);
-            classStudents.forEach(s => {
-              syncGeneralGrades(s.id);
-            });
-            setToastMessage(t.gradesSaveSuccess);
-            setTimeout(() => setToastMessage(''), 3000);
-          }}
-        >
-          💾 {t.saveGradesBtn}
-        </button>
-      )}
     </>
   );
-})
+});
 
 export default ClassView;

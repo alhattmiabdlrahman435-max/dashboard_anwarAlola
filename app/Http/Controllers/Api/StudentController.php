@@ -35,7 +35,7 @@ class StudentController extends Controller implements HasMiddleware
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
 
-        $query = Student::query();
+        $query = Student::with(['schoolClass', 'parentUser']);
         if ($scopedClassIds !== null) {
             $query->whereIn('class_id', $scopedClassIds);
         }
@@ -96,6 +96,7 @@ class StudentController extends Controller implements HasMiddleware
 
             return [
                 'id' => $student->id,
+                'class_id' => $student->class_id,
                 'student_code' => $student->student_code,
                 'name' => $student->name_ar,
                 'name_ar' => $student->name_ar,

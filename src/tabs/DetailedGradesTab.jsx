@@ -38,7 +38,7 @@ export default function DetailedGradesTab() {
 
   const { classes, fetchClasses } = useClasses();
   const { students, fetchStudents } = useStudents();
-  const { fetchSubjects } = useSubjects();
+  const { subjects, fetchSubjects } = useSubjects();
 
   useEffect(() => {
     fetchClasses();
@@ -448,19 +448,30 @@ export default function DetailedGradesTab() {
                 {lang === 'ar' ? 'عرض المادة' : 'View Subject'}
               </label>
               <div style={{ position: 'relative', zIndex: 7 }}>
-                <SearchableSelect
-                  options={[
+                {(() => {
+                  const selectedClassObj = classes.find(c => `${c.grade} - ${c.section}` === selectedClass || c.name === selectedClass);
+                  const realClassSubjects = selectedClassObj && selectedClassObj.subjects && selectedClassObj.subjects.length > 0
+                    ? selectedClassObj.subjects
+                    : (subjects && subjects.length > 0 ? subjects.map(s => s.name) : ['الرياضيات', 'العلوم', 'لغتي', 'اللغة الإنجليزية']);
+
+                  const classSubjectOptions = [
                     { value: 'all', label: lang === 'ar' ? 'جميع المواد (إجمالي)' : 'All Subjects (Summary)' },
                     { value: 'detailed', label: lang === 'ar' ? 'جميع المواد (تفصيلي)' : 'All Subjects (Detailed)' },
-                    { value: 'الرياضيات', label: t.math },
-                    { value: 'العلوم', label: t.science },
-                    { value: 'اللغة العربية', label: t.arabic },
-                    { value: 'اللغة الإنجليزية', label: t.english }
-                  ]}
-                  value={classSubject}
-                  onChange={(val) => setClassSubject(val)}
-                  placeholder={lang === 'ar' ? 'عرض المادة' : 'View Subject'}
-                />
+                    ...realClassSubjects.map(subj => ({
+                      value: subj,
+                      label: subj
+                    }))
+                  ];
+
+                  return (
+                    <SearchableSelect
+                      options={classSubjectOptions}
+                      value={classSubject}
+                      onChange={(val) => setClassSubject(val)}
+                      placeholder={lang === 'ar' ? 'عرض المادة' : 'View Subject'}
+                    />
+                  );
+                })()}
               </div>
             </div>
           </>

@@ -48,6 +48,7 @@ app/anwaralola-firebase-adminsdk-fbsvc-*.json
 .env
 
 # Graphify & Diagnostics
+scratch/
 graphify-out/
 .graphifyignore
 check_db.php
