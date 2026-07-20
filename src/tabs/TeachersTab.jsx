@@ -328,65 +328,83 @@ export default function TeachersTab() {
             </tr>
           </thead>
           <tbody>
-            {teachers.map((teacher) => (
-              <tr key={teacher.id}>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.jobId || `T${teacher.id}`}</td>
-                <td style={{ fontWeight: '600' }}>
-                  {renderAvatar(teacher.photo, "👨‍--")}
-                  {lang === 'ar' ? teacher.name : teacher.nameEn}
-                </td>
-                <td>
-                  <span style={{
-                    padding: '4px 10px',
-                    background: 'rgba(30, 80, 142, 0.08)',
-                    color: 'var(--color-primary-ui)',
-                    borderRadius: '10px',
-                    fontSize: '12px',
-                    fontWeight: '600'
-                  }}>
-                    {lang === 'ar' ? teacher.subject : teacher.subjectEn}
-                  </span>
-                </td>
-                <td>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    {teacher.classes.map((c, idx) => (
-                      <span key={idx} className="chip" style={{ cursor: 'default', fontSize: '11px', padding: '2px 8px' }}>
-                        {c}
-                      </span>
-                    ))}
+            {teachers.length > 0 ? (
+              teachers.map((teacher) => (
+                <tr key={teacher.id}>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.jobId || `T${teacher.id}`}</td>
+                  <td style={{ fontWeight: '600' }}>
+                    {renderAvatar(teacher.photo, "👨‍--")}
+                    {lang === 'ar' ? teacher.name : teacher.nameEn}
+                  </td>
+                  <td>
+                    <span style={{
+                      padding: '4px 10px',
+                      background: 'rgba(30, 80, 142, 0.08)',
+                      color: 'var(--color-primary-ui)',
+                      borderRadius: '10px',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}>
+                      {lang === 'ar' ? teacher.subject : teacher.subjectEn}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {teacher.classes.map((c, idx) => (
+                        <span key={idx} className="chip" style={{ cursor: 'default', fontSize: '11px', padding: '2px 8px' }}>
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.phone || '—'}</td>
+                  <td style={{ fontSize: '12px' }}>{teacher.address || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.gradesEntered} %</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.assignments}</td>
+                  <td className="no-print">
+                    {canAction('teachers', 'update') && (
+                      <button 
+                        className="btn-elevated"
+                        style={{ padding: '6px 12px', fontSize: '11px' }}
+                        onClick={() => {
+                          setFormError('');
+                          setSelectedTeacherIdForEdit(teacher.id);
+                          setModalTeacherName(teacher.name);
+                          setModalTeacherAssignments(teacher.teachingAssignments || [
+                            { subject: teacher.subject, class: teacher.classes[0] || 'الصف الأول - أ' }
+                          ]);
+                          setModalTeacherJobId(teacher.jobId || `T${teacher.id}`);
+                          setModalTeacherPhone(teacher.phone || '');
+                          setModalTeacherAddress(teacher.address || '');
+                          setModalTeacherPhoto(teacher.photo || '');
+                          setShowEditTeacherModal(true);
+                          setModalTeacherAssignmentSubject('');
+                          setModalTeacherAssignmentClass('');
+                        }}
+                      >
+                        📝 {lang === 'ar' ? 'تعديل / إعادة تعيين' : 'Edit / Reset'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="9" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '32px' }}>
+                      📂
+                    </span>
+                    <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                      {lang === 'ar' ? 'لا يوجد معلمون مسجلون حالياً' : 'No teachers registered yet'}
+                    </span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet'}
+                    </span>
                   </div>
                 </td>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.phone || '—'}</td>
-                <td style={{ fontSize: '12px' }}>{teacher.address || '—'}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.gradesEntered} %</td>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.assignments}</td>
-                <td className="no-print">
-                  {canAction('teachers', 'update') && (
-                    <button 
-                      className="btn-elevated"
-                      style={{ padding: '6px 12px', fontSize: '11px' }}
-                      onClick={() => {
-                        setFormError('');
-                        setSelectedTeacherIdForEdit(teacher.id);
-                        setModalTeacherName(teacher.name);
-                        setModalTeacherAssignments(teacher.teachingAssignments || [
-                          { subject: teacher.subject, class: teacher.classes[0] || 'الصف الأول - أ' }
-                        ]);
-                        setModalTeacherJobId(teacher.jobId || `T${teacher.id}`);
-                        setModalTeacherPhone(teacher.phone || '');
-                        setModalTeacherAddress(teacher.address || '');
-                        setModalTeacherPhoto(teacher.photo || '');
-                        setShowEditTeacherModal(true);
-                        setModalTeacherAssignmentSubject('');
-                        setModalTeacherAssignmentClass('');
-                      }}
-                    >
-                      📝 {lang === 'ar' ? 'تعديل / إعادة تعيين' : 'Edit / Reset'}
-                    </button>
-                  )}
-                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

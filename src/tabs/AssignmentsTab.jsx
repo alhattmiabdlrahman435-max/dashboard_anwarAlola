@@ -5,6 +5,8 @@ import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useNotifications } from '../contexts/Notifications/useNotifications';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 import { api } from '../services/api';
 import { X, Filter, Calendar, User, BookOpen, Trash2 } from 'lucide-react';
 
@@ -13,6 +15,7 @@ export default function AssignmentsTab() {
     lang,
     t,
     assignments,
+    assignmentsPagination,
     setAssignments,
     setToastMessage,
     renderAvatar,
@@ -21,6 +24,7 @@ export default function AssignmentsTab() {
     triggerConfirm,
     canAction,
     fetchAssignments,
+    loading
   } = useApp();
 
   const { classes, availableGrades, availableSections, fetchClasses } = useClasses();
@@ -29,16 +33,36 @@ export default function AssignmentsTab() {
   const { students, fetchStudents } = useStudents();
   const { setSmsLogs } = useNotifications();
 
+  const {
+    page,
+    perPage,
+    search,
+    sort,
+    direction,
+    filters,
+    setPage,
+    setPerPage,
+    setFilters,
+    setSearch,
+    buildQueryString,
+    goToPrevIfEmpty,
+  } = usePagination({
+    moduleKey: 'assignments',
+    defaultFilters: { teacher_id: '', subject_id: '', class_id: '' }
+  });
+
+  const qs = buildQueryString();
+
   useEffect(() => {
-    fetchAssignments();
+    fetchAssignments(qs);
+  }, [fetchAssignments, qs]);
+
+  useEffect(() => {
     fetchClasses();
     fetchSubjects();
     fetchTeachers();
     fetchStudents();
-  }, [fetchAssignments, fetchClasses, fetchSubjects, fetchTeachers, fetchStudents]);
-
-
-  const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);
+  }, [fetchClasses, fetchSubjects, fetchTeachers, fetchStudents]);  const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   
   // Filter States
@@ -85,18 +109,20 @@ export default function AssignmentsTab() {
     return dateStr.trim();
   };
 
+  // Sync filters to usePagination hook
+  useEffect(() => {
+    const matchedSubject = subjects.find(s => s.name === filterSubject || s.nameEn === filterSubject);
+    const subjectId = matchedSubject ? Number(String(matchedSubject.id).replace('sub-', '')) : '';
+    const teacherId = filterTeacherId === 'all' ? '' : filterTeacherId;
+    setFilters({
+      subject_id: subjectId,
+      teacher_id: teacherId,
+      date: filterDate
+    });
+  }, [filterSubject, filterTeacherId, filterDate, subjects, setFilters]);
+
   // Compute filtered assignments
-  const filteredAssignments = assignments.filter(assign => {
-    if (filterDate) {
-      const standardFilter = standardizeDate(filterDate);
-      const standardDue = standardizeDate(assign.dueDate);
-      const standardCreated = standardizeDate(assign.dateCreated);
-      if (standardDue !== standardFilter && standardCreated !== standardFilter) return false;
-    }
-    if (filterTeacherId !== 'all' && Number(assign.teacherId) !== Number(filterTeacherId)) return false;
-    if (filterSubject !== 'all' && assign.subjectName !== filterSubject && assign.subjectNameEn !== filterSubject) return false;
-    return true;
-  });
+  const filteredAssignments = assignments;
 
   // Sync selected assignment with filtered list
   useEffect(() => {
@@ -255,7 +281,15 @@ export default function AssignmentsTab() {
       title: lang === 'ar' ? 'حذف الواجب' : 'Delete Assignment',
       message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا الواجب نهائياً؟ سيتم حذفه من عند المعلم وولي الأمر.' : 'Are you sure you want to permanently delete this assignment?',
       type: 'danger',
-      onConfirm: () => handleDeleteAssignment(assignmentId),
+      onConfirm: () => {
+        handleDeleteAssignment(assignmentId)
+          .then((res) => {
+            if (res && res.success) {
+              const nextQs = goToPrevIfEmpty(assignments.length - 1);
+              fetchAssignments(nextQs);
+            }
+          });
+      },
     });
   };
 
@@ -264,7 +298,14 @@ export default function AssignmentsTab() {
       title: lang === 'ar' ? 'حذف جميع الواجبات' : 'Delete All Assignments',
       message: lang === 'ar' ? 'هل أنت متأكد من حذف جميع الواجبات نهائياً؟ هذا الإجراء لا يمكن التراجع عنه!' : 'Are you sure you want to delete ALL assignments? This action cannot be undone!',
       type: 'danger',
-      onConfirm: () => handleDeleteAllAssignments(),
+      onConfirm: () => {
+        handleDeleteAllAssignments()
+          .then((res) => {
+            if (res && res.success) {
+              setPage(1);
+            }
+          });
+      },
     });
   };
 
@@ -503,10 +544,44 @@ export default function AssignmentsTab() {
               </div>
             ))
           ) : (
-            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)', border: '1px dashed var(--color-border)' }}>
-              🔍 {lang === 'ar' ? 'لا توجد واجبات تطابق خيارات التصفية.' : 'No assignments match the filters.'}
+            <div style={{ padding: '48px 24px', textAlign: 'center', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)', border: '1px dashed var(--color-border)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '32px' }}>
+                  {search ? "🔍" : (filters.teacher_id || filters.subject_id || filters.class_id) ? "ℹ️" : "📂"}
+                </span>
+                <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                  {search 
+                    ? (lang === 'ar' ? 'لا توجد واجبات تطابق بحثك' : 'No matching assignments found')
+                    : (filters.teacher_id || filters.subject_id || filters.class_id)
+                      ? (lang === 'ar' ? 'لا توجد واجبات تطابق التصفية المحددة' : 'No assignments match the selected filters')
+                      : (lang === 'ar' ? 'لا توجد واجبات منشورة حالياً' : 'No assignments published yet')
+                  }
+                </span>
+                <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                  {search 
+                    ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                    : (filters.teacher_id || filters.subject_id || filters.class_id)
+                      ? (lang === 'ar' ? 'جرب تغيير خيارات التصفية' : 'Try changing your filter selections')
+                      : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
+                  }
+                </span>
+              </div>
             </div>
           )}
+        </div>
+        <div className="no-print" style={{ marginTop: 'var(--space-md)' }}>
+          <PaginationBar
+            page={page}
+            lastPage={assignmentsPagination.lastPage}
+            total={assignmentsPagination.total}
+            from={assignmentsPagination.from}
+            to={assignmentsPagination.to}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={setPerPage}
+            loading={loading}
+            lang={lang}
+          />
         </div>
       </div>
 

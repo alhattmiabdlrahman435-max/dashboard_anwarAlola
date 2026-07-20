@@ -353,9 +353,27 @@ export default function SupervisorsTab() {
           </thead>
           <tbody>
             {filteredVPs.length === 0 ? (
-              <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
-                {lang === 'ar' ? 'لا يوجد وكلاء مطابقين للبحث' : 'No matching vice principals registered'}
-              </td></tr>
+              <tr>
+                <td colSpan="6" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '32px' }}>
+                      {searchQuery ? "🔍" : "📂"}
+                    </span>
+                    <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                      {searchQuery 
+                        ? (lang === 'ar' ? 'لا توجد نتائج تطابق بحثك' : 'No matching vice principals found')
+                        : (lang === 'ar' ? 'لا يوجد وكلاء مسجلون حالياً' : 'No vice principals registered yet')
+                      }
+                    </span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {searchQuery 
+                        ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                        : (lang === 'ar' ? 'لم يتم إضافة أي وكلاء أو مساعدي إدارة بعد' : 'No administrators or vice principals have been added yet')
+                      }
+                    </span>
+                  </div>
+                </td>
+              </tr>
             ) : filteredVPs.map(vp => (
               <tr key={vp.id}>
                 <td style={{ fontWeight: '600', fontFamily: 'monospace' }}>{vp.jobId || vp.username}</td>

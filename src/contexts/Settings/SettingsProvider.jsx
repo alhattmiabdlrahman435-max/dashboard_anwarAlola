@@ -23,6 +23,9 @@ export default function SettingsProvider({ children }) {
   const [schedules, setSchedules] = useState({});
   // Exam schedules state
   const [examSchedules, setExamSchedules] = useState([]);
+  const [examSchedulesPagination, setExamSchedulesPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20
+  });
   const [isStale, setIsStale] = useState(true);
 
   // Digital Control states
@@ -36,6 +39,7 @@ export default function SettingsProvider({ children }) {
 
   const fetchWeeklySchedulesRequestRef = useRef(0);
   const fetchExamSchedulesRequestRef = useRef(0);
+  const examSchedulesAbortRef = useRef(null);
 
   // Fetch weekly schedules
   const fetchWeeklySchedules = useCallback((...args) => {
@@ -73,21 +77,27 @@ export default function SettingsProvider({ children }) {
   }, [isStale, schedules]);
 
   // Fetch exam schedules
-  const fetchExamSchedules = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    const tokenArg = args.find(a => typeof a === 'string');
-    const activeToken = tokenArg || localStorage.getItem("auth_token");
-    if (!activeToken) return;
+  const fetchExamSchedules = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
 
-    if (!force && !isStale && examSchedules.length > 0) {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    if (!isForce && !isQueryString && !isStale && examSchedules.length > 0) {
       return;
     }
 
+    if (examSchedulesAbortRef.current) examSchedulesAbortRef.current.abort();
+    const controller = new AbortController();
+    examSchedulesAbortRef.current = controller;
+
     const reqId = ++fetchExamSchedulesRequestRef.current;
     setLoading(true);
-    settingsService.getExamSchedules()
+    settingsService.getExamSchedules(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
+        if (controller.signal.aborted) return;
         if (!localStorage.getItem('auth_token')) return;
         if (reqId !== fetchExamSchedulesRequestRef.current) return;
         if (data.success) {
@@ -114,16 +124,27 @@ export default function SettingsProvider({ children }) {
           });
           setExamSchedules(mapped);
           setIsStale(false);
+
+          const pg = data.pagination || data.meta || {};
+          setExamSchedulesPagination({
+            total:       pg.total        ?? data.total        ?? data.exam_schedules.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? data.exam_schedules.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? data.exam_schedules.length,
+          });
         }
       })
       .catch((err) => {
-        if (reqId === fetchExamSchedulesRequestRef.current) {
-          console.error("Error fetching exam schedules:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchExamSchedulesRequestRef.current) return;
+        console.error("Error fetching exam schedules:", err);
       })
       .finally(() => {
         if (reqId === fetchExamSchedulesRequestRef.current) {
           setLoading(false);
+          examSchedulesAbortRef.current = null;
         }
       });
   }, [isStale, examSchedules.length]);
@@ -423,12 +444,11 @@ export default function SettingsProvider({ children }) {
   }, [controlPrefix, controlMultiplier, controlOffset, controlModulo, lang, setToastMessage, fetchControlGrades, setGrades]);
 
   // Enter grade by secret code
-  const handleEnterGradeBySecretCode = useCallback((
+  const handleEnterGradeBySecretCode = useCallback(async (
     secretCodeInput,
     secretGradeInput,
     secretSubjectInput,
-    secretTermInput,
-    studentsList
+    secretTermInput
   ) => {
     const token = localStorage.getItem("auth_token");
     const valNum = Math.min(30, Math.max(0, parseFloat(secretGradeInput) || 0));
@@ -450,7 +470,6 @@ export default function SettingsProvider({ children }) {
     setDetailedGrades((prev) => {
       let studentRecord = prev.find((r) => r.studentId === studentId);
       if (!studentRecord) {
-        const student = studentsList.find((s) => s.id === studentId);
         const defaultDetailedGradeObj = (hw, att, beh, oral, wr, exam) => ({
           m1: { homework: hw, attendance: att, behavior: beh, oral: oral, written: wr },
           m2: { homework: hw, attendance: att, behavior: beh, oral: oral, written: wr },
@@ -459,7 +478,7 @@ export default function SettingsProvider({ children }) {
         });
         studentRecord = {
           studentId,
-          studentName: student ? student.name : "",
+          studentName: studentGradeRow ? studentGradeRow.name : "",
           grades: {
             term1: {
               الرياضيات: defaultDetailedGradeObj(0, 0, 0, 0, 0, 0),
@@ -581,14 +600,19 @@ export default function SettingsProvider({ children }) {
       const subjectId = foundSub ? Number(String(foundSub.id).replace("sub-", "")) : null;
 
       if (subjectId) {
-        settingsService.saveDetailedGrade({
+        try {
+          await settingsService.saveDetailedGrade({
             student_id: Number(studentId),
             subject_id: subjectId,
             term: secretTermInput === "term1" ? "1" : "2",
             month: "final",
             final_exam: valNum,
-          })
-          .catch((err) => console.error("Error saving grade via secret code:", err));
+          });
+        } catch (err) {
+          console.error("Error saving grade via secret code:", err);
+          setToastMessage(err.message, "error");
+          return false;
+        }
       }
     }
 
@@ -614,6 +638,7 @@ export default function SettingsProvider({ children }) {
     setSchedules,
     examSchedules,
     setExamSchedules,
+    examSchedulesPagination,
     isGradesEncrypted,
     setIsGradesEncrypted,
     controlPrefix,
@@ -636,6 +661,7 @@ export default function SettingsProvider({ children }) {
   }), [
     schedules,
     examSchedules,
+    examSchedulesPagination,
     isGradesEncrypted,
     controlPrefix,
     controlMultiplier,

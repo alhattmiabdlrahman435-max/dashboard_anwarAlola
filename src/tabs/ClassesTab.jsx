@@ -322,16 +322,41 @@ export default function ClassesTab() {
 
       {/* Classes grid container */}
       <div className="classes-grid">
-        {classes
-          .filter(cls => {
+        {(() => {
+          const filtered = classes.filter(cls => {
             const query = classSearchQuery.toLowerCase();
             return (
               cls.name.toLowerCase().includes(query) ||
               (cls.nameEn && cls.nameEn.toLowerCase().includes(query)) ||
               cls.grade.toLowerCase().includes(query)
             );
-          })
-          .map(cls => {
+          });
+
+          if (filtered.length === 0) {
+            return (
+              <div style={{ gridColumn: '1 / -1', padding: '48px 24px', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)', background: 'var(--color-surface)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '32px' }}>
+                    {classSearchQuery ? "🔍" : "📂"}
+                  </span>
+                  <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                    {classSearchQuery 
+                      ? (lang === 'ar' ? 'لا توجد فصول تطابق بحثك' : 'No matching classes found')
+                      : (lang === 'ar' ? 'لا يوجد فصول دراسية مسجلة حالياً' : 'No classes registered yet')
+                    }
+                  </span>
+                  <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                    {classSearchQuery 
+                      ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                      : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
+                    }
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          return filtered.map(cls => {
             // Calculate students count in this class
             const studentCount = students.filter(s => s.grade === cls.grade && s.section === cls.section).length;
             // Find teachers teaching in this class
@@ -452,7 +477,8 @@ export default function ClassesTab() {
                 </div>
               </div>
             );
-          })}
+          });
+        })()}
       </div>
       </div>
 

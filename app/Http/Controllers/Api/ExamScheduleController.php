@@ -11,8 +11,12 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class ExamScheduleController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'title', 'created_at'];
+
     public static function middleware(): array
     {
         return [
@@ -23,7 +27,7 @@ class ExamScheduleController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'examSchedules');
@@ -33,7 +37,31 @@ class ExamScheduleController extends Controller implements HasMiddleware
             $query->whereIn('class_id', $scopedClassIds);
         }
 
-        $schedules = $query->orderBy('created_at', 'desc')->get()->map(function($sch) {
+        // Apply filters
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->input('class_id'));
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where('title', 'LIKE', "%{$search}%");
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'title', 'class_id', 'term', 'created_by', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $schedules = $paginator->getCollection()->map(function($sch) {
             $subjectsArray = $sch->examSubjects->map(function($item) {
                 return [
                     'id' => $item->id,
@@ -60,7 +88,11 @@ class ExamScheduleController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'exam_schedules' => $schedules
+            'exam_schedules' => $schedules,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 
@@ -273,17 +305,15 @@ class ExamScheduleController extends Controller implements HasMiddleware
         $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
 
         foreach ($parentUsers as $parentUser) {
-            if ($parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification(
-                    $parentUser->fcm_token,
-                    $title,
-                    $content,
-                    [
-                        'type' => 'exam_schedule',
-                        'class_id' => (string)$classId
-                    ]
-                );
-            }
+            \App\Services\FcmService::sendToUser(
+                $parentUser,
+                $title,
+                $content,
+                [
+                    'type' => 'exam_schedule',
+                    'class_id' => (string)$classId
+                ]
+            );
         }
     }
 
@@ -306,17 +336,15 @@ class ExamScheduleController extends Controller implements HasMiddleware
                     'teacher_id' => $teacherId,
                 ]);
 
-                if ($teacherUser->fcm_token) {
-                    \App\Services\FcmService::sendNotification(
-                        $teacherUser->fcm_token,
-                        $title,
-                        $content,
-                        [
-                            'type' => 'exam_schedule',
-                            'class_id' => (string)$classId
-                        ]
-                    );
-                }
+                \App\Services\FcmService::sendToUser(
+                    $teacherUser,
+                    $title,
+                    $content,
+                    [
+                        'type' => 'exam_schedule',
+                        'class_id' => (string)$classId
+                    ]
+                );
             }
         }
     }

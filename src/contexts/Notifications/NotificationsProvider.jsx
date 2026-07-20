@@ -13,16 +13,29 @@ export default function NotificationsProvider({ children }) {
   const [smsLogs, setSmsLogs] = useState([]);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
 
-  const fetchRequestRef = useRef(0);
+  const [notificationsPagination, setNotificationsPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20
+  });
 
-  const fetchNotifications = useCallback((token) => {
-    const activeToken = token || localStorage.getItem("auth_token");
+  const fetchRequestRef = useRef(0);
+  const notificationsAbortRef = useRef(null);
+
+  const fetchNotifications = useCallback((arg) => {
+    const isToken = typeof arg === 'string' && !arg.startsWith('?');
+    const queryString = (!isToken && typeof arg === 'string') ? arg : '?page=1&per_page=20';
+
+    const activeToken = isToken ? arg : localStorage.getItem("auth_token");
     if (!activeToken) return;
 
+    if (notificationsAbortRef.current) notificationsAbortRef.current.abort();
+    const controller = new AbortController();
+    notificationsAbortRef.current = controller;
+
     const reqId = ++fetchRequestRef.current;
-    notificationsService.getNotifications()
+    
+    notificationsService.getNotifications(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
+        if (controller.signal.aborted) return;
         if (!localStorage.getItem('auth_token')) return;
         if (reqId !== fetchRequestRef.current) return;
         if (data.success) {
@@ -61,11 +74,26 @@ export default function NotificationsProvider({ children }) {
             };
           });
           setNotifications(mapped);
+
+          const pg = data.pagination || data.meta || {};
+          setNotificationsPagination({
+            total:       pg.total        ?? data.total        ?? data.notifications.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? data.notifications.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? data.notifications.length,
+          });
         }
       })
       .catch((err) => {
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchRequestRef.current) return;
+        console.error("Error fetching notifications:", err);
+      })
+      .finally(() => {
         if (reqId === fetchRequestRef.current) {
-          console.error("Error fetching notifications:", err);
+          notificationsAbortRef.current = null;
         }
       });
   }, []);
@@ -191,14 +219,11 @@ export default function NotificationsProvider({ children }) {
   }, [lang, setToastMessage]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const token = localStorage.getItem("auth_token");
-      fetchNotifications(token);
-    } else {
+    if (!isAuthenticated) {
       setNotifications([]);
       setSmsLogs([]);
     }
-  }, [isAuthenticated, fetchNotifications]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const unsubscribe = smsBus.subscribe((logOrFn) => {
@@ -212,6 +237,7 @@ export default function NotificationsProvider({ children }) {
   const notificationsContextValue = useMemo(() => ({
     notifications,
     setNotifications,
+    notificationsPagination,
     smsLogs,
     setSmsLogs,
     showNotificationsDropdown,
@@ -224,6 +250,7 @@ export default function NotificationsProvider({ children }) {
     handleDeleteAllNotifications,
   }), [
     notifications,
+    notificationsPagination,
     smsLogs,
     showNotificationsDropdown,
     notificationCount,

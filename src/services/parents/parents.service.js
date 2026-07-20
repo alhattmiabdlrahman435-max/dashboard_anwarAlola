@@ -1,8 +1,8 @@
 import { api } from '../api';
 
 export const parentsService = {
-  getParents: () => {
-    return api.get("/api/parents");
+  getParents: (queryString = '') => {
+    return api.get(`/api/parents${queryString}`);
   },
   
   createParent: (payload) => {

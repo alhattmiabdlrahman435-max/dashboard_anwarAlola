@@ -8,34 +8,86 @@ use App\Services\PermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
-class VicePrincipalController extends Controller
+use App\Http\Requests\ListRequest;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class VicePrincipalController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'name_ar', 'name_en', 'job_id', 'phone', 'created_at'];
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('check.permission:vicePrincipals,view', only: ['index', 'show']),
+            new Middleware('check.permission:vicePrincipals,create', only: ['store']),
+            new Middleware('check.permission:vicePrincipals,update', only: ['update']),
+            new Middleware('check.permission:vicePrincipals,delete', only: ['destroy']),
+        ];
+    }
+
     /**
      * Display a listing of vice principals (supervisors).
      */
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
-        $vicePrincipals = User::where('role', 'supervisor')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($vp) {
-                return [
-                    'id' => $vp->id,
-                    'name' => $vp->name_ar ?? $vp->name,
-                    'nameEn' => $vp->name_en,
-                    'username' => $vp->username,
-                    'jobId' => $vp->job_id,
-                    'nationalId' => $vp->national_id,
-                    'phone' => $vp->phone,
-                    'photoUrl' => $vp->photo_url,
-                    'isActive' => $vp->is_active,
-                    'permissions' => $vp->permissions,
-                    'lastLogin' => $vp->last_login,
-                    'createdAt' => $vp->created_at,
-                ];
-            });
+        $query = User::where('role', 'supervisor');
 
-        return response()->json(['success' => true, 'data' => $vicePrincipals]);
+        // Apply filters
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->input('is_active'));
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%")
+                  ->orWhere('username', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%")
+                  ->orWhere('job_id', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'name', 'username', 'role', 'permissions', 'national_id', 'job_id', 'phone', 'name_ar', 'name_en', 'photo_url', 'address', 'is_active', 'last_login', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $vicePrincipals = $paginator->getCollection()->map(function ($vp) {
+            return [
+                'id' => $vp->id,
+                'name' => $vp->name_ar ?? $vp->name,
+                'nameEn' => $vp->name_en,
+                'username' => $vp->username,
+                'jobId' => $vp->job_id,
+                'nationalId' => $vp->national_id,
+                'phone' => $vp->phone,
+                'photoUrl' => $vp->photo_url,
+                'isActive' => $vp->is_active,
+                'permissions' => $vp->permissions,
+                'lastLogin' => $vp->last_login,
+                'createdAt' => $vp->created_at,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $vicePrincipals,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
+        ]);
     }
 
     /**

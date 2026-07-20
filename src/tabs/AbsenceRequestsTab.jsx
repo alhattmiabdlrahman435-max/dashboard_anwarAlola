@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useAttendance } from '../contexts/Attendance/useAttendance';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 
 export default function AbsenceRequestsTab() {
@@ -15,6 +17,7 @@ export default function AbsenceRequestsTab() {
   } = useApp();
 
   const {
+    classes,
     availableGrades,
     availableSections,
     fetchClasses,
@@ -22,33 +25,69 @@ export default function AbsenceRequestsTab() {
 
   const {
     absenceRequests,
+    absenceRequestsPagination,
     handleAbsenceDecision,
     attendanceRosterDate,
     setAttendanceRosterDate,
     handleManualAttendanceChange,
     fetchAbsenceRequests,
+    loading
   } = useAttendance();
 
   const { students, handleManualAttendanceNoteChange, fetchStudents } = useStudents();
 
-  useEffect(() => {
-    fetchAbsenceRequests();
-    fetchStudents();
-    fetchClasses();
-  }, [fetchAbsenceRequests, fetchStudents, fetchClasses]);
+  const {
+    page,
+    perPage,
+    search,
+    sort,
+    direction,
+    filters,
+    setPage,
+    setPerPage,
+    setSort,
+    setSearch,
+    setFilters,
+    buildQueryString,
+    goToPrevIfEmpty,
+  } = usePagination({
+    moduleKey: 'absence_requests',
+    defaultFilters: { status: 'pending', date: '' }
+  });
 
   // Local tab/filters states
   const [absenceSubTab, setAbsenceSubTab] = useState('requests');
-  const [absenceFilter, setAbsenceFilter] = useState('pending');
-  const [dateSortOrder, setDateSortOrder] = useState('desc'); // 'desc' or 'asc'
-  const [filterDate, setFilterDate] = useState('');
-
-  const toggleDateSort = () => {
-    setDateSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
-  };
-
   const [attendanceRosterGrade, setAttendanceRosterGrade] = useState('الصف الأول');
   const [attendanceRosterSection, setAttendanceRosterSection] = useState('أ');
+
+  const activeClass = classes.find(c => c.grade === attendanceRosterGrade && c.section === attendanceRosterSection);
+
+  // Dynamic loaders
+  const qs = buildQueryString();
+  useEffect(() => {
+    if (absenceSubTab === 'requests') {
+      fetchAbsenceRequests(qs);
+    }
+  }, [fetchAbsenceRequests, qs, absenceSubTab]);
+
+  useEffect(() => {
+    if (absenceSubTab === 'roster' && activeClass) {
+      // Load all students for the class roster
+      fetchStudents(`?class_id=${activeClass.id}&per_page=100`);
+    }
+  }, [absenceSubTab, activeClass, fetchStudents]);
+
+  useEffect(() => {
+    fetchClasses();
+  }, [fetchClasses]);
+  const absenceFilter = filters.status || 'pending';
+  const filterDate = filters.date || '';
+  const dateSortOrder = direction || 'desc';
+
+  const toggleDateSort = () => {
+    const nextDir = direction === 'desc' ? 'asc' : 'desc';
+    setSort('start_date', nextDir);
+  };
 
   // Decision Modal state
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
@@ -56,22 +95,9 @@ export default function AbsenceRequestsTab() {
   const [decisionType, setDecisionType] = useState(''); // 'approved' or 'rejected'
   const [decisionNote, setDecisionNote] = useState('');
 
-  const filteredRequests = useMemo(() => {
-    return [...absenceRequests]
-      .filter(r => absenceFilter === 'all' || r.status === absenceFilter)
-      .filter(r => !filterDate || r.requestedDate === filterDate)
-      .sort((a, b) => {
-        const dateA = a.requestedDate || '';
-        const dateB = b.requestedDate || '';
-        return dateSortOrder === 'desc' 
-          ? dateB.localeCompare(dateA) 
-          : dateA.localeCompare(dateB);
-      });
-  }, [absenceRequests, absenceFilter, filterDate, dateSortOrder]);
+  const filteredRequests = absenceRequests;
 
-  const pendingRequestsCount = useMemo(() => {
-    return absenceRequests.filter(r => r.status === 'pending').length;
-  }, [absenceRequests]);
+  const pendingRequestsCount = absenceRequestsPagination.total;
 
   const rosterStudents = useMemo(() => {
     return students.filter(s => s.grade === attendanceRosterGrade && s.section === attendanceRosterSection);
@@ -91,7 +117,12 @@ export default function AbsenceRequestsTab() {
       setTimeout(() => setToastMessage(''), 3000);
       return;
     }
-    handleAbsenceDecision(activeRequest.id, decisionType, decisionNote, students);
+    handleAbsenceDecision(activeRequest.id, decisionType, decisionNote, students)
+      .then((res) => {
+        if (res && res.success) {
+          fetchAbsenceRequests(buildQueryString());
+        }
+      });
     setDecisionModalOpen(false);
     setActiveRequest(null);
     setDecisionNote('');
@@ -130,61 +161,62 @@ export default function AbsenceRequestsTab() {
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button 
                   className={`chip ${absenceFilter === 'pending' ? 'selected' : ''}`}
-                  onClick={() => setAbsenceFilter('pending')}
+                  onClick={() => setFilters({ status: 'pending' })}
                 >
                   ⏳ {t.pendingStatus} ({pendingRequestsCount})
                 </button>
-                  <button 
-                    className={`chip ${absenceFilter === 'all' ? 'selected' : ''}`}
-                    onClick={() => setAbsenceFilter('all')}
-                  >
-                    🗂️ {t.filterAll} ({absenceRequests.length})
-                  </button>
+                <button 
+                  className={`chip ${absenceFilter === 'all' ? 'selected' : ''}`}
+                  onClick={() => setFilters({ status: 'all' })}
+                >
+                  🗂️ {t.filterAll} ({absenceRequestsPagination.total})
+                </button>
 
-                  {/* Date Filter Input */}
-                  <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginInlineStart: '8px' }}>
-                    <input 
-                      type="date"
-                      className="text-field"
-                      style={{ 
-                        minHeight: '36px', 
-                        fontSize: '12px', 
-                        width: '140px', 
-                        borderRadius: '8px', 
-                        paddingInline: '8px',
-                        backgroundColor: 'var(--color-surface-alt)',
-                        color: 'var(--color-text-primary)',
-                        border: '1.5px solid var(--color-border)',
-                        cursor: 'pointer'
+                {/* Date Filter Input */}
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginInlineStart: '8px' }}>
+                  <input 
+                    type="date"
+                    className="text-field"
+                    style={{ 
+                      minHeight: '36px', 
+                      fontSize: '12px', 
+                      width: '140px', 
+                      borderRadius: '8px', 
+                      paddingInline: '8px',
+                      backgroundColor: 'var(--color-surface-alt)',
+                      color: 'var(--color-text-primary)',
+                      border: '1.5px solid var(--color-border)',
+                      cursor: 'pointer'
+                    }}
+                    value={filterDate}
+                    onChange={(e) => setFilters({ date: e.target.value })}
+                    title={lang === 'ar' ? 'تصفية بالتاريخ' : 'Filter by Date'}
+                  />
+                  {filterDate && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters({ date: '' })}
+                      style={{
+                        position: 'absolute',
+                        left: lang === 'ar' ? '8px' : 'auto',
+                        right: lang === 'ar' ? 'auto' : '8px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--color-error)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0
                       }}
-                      value={filterDate}
-                      onChange={(e) => setFilterDate(e.target.value)}
-                      title={lang === 'ar' ? 'تصفية بالتاريخ' : 'Filter by Date'}
-                    />
-                    {filterDate && (
-                      <button
-                        type="button"
-                        onClick={() => setFilterDate('')}
-                        style={{
-                          position: 'absolute',
-                          left: lang === 'ar' ? '8px' : 'auto',
-                          right: lang === 'ar' ? 'auto' : '8px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--color-error)',
-                          cursor: 'pointer',
-                          fontSize: '11px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 0
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
+              </div>
+
                 
                 <button 
                   className="chip"
@@ -208,138 +240,129 @@ export default function AbsenceRequestsTab() {
                 </button>
               </div>
 
-              {filteredRequests.length > 0 ?
-                <div className="students-table-container">
-                  <table className="students-table">
-                    <thead>
-                      <tr>
-                        <th>{t.studentName}</th>
-                        <th 
-                          onClick={toggleDateSort}
-                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                          title={lang === 'ar' ? 'اضغط للفرز بالتاريخ' : 'Click to sort by date'}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>{t.requestedDate}</span>
-                            <span style={{ display: 'inline-flex', color: 'var(--color-primary-ui)' }}>
-                              {dateSortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
-                            </span>
-                          </div>
-                        </th>
-                        <th>{t.reason}</th>
-                        <th>{t.adminNoteLabel}</th>
-                        <th>{t.status}</th>
-                        <th className="no-print">{t.action}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRequests.map((req) => {
-                        const student = students.find(s => s.id === req.studentId);
-                        return (
-                          <tr key={req.id}>
-                          <td style={{ fontWeight: '600' }}>
-                            {student ? renderAvatar(student.photo, "👨‍🎓") : "👨‍🎓"} 
-                            <span>{student ? (lang === 'ar' ? student.name : student.nameEn) : req.studentName}</span>
-                            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginInlineStart: '40px' }}>
-                              {lang === 'ar' ? student?.grade : student?.gradeEn} - {lang === 'ar' ? 'شعبة' : 'Section'} {student?.section}
+              {filteredRequests.length > 0 ? (
+                <>
+                  <div className="students-table-container">
+                    <table className="students-table">
+                      <thead>
+                        <tr>
+                          <th>{t.studentName}</th>
+                          <th 
+                            onClick={toggleDateSort}
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                            title={lang === 'ar' ? 'اضغط للفرز بالتاريخ' : 'Click to sort by date'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{t.requestedDate}</span>
+                              {dateSortOrder === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
                             </div>
-                          </td>
-                          <td style={{ fontFamily: 'var(--font-mono)' }}>{req.requestedDate}</td>
-                          <td>
-                            <div style={{ 
-                              padding: '8px 12px', 
-                              backgroundColor: 'var(--color-surface)', 
-                              borderRadius: 'var(--radius-chip)', 
-                              fontSize: '13px',
-                              whiteSpace: 'normal',
-                              maxWidth: '300px'
-                            }}>
-                              💬 {lang === 'ar' ? req.reason : (req.reasonEn || req.reason)}
-                            </div>
-                          </td>
-                          <td>
-                            {req.adminNote ? (
-                              <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                                📝 {req.adminNote}
-                              </div>
-                            ) : (
-                              <span style={{ fontStyle: 'italic', opacity: 0.5 }}>--</span>
-                            )}
-                          </td>
-                          <td>
-                            <span className={`badge-status ${
-                              req.status === 'approved' ? 'checked-in' : req.status === 'rejected' ? 'absent' : 'on-bus'
-                            }`}>
-                              {req.status === 'approved' ? t.approvedStatus : req.status === 'rejected' ? t.rejectedStatus : t.pendingStatus}
-                            </span>
-                          </td>
-                          <td className="no-print">
-                            {req.status === 'pending' ? (
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                {canAction('absenceRequests', 'approve') && (
-                                  <button 
-                                    className="btn-filled"
-                                    style={{ 
-                                      padding: '6px 14px', 
-                                      fontSize: '12px', 
-                                      backgroundColor: 'var(--color-success, #16a34a)', 
-                                      color: 'white', 
-                                      borderRadius: '8px', 
-                                      border: 'none', 
-                                      cursor: 'pointer',
-                                      fontWeight: '600',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px'
-                                    }}
-                                    onClick={() => openDecisionModal(req, 'approved')}
-                                  >
-                                    ✓ {t.approveBtn || 'موافقة'}
-                                  </button>
-                                )}
-                                {canAction('absenceRequests', 'reject') && (
-                                  <button 
-                                    className="btn-filled"
-                                    style={{ 
-                                      padding: '6px 14px', 
-                                      fontSize: '12px', 
-                                      backgroundColor: 'var(--color-error, #dc2626)', 
-                                      color: 'white', 
-                                      borderRadius: '8px', 
-                                      border: 'none', 
-                                      cursor: 'pointer',
-                                      fontWeight: '600',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px'
-                                    }}
-                                    onClick={() => openDecisionModal(req, 'rejected')}
-                                  >
-                                    ✗ {t.rejectBtn || 'رفض'}
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
-                                {req.status === 'approved' ? (
-                                  <span style={{ color: 'var(--color-success)' }}>✓ {lang === 'ar' ? 'تمت الموافقة' : 'Approved'}</span>
-                                ) : (
-                                  <span style={{ color: 'var(--color-error)' }}>✗ {lang === 'ar' ? 'تم الرفض' : 'Rejected'}</span>
-                                )}
-                              </span>
-                            )}
-                          </td>
+                          </th>
+                          <th>{t.absenceReason}</th>
+                          <th>{t.status}</th>
+                          <th className="no-print">{t.actions}</th>
                         </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
-          :
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)' }}>
-              ⏳ {t.noAbsenceRequests}
-            </div>
-          }
+                      </thead>
+                      <tbody>
+                        {filteredRequests.map((req) => {
+                          const student = students.find(s => s.id === req.studentId);
+                          return (
+                            <tr key={req.id}>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {renderAvatar(student?.photo, "👨‍🎓")}
+                                  <div>
+                                    <div style={{ fontWeight: 'bold', fontSize: '13px' }}>
+                                      {lang === 'ar' ? (student?.name || req.studentName) : (student?.nameEn || req.studentNameEn || req.studentName)}
+                                    </div>
+                                    <div style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>ID: {req.studentId}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{req.date}</td>
+                              <td style={{ fontSize: '13px', fontWeight: '500' }}>{req.reason}</td>
+                              <td>
+                                <span className={`badge-status ${req.status === 'pending' ? 'on-bus' : req.status === 'approved' ? 'checked-in' : 'absent'}`}>
+                                  {req.status === 'pending' ? (lang === 'ar' ? 'قيد الانتظار' : 'Pending') : req.status === 'approved' ? (lang === 'ar' ? 'مقبول' : 'Approved') : (lang === 'ar' ? 'مرفوض' : 'Rejected')}
+                                </span>
+                              </td>
+                              <td className="no-print">
+                                {req.status === 'pending' ? (
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    {canAction('attendance', 'approveExcuse') && (
+                                      <button 
+                                        className="btn-filled"
+                                        style={{ background: 'var(--gradient-success)', border: 'none', color: 'white', padding: '2px 8px', fontSize: '11px', borderRadius: '6px' }}
+                                        onClick={() => handleActionClick(req.id, 'approved')}
+                                      >
+                                        ✓ {t.approveBtn || 'قبول'}
+                                      </button>
+                                    )}
+                                    {canAction('attendance', 'approveExcuse') && (
+                                      <button 
+                                        className="btn-filled"
+                                        style={{ background: 'var(--gradient-error)', border: 'none', color: 'white', padding: '2px 8px', fontSize: '11px', borderRadius: '6px' }}
+                                        onClick={() => handleActionClick(req.id, 'rejected')}
+                                      >
+                                        ✗ {t.rejectBtn || 'رفض'}
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                    {req.status === 'approved' ? (
+                                      <span style={{ color: 'var(--color-success)' }}>✓ {lang === 'ar' ? 'تمت الموافقة' : 'Approved'}</span>
+                                    ) : (
+                                      <span style={{ color: 'var(--color-error)' }}>✗ {lang === 'ar' ? 'تم الرفض' : 'Rejected'}</span>
+                                    )}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="no-print" style={{ marginTop: 'var(--space-md)' }}>
+                    <PaginationBar
+                      page={page}
+                      lastPage={absenceRequestsPagination.lastPage}
+                      total={absenceRequestsPagination.total}
+                      from={absenceRequestsPagination.from}
+                      to={absenceRequestsPagination.to}
+                      perPage={perPage}
+                      onPageChange={setPage}
+                      onPerPageChange={setPerPage}
+                      loading={loading}
+                      lang={lang}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div style={{ padding: '48px 24px', textAlign: 'center', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)', border: '1px dashed var(--color-border)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '32px' }}>
+                      {search ? "🔍" : (filters.status || filters.date) ? "ℹ️" : "📂"}
+                    </span>
+                    <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                      {search 
+                        ? (lang === 'ar' ? 'لا توجد طلبات تطابق بحثك' : 'No matching requests found')
+                        : (filters.status || filters.date)
+                          ? (lang === 'ar' ? 'لا توجد طلبات تطابق التصفية المحددة' : 'No requests match the selected filters')
+                          : (lang === 'ar' ? 'لا توجد طلبات غياب حالياً' : 'No absence requests found')
+                      }
+                    </span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {search 
+                        ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                        : (filters.status || filters.date)
+                          ? (lang === 'ar' ? 'جرب تغيير خيارات التصفية' : 'Try changing your filter selections')
+                          : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
+                      }
+                    </span>
+                  </div>
+                </div>
+              )}
         </div>
       :
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>

@@ -1,54 +1,37 @@
 import { useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../contexts/Auth/useAuth';
-import { useStudents } from '../contexts/Students/useStudents';
-import { useTeachers } from '../contexts/Teachers/useTeachers';
-import { useFinance } from '../contexts/Finance/useFinance';
 import { useReports } from '../contexts/Reports/useReports';
 import { Users, User, ClipboardCheck, DollarSign } from 'lucide-react';
 
 export default function DashboardTab() {
-  const {
-    lang,
-    grades,
-    fetchControlGrades,
-  } = useApp();
+  const { lang } = useApp();
   const { dashboardStats, fetchDashboardStats } = useReports();
-  const { tuitionFees, fetchFinanceData } = useFinance();
-  const { students, fetchStudents } = useStudents();
-  const { teachers } = useTeachers();
   const { currentUser } = useAuth();
 
   useEffect(() => {
     fetchDashboardStats();
-    fetchStudents();
-    fetchFinanceData();
-    fetchControlGrades();
-  }, [fetchDashboardStats, fetchStudents, fetchFinanceData, fetchControlGrades]);
+  }, [fetchDashboardStats]);
 
-  // Calculate school aggregates dynamically or use API stats
-  const totalStudents = dashboardStats ? dashboardStats.total_students : students.length;
-  const activeTeachers = dashboardStats ? dashboardStats.total_teachers : teachers.length;
+  // Calculate school aggregates dynamically from API stats
+  const totalStudents = dashboardStats ? dashboardStats.total_students : 0;
+  const activeTeachers = dashboardStats ? dashboardStats.total_teachers : 0;
 
-  const presentCount = dashboardStats ? dashboardStats.present_today : students.filter(s => s.status === 'present').length;
-  const dynamicTotalStudents = students.length;
+  const presentCount = dashboardStats ? dashboardStats.present_today : 0;
   const attendanceRate = dashboardStats 
     ? (dashboardStats.total_students > 0 ? Math.round((dashboardStats.present_today / dashboardStats.total_students) * 100) : 100)
-    : (dynamicTotalStudents > 0 ? Math.round((students.filter(s => s.status === 'present').length / dynamicTotalStudents) * 100) : 100);
+    : 100;
 
-  const totalTuitionRequired = students.reduce((sum, s) => sum + (tuitionFees.baseFees[s.grade] || 0), 0);
-  const totalTuitionPaid = tuitionFees.payments.reduce((sum, p) => sum + p.amount, 0);
-  const collectionRate = totalTuitionRequired > 0 ? Math.round((totalTuitionPaid / totalTuitionRequired) * 100) : 0;
+  const totalTuitionRequired = dashboardStats ? dashboardStats.total_required_fees : 0;
+  const totalTuitionPaid = dashboardStats ? dashboardStats.total_paid_fees : 0;
+  const collectionRate = dashboardStats ? dashboardStats.collection_rate : 0;
 
-  const mathAvg = grades.length > 0 ? Math.round(grades.reduce((sum, g) => sum + g.math, 0) / grades.length) : 0;
-  const scienceAvg = grades.length > 0 ? Math.round(grades.reduce((sum, g) => sum + g.science, 0) / grades.length) : 0;
-  const arabicAvg = grades.length > 0 ? Math.round(grades.reduce((sum, g) => sum + g.arabic, 0) / grades.length) : 0;
-  const englishAvg = grades.length > 0 ? Math.round(grades.reduce((sum, g) => sum + g.english, 0) / grades.length) : 0;
+  const mathAvg = dashboardStats?.subject_averages?.math ?? 0;
+  const scienceAvg = dashboardStats?.subject_averages?.science ?? 0;
+  const arabicAvg = dashboardStats?.subject_averages?.arabic ?? 0;
+  const englishAvg = dashboardStats?.subject_averages?.english ?? 0;
 
-  const studentAverages = grades.map(g => {
-    const avg = Math.round((g.math + g.science + g.arabic + g.english) / 4);
-    return { ...g, average: avg };
-  }).sort((a, b) => b.average - a.average);
+  const studentAverages = dashboardStats?.top_students ?? [];
 
   return (
     <>
@@ -297,8 +280,6 @@ export default function DashboardTab() {
                     const medals = ["🥇", "🥈", "🥉"];
                     const borderColors = ["#eab308", "#94a3b8", "#b45309"];
                     const bgColors = ["rgba(234, 179, 8, 0.05)", "rgba(148, 163, 184, 0.05)", "rgba(180, 83, 9, 0.05)"];
-                    const sObj = students.find(s => s.id === st.studentId);
-                    
                     // Simple avatar initials generator
                     const nameParts = st.name.trim().split(' ');
                     const initials = nameParts.length > 1 
@@ -342,7 +323,7 @@ export default function DashboardTab() {
                               {lang === 'ar' ? st.name : st.nameEn}
                             </div>
                             <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px', fontWeight: '600' }}>
-                              {lang === 'ar' ? sObj?.grade : sObj?.gradeEn} - {lang === 'ar' ? sObj?.section : sObj?.sectionEn}
+                              {lang === 'ar' ? st.grade : st.gradeEn} - {lang === 'ar' ? st.section : st.sectionEn}
                             </div>
                           </div>
                         </div>
@@ -397,7 +378,7 @@ export default function DashboardTab() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
                       <span>{lang === 'ar' ? 'الطلاب المسددين:' : 'Paid Students:'}</span>
-                      <span style={{ color: 'var(--color-text)', fontWeight: 'bold' }}>{tuitionFees.payments.length}</span>
+                      <span style={{ color: 'var(--color-text)', fontWeight: 'bold' }}>{dashboardStats?.paid_students_count || 0}</span>
                     </div>
                   </div>
                 </div>

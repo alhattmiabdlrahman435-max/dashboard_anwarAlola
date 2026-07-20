@@ -1,8 +1,8 @@
 import { api } from '../api';
 
 export const studentsService = {
-  getStudents: () => {
-    return api.get("/api/students");
+  getStudents: (queryString = '') => {
+    return api.get(`/api/students${queryString}`);
   },
   
   createStudent: (payload) => {

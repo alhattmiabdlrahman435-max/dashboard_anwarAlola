@@ -1,1 +1,0 @@
-import{d as e,l as t}from"./AppContext-C9gEC9Yl.js";import{M as n}from"./index-UPfHq8az.js";var r=e(t(),1);function i(){let e=(0,r.useContext)(n);if(!e)throw Error(`useFinance must be used within a FinanceProvider`);return e}export{i as t};

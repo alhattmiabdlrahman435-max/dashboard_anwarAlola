@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useReports } from '../contexts/Reports/useReports';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 import { 
   FileWarning, CheckCircle, XCircle, Clock, Eye, Image as ImageIcon, Filter, RefreshCw, 
   User, School, GraduationCap, Calendar, RotateCcw, Trash2
@@ -23,11 +25,15 @@ const STATUS_LABELS = {
 
 export default function TeacherReportsTab() {
   const { lang, t, triggerConfirm, canAction } = useApp();
-  const { teacherReports, handleUpdateReportStatus, fetchTeacherReports, handleDeleteTeacherReport, handleDeleteAllTeacherReports } = useReports();
-
-  useEffect(() => {
-    fetchTeacherReports();
-  }, [fetchTeacherReports]);
+  const { 
+    teacherReports, 
+    reportsPagination, 
+    reportsLoading, 
+    handleUpdateReportStatus, 
+    fetchTeacherReports, 
+    handleDeleteTeacherReport, 
+    handleDeleteAllTeacherReports 
+  } = useReports();
   const onDeleteReportClick = (e, reportId) => {
     e.stopPropagation();
     triggerConfirm({
@@ -49,32 +55,37 @@ export default function TeacherReportsTab() {
     });
   };
 
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterType, setFilterType] = useState('all');
-  const [filterDate, setFilterDate] = useState('');
-  const [searchTeacher, setSearchTeacher] = useState('');
+  const {
+    page,
+    perPage,
+    search,
+    filters,
+    setPage,
+    setPerPage,
+    setSearch,
+    setFilters,
+    buildQueryString,
+  } = usePagination({
+    moduleKey: 'teacherReports',
+    defaultFilters: { status: 'all', type: 'all', date: '' }
+  });
+
+  const [searchTeacher, setSearchTeacher] = useState(search);
+
+  useEffect(() => {
+    setSearchTeacher(search);
+  }, [search]);
+
   const [viewImage, setViewImage] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
 
-  const filtered = (teacherReports || []).filter(r => {
-    if (filterStatus !== 'all' && r.status !== filterStatus) return false;
-    if (filterType !== 'all' && r.type !== filterType) return false;
-    
-    // Filter by specific report date (YYYY-MM-DD format)
-    if (filterDate) {
-      const reportDate = r.createdAt ? r.createdAt.substring(0, 10) : '';
-      if (reportDate !== filterDate) return false;
-    }
-    
-    // Filter by Teacher name or Student name
-    if (searchTeacher.trim()) {
-      const teacherMatches = (r.teacherName || '').toLowerCase().includes(searchTeacher.toLowerCase());
-      const studentMatches = (r.studentName || '').toLowerCase().includes(searchTeacher.toLowerCase());
-      if (!teacherMatches && !studentMatches) return false;
-    }
-    
-    return true;
-  });
+  const qs = buildQueryString();
+
+  useEffect(() => {
+    fetchTeacherReports(qs);
+  }, [fetchTeacherReports, qs]);
+
+  const filtered = teacherReports || [];
 
   const handleStatusChange = async (reportId, newStatus) => {
     setLoadingId(reportId);
@@ -83,8 +94,7 @@ export default function TeacherReportsTab() {
   };
 
   const handleRefresh = () => {
-    const token = localStorage.getItem('auth_token');
-    if (token) fetchTeacherReports(token);
+    fetchTeacherReports(qs);
   };
 
   const countByStatus = (status) => (teacherReports || []).filter(r => r.status === status).length;
@@ -212,8 +222,8 @@ export default function TeacherReportsTab() {
         
         <select
           className="text-field"
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
+          value={filters.status || 'all'}
+          onChange={e => setFilters({ status: e.target.value })}
           style={{ minHeight: '40px', fontSize: '13px', width: 'auto', borderRadius: '10px', paddingInline: '12px' }}
         >
           <option value="all">{lang === 'ar' ? 'جميع الحالات' : 'All Statuses'}</option>
@@ -224,8 +234,8 @@ export default function TeacherReportsTab() {
         
         <select
           className="text-field"
-          value={filterType}
-          onChange={e => setFilterType(e.target.value)}
+          value={filters.type || 'all'}
+          onChange={e => setFilters({ type: e.target.value })}
           style={{ minHeight: '40px', fontSize: '13px', width: 'auto', borderRadius: '10px', paddingInline: '12px' }}
         >
           <option value="all">{lang === 'ar' ? 'جميع الأنواع' : 'All Types'}</option>
@@ -251,14 +261,14 @@ export default function TeacherReportsTab() {
               border: '1.5px solid var(--color-border)',
               cursor: 'pointer'
             }}
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
+            value={filters.date || ''}
+            onChange={(e) => setFilters({ date: e.target.value })}
             title={lang === 'ar' ? 'اختر التاريخ لتصفية البلاغات' : 'Choose Date'}
           />
-          {filterDate && (
+          {filters.date && (
             <button
               type="button"
-              onClick={() => setFilterDate('')}
+              onClick={() => setFilters({ date: '' })}
               style={{
                 position: 'absolute',
                 left: lang === 'ar' ? '8px' : 'auto',
@@ -277,14 +287,15 @@ export default function TeacherReportsTab() {
             </button>
           )}
         </div>
-
-        {/* Search Teacher/Student */}
         <input 
           type="text"
           className="text-field"
           placeholder={lang === 'ar' ? 'البحث باسم المعلم أو الطالب...' : 'Search teacher or student...'}
-          value={searchTeacher}
-          onChange={(e) => setSearchTeacher(e.target.value)}
+          value={searchTeacher || ''}
+          onChange={(e) => {
+            setSearchTeacher(e.target.value);
+            setSearch(e.target.value);
+          }}
           style={{ 
             minHeight: '40px', 
             fontSize: '13px', 
@@ -487,6 +498,20 @@ export default function TeacherReportsTab() {
           })}
         </div>
       )}
+      <div className="no-print" style={{ marginTop: 'var(--space-md)' }}>
+        <PaginationBar
+          page={page}
+          lastPage={reportsPagination.lastPage}
+          total={reportsPagination.total}
+          from={reportsPagination.from}
+          to={reportsPagination.to}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={setPerPage}
+          loading={reportsLoading}
+          lang={lang}
+        />
+      </div>
 
       {/* Image preview modal */}
       {viewImage && (

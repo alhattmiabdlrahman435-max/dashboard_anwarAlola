@@ -11,8 +11,12 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class GradeController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'name_ar', 'name_en', 'secret_code', 'created_at'];
+
     public static function middleware(): array
     {
         return [
@@ -313,7 +317,7 @@ class GradeController extends Controller implements HasMiddleware
     /**
      * جلب درجات الكنترول العام
      */
-    public function control(Request $request)
+    public function control(ListRequest $request)
     {
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'control');
@@ -323,9 +327,39 @@ class GradeController extends Controller implements HasMiddleware
             $query->whereIn('class_id', $scopedClassIds);
         }
 
-        $students = $query->with(['grades' => function($q) {
+        // Apply filters
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->input('class_id'));
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%")
+                  ->orWhere('student_code', 'LIKE', "%{$search}%")
+                  ->orWhere('secret_code', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'name_ar', 'name_en', 'student_code', 'secret_code', 'class_id', 'created_at'
+        ]);
+
+        $query->with(['grades' => function($q) {
             $q->where('is_control', true)->where('month', 0);
-        }])->get();
+        }, 'schoolClass']);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+        $students = $paginator->getCollection();
 
         $controlGrades = $students->map(function($student) {
             $mathGrade = $student->grades->firstWhere('subject_id', 1);
@@ -349,6 +383,8 @@ class GradeController extends Controller implements HasMiddleware
                     'name_en' => $student->name_en,
                 ],
                 'secret_code' => $student->secret_code,
+                'class_name_ar' => $student->schoolClass ? $student->schoolClass->grade_ar . ' - ' . $student->schoolClass->section_ar : '',
+                'class_name_en' => $student->schoolClass ? $student->schoolClass->grade_en . ' - ' . $student->schoolClass->section_en : '',
                 'math' => $mathVal,
                 'science' => $scienceVal,
                 'arabic' => $arabicVal,
@@ -359,7 +395,11 @@ class GradeController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'control_grades' => $controlGrades
+            'control_grades' => $controlGrades,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 

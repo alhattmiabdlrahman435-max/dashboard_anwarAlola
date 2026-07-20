@@ -10,21 +10,26 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class NotificationController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'created_at'];
+
     public static function middleware(): array
     {
         return [
             new Middleware('check.permission:communications,view', only: ['index', 'markAllRead']),
             new Middleware('check.permission:communications,create', only: ['send']),
-            new Middleware('check.permission:communications,delete', only: ['destroy', 'deleteAll']),
+            new Middleware('check.permission:communications,delete', only: ['destroy']),
+            new Middleware('check.permission:communications,deleteAll', only: ['deleteAll']),
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
-        $query = Notification::orderBy('created_at', 'desc');
+        $query = Notification::query();
 
         if ($user->role === 'parent') {
             $studentIds = Student::where('parent_id', $user->id)->pluck('id')->toArray();
@@ -36,7 +41,8 @@ class NotificationController extends Controller implements HasMiddleware
                   ->orWhere(function($subQ) {
                       $subQ->whereNull('student_id')
                            ->whereNull('class_id')
-                           ->whereNull('teacher_id');
+                           ->whereNull('teacher_id')
+                           ->where('type', '!=', 'broadcast_teachers');
                   });
             });
         } elseif ($user->role === 'teacher') {
@@ -45,7 +51,8 @@ class NotificationController extends Controller implements HasMiddleware
                   ->orWhere(function($subQ) {
                       $subQ->whereNull('student_id')
                            ->whereNull('class_id')
-                           ->whereNull('teacher_id');
+                           ->whereNull('teacher_id')
+                           ->where('type', '!=', 'broadcast_parents');
                   });
             });
         } else {
@@ -71,7 +78,37 @@ class NotificationController extends Controller implements HasMiddleware
             }
         }
 
-        $notifications = $query->get()->map(function($notif) use ($request) {
+        // Apply filters
+        if ($request->filled('type')) {
+            $query->where('type', $request->input('type'));
+        }
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->input('class_id'));
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'LIKE', "%{$search}%")
+                  ->orWhere('content', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'title', 'content', 'type', 'is_read', 'student_id', 'class_id', 'teacher_id', 'attachment_url', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $notifications = $paginator->getCollection()->map(function($notif) use ($request) {
             // Map back to legacy target_type format to support frontend if it inspects them
             $targetType = 'all_parents';
             $targetId = null;
@@ -85,6 +122,10 @@ class NotificationController extends Controller implements HasMiddleware
             } elseif ($notif->teacher_id) {
                 $targetType = 'specific_teacher';
                 $targetId = $notif->teacher_id;
+            } elseif ($notif->type === 'broadcast_teachers') {
+                $targetType = 'all_teachers';
+            } elseif ($notif->type === 'broadcast_parents') {
+                $targetType = 'all_parents';
             }
 
             $attachmentUrl = $notif->attachment_url;
@@ -108,7 +149,11 @@ class NotificationController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'notifications' => $notifications
+            'notifications' => $notifications,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 
@@ -150,10 +195,17 @@ class NotificationController extends Controller implements HasMiddleware
             $teacherId = $request->target_id;
         }
 
+        $type = 'broadcast';
+        if ($request->target_type === 'all_teachers') {
+            $type = 'broadcast_teachers';
+        } elseif ($request->target_type === 'all_parents') {
+            $type = 'broadcast_parents';
+        }
+
         $notification = Notification::create([
             'title' => $request->title,
             'content' => $request->content,
-            'type' => 'broadcast',
+            'type' => $type,
             'is_read' => false,
             'student_id' => $studentId,
             'class_id' => $classId,

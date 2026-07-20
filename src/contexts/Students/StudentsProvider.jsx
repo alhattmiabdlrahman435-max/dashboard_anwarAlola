@@ -25,8 +25,18 @@ export default function StudentsProvider({ children }) {
   const [rawStudents, setRawStudents] = useState([]);
   const [isStale, setIsStale] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [studentsPagination, setStudentsPagination] = useState({
+    total: 0,
+    lastPage: 1,
+    from: 0,
+    to: 0,
+    currentPage: 1,
+    perPage: 20,
+  });
 
   const fetchRequestRef = useRef(0);
+  // AbortController for in-flight student fetch
+  const abortRef = useRef(null);
 
   // Print & Modal states
   const [showCardVisualizerModal, setShowCardVisualizerModal] = useState(false);
@@ -38,21 +48,38 @@ export default function StudentsProvider({ children }) {
   );
   const [printStudentObject, setPrintStudentObject] = useState(null);
 
-  // Fetch students
-  const fetchStudents = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    if (!force && !isStale && rawStudents.length > 0) {
+  /**
+   * fetchStudents — supports two call signatures:
+   *   fetchStudents()           — legacy: uses stale guard, fetches page 1
+   *   fetchStudents(queryString) — paginated: fetches with full query string
+   *   fetchStudents(true)       — force refresh with current queryString
+   */
+  const fetchStudents = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+
+    // Stale guard (only for legacy calls with no queryString)
+    if (!isForce && !isQueryString && !isStale && rawStudents.length > 0) {
       return;
     }
+
+    // Cancel any in-flight request
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const reqId = ++fetchRequestRef.current;
     setLoading(true);
-    studentsService.getStudents()
+    studentsService.getStudents(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
-        if (!localStorage.getItem('auth_token')) return;
+        if (controller.signal.aborted) return;
         if (reqId !== fetchRequestRef.current) return;
+        if (!localStorage.getItem('auth_token')) return;
         if (data.success) {
-          const mapped = data.students.map((st) => ({
+          const mapped = (data.students || []).map((st) => ({
             id: Number(st.id),
             name: st.name_ar,
             nameEn: st.name_en,
@@ -68,22 +95,33 @@ export default function StudentsProvider({ children }) {
             time: st.time,
             qrCode: st.qrCode,
             photo: st.photo,
-            parentPhoto: "🧔",
+            parentPhoto: '🧔',
           }));
           setRawStudents(mapped);
           setIsStale(false);
+
+          // Update pagination metadata
+          const pg = data.pagination || data.meta || {};
+          setStudentsPagination({
+            total:       pg.total        ?? data.total        ?? mapped.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? mapped.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? mapped.length,
+          });
         }
-        // On data.success === false: keep existing data, do not clear
       })
       .catch((err) => {
-        if (reqId === fetchRequestRef.current) {
-          console.error("Error fetching students:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchRequestRef.current) return;
+        console.error('Error fetching students:', err);
+        setToastMessage(err.message, "error");
       })
-      // finally: always release loading; existing data is preserved on failure
       .finally(() => {
         if (reqId === fetchRequestRef.current) {
           setLoading(false);
+          abortRef.current = null;
         }
       });
   }, [isStale, rawStudents.length]);
@@ -491,6 +529,7 @@ export default function StudentsProvider({ children }) {
     setStudents: setRawStudents,
     loading,
     fetchStudents,
+    studentsPagination,
     handleAddStudent,
     handleEditStudent,
     handleDeleteStudent,
@@ -514,6 +553,7 @@ export default function StudentsProvider({ children }) {
     students,
     loading,
     fetchStudents,
+    studentsPagination,
     handleAddStudent,
     handleEditStudent,
     handleDeleteStudent,

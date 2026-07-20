@@ -48,9 +48,16 @@ export const AppProvider = ({ children }) => {
   const [detailedGrades, setDetailedGrades] = useState([]);
   const [isStaleControl, setIsStaleControl] = useState(true);
   const [isStaleAssignments, setIsStaleAssignments] = useState(true);
+  const [assignmentsPagination, setAssignmentsPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20
+  });
+  const [controlPagination, setControlPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20
+  });
 
   const fetchControlGradesRequestRef = useRef(0);
   const fetchAssignmentsRequestRef = useRef(0);
+  const assignmentsAbortRef = useRef(null);
 
 
   // Vice Principals (Supervisors) state
@@ -60,14 +67,37 @@ export const AppProvider = ({ children }) => {
   const hasPermission = useCallback((module) => {
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
-    if (currentUser.role !== 'supervisor') return false;
-    const perms = currentUser.permissions;
-    if (!perms) return false;
-    if (perms.full_access) return true;
-    if (!perms[module]) return false;
-    const mp = perms[module];
-    if (Array.isArray(mp) && !mp.actions) return mp.includes('view');
-    if (mp.actions) return mp.actions.includes('view');
+
+    // Parents default allowed modules
+    if (currentUser.role === 'parent') {
+      const allowedModules = ['students', 'schedule', 'scanner', 'absenceRequests', 'assignments', 'examSchedules', 'detailedGrades', 'communications'];
+      return allowedModules.includes(module);
+    }
+
+    // Teachers default allowed modules
+    if (currentUser.role === 'teacher') {
+      const allowedModules = ['students', 'parents', 'teachers', 'classes', 'subjects', 'schedule', 'scanner', 'absenceRequests', 'assignments', 'examSchedules', 'detailedGrades', 'teacherReports', 'communications'];
+      return allowedModules.includes(module);
+    }
+
+    // Preparation Supervisors default allowed modules
+    if (currentUser.role === 'preparation_supervisor') {
+      const allowedModules = ['students', 'parents', 'classes', 'schedule', 'scanner', 'absenceRequests', 'communications'];
+      return allowedModules.includes(module);
+    }
+
+    // Supervisors access via custom JSON permissions
+    if (currentUser.role === 'supervisor') {
+      const perms = currentUser.permissions;
+      if (!perms) return false;
+      if (perms.full_access) return true;
+      if (!perms[module]) return false;
+      const mp = perms[module];
+      if (Array.isArray(mp) && !mp.actions) return mp.includes('view');
+      if (mp.actions) return mp.actions.includes('view');
+      return false;
+    }
+
     return false;
   }, [currentUser]);
 
@@ -75,14 +105,39 @@ export const AppProvider = ({ children }) => {
   const canAction = useCallback((module, action) => {
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
-    if (currentUser.role !== 'supervisor') return false;
-    const perms = currentUser.permissions;
-    if (!perms) return false;
-    if (perms.full_access) return true;
-    if (!perms[module]) return false;
-    const mp = perms[module];
-    if (Array.isArray(mp) && !mp.actions) return mp.includes(action);
-    if (mp.actions) return mp.actions.includes(action);
+
+    // Parent actions
+    if (currentUser.role === 'parent') {
+      if (module === 'absenceRequests' && ['view', 'create', 'delete'].includes(action)) return true;
+      return action === 'view';
+    }
+
+    // Teacher actions
+    if (currentUser.role === 'teacher') {
+      if (module === 'assignments' && ['view', 'create', 'update', 'delete'].includes(action)) return true;
+      if (module === 'teacherReports' && ['view', 'create'].includes(action)) return true;
+      return action === 'view' || action === 'update';
+    }
+
+    // Preparation Supervisor actions
+    if (currentUser.role === 'preparation_supervisor') {
+      if (module === 'absenceRequests' && ['view', 'approve', 'reject'].includes(action)) return true;
+      if (module === 'scanner' && ['view', 'create'].includes(action)) return true;
+      return action === 'view';
+    }
+
+    // Supervisor actions via permissions JSON
+    if (currentUser.role === 'supervisor') {
+      const perms = currentUser.permissions;
+      if (!perms) return false;
+      if (perms.full_access) return true;
+      if (!perms[module]) return false;
+      const mp = perms[module];
+      if (Array.isArray(mp) && !mp.actions) return mp.includes(action);
+      if (mp.actions) return mp.actions.includes(action);
+      return false;
+    }
+
     return false;
   }, [currentUser]);
 
@@ -91,6 +146,11 @@ export const AppProvider = ({ children }) => {
   const toastType = toast.type;
 
   const setToastMessage = useCallback((msg, type = "success") => {
+    // Robustly ignore AbortError objects if passed directly
+    if (msg && (msg.name === "AbortError" || msg.isCancelled === true)) {
+      return;
+    }
+
     if (!msg) {
       setToast({ message: "", type: "success" });
     } else if (typeof msg === "object") {
@@ -134,13 +194,16 @@ export const AppProvider = ({ children }) => {
 
 
 
-  const fetchControlGrades = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    if (!force && !isStaleControl && grades.length > 0) {
+  const fetchControlGrades = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const qs = isQueryString ? arg : '';
+
+    if (!isForce && !isQueryString && !isStaleControl && grades.length > 0) {
       return;
     }
     const reqId = ++fetchControlGradesRequestRef.current;
-    settingsService.getGradesControl()
+    settingsService.getGradesControl(qs)
       .then((data) => {
         // Guard: ignore response if user has logged out
         if (!localStorage.getItem('auth_token')) return;
@@ -151,63 +214,82 @@ export const AppProvider = ({ children }) => {
             name: g.student ? g.student.name_ar : "",
             nameEn: g.student ? g.student.name_en : "",
             secretCode: g.secret_code || "",
+            class_name_ar: g.class_name_ar || "",
+            class_name_en: g.class_name_en || "",
             math: g.math !== null ? Number(g.math) : null,
             science: g.science !== null ? Number(g.science) : null,
             arabic: g.arabic !== null ? Number(g.arabic) : null,
             english: g.english !== null ? Number(g.english) : null,
           }));
           setGrades(mapped);
+          setControlPagination({
+            total: data.total || 0,
+            lastPage: data.last_page || 1,
+            currentPage: data.current_page || 1,
+            perPage: data.per_page || 20,
+            from: (data.current_page - 1) * data.per_page + 1,
+            to: Math.min(data.current_page * data.per_page, data.total || 0)
+          });
           setIsStaleControl(false);
         }
       })
       .catch((err) => {
+        if (err.name === 'AbortError') return;
         if (reqId === fetchControlGradesRequestRef.current) {
           console.error("Error fetching control grades:", err);
+          setToastMessage(err.message, "error");
         }
       });
-  }, [isStaleControl, grades.length, setGrades]);
+  }, [isStaleControl, grades.length, setGrades, setControlPagination]);
 
-  const fetchAssignments = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    if (!force && !isStaleAssignments && assignments.length > 0) {
-      return;
-    }
+  const fetchAssignments = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+
+    if (!isForce && !isQueryString && !isStaleAssignments && assignments.length > 0) return;
+
+    if (assignmentsAbortRef.current) assignmentsAbortRef.current.abort();
+    const controller = new AbortController();
+    assignmentsAbortRef.current = controller;
+
     const reqId = ++fetchAssignmentsRequestRef.current;
-    settingsService.getAssignments()
+    settingsService.getAssignments(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
-        if (!localStorage.getItem('auth_token')) return;
+        if (controller.signal.aborted) return;
         if (reqId !== fetchAssignmentsRequestRef.current) return;
+        if (!localStorage.getItem('auth_token')) return;
         if (data.success) {
-          const mapped = data.assignments.map((ass) => {
+          const rawList = data.assignments || data.data || [];
+          const mapped = rawList.map((ass) => {
             const classObj = ass.school_class || {};
             const subjObj = ass.subject || {};
             const teacherObj = ass.teacher || {};
             const subs = (ass.submissions || []).map((sub) => {
-              let status = "notSubmitted";
-              if (sub.status === "submitted") status = "submitted";
-              else if (sub.status === "submitted_late") status = "submittedLate";
-              else if (sub.status === "not_submitted") status = "notSubmitted";
+              let status = 'notSubmitted';
+              if (sub.status === 'submitted') status = 'submitted';
+              else if (sub.status === 'submitted_late') status = 'submittedLate';
+              else if (sub.status === 'not_submitted') status = 'notSubmitted';
               return {
                 studentId: Number(sub.student_id),
-                studentName: sub.student ? sub.student.name_ar : "",
+                studentName: sub.student ? sub.student.name_ar : '',
                 status: status,
-                teacherNote: sub.teacher_note || "",
+                teacherNote: sub.teacher_note || '',
               };
             });
 
             return {
               id: ass.id,
-              grade: classObj.grade_ar || "",
-              section: classObj.section_ar || "",
-              subjectName: subjObj.name_ar || "",
-              subjectNameEn: subjObj.name_en || "",
-              teacherName: teacherObj.name_ar || teacherObj.name_en || "",
-              teacherNameEn: teacherObj.name_en || teacherObj.name_ar || "",
+              grade: classObj.grade_ar || '',
+              section: classObj.section_ar || '',
+              subjectName: subjObj.name_ar || '',
+              subjectNameEn: subjObj.name_en || '',
+              teacherName: teacherObj.name_ar || teacherObj.name_en || '',
+              teacherNameEn: teacherObj.name_en || teacherObj.name_ar || '',
               teacherId: teacherObj.id || null,
               title: ass.title,
-              content: ass.content || "",
-              dateCreated: ass.date_created || (ass.created_at ? ass.created_at.split('T')[0] : ""),
+              content: ass.content || '',
+              dateCreated: ass.date_created || (ass.created_at ? ass.created_at.split('T')[0] : ''),
               dueDate: ass.due_date,
               attachments: ass.attachment_url ? [ass.attachment_url] : [],
               submissions: subs,
@@ -215,12 +297,23 @@ export const AppProvider = ({ children }) => {
           });
           setAssignments(mapped);
           setIsStaleAssignments(false);
+
+          const pg = data.pagination || data.meta || {};
+          setAssignmentsPagination({
+            total:       pg.total        ?? data.total        ?? mapped.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? mapped.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? mapped.length,
+          });
         }
       })
       .catch((err) => {
-        if (reqId === fetchAssignmentsRequestRef.current) {
-          console.error("Error fetching assignments:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchAssignmentsRequestRef.current) return;
+        console.error('Error fetching assignments:', err);
+        setToastMessage(err.message, "error");
       });
   }, [isStaleAssignments, assignments.length, setAssignments]);
 
@@ -447,26 +540,30 @@ export const AppProvider = ({ children }) => {
     const token = localStorage.getItem("auth_token");
 
     if (token) {
-      settingsService.deleteAssignment(assignmentId)
+      return settingsService.deleteAssignment(assignmentId)
         .then((data) => {
           if (data.success) {
             setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
             setToastMessage(lang === "ar" ? "تم حذف الواجب بنجاح." : "Assignment deleted successfully.");
             setTimeout(() => setToastMessage(""), 3000);
+            return { success: true };
           } else {
             setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
             setTimeout(() => setToastMessage(""), 4000);
+            return { success: false };
           }
         })
         .catch((err) => {
           console.error("Error deleting assignment:", err);
           setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
           setTimeout(() => setToastMessage(""), 4000);
+          return { success: false };
         });
     } else {
       setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
       setToastMessage(lang === "ar" ? "تم حذف الواجب بنجاح." : "Assignment deleted successfully.");
       setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: true });
     }
   }, [lang, setToastMessage]);
 
@@ -474,26 +571,30 @@ export const AppProvider = ({ children }) => {
     const token = localStorage.getItem("auth_token");
 
     if (token) {
-      settingsService.deleteAllAssignments()
+      return settingsService.deleteAllAssignments()
         .then((data) => {
           if (data.success) {
             setAssignments([]);
             setToastMessage(lang === "ar" ? "تم حذف جميع الواجبات بنجاح." : "All assignments deleted successfully.");
             setTimeout(() => setToastMessage(""), 3000);
+            return { success: true };
           } else {
             setToastMessage(lang === "ar" ? `فشل الحذف: ${data.message}` : `Delete failed: ${data.message}`);
             setTimeout(() => setToastMessage(""), 4000);
+            return { success: false };
           }
         })
         .catch((err) => {
           console.error("Error deleting all assignments:", err);
           setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
           setTimeout(() => setToastMessage(""), 4000);
+          return { success: false };
         });
     } else {
       setAssignments([]);
       setToastMessage(lang === "ar" ? "تم حذف جميع الواجبات بنجاح." : "All assignments deleted successfully.");
       setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: true });
     }
   }, [lang, setToastMessage]);
 
@@ -737,6 +838,7 @@ export const AppProvider = ({ children }) => {
     setGrades,
     assignments,
     setAssignments,
+    assignmentsPagination,
     detailedGrades,
     setDetailedGrades,
     fetchClassGrades,
@@ -770,6 +872,8 @@ export const AppProvider = ({ children }) => {
     // Refresh functions
     fetchControlGrades,
     fetchAssignments,
+    controlPagination,
+    setControlPagination,
   }), [
     lang,
     t,
@@ -779,6 +883,9 @@ export const AppProvider = ({ children }) => {
     showProfileDropdown,
     grades,
     assignments,
+    assignmentsPagination,
+    controlPagination,
+    setControlPagination,
     detailedGrades,
     fetchClassGrades,
     toastMessage,

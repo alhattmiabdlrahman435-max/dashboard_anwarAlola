@@ -401,8 +401,24 @@ export default function ParentsTab() {
               })
             ) : (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)' }}>
-                  {lang === 'ar' ? 'لا يوجد نتائج تطابق البحث' : 'No matching results found'}
+                <td colSpan="8" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '32px' }}>
+                      {searchQuery ? "🔍" : "📂"}
+                    </span>
+                    <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                      {searchQuery 
+                        ? (lang === 'ar' ? 'لا توجد نتائج تطابق بحثك' : 'No matching results found')
+                        : (lang === 'ar' ? 'لا يوجد أولياء أمور مسجلين حالياً' : 'No parent accounts registered yet')
+                      }
+                    </span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {searchQuery 
+                        ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                        : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
+                      }
+                    </span>
+                  </div>
                 </td>
               </tr>
             )}

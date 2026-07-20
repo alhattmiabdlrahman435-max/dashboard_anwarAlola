@@ -6,14 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Attendance;
 use App\Models\Notification;
+use App\Models\Assignment;
+use App\Models\AssignmentSubmission;
 use Illuminate\Http\Request;
 
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class StudentController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'name_ar', 'name_en', 'student_code', 'secret_code', 'created_at'];
+
     public static function middleware(): array
     {
         return [
@@ -24,7 +30,7 @@ class StudentController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
@@ -34,11 +40,59 @@ class StudentController extends Controller implements HasMiddleware
             $query->whereIn('class_id', $scopedClassIds);
         }
 
-        $students = $query->with(['schoolClass', 'parentUser'])->get()->map(function($student) {
-            // Get today's attendance
-            $attendance = Attendance::where('student_id', $student->id)
-                ->where('record_date', today()->toDateString())
-                ->first();
+        // Apply filters
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->input('class_id'));
+        }
+        if ($request->filled('parent_id')) {
+            $query->where('parent_id', $request->input('parent_id'));
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%")
+                  ->orWhere('student_code', 'LIKE', "%{$search}%")
+                  ->orWhere('secret_code', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe column selection
+        $query->select([
+            'id',
+            'student_code',
+            'name_ar',
+            'name_en',
+            'class_id',
+            'parent_id',
+            'photo_url',
+            'tuition_fee',
+            'qr_code',
+            'secret_code',
+            'is_active',
+            'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+        $studentsModels = $paginator->getCollection();
+        $studentIds = $studentsModels->pluck('id')->toArray();
+
+        // Query today's attendance for all matching students in one query
+        $todayAttendance = Attendance::whereIn('student_id', $studentIds)
+            ->where('record_date', today()->toDateString())
+            ->get()
+            ->keyBy('student_id');
+
+        $students = $studentsModels->map(function($student) use ($todayAttendance) {
+            $attendance = $todayAttendance->get($student->id);
 
             return [
                 'id' => $student->id,
@@ -66,7 +120,11 @@ class StudentController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'students' => $students
+            'students' => $students,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 
@@ -102,6 +160,13 @@ class StudentController extends Controller implements HasMiddleware
             }
         }
 
+        $qrCode = $request->qr_code;
+        if (empty($qrCode)) {
+            do {
+                $qrCode = 'ANWAR-' . random_int(100000, 999999);
+            } while (Student::where('qr_code', $qrCode)->exists());
+        }
+
         $student = Student::create([
             'student_code' => $request->student_code,
             'name_ar' => $request->name_ar,
@@ -109,11 +174,23 @@ class StudentController extends Controller implements HasMiddleware
             'class_id' => $request->class_id,
             'parent_id' => $request->parent_id,
             'photo_url' => $photoUrl ?: '👨‍🎓',
-            'qr_code' => $request->qr_code ?: ('ANWAR-' . rand(100000, 999999)),
+            'qr_code' => $qrCode,
             'secret_code' => $request->secret_code,
             'tuition_fee' => $request->tuition_fee ?? 10000.00,
             'is_active' => true,
         ]);
+
+        if ($student->class_id) {
+            $assignments = Assignment::where('class_id', $student->class_id)->get();
+            foreach ($assignments as $assignment) {
+                AssignmentSubmission::firstOrCreate([
+                    'assignment_id' => $assignment->id,
+                    'student_id' => $student->id,
+                ], [
+                    'status' => 'pending',
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -122,12 +199,25 @@ class StudentController extends Controller implements HasMiddleware
         ], 201);
     }
 
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
         $student = Student::with(['schoolClass', 'parentUser'])->find($id);
         if (!$student) {
             return response()->json(['success' => false, 'message' => 'الطالب غير موجود'], 404);
         }
+
+        $user = $request->user();
+        if ($user && $user->role === 'parent') {
+            if ($student->parent_id !== $user->id) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول لهذا الطالب'], 403);
+            }
+        } else {
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
+            if ($scopedClassIds !== null && !in_array((int)$student->class_id, $scopedClassIds)) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول لهذا الطالب خارج فصولك المحددة'], 403);
+            }
+        }
+
         return response()->json(['success' => true, 'student' => $student]);
     }
 
@@ -136,6 +226,12 @@ class StudentController extends Controller implements HasMiddleware
         $student = Student::find($id);
         if (!$student) {
             return response()->json(['success' => false, 'message' => 'الطالب غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
+        if ($scopedClassIds !== null && !in_array((int)$student->class_id, $scopedClassIds)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بتحديث بيانات طالب خارج فصولك المحددة'], 403);
         }
 
         $updateData = $request->all();
@@ -161,7 +257,20 @@ class StudentController extends Controller implements HasMiddleware
             }
         }
 
+        $oldClassId = $student->class_id;
         $student->update($updateData);
+
+        if ($student->class_id && $student->class_id != $oldClassId) {
+            $assignments = Assignment::where('class_id', $student->class_id)->get();
+            foreach ($assignments as $assignment) {
+                AssignmentSubmission::firstOrCreate([
+                    'assignment_id' => $assignment->id,
+                    'student_id' => $student->id,
+                ], [
+                    'status' => 'pending',
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -170,12 +279,19 @@ class StudentController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
         $student = Student::find($id);
         if (!$student) {
             return response()->json(['success' => false, 'message' => 'الطالب غير موجود'], 404);
         }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
+        if ($scopedClassIds !== null && !in_array((int)$student->class_id, $scopedClassIds)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بحذف طالب خارج فصولك المحددة'], 403);
+        }
+
         $student->delete();
         return response()->json(['success' => true, 'message' => 'تم حذف الطالب بنجاح']);
     }
@@ -183,12 +299,25 @@ class StudentController extends Controller implements HasMiddleware
     /**
      * تفاصيل بطاقة الطالب الذكية
      */
-    public function card(string $id)
+    public function card(Request $request, string $id)
     {
         $student = Student::with(['schoolClass', 'parentUser'])->find($id);
         if (!$student) {
             return response()->json(['success' => false, 'message' => 'الطالب غير موجود'], 404);
         }
+
+        $user = $request->user();
+        if ($user && $user->role === 'parent') {
+            if ($student->parent_id !== $user->id) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول لبطاقة هذا الطالب'], 403);
+            }
+        } else {
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'students');
+            if ($scopedClassIds !== null && !in_array((int)$student->class_id, $scopedClassIds)) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول لبطاقة طالب خارج فصولك المحددة'], 403);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'student' => $student

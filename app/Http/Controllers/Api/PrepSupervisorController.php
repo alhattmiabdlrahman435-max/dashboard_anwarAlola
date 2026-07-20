@@ -14,8 +14,12 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 
+use App\Http\Requests\ListRequest;
+
 class PrepSupervisorController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'name_ar', 'name_en', 'job_id', 'phone', 'created_at'];
+
     public static function middleware(): array
     {
         return [
@@ -25,28 +29,62 @@ class PrepSupervisorController extends Controller implements HasMiddleware
             new Middleware('check.permission:prepSupervisors,delete', only: ['destroy']),
         ];
     }
-    public function index()
+    public function index(ListRequest $request)
     {
-        $supervisors = User::preparationSupervisors()
-            ->with('supervisorClasses.schoolClass')
-            ->get()
-            ->map(function ($s) {
-                return [
-                    'id'      => $s->id,
-                    'jobId'   => $s->job_id,
-                    'name'    => $s->name_ar ?? $s->name,
-                    'nameEn'  => $s->name_en ?? $s->name,
-                    'phone'   => $s->phone,
-                    'photo'   => $s->photo_url ?: '👩‍🏫',
-                    'classes' => $s->supervisorClasses->map(function ($sc) {
-                        return $sc->schoolClass ? ($sc->schoolClass->name_ar ?? $sc->schoolClass->name) : '';
-                    })->filter()->values()->toArray()
-                ];
+        $query = User::preparationSupervisors()->with('supervisorClasses.schoolClass');
+
+        // Apply filters
+        if ($request->filled('class_id')) {
+            $query->whereHas('supervisorClasses', function($q) use ($request) {
+                $q->where('class_id', $request->input('class_id'));
             });
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%")
+                  ->orWhere('job_id', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'name', 'username', 'role', 'national_id', 'job_id', 'phone', 'name_ar', 'name_en', 'photo_url', 'address', 'is_active', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $supervisors = $paginator->getCollection()->map(function ($s) {
+            return [
+                'id'      => $s->id,
+                'jobId'   => $s->job_id,
+                'name'    => $s->name_ar ?? $s->name,
+                'nameEn'  => $s->name_en ?? $s->name,
+                'phone'   => $s->phone,
+                'photo'   => $s->photo_url ?: '👩‍🏫',
+                'classes' => $s->supervisorClasses->map(function ($sc) {
+                    return $sc->schoolClass ? ($sc->schoolClass->name_ar ?? $sc->schoolClass->name) : '';
+                })->filter()->values()->toArray()
+            ];
+        });
 
         return response()->json([
             'success'     => true,
-            'supervisors' => $supervisors
+            'supervisors' => $supervisors,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 

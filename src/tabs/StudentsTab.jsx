@@ -1,11 +1,13 @@
 import { studentsService } from "../services/students/students.service";
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../contexts/Auth/useAuth';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useParents } from '../contexts/Parents/useParents';
 import { useSettings } from '../contexts/Settings/useSettings';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 import { Plus, Search, X, Download, Upload, Camera, User, Edit3, Trash2 } from 'lucide-react';
 
 export default function StudentsTab() {
@@ -20,26 +22,71 @@ export default function StudentsTab() {
   const { parentUsers, fetchParents } = useParents();
   const {
     students,
+    studentsPagination,
     setSelectedStudentForCard,
     setShowCardVisualizerModal,
     handleAddStudent,
     handleEditStudent,
     handleDeleteStudent,
-    fetchStudents
+    fetchStudents,
+    loading
   } = useStudents();
   const { currentUser } = useAuth();
 
+  const {
+    page,
+    perPage,
+    search,
+    sort,
+    direction,
+    filters,
+    setPage,
+    setPerPage,
+    setSort,
+    setSearch,
+    setFilters,
+    buildQueryString,
+    goToPrevIfEmpty,
+  } = usePagination({
+    moduleKey: 'students',
+    defaultFilters: { status: 'all', class_id: 'all' },
+  });
+
+  const classFilter = filters.class_id || 'all';
+  const statusFilter = filters.status || 'all';
+
+  const qs = buildQueryString();
+
   useEffect(() => {
-    fetchStudents();
+    fetchStudents(qs);
+  }, [fetchStudents, qs]);
+
+  useEffect(() => {
     fetchClasses();
-    fetchParents();
-  }, [fetchStudents, fetchClasses, fetchParents]);
+  }, [fetchClasses]);
+
+  const importIntervalRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (importIntervalRef.current) {
+        clearInterval(importIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Local UI states
   const [isSaving, setIsSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [classFilter, setClassFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(search);
+
+  // Sync search input with URL params on back/forward
+  useEffect(() => {
+    setSearchQuery(search);
+  }, [search]);
+
   const [showStudentModal, setShowStudentModal] = useState(false);
 
   // Excel Modal States
@@ -78,6 +125,12 @@ export default function StudentsTab() {
   const [formError, setFormError] = useState('');
   const [selectedParentLinkOption, setSelectedParentLinkOption] = useState('');
   const [parentSearchText, setParentSearchText] = useState('');
+
+  useEffect(() => {
+    if (showStudentModal || showEditStudentModal) {
+      fetchParents();
+    }
+  }, [showStudentModal, showEditStudentModal, fetchParents]);
 
 
   const onSubmit = (e) => {
@@ -181,6 +234,8 @@ export default function StudentsTab() {
       .then((res) => {
         if (res && res.success) {
           setShowStudentModal(false);
+          setPage(1);
+          fetchStudents(buildQueryString({ page: 1 }));
         } else {
           setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
         }
@@ -252,6 +307,7 @@ export default function StudentsTab() {
           setModalTuitionFee('10000');
           setSelectedParentLinkOption('');
           setParentSearchText('');
+          fetchStudents(buildQueryString());
         } else {
           setEditFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
         }
@@ -334,10 +390,18 @@ export default function StudentsTab() {
     }
 
     // Mock progress animation
-    const interval = setInterval(() => {
+    importIntervalRef.current = setInterval(() => {
+      if (!isMountedRef.current) {
+        clearInterval(importIntervalRef.current);
+        importIntervalRef.current = null;
+        return;
+      }
       setImportProgress(prev => {
         if (prev >= 85) {
-          clearInterval(interval);
+          if (importIntervalRef.current) {
+            clearInterval(importIntervalRef.current);
+            importIntervalRef.current = null;
+          }
           return 85;
         }
         return prev + 15;
@@ -346,7 +410,11 @@ export default function StudentsTab() {
 
     try {
       const data = await studentsService.importStudents(formData);
-      clearInterval(interval);
+      if (importIntervalRef.current) {
+        clearInterval(importIntervalRef.current);
+        importIntervalRef.current = null;
+      }
+      if (!isMountedRef.current) return;
       setImportProgress(100);
       if (data.success) {
         setImportSuccess(true);
@@ -365,13 +433,19 @@ export default function StudentsTab() {
         }
       }
     } catch (err) {
-      clearInterval(interval);
+      if (importIntervalRef.current) {
+        clearInterval(importIntervalRef.current);
+        importIntervalRef.current = null;
+      }
+      if (!isMountedRef.current) return;
       setImportProgress(100);
       setImportStatus(lang === 'ar' ? 'حدث خطأ أثناء الاتصال بالخادم' : 'Error communicating with server');
       setImportErrors([err.message || 'Error']);
       console.error(err);
     } finally {
-      setIsImporting(false);
+      if (isMountedRef.current) {
+        setIsImporting(false);
+      }
     }
   };
 
@@ -380,23 +454,9 @@ export default function StudentsTab() {
       if (currentUser?.role === 'parent' && student.parentNationalId !== currentUser.username) {
         return false;
       }
-      
-      const matchesSearch = lang === 'ar'
-        ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          (student.qrCode && student.qrCode.includes(searchQuery)) ||
-          (student.parentNationalId && student.parentNationalId.includes(searchQuery))
-        : student.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          (student.qrCode && student.qrCode.includes(searchQuery)) ||
-          (student.parentNationalId && student.parentNationalId.includes(searchQuery));
-      
-      const matchesFilter = statusFilter === 'all' || student.status === statusFilter;
-
-      const studentClass = `${student.grade} - ${student.section}`;
-      const matchesClass = classFilter === 'all' || studentClass === classFilter;
-      
-      return matchesSearch && matchesFilter && matchesClass;
+      return true;
     });
-  }, [students, currentUser, lang, searchQuery, statusFilter, classFilter]);
+  }, [students, currentUser]);
 
   const filteredParentUsers = useMemo(() => {
     return parentUsers.filter(p => {
@@ -477,7 +537,10 @@ export default function StudentsTab() {
                 className="text-field"
                 placeholder={lang === 'ar' ? 'البحث باسم الطالب، الرقم الأكاديمي، أو هوية ولي الأمر...' : 'Search by student name, number, or parent national ID...'}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearch(e.target.value);
+                }}
               />
             </div>
 
@@ -485,34 +548,40 @@ export default function StudentsTab() {
             <select 
               className="text-field"
               value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
+              onChange={(e) => setFilters({ class_id: e.target.value })}
               style={{ fontSize: '13px', padding: '0 12px', height: '42px', width: 'auto', minWidth: '180px', borderRadius: '10px' }}
             >
               <option value="all">{lang === 'ar' ? '🔍 كل الفصول' : '🔍 All Classes'}</option>
-              {(classes || []).map(cls => (
-                <option key={cls.id} value={cls.name}>
-                  🏫 {lang === 'ar' ? cls.name : cls.nameEn}
-                </option>
-              ))}
+              {(classes || []).map(cls => {
+                // Ensure cls.id is clean numeric ID for the backend filter
+                const numericId = typeof cls.id === 'string' && cls.id.startsWith('cls-')
+                  ? cls.id.replace('cls-', '')
+                  : cls.id;
+                return (
+                  <option key={cls.id} value={numericId}>
+                    🏫 {lang === 'ar' ? cls.name : cls.nameEn}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button 
               className={`chip ${statusFilter === 'all' ? 'selected' : ''}`}
-              onClick={() => setStatusFilter('all')}
+              onClick={() => setFilters({ status: 'all' })}
             >
               {t.filterAll}
             </button>
             <button 
               className={`chip ${statusFilter === 'present' ? 'selected' : ''}`}
-              onClick={() => setStatusFilter('present')}
+              onClick={() => setFilters({ status: 'present' })}
             >
               {t.present}
             </button>
             <button 
               className={`chip ${statusFilter === 'absent' ? 'selected' : ''}`}
-              onClick={() => setStatusFilter('absent')}
+              onClick={() => setFilters({ status: 'absent' })}
             >
               {t.absent}
             </button>
@@ -604,7 +673,14 @@ export default function StudentsTab() {
                               triggerConfirm({
                                 title: lang === 'ar' ? 'حذف الطالب' : 'Delete Student',
                                 message: lang === 'ar' ? `هل أنت متأكد من حذف الطالب ${student.name}؟` : `Are you sure you want to delete ${student.name}?`,
-                                onConfirm: () => handleDeleteStudent(student.id)
+                                onConfirm: () => {
+                                  handleDeleteStudent(student.id).then((res) => {
+                                    if (res && res.success) {
+                                      const nextQs = goToPrevIfEmpty(students.length - 1);
+                                      fetchStudents(nextQs);
+                                    }
+                                  });
+                                }
                               });
                             }} 
                             title={lang === 'ar' ? 'حذف' : 'Delete'}
@@ -639,13 +715,47 @@ export default function StudentsTab() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)' }}>
-                    {lang === 'ar' ? 'لا يوجد نتائج تطابق البحث' : 'No matching results found'}
+                  <td colSpan="8" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '32px' }}>
+                        {search ? "🔍" : (filters.class_id && filters.class_id !== 'all') ? "ℹ️" : "📂"}
+                      </span>
+                      <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                        {search 
+                          ? (lang === 'ar' ? 'لا توجد نتائج تطابق بحثك' : 'No matching search results found')
+                          : (filters.class_id && filters.class_id !== 'all')
+                            ? (lang === 'ar' ? 'لا توجد نتائج تطابق التصفية المحددة' : 'No matching filter results found')
+                            : (lang === 'ar' ? 'لا يوجد طلاب مسجلين حالياً' : 'No students registered yet')
+                        }
+                      </span>
+                      <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                        {search 
+                          ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                          : (filters.class_id && filters.class_id !== 'all')
+                            ? (lang === 'ar' ? 'جرب تغيير خيارات التصفية' : 'Try changing your filter selections')
+                            : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
+                        }
+                      </span>
+                    </div>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+        <div className="no-print" style={{ padding: '0 var(--space-md)' }}>
+          <PaginationBar
+            page={page}
+            lastPage={studentsPagination.lastPage}
+            total={studentsPagination.total}
+            from={studentsPagination.from}
+            to={studentsPagination.to}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={setPerPage}
+            loading={loading}
+            lang={lang}
+          />
         </div>
       </div>
 

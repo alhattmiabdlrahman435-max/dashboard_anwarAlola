@@ -22,72 +22,103 @@ export default function AttendanceProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [isStale, setIsStale] = useState(true);
 
+  const [attendancePagination, setAttendancePagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20
+  });
+  const [absenceRequestsPagination, setAbsenceRequestsPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20
+  });
+
   const fetchAttendanceRequestRef = useRef(0);
   const fetchAbsenceRequestsRequestRef = useRef(0);
+  const attendanceAbortRef = useRef(null);
+  const absenceAbortRef = useRef(null);
 
-  const fetchAttendance = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    const tokenArg = args.find(a => typeof a === 'string');
-    const activeToken = tokenArg || localStorage.getItem("auth_token");
+  const fetchAttendance = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+
+    const activeToken = localStorage.getItem('auth_token');
     if (!activeToken) return;
 
-    if (!force && !isStale && attendanceRecords.length > 0) {
-      return;
-    }
+    if (!isForce && !isQueryString && !isStale && attendanceRecords.length > 0) return;
+
+    if (attendanceAbortRef.current) attendanceAbortRef.current.abort();
+    const controller = new AbortController();
+    attendanceAbortRef.current = controller;
 
     const reqId = ++fetchAttendanceRequestRef.current;
     setLoading(true);
-    attendanceService.getAttendance()
+    attendanceService.getAttendance(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
-        if (!localStorage.getItem('auth_token')) return;
+        if (controller.signal.aborted) return;
         if (reqId !== fetchAttendanceRequestRef.current) return;
+        if (!localStorage.getItem('auth_token')) return;
         if (data.success) {
-          const mapped = data.attendance.map((rec) => ({
+          const mapped = (data.attendance || []).map((rec) => ({
             id: rec.id,
             studentId: Number(rec.student_id),
             date: rec.record_date,
             status: rec.status, // 'present', 'absent'
-            time: rec.arrival_time ? rec.arrival_time.substring(0, 5) : "--:--",
+            time: rec.arrival_time ? rec.arrival_time.substring(0, 5) : '--:--',
+            student: rec.student,
           }));
           setAttendanceRecords(mapped);
           setIsStale(false);
+
+          const pg = data.pagination || data.meta || {};
+          setAttendancePagination({
+            total:       pg.total        ?? data.total        ?? mapped.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? mapped.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? mapped.length,
+          });
         }
       })
       .catch((err) => {
-        if (reqId === fetchAttendanceRequestRef.current) {
-          console.error("Error fetching attendance:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchAttendanceRequestRef.current) return;
+        console.error('Error fetching attendance:', err);
+        setToastMessage(err.message, "error");
       })
       .finally(() => {
         if (reqId === fetchAttendanceRequestRef.current) {
           setLoading(false);
+          attendanceAbortRef.current = null;
         }
       });
   }, [isStale, attendanceRecords.length]);
 
-  const fetchAbsenceRequests = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    const tokenArg = args.find(a => typeof a === 'string');
-    const activeToken = tokenArg || localStorage.getItem("auth_token");
+  const fetchAbsenceRequests = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+
+    const activeToken = localStorage.getItem('auth_token');
     if (!activeToken) return;
 
-    if (!force && !isStale && absenceRequests.length > 0) {
-      return;
-    }
+    if (!isForce && !isQueryString && !isStale && absenceRequests.length > 0) return;
+
+    if (absenceAbortRef.current) absenceAbortRef.current.abort();
+    const controller = new AbortController();
+    absenceAbortRef.current = controller;
 
     const reqId = ++fetchAbsenceRequestsRequestRef.current;
-    attendanceService.getAbsenceRequests()
+    setLoading(true);
+    attendanceService.getAbsenceRequests(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
-        if (!localStorage.getItem('auth_token')) return;
+        if (controller.signal.aborted) return;
         if (reqId !== fetchAbsenceRequestsRequestRef.current) return;
+        if (!localStorage.getItem('auth_token')) return;
         if (data.success) {
-          const mapped = data.absence_requests.map((req) => {
-            const studentName = req.student ? req.student.name_ar : "";
+          const mapped = (data.absence_requests || data.absenceRequests || []).map((req) => {
+            const studentName = req.student ? req.student.name_ar : '';
             const className = req.student && req.student.school_class
               ? `${req.student.school_class.grade_ar} - ${req.student.school_class.section_ar}`
-              : "";
+              : '';
             return {
               id: req.id,
               studentId: Number(req.student_id),
@@ -98,17 +129,34 @@ export default function AttendanceProvider({ children }) {
               reasonEn: req.reason_en,
               status: req.status,
               attachment: req.attachment_url,
-              adminNote: req.admin_note_ar,
+              studentPhoto: req.student ? (req.student.photo_url || '👨‍🎓') : '👨‍🎓',
+              adminNoteAr: req.admin_note_ar,
               adminNoteEn: req.admin_note_en,
             };
           });
           setAbsenceRequests(mapped);
           setIsStale(false);
+
+          const pg = data.pagination || data.meta || {};
+          setAbsenceRequestsPagination({
+            total:       pg.total        ?? data.total        ?? mapped.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? mapped.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? mapped.length,
+          });
         }
       })
       .catch((err) => {
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchAbsenceRequestsRequestRef.current) return;
+        console.error('Error fetching absence requests:', err);
+      })
+      .finally(() => {
         if (reqId === fetchAbsenceRequestsRequestRef.current) {
-          console.error("Error fetching absence requests:", err);
+          setLoading(false);
+          absenceAbortRef.current = null;
         }
       });
   }, [isStale, absenceRequests.length]);
@@ -405,12 +453,14 @@ export default function AttendanceProvider({ children }) {
   const attendanceContextValue = useMemo(() => ({
     attendanceRecords,
     setAttendanceRecords,
+    attendancePagination,
     selectedAttendanceMonth,
     setSelectedAttendanceMonth,
     attendanceRosterDate,
     setAttendanceRosterDate,
     absenceRequests,
     setAbsenceRequests,
+    absenceRequestsPagination,
     loading,
     fetchAttendance,
     fetchAbsenceRequests,
@@ -421,9 +471,11 @@ export default function AttendanceProvider({ children }) {
     handleAbsenceDecision,
   }), [
     attendanceRecords,
+    attendancePagination,
     selectedAttendanceMonth,
     attendanceRosterDate,
     absenceRequests,
+    absenceRequestsPagination,
     loading,
     fetchAttendance,
     fetchAbsenceRequests,

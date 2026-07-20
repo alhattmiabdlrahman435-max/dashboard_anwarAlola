@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
+use App\Http\Requests\ListRequest;
 
 class ReportController extends Controller implements HasMiddleware
 {
@@ -16,11 +17,13 @@ class ReportController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('check.permission:teacherReports,view', only: ['index']),
-            new Middleware('check.permission:teacherReports,delete', only: ['destroy', 'deleteAll']),
+            new Middleware('check.permission:teacherReports,create', only: ['store']),
+            new Middleware('check.permission:teacherReports,delete', only: ['destroy']),
+            new Middleware('check.permission:teacherReports,deleteAll', only: ['deleteAll']),
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
 
@@ -38,29 +41,70 @@ class ReportController extends Controller implements HasMiddleware
             }
         }
 
-        $reports = $query->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($report) {
-                return [
-                    'id'              => (string) $report->id,
-                    'studentId'       => (string) $report->student_id,
-                    'studentName'     => $report->student->name_ar ?? $report->student->name ?? 'غير معروف',
-                    'studentPhotoUrl' => $report->student->photo_url ?? null,
-                    'className'       => $report->student->schoolClass
-                        ? ($report->student->schoolClass->name_ar ?? $report->student->schoolClass->name ?? '')
-                        : '',
-                    'teacherName'     => $report->teacher->name_ar ?? $report->teacher->name ?? 'غير معروف',
-                    'type'            => $report->type,
-                    'description'     => $report->description,
-                    'imageUrl'        => $report->image_url,
-                    'status'          => $report->status,
-                    'createdAt'       => $report->created_at->toIso8601String(),
-                ];
+        // Apply filters
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+        if ($request->filled('type')) {
+            $query->where('type', $request->input('type'));
+        }
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $request->input('date'));
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('description', 'LIKE', "%{$search}%")
+                  ->orWhereHas('student', function($sq) use ($search) {
+                      $sq->where('name_ar', 'LIKE', "%{$search}%")
+                        ->orWhere('name_en', 'LIKE', "%{$search}%");
+                  })
+                  ->orWhereHas('teacher', function($tq) use ($search) {
+                      $tq->where('name_ar', 'LIKE', "%{$search}%")
+                        ->orWhere('name_en', 'LIKE', "%{$search}%");
+                  });
             });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        if (in_array($sortBy, ['id', 'status', 'type', 'created_at'])) {
+            $query->orderBy($sortBy, $direction);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $reports = $paginator->getCollection()->map(function ($report) {
+            return [
+                'id'              => (string) $report->id,
+                'studentId'       => (string) $report->student_id,
+                'studentName'     => $report->student->name_ar ?? $report->student->name ?? 'غير معروف',
+                'studentPhotoUrl' => $report->student->photo_url ?? null,
+                'className'       => $report->student->schoolClass
+                    ? ($report->student->schoolClass->name_ar ?? $report->student->schoolClass->name ?? '')
+                    : '',
+                'teacherName'     => $report->teacher->name_ar ?? $report->teacher->name ?? 'غير معروف',
+                'type'            => $report->type,
+                'description'     => $report->description,
+                'imageUrl'        => $report->image_url,
+                'status'          => $report->status,
+                'createdAt'       => $report->created_at->toIso8601String(),
+            ];
+        });
 
         return response()->json([
-            'success' => true,
-            'reports' => $reports,
+            'success'      => true,
+            'reports'      => $reports,
+            'current_page' => $paginator->currentPage(),
+            'last_page'    => $paginator->lastPage(),
+            'per_page'     => $paginator->perPage(),
+            'total'        => $paginator->total(),
         ]);
     }
 
@@ -70,13 +114,14 @@ class ReportController extends Controller implements HasMiddleware
             'student_id'  => 'required|integer',
             'type'        => 'required|string|in:academic,behavioral,homework,psychological',
             'description' => 'required|string',
-            'image'       => 'nullable|image|max:2048',
+            'image'       => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $imageUrl = null;
         if ($request->hasFile('image')) {
             $file     = $request->file('image');
-            $filename = time() . '_' . $file->getClientOriginalName();
+            $ext      = strtolower($file->getClientOriginalExtension());
+            $filename = time() . '_' . uniqid() . '.' . $ext;
             $file->move(public_path('uploads/reports'), $filename);
             $imageUrl = asset('uploads/reports/' . $filename);
         }

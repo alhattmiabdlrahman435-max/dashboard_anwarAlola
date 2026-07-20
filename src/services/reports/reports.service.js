@@ -1,8 +1,8 @@
 import { api } from '../api';
 
 export const reportsService = {
-  getReports: () => {
-    return api.get("/api/reports");
+  getReports: (queryString = '') => {
+    return api.get(`/api/reports${queryString}`);
   },
   
   updateReportStatus: (reportId, payload) => {

@@ -1,8 +1,8 @@
 import { api } from '../api';
 
 export const notificationsService = {
-  getNotifications: () => {
-    return api.get("/api/notifications");
+  getNotifications: (queryString = '') => {
+    return api.get(`/api/notifications${queryString}`);
   },
   
   sendNotification: (payload) => {

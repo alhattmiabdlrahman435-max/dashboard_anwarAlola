@@ -9,29 +9,54 @@ export default function FinanceProvider({ children }) {
   const { lang, t, setToastMessage } = useApp();
   const { isAuthenticated } = useAuth();
 
-  const [tuitionFees, setTuitionFees] = useState({ baseFees: {}, payments: [] });
+  const [tuitionFees, setTuitionFees] = useState({ baseFees: {}, payments: [], studentsFees: [] });
   const [loading, setLoading] = useState(false);
   const [isStale, setIsStale] = useState(true);
 
-  const fetchRequestRef = useRef(0);
+  const [financePagination, setFinancePagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20
+  });
 
-  const fetchFinanceData = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    const tokenArg = args.find(a => typeof a === 'string');
-    const activeToken = tokenArg || localStorage.getItem("auth_token");
+  const [financeStats, setFinanceStats] = useState({
+    total_required: 0, total_paid: 0, total_remaining: 0
+  });
+
+  const fetchRequestRef = useRef(0);
+  const financeAbortRef = useRef(null);
+
+  const fetchFinanceData = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+
+    const activeToken = localStorage.getItem('auth_token');
     if (!activeToken) return;
 
-    if (!force && !isStale && tuitionFees.payments.length > 0) {
-      return;
-    }
+    if (!isForce && !isQueryString && !isStale && tuitionFees.payments.length > 0) return;
+
+    if (financeAbortRef.current) financeAbortRef.current.abort();
+    const controller = new AbortController();
+    financeAbortRef.current = controller;
 
     const reqId = ++fetchRequestRef.current;
     setLoading(true);
-    financeService.getFinanceStudents()
+
+    // Fetch aggregates
+    financeService.getFinanceStats()
       .then((data) => {
-        // Guard: ignore response if user has logged out
-        if (!localStorage.getItem('auth_token')) return;
+        if (controller.signal.aborted) return;
+        if (data.success) {
+          setFinanceStats(data.stats);
+        }
+      })
+      .catch(err => console.error("Error loading finance stats:", err));
+
+    // Fetch paginated student list
+    financeService.getFinanceStudents(queryString)
+      .then((data) => {
+        if (controller.signal.aborted) return;
         if (reqId !== fetchRequestRef.current) return;
+        if (!localStorage.getItem('auth_token')) return;
         if (data.success) {
           const allPayments = [];
           data.students_fees.forEach((rec) => {
@@ -56,18 +81,30 @@ export default function FinanceProvider({ children }) {
               "الصف الثالث": 6000,
             },
             payments: allPayments,
+            studentsFees: data.students_fees,
           });
           setIsStale(false);
+
+          const pg = data.pagination || data.meta || {};
+          setFinancePagination({
+            total:       pg.total        ?? data.total        ?? data.students_fees.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? data.students_fees.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? data.students_fees.length,
+          });
         }
       })
       .catch((err) => {
-        if (reqId === fetchRequestRef.current) {
-          console.error("Error fetching finance data:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchRequestRef.current) return;
+        console.error("Error fetching finance data:", err);
       })
       .finally(() => {
         if (reqId === fetchRequestRef.current) {
           setLoading(false);
+          financeAbortRef.current = null;
         }
       });
   }, [isStale, tuitionFees.payments.length]);
@@ -141,11 +178,15 @@ export default function FinanceProvider({ children }) {
   const financeContextValue = useMemo(() => ({
     tuitionFees,
     setTuitionFees,
+    financePagination,
+    financeStats,
     loading,
     fetchFinanceData,
     handleAddPayment,
   }), [
     tuitionFees,
+    financePagination,
+    financeStats,
     loading,
     fetchFinanceData,
     handleAddPayment,

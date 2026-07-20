@@ -42,16 +42,21 @@ export default function DetailedGradesTab() {
 
   useEffect(() => {
     fetchClasses();
-    fetchStudents();
     fetchSubjects();
-  }, [fetchClasses, fetchStudents, fetchSubjects]);
+  }, [fetchClasses, fetchSubjects]);
 
   // State for view controls
   const [viewMode, setViewMode] = useState('class'); // Default to class view for admin reviews
   const [selectedMonth, setSelectedMonth] = useState('m1'); // 'm1', 'm2', 'm3'
+
+  useEffect(() => {
+    if (viewMode !== 'class') {
+      fetchStudents('?per_page=100');
+    }
+  }, [viewMode, fetchStudents]);
   
-  // Calculate unique classes list from students
-  const classesList = Array.from(new Set(students.map(s => `${s.grade} - ${s.section}`))).sort();
+  // Calculate unique classes list from classes master table
+  const classesList = classes.map(c => `${c.grade} - ${c.section}`).sort();
   const [selectedClass, setSelectedClass] = useState(localStorage.getItem('goto_class') || classesList[0] || '');
   const [classPeriod, setClassPeriod] = useState(localStorage.getItem('goto_period') || 'm1'); // 'm1', 'm2', 'm3', 'termTotal', 'yearlyTotal'
   const [classSubject, setClassSubject] = useState('all'); // 'all', 'detailed', and subjects

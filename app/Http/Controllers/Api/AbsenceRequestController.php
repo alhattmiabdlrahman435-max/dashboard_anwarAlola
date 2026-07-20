@@ -11,19 +11,25 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class AbsenceRequestController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'status', 'start_date', 'end_date', 'created_at'];
+
     public static function middleware(): array
     {
         return [
             new Middleware('check.permission:absenceRequests,view', only: ['index', 'show']),
+            new Middleware('check.permission:absenceRequests,create', only: ['store']),
+            new Middleware('check.permission:absenceRequests,update', only: ['update']),
             new Middleware('check.permission:absenceRequests,approve', only: ['approve']),
             new Middleware('check.permission:absenceRequests,reject', only: ['reject']),
             new Middleware('check.permission:absenceRequests,delete', only: ['destroy']),
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $query = AbsenceRequest::with(['student', 'parentUser']);
@@ -39,7 +45,43 @@ class AbsenceRequestController extends Controller implements HasMiddleware
             }
         }
 
-        $requests = $query->orderBy('created_at', 'desc')->get()->map(function($req) {
+        // Apply filters
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+        if ($request->filled('class_id')) {
+            $query->whereHas('student', function($q) use ($request) {
+                $q->where('class_id', $request->input('class_id'));
+            });
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('reason_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('reason_en', 'LIKE', "%{$search}%")
+                  ->orWhereHas('student', function($sq) use ($search) {
+                      $sq->where('name_ar', 'LIKE', "%{$search}%")
+                        ->orWhere('name_en', 'LIKE', "%{$search}%");
+                  });
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'student_id', 'parent_id', 'start_date', 'end_date', 'reason_ar', 'reason_en', 'status', 'attachment_url', 'admin_note_ar', 'admin_note_en', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $requests = $paginator->getCollection()->map(function($req) {
             return [
                 'id' => $req->id,
                 'student_id' => $req->student_id,
@@ -61,7 +103,11 @@ class AbsenceRequestController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'absence_requests' => $requests
+            'absence_requests' => $requests,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 
@@ -77,8 +123,8 @@ class AbsenceRequestController extends Controller implements HasMiddleware
             'attachment_url' => 'nullable|string',
         ]);
 
-        // Use authenticated user ID if parent_id is not provided in body
-        $parentId = $request->parent_id ?: auth()->id();
+        // Always use the authenticated user's ID — do not allow caller to override parent_id
+        $parentId = auth()->id();
 
         $startDate = $request->start_date;
         $endDate = $request->end_date ?: $request->start_date;
@@ -133,7 +179,15 @@ class AbsenceRequestController extends Controller implements HasMiddleware
             return response()->json(['success' => false, 'message' => 'الطلب غير موجود'], 404);
         }
 
-        $absenceRequest->update($request->all());
+        $request->validate([
+            'reason_ar'      => 'sometimes|string',
+            'reason_en'      => 'sometimes|string',
+            'start_date'     => 'sometimes|date',
+            'end_date'       => 'nullable|date',
+            'attachment_url' => 'nullable|string',
+        ]);
+
+        $absenceRequest->update($request->only(['reason_ar', 'reason_en', 'start_date', 'end_date', 'attachment_url']));
 
         return response()->json([
             'success' => true,
@@ -201,9 +255,9 @@ class AbsenceRequestController extends Controller implements HasMiddleware
             'student_id' => $absenceRequest->student_id,
         ]);
 
-        if ($absenceRequest->parentUser && $absenceRequest->parentUser->fcm_token) {
-            \App\Services\FcmService::sendNotification(
-                $absenceRequest->parentUser->fcm_token,
+        if ($absenceRequest->parentUser) {
+            \App\Services\FcmService::sendToUser(
+                $absenceRequest->parentUser,
                 $statusTitle,
                 $statusBody,
                 [
@@ -252,9 +306,9 @@ class AbsenceRequestController extends Controller implements HasMiddleware
             'student_id' => $absenceRequest->student_id,
         ]);
 
-        if ($absenceRequest->parentUser && $absenceRequest->parentUser->fcm_token) {
-            \App\Services\FcmService::sendNotification(
-                $absenceRequest->parentUser->fcm_token,
+        if ($absenceRequest->parentUser) {
+            \App\Services\FcmService::sendToUser(
+                $absenceRequest->parentUser,
                 $statusTitle,
                 $statusBody,
                 [

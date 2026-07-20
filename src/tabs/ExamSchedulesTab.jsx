@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useSettings } from '../contexts/Settings/useSettings';
 import { useStudents } from '../contexts/Students/useStudents';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 import { X } from 'lucide-react';
 
 export default function ExamSchedulesTab() {
@@ -15,20 +17,37 @@ export default function ExamSchedulesTab() {
 
   const {
     examSchedules,
+    examSchedulesPagination,
     handlePublishExamSchedule: publishExamSchedule,
     handleUpdateExamSchedule,
     handleDeleteExamSchedule,
     fetchExamSchedules,
+    loading,
   } = useSettings();
 
   const { classes, fetchClasses } = useClasses();
   const { students, fetchStudents } = useStudents();
 
+  const {
+    page,
+    perPage,
+    setPage,
+    setPerPage,
+    buildQueryString,
+  } = usePagination({
+    moduleKey: 'examSchedules',
+  });
+
+  const qs = buildQueryString();
+
   useEffect(() => {
-    fetchExamSchedules();
+    fetchExamSchedules(qs);
+  }, [fetchExamSchedules, qs]);
+
+  useEffect(() => {
     fetchClasses();
     fetchStudents();
-  }, [fetchExamSchedules, fetchClasses, fetchStudents]);
+  }, [fetchClasses, fetchStudents]);
 
   // Modal visibility & Edit State
   const [isSaving, setIsSaving] = useState(false);
@@ -235,10 +254,32 @@ export default function ExamSchedulesTab() {
             ))}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)' }}>
-            📝 {t.noExamSchedules}
+          <div style={{ padding: '48px 24px', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)', background: 'var(--color-surface)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '32px' }}>📅</span>
+              <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                {lang === 'ar' ? 'لا توجد جداول اختبارات مسجلة' : 'No Exam Schedules Found'}
+              </span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                {lang === 'ar' ? 'لم يتم إضافة جداول اختبارات لهذا العام الدراسي بعد.' : 'No exam schedules have been added for this academic term yet.'}
+              </span>
+            </div>
           </div>
         )}
+        <div className="no-print" style={{ marginTop: 'var(--space-md)' }}>
+          <PaginationBar
+            page={page}
+            lastPage={examSchedulesPagination.lastPage}
+            total={examSchedulesPagination.total}
+            from={examSchedulesPagination.from}
+            to={examSchedulesPagination.to}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={setPerPage}
+            loading={loading}
+            lang={lang}
+          />
+        </div>
       </div>
 
       {/* ADD EXAM SCHEDULE MODAL */}

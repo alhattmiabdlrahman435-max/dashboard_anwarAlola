@@ -11,17 +11,22 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class AttendanceController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'record_date', 'arrival_time', 'status', 'created_at'];
+
     public static function middleware(): array
     {
         return [
             new Middleware('check.permission:scanner,view', only: ['index']),
             new Middleware('check.permission:scanner,create', only: ['store']),
+            new Middleware('check.permission:scanner,update', only: ['update']),
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'scanner');
@@ -34,11 +39,43 @@ class AttendanceController extends Controller implements HasMiddleware
             });
         }
 
-        if ($request->has('date')) {
-            $query->where('record_date', $request->date);
+        // Apply filters
+        if ($request->filled('date')) {
+            $query->where('record_date', $request->input('date'));
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+        if ($request->filled('class_id')) {
+            $query->whereHas('student', function($q) use ($request) {
+                $q->where('class_id', $request->input('class_id'));
+            });
         }
 
-        $records = $query->get()->map(function($record) {
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->whereHas('student', function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%")
+                  ->orWhere('student_code', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'student_id', 'record_date', 'status', 'arrival_time', 'note', 'created_by', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $records = $paginator->getCollection()->map(function($record) {
             return [
                 'id' => $record->id,
                 'student_id' => $record->student_id,
@@ -55,7 +92,11 @@ class AttendanceController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'attendance' => $records
+            'attendance' => $records,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 
@@ -132,8 +173,8 @@ class AttendanceController extends Controller implements HasMiddleware
 
             // Send FCM Push Notification
             $parentUser = $student->parentUser;
-            if ($parentUser && $parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+            if ($parentUser) {
+                \App\Services\FcmService::sendToUser($parentUser, $title, $content, [
                     'type' => 'attendance',
                     'student_id' => $student->id
                 ]);
@@ -207,8 +248,8 @@ class AttendanceController extends Controller implements HasMiddleware
 
             // Send FCM Push Notification
             $parentUser = $student->parentUser;
-            if ($parentUser && $parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+            if ($parentUser) {
+                \App\Services\FcmService::sendToUser($parentUser, $title, $content, [
                     'type' => 'attendance',
                     'student_id' => $student->id
                 ]);

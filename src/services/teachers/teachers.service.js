@@ -1,8 +1,8 @@
 import { api } from '../api';
 
 export const teachersService = {
-  getTeachers: () => {
-    return api.get("/api/teachers");
+  getTeachers: (queryString = '') => {
+    return api.get(`/api/teachers${queryString}`);
   },
   
   createTeacher: (payload) => {
@@ -13,8 +13,8 @@ export const teachersService = {
     return api.put(`/api/teachers/${teacherId}`, payload);
   },
 
-  getSupervisors: () => {
-    return api.get("/api/supervisors");
+  getSupervisors: (queryString = '') => {
+    return api.get(`/api/supervisors${queryString}`);
   },
 
   createSupervisor: (payload) => {

@@ -11,49 +11,67 @@ export default function ParentsProvider({ children }) {
   const [parentUsers, setParentUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isStale, setIsStale] = useState(true);
+  const [parentsPagination, setParentsPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20,
+  });
 
   const fetchRequestRef = useRef(0);
+  const abortRef = useRef(null);
 
-  const fetchParents = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    const tokenArg = args.find(a => typeof a === 'string');
-    const activeToken = tokenArg || localStorage.getItem("auth_token");
+  const fetchParents = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+
+    const activeToken = localStorage.getItem('auth_token');
     if (!activeToken) return;
 
-    if (!force && !isStale && parentUsers.length > 0) {
-      return;
-    }
+    if (!isForce && !isQueryString && !isStale && parentUsers.length > 0) return;
+
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     const reqId = ++fetchRequestRef.current;
     setLoading(true);
-    parentsService.getParents()
+    parentsService.getParents(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
-        if (!localStorage.getItem('auth_token')) return;
+        if (controller.signal.aborted) return;
         if (reqId !== fetchRequestRef.current) return;
+        if (!localStorage.getItem('auth_token')) return;
         if (data.success) {
-          const mapped = data.parents.map((p) => ({
+          const mapped = (data.parents || []).map((p) => ({
             id: p.id,
             nationalId: p.national_id,
             name: p.name_ar || p.name,
             nameEn: p.name_en || p.name,
             phone: p.phone,
             username: p.username,
-            password: "parent_password123",
-            photo: p.photo_url || "🧔",
+            password: 'parent_password123',
+            photo: p.photo_url || '🧔',
           }));
           setParentUsers(mapped);
           setIsStale(false);
+          const pg = data.pagination || data.meta || {};
+          setParentsPagination({
+            total:       pg.total        ?? data.total        ?? mapped.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? mapped.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? mapped.length,
+          });
         }
       })
       .catch((err) => {
-        if (reqId === fetchRequestRef.current) {
-          console.error("Error fetching parents:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchRequestRef.current) return;
+        console.error('Error fetching parents:', err);
       })
       .finally(() => {
         if (reqId === fetchRequestRef.current) {
           setLoading(false);
+          abortRef.current = null;
         }
       });
   }, [isStale, parentUsers.length]);
@@ -221,6 +239,7 @@ export default function ParentsProvider({ children }) {
     setParentUsers,
     loading,
     fetchParents,
+    parentsPagination,
     handleAddParent,
     handleEditParent,
     handleDeleteParent,
@@ -228,6 +247,7 @@ export default function ParentsProvider({ children }) {
     parentUsers,
     loading,
     fetchParents,
+    parentsPagination,
     handleAddParent,
     handleEditParent,
     handleDeleteParent,

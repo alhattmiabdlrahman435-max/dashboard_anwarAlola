@@ -17,9 +17,13 @@ export default function ReportsProvider({ children }) {
   // Teacher reports state
   const [teacherReports, setTeacherReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsPagination, setReportsPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20
+  });
 
   const fetchDashboardStatsRequestRef = useRef(0);
   const fetchTeacherReportsRequestRef = useRef(0);
+  const reportsAbortRef = useRef(null);
 
   // Fetch dashboard stats
   const fetchDashboardStats = useCallback((...args) => {
@@ -45,9 +49,8 @@ export default function ReportsProvider({ children }) {
         }
       })
       .catch((err) => {
-        if (reqId === fetchDashboardStatsRequestRef.current) {
-          console.error("Error fetching dashboard stats:", err);
-        }
+        if (reqId !== fetchDashboardStatsRequestRef.current) return;
+        console.error("Error fetching dashboard stats:", err);
       })
       .finally(() => {
         if (reqId === fetchDashboardStatsRequestRef.current) {
@@ -57,36 +60,50 @@ export default function ReportsProvider({ children }) {
   }, [isStale, dashboardStats]);
 
   // Fetch teacher reports
-  const fetchTeacherReports = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    const tokenArg = args.find(a => typeof a === 'string');
-    const activeToken = tokenArg || localStorage.getItem("auth_token");
-    if (!activeToken) return;
+  const fetchTeacherReports = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
 
-    if (!force && !isStale && teacherReports.length > 0) {
-      return;
-    }
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    if (reportsAbortRef.current) reportsAbortRef.current.abort();
+    const controller = new AbortController();
+    reportsAbortRef.current = controller;
 
     const reqId = ++fetchTeacherReportsRequestRef.current;
     setReportsLoading(true);
-    reportsService.getReports()
+    reportsService.getReports(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
+        if (controller.signal.aborted) return;
         if (!localStorage.getItem('auth_token')) return;
         if (reqId !== fetchTeacherReportsRequestRef.current) return;
         if (data.success) {
           setTeacherReports(data.reports);
           setIsStale(false);
+
+          const pg = data.pagination || data.meta || {};
+          setReportsPagination({
+            total:       pg.total        ?? data.total        ?? data.reports.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? data.reports.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? data.reports.length,
+          });
         }
       })
       .catch((err) => {
-        if (reqId === fetchTeacherReportsRequestRef.current) {
-          console.error("Error fetching teacher reports:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchTeacherReportsRequestRef.current) return;
+        console.error("Error fetching teacher reports:", err);
+        setToastMessage(err.message, "error");
       })
       .finally(() => {
         if (reqId === fetchTeacherReportsRequestRef.current) {
           setReportsLoading(false);
+          reportsAbortRef.current = null;
         }
       });
   }, [isStale, teacherReports.length]);
@@ -188,6 +205,7 @@ export default function ReportsProvider({ children }) {
     teacherReports,
     setTeacherReports,
     reportsLoading,
+    reportsPagination,
     fetchTeacherReports,
     handleUpdateReportStatus,
     handleDeleteTeacherReport,
@@ -198,6 +216,7 @@ export default function ReportsProvider({ children }) {
     fetchDashboardStats,
     teacherReports,
     reportsLoading,
+    reportsPagination,
     fetchTeacherReports,
     handleUpdateReportStatus,
     handleDeleteTeacherReport,

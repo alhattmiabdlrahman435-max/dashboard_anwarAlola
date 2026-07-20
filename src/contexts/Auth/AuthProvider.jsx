@@ -7,6 +7,16 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  // Intercept 401 Unauthorized API failures
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+    };
+    window.addEventListener("api-unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("api-unauthorized", handleUnauthorized);
+  }, []);
+
   // Auto-login using saved Sanctum token
   useEffect(() => {
     const token = localStorage.getItem("auth_token");

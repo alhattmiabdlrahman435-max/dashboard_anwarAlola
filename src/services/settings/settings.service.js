@@ -9,8 +9,8 @@ export const settingsService = {
     return api.post("/api/schedules", payload);
   },
   
-  getGradesControl: () => {
-    return api.get("/api/grades/control");
+  getGradesControl: (queryString = '') => {
+    return api.get(`/api/grades/control${queryString}`);
   },
   
   updateControlGrade: (studentId, payload) => {
@@ -21,8 +21,8 @@ export const settingsService = {
     return api.post("/api/grades/generate-codes", payload);
   },
   
-  getAssignments: () => {
-    return api.get("/api/assignments");
+  getAssignments: (queryString = '') => {
+    return api.get(`/api/assignments${queryString}`);
   },
   
   saveAssignments: (payload) => {
@@ -49,8 +49,8 @@ export const settingsService = {
     return api.post("/api/grades/detailed", payload);
   },
   
-  getExamSchedules: () => {
-    return api.get("/api/exam-schedules");
+  getExamSchedules: (queryString = '') => {
+    return api.get(`/api/exam-schedules${queryString}`);
   },
   
   addExamSchedule: (payload) => {

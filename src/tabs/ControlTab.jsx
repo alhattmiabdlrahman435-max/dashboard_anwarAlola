@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { useStudents } from '../contexts/Students/useStudents';
+import { useClasses } from '../contexts/Classes/useClasses';
 import { useSettings } from '../contexts/Settings/useSettings';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 import PrintHeader from '../components/PrintHeader';
 
 export default function ControlTab() {
@@ -9,22 +11,57 @@ export default function ControlTab() {
     lang,
     t,
     grades,
+    controlPagination,
     setToastMessage,
     canAction,
     fetchControlGrades,
   } = useApp();
-  const { students, fetchStudents } = useStudents();
+
+  const { classes, fetchClasses } = useClasses();
   const {
     isGradesEncrypted,
     setIsGradesEncrypted,
     handleCalculateSecretCodes,
     handleEnterGradeBySecretCode,
+    loading: settingsLoading,
   } = useSettings();
 
+  const {
+    page,
+    perPage,
+    search,
+    filters,
+    sort,
+    direction,
+    setPage,
+    setPerPage,
+    setSearch,
+    setFilters,
+    setSort,
+    setDirection,
+    buildQueryString,
+  } = usePagination({
+    moduleKey: 'control',
+    defaultFilters: { class_id: 'all' },
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Local UI state for search to keep typing responsive (debounced backend sync)
+  const [searchQuery, setSearchQuery] = useState(search);
   useEffect(() => {
-    fetchControlGrades();
-    fetchStudents();
-  }, [fetchControlGrades, fetchStudents]);
+    setSearchQuery(search);
+  }, [search]);
+
+  const qs = buildQueryString();
+
+  useEffect(() => {
+    fetchControlGrades(qs);
+  }, [fetchControlGrades, qs]);
+
+  useEffect(() => {
+    fetchClasses();
+  }, [fetchClasses]);
 
   const [secretTermInput, setSecretTermInput] = useState('term1');
   const [secretSubjectInput, setSecretSubjectInput] = useState('الرياضيات');
@@ -41,20 +78,21 @@ export default function ControlTab() {
     }
   };
 
-  const handleSaveGrade = () => {
+  const handleSaveGrade = async () => {
     if (!secretCodeInput || secretGradeInput === '') {
       setToastMessage(lang === 'ar' ? 'الرجاء إدخال الرقم السري والدرجة' : 'Please enter secret code and grade');
       setTimeout(() => setToastMessage(''), 3000);
       return;
     }
 
-    const success = handleEnterGradeBySecretCode(
+    setIsSaving(true);
+    const success = await handleEnterGradeBySecretCode(
       secretCodeInput,
       secretGradeInput,
       secretSubjectInput,
-      secretTermInput,
-      students
+      secretTermInput
     );
+    setIsSaving(false);
 
     if (success) {
       setSecretCodeInput('');
@@ -64,6 +102,15 @@ export default function ControlTab() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSortChange = (column) => {
+    if (sort === column) {
+      setDirection(direction === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSort(column);
+      setDirection('desc');
+    }
   };
 
   return (
@@ -191,23 +238,59 @@ export default function ControlTab() {
           type="button"
           className="btn-filled"
           onClick={handleSaveGrade}
+          disabled={isSaving}
           style={{
             alignSelf: 'flex-end',
             padding: '12px 28px',
             fontWeight: 'bold',
             fontSize: '15px',
-            cursor: 'pointer',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
             minHeight: '48px',
             borderRadius: 'var(--radius-button)',
             boxShadow: 'var(--shadow-md)',
             backgroundColor: 'var(--color-success)',
             color: '#ffffff',
             border: 'none',
-            marginTop: '8px'
+            marginTop: '8px',
+            opacity: isSaving ? 0.7 : 1
           }}
         >
-          💾 {lang === 'ar' ? "رصد وحفظ الدرجة" : "Save Grade"}
+          {isSaving 
+            ? (lang === 'ar' ? "💾 جاري حفظ الدرجة..." : "💾 Saving Grade...") 
+            : (lang === 'ar' ? "💾 رصد وحفظ الدرجة" : "💾 Save Grade")}
         </button>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="table-actions no-print" style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: 'var(--space-md)', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+          <input
+            type="text"
+            className="form-input"
+            style={{ width: '100%', paddingLeft: lang === 'ar' ? '12px' : '36px', paddingRight: lang === 'ar' ? '36px' : '12px', height: '40px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
+            placeholder={lang === 'ar' ? 'بحث باسم الطالب أو الكود أو الرقم السري...' : 'Search student, code, or secret number...'}
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSearch(e.target.value);
+            }}
+          />
+          <span style={{ position: 'absolute', left: lang === 'ar' ? 'auto' : '12px', right: lang === 'ar' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+        </div>
+
+        <select
+          className="text-field"
+          style={{ width: '180px', height: '40px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
+          value={filters.class_id || 'all'}
+          onChange={(e) => setFilters({ class_id: e.target.value })}
+        >
+          <option value="all">{lang === 'ar' ? 'جميع الصفوف' : 'All Classes'}</option>
+          {classes.map((cls) => (
+            <option key={cls.id} value={cls.id}>
+              {lang === 'ar' ? `${cls.grade} - ${cls.section}` : `${cls.gradeEn} - ${cls.sectionEn}`}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Final control sheet table grid */}
@@ -221,35 +304,78 @@ export default function ControlTab() {
           <table className="control-grade-table">
             <thead>
               <tr>
-                {isGradesEncrypted && <th>{t.secretCode}</th>}
-                <th>{lang === 'ar' ? 'رقم الطالب' : 'Student ID'}</th>
-                <th>{t.studentName}</th>
+                {isGradesEncrypted && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSortChange('secret_code')}>
+                    {t.secretCode} {sort === 'secret_code' ? (direction === 'asc' ? '🔼' : '🔽') : ''}
+                  </th>
+                )}
+                <th style={{ cursor: 'pointer' }} onClick={() => handleSortChange('id')}>
+                  {lang === 'ar' ? 'رقم الطالب' : 'Student ID'} {sort === 'id' ? (direction === 'asc' ? '🔼' : '🔽') : ''}
+                </th>
+                <th style={{ cursor: 'pointer' }} onClick={() => handleSortChange(lang === 'ar' ? 'name_ar' : 'name_en')}>
+                  {t.studentName} {sort === (lang === 'ar' ? 'name_ar' : 'name_en') ? (direction === 'asc' ? '🔼' : '🔽') : ''}
+                </th>
                 <th>{lang === 'ar' ? 'صف الطالب' : 'Student Class'}</th>
               </tr>
             </thead>
             <tbody>
-              {grades.map((row) => {
-                const student = students.find(s => s.id === row.studentId);
-                const studentClass = student ? (lang === 'ar' ? `${student.grade} - ${student.section}` : `${student.gradeEn} - ${student.sectionEn}`) : '';
-                return (
-                  <tr key={row.studentId}>
-                    {isGradesEncrypted && (
-                      <td className="secret-code-cell">{row.secretCode}</td>
-                    )}
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>{row.studentId}</td>
-                    <td style={{ fontWeight: '600' }}>
-                      <span className={isGradesEncrypted ? 'encrypted-text' : ''}>
-                        {lang === 'ar' ? row.name : row.nameEn}
+              {grades.length > 0 ? (
+                grades.map((row) => {
+                  const studentClass = lang === 'ar' ? row.class_name_ar : row.class_name_en;
+                  return (
+                    <tr key={row.studentId}>
+                      {isGradesEncrypted && (
+                        <td className="secret-code-cell">{row.secretCode}</td>
+                      )}
+                      <td style={{ fontFamily: 'var(--font-mono)' }}>{row.studentId}</td>
+                      <td style={{ fontWeight: '600' }}>
+                        <span className={isGradesEncrypted ? 'encrypted-text' : ''}>
+                          {lang === 'ar' ? row.name : row.nameEn}
+                        </span>
+                      </td>
+                      <td>{studentClass}</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={isGradesEncrypted ? 4 : 3} style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '32px' }}>
+                        {search ? "🔍" : (filters.class_id && filters.class_id !== 'all') ? "ℹ️" : "📂"}
                       </span>
-                    </td>
-                    <td>{studentClass}</td>
-                  </tr>
-                );
-              })}
+                      <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                        {search 
+                          ? (lang === 'ar' ? 'لا توجد نتائج تطابق بحثك' : 'No matching search results found')
+                          : (filters.class_id && filters.class_id !== 'all')
+                            ? (lang === 'ar' ? 'لا توجد نتائج تطابق التصفية المحددة' : 'No matching filter results found')
+                            : (lang === 'ar' ? 'لا توجد درجات مرصودة حالياً' : 'No grades recorded yet')
+                        }
+                      </span>
+                      <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                        {search 
+                          ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                          : (filters.class_id && filters.class_id !== 'all')
+                            ? (lang === 'ar' ? 'جرب تغيير خيارات التصفية' : 'Try changing your filter selections')
+                            : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
+                        }
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      <PaginationBar
+        pagination={controlPagination}
+        onPageChange={setPage}
+        onPerPageChange={setPerPage}
+        loading={settingsLoading}
+        lang={lang}
+      />
     </div>
   );
 }

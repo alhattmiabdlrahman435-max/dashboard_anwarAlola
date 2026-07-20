@@ -35,18 +35,24 @@ export default function ScannerTab() {
     setPrintStudentObject,
     fetchStudents,
   } = useStudents();
-
-  useEffect(() => {
-    fetchAttendance();
-    fetchClasses();
-    fetchStudents();
-  }, [fetchAttendance, fetchClasses, fetchStudents]);
-
   // Local navigation and filters
   const [attendanceSubTab, setAttendanceSubTab] = useState('monthlySheet');
   const [attendanceMonthGrade, setAttendanceMonthGrade] = useState('الصف الأول');
   const [attendanceMonthSection, setAttendanceMonthSection] = useState('أ');
   const [attendanceSearchQuery, setAttendanceSearchQuery] = useState('');
+
+  const activeClass = classes.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection);
+
+  useEffect(() => {
+    fetchClasses();
+  }, [fetchClasses]);
+
+  useEffect(() => {
+    if (activeClass) {
+      fetchStudents(`?class_id=${activeClass.id}&per_page=100`);
+      fetchAttendance(`?class_id=${activeClass.id}&per_page=100`);
+    }
+  }, [activeClass, fetchStudents, fetchAttendance]);
   
   // Quick Attendance Modal States
   const [showQuickAttendanceModal, setShowQuickAttendanceModal] = useState(false);
@@ -235,10 +241,41 @@ export default function ScannerTab() {
               return matchesGrade && matchesSection && matchesSearch;
             });
 
-            if (filteredStudentsForAttendance.length === 0) {
+            if (students.length === 0) {
               return (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)' }}>
-                  🔍 {lang === 'ar' ? 'لا يوجد طلاب يطابقون خيارات البحث والتصفية' : 'No students matching filters'}
+                <div style={{ padding: '48px 24px', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '32px' }}>📂</span>
+                    <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                      {lang === 'ar' ? 'لا يوجد طلاب مسجلين حالياً' : 'No students registered yet'}
+                    </span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {lang === 'ar' ? 'يرجى تسجيل الطلاب في النظام أولاً لبدء رصد الغياب.' : 'Please register students in the system first to begin tracking attendance.'}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
+            if (filteredStudentsForAttendance.length === 0) {
+              const hasSearch = attendanceSearchQuery !== '';
+              return (
+                <div style={{ padding: '48px 24px', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '32px' }}>{hasSearch ? '🔍' : 'ℹ️'}</span>
+                    <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                      {hasSearch 
+                        ? (lang === 'ar' ? 'لا توجد نتائج تطابق بحثك' : 'No matching search results found')
+                        : (lang === 'ar' ? 'لا توجد نتائج تطابق التصفية المحددة' : 'No matching filter results found')
+                      }
+                    </span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {hasSearch 
+                        ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                        : (lang === 'ar' ? 'جرب تغيير خيارات التصفية' : 'Try changing your filter selections')
+                      }
+                    </span>
+                  </div>
                 </div>
               );
             }
@@ -417,8 +454,16 @@ export default function ScannerTab() {
 
             if (filteredStudentsForAttendance.length === 0) {
               return (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)' }}>
-                  🔍 {lang === 'ar' ? 'لا يوجد طلاب بهذه الشعبة' : 'No students in this class section'}
+                <div style={{ padding: '48px 24px', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '32px' }}>📂</span>
+                    <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                      {lang === 'ar' ? 'لا يوجد طلاب بهذه الشعبة' : 'No students in this class section'}
+                    </span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {lang === 'ar' ? 'يرجى تسجيل طلاب وتعيينهم لهذه الشعبة في صفحة الطلاب.' : 'Please register students and assign them to this class section.'}
+                    </span>
+                  </div>
                 </div>
               );
             }

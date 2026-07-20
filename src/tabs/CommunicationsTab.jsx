@@ -4,6 +4,8 @@ import { useClasses } from '../contexts/Classes/useClasses';
 import { useNotifications } from '../contexts/Notifications/useNotifications';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useTeachers } from '../contexts/Teachers/useTeachers';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 import { 
   X, Search, Plus, Bell, Send, Users, User, GraduationCap, 
   Layers, CheckCircle2, MessageSquare, Volume2, Info, Trash2
@@ -21,14 +23,51 @@ export default function CommunicationsTab() {
 
   const {
     notifications,
+    notificationsPagination,
     handleSendNotification,
     handleMarkNotificationAsRead,
     handleDeleteNotification,
     handleDeleteAllNotifications,
+    fetchNotifications,
+    loading
   } = useNotifications();
 
   const { students, fetchStudents } = useStudents();
   const { teachers, fetchTeachers } = useTeachers();
+
+  const {
+    page,
+    perPage,
+    search,
+    setPage,
+    setPerPage,
+    setSearch,
+    buildQueryString,
+  } = usePagination({
+    moduleKey: 'notifications',
+  });
+
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  const qs = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('page', page);
+    params.set('per_page', perPage);
+    if (search) params.set('search', search);
+
+    if (activeFilter === 'parents') {
+      params.set('type', 'broadcast_parents');
+    } else if (activeFilter === 'teachers') {
+      params.set('type', 'broadcast_teachers');
+    } else if (activeFilter === 'classes' || activeFilter === 'private') {
+      params.set('type', 'broadcast');
+    }
+    return '?' + params.toString();
+  }, [page, perPage, search, activeFilter]);
+
+  useEffect(() => {
+    fetchNotifications(qs);
+  }, [fetchNotifications, qs]);
 
   useEffect(() => {
     fetchClasses();
@@ -39,8 +78,12 @@ export default function CommunicationsTab() {
 
   // Local UI states
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(search);
+
+  useEffect(() => {
+    setSearchQuery(search);
+  }, [search]);
+
   const [filterDate, setFilterDate] = useState('');
   const [filterSender] = useState('all');
 
@@ -198,21 +241,14 @@ export default function CommunicationsTab() {
   // Filter sent notifications based on pills, search query, date, and sender
   const filteredNotifications = useMemo(() => {
     return notifications.filter(notif => {
-      // 1. Search Query filter
-      const matchesSearch = 
-        notif.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        notif.content.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      if (!matchesSearch) return false;
-
-      // 2. Date Filter
+      // 1. Date Filter
       if (filterDate) {
         if (!notif.date.startsWith(filterDate)) {
           return false;
         }
       }
 
-      // 3. Sender Filter
+      // 2. Sender Filter
       if (filterSender !== 'all') {
         const sender = getNotificationSender(notif);
         if (sender.key !== filterSender) {
@@ -220,31 +256,28 @@ export default function CommunicationsTab() {
         }
       }
 
-      // 4. Tab Filter
-      if (activeFilter === 'all') return true;
-      if (activeFilter === 'parents') return notif.type === 'parents' || notif.type === 'general';
-      if (activeFilter === 'teachers') return notif.type === 'teachers' || notif.type === 'teacher';
+      // 3. Tab Filter (Fine-grained client-side sub-filtering for mixed database types)
       if (activeFilter === 'classes') return notif.type === 'class';
-      if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private';
+      if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private' || notif.type === 'teacher';
       
       return true;
     });
-  }, [notifications, searchQuery, filterDate, filterSender, activeFilter, getNotificationSender]);
+  }, [notifications, filterDate, filterSender, activeFilter, getNotificationSender]);
 
   // Dynamic statistics calculations
-  const statsTotal = notifications.length;
+  const statsTotal = notificationsPagination.total || 0;
   
   const statsParents = useMemo(() => {
-    return notifications.filter(n => n.type === 'parents' || n.type === 'general').length;
-  }, [notifications]);
+    return activeFilter === 'parents' ? notificationsPagination.total : 0;
+  }, [activeFilter, notificationsPagination.total]);
 
   const statsClasses = useMemo(() => {
-    return notifications.filter(n => n.type === 'class').length;
-  }, [notifications]);
+    return activeFilter === 'classes' ? notificationsPagination.total : 0;
+  }, [activeFilter, notificationsPagination.total]);
 
   const statsPrivate = useMemo(() => {
-    return notifications.filter(n => n.type === 'student' || n.type === 'private').length;
-  }, [notifications]);
+    return activeFilter === 'private' ? notificationsPagination.total : 0;
+  }, [activeFilter, notificationsPagination.total]);
 
   // Filter helpers for student select in the modal
   const filteredStudentsList = useMemo(() => {
@@ -770,17 +803,18 @@ export default function CommunicationsTab() {
 
       {/* Control Toolbar */}
       <div className="toolbar-panel-glass no-print">
-        {/* Search */}
         <div className="search-input-modern-wrapper">
           <Search size={18} className="search-input-icon" />
           <input 
             type="text"
             placeholder={lang === 'ar' ? 'البحث في سجل الإشعارات المرسلة...' : 'Search sent history...'}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchQuery || ''}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSearch(e.target.value);
+            }}
           />
         </div>
-
         {/* Date Filter & Sender Filter */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -1042,22 +1076,53 @@ export default function CommunicationsTab() {
             );
           })
         ) : (
-          <div style={{
-            textAlign: 'center',
-            padding: '50px var(--space-xl)',
-            color: 'var(--color-text-secondary)',
-            background: 'var(--color-surface-alt)',
-            border: '1.5px dashed var(--color-border)',
-            borderRadius: 'var(--radius-card)',
+          <div style={{ 
+            padding: '48px 24px', 
+            textAlign: 'center', 
+            backgroundColor: 'var(--color-surface)', 
+            borderRadius: 'var(--radius-card)', 
+            border: '1px dashed var(--color-border)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'var(--space-md)'
+            justifyContent: 'center',
+            gap: '8px'
           }}>
-            <MessageSquare size={38} style={{ opacity: 0.35, color: 'var(--color-text-secondary)' }} />
-            <span style={{ fontSize: '14.5px', fontWeight: '600' }}>{t.noNotifications}</span>
+            <span style={{ fontSize: '32px' }}>
+              {search ? "🔍" : activeFilter !== 'all' ? "ℹ️" : "📂"}
+            </span>
+            <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+              {search 
+                ? (lang === 'ar' ? 'لا توجد بلاغات تطابق بحثك' : 'No matching broadcasts found')
+                : activeFilter !== 'all'
+                  ? (lang === 'ar' ? 'لا توجد بلاغات تطابق القسم المحدد' : 'No broadcasts match the selected category')
+                  : (lang === 'ar' ? 'لا توجد بلاغات مرسلة حالياً' : 'No broadcasts sent yet')
+              }
+            </span>
+            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              {search 
+                ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                : activeFilter !== 'all'
+                  ? (lang === 'ar' ? 'جرب تغيير تصفية القسم' : 'Try changing your category tab selection')
+                  : (lang === 'ar' ? 'لم يتم إرسال أي بلاغ جماعي أو تنبيه بعد' : 'No general broadcasts or alerts have been sent yet')
+              }
+            </span>
           </div>
         )}
+        <div className="no-print" style={{ marginTop: 'var(--space-md)' }}>
+          <PaginationBar
+            page={page}
+            lastPage={notificationsPagination.lastPage}
+            total={notificationsPagination.total}
+            from={notificationsPagination.from}
+            to={notificationsPagination.to}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={setPerPage}
+            loading={loading}
+            lang={lang}
+          />
+        </div>
       </div>
 
       {/* Gorgeous Slide-over / Modal Dialog */}

@@ -30,7 +30,7 @@ use App\Http\Controllers\Api\ExportImportController;
 */
 
 // ===== Public Routes - مسارات عامة (بدون مصادقة) =====
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 // ===== Protected Routes - مسارات محمية (تحتاج Token) =====
 Route::middleware('auth:sanctum')->group(function () {

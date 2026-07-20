@@ -891,6 +891,11 @@ class ExportImportController extends Controller
 
     public function template(Request $request, string $module)
     {
+        $user = $request->user();
+        if (!PermissionService::can($user, $module, 'import')) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بتنزيل قالب الاستيراد.'], 403);
+        }
+
         if ($module === 'students') {
             $classId = $request->query('class_id');
             if ($classId && str_starts_with($classId, 'cls-')) {

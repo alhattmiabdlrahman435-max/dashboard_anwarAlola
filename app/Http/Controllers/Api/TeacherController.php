@@ -16,8 +16,12 @@ use App\Services\PermissionService;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 
+use App\Http\Requests\ListRequest;
+
 class TeacherController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'name_ar', 'name_en', 'job_id', 'phone', 'created_at'];
+
     public static function middleware(): array
     {
         return [
@@ -28,7 +32,7 @@ class TeacherController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'teachers');
@@ -40,7 +44,43 @@ class TeacherController extends Controller implements HasMiddleware
             });
         }
 
-        $teachers = $query->get()->map(function($t) {
+        // Apply filters
+        if ($request->filled('class_id')) {
+            $query->whereHas('teacherSubjects', function($q) use ($request) {
+                $q->where('class_id', $request->input('class_id'));
+            });
+        }
+        if ($request->filled('subject_id')) {
+            $query->whereHas('teacherSubjects', function($q) use ($request) {
+                $q->where('subject_id', $request->input('subject_id'));
+            });
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%")
+                  ->orWhere('job_id', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe column selection
+        $query->select([
+            'id', 'name', 'username', 'role', 'national_id', 'job_id', 'phone', 'name_ar', 'name_en', 'photo_url', 'address', 'is_active', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $teachers = $paginator->getCollection()->map(function($t) {
             return [
                 'id' => $t->id,
                 'job_id' => $t->job_id,
@@ -64,7 +104,11 @@ class TeacherController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'teachers' => $teachers
+            'teachers' => $teachers,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 

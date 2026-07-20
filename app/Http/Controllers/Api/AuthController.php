@@ -148,7 +148,8 @@ class AuthController extends Controller
 
         if ($request->hasFile('photo')) {
             $file = $request->file('photo');
-            $filename = time() . '_' . $file->getClientOriginalName();
+            $ext = strtolower($file->getClientOriginalExtension());
+            $filename = time() . '_' . uniqid() . '.' . $ext;
             $file->move(public_path('uploads/avatars'), $filename);
             
             $url = asset('uploads/avatars/' . $filename);

@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/Auth/useAuth';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useFinance } from '../contexts/Finance/useFinance';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 import { X } from 'lucide-react';
 
 export default function FinanceTab() {
@@ -15,15 +17,32 @@ export default function FinanceTab() {
     canAction
   } = useApp();
   const { classes, fetchClasses } = useClasses();
-  const { tuitionFees, handleAddPayment, fetchFinanceData } = useFinance();
+  const { tuitionFees, financePagination, financeStats, handleAddPayment, fetchFinanceData, loading } = useFinance();
   const { students, fetchStudents } = useStudents();
   const { currentUser } = useAuth();
 
+  const {
+    page,
+    perPage,
+    search,
+    setPage,
+    setPerPage,
+    setSearch,
+    buildQueryString,
+  } = usePagination({
+    moduleKey: 'finance',
+  });
+
+  const qs = buildQueryString();
+
   useEffect(() => {
-    fetchFinanceData();
+    fetchFinanceData(qs);
+  }, [fetchFinanceData, qs]);
+
+  useEffect(() => {
     fetchStudents();
     fetchClasses();
-  }, [fetchFinanceData, fetchStudents, fetchClasses]);
+  }, [fetchStudents, fetchClasses]);
 
   const currencySymbol = lang === 'ar' ? 'ر.ي' : 'R.Y';
 
@@ -95,46 +114,33 @@ export default function FinanceTab() {
     return currentUser?.role === 'parent'
       ? students.filter(s => s.parentNationalId === currentUser.username)
       : students;
-  }, [students, currentUser]);
+  }, [students, currentUser]);  const filteredStudents = tuitionFees.studentsFees || [];
 
-  const [selectedFinanceStudentId, setSelectedFinanceStudentId] = useState(
-    parentStudents.length > 0 ? parentStudents[0].id : null
-  );
+  const [selectedFinanceStudentId, setSelectedFinanceStudentId] = useState(null);
 
-  const [searchTerm, setSearchTerm] = useState('');
+  useEffect(() => {
+    if (filteredStudents.length > 0 && (!selectedFinanceStudentId || !filteredStudents.some(s => s.id === selectedFinanceStudentId))) {
+      setSelectedFinanceStudentId(filteredStudents[0].id);
+    } else if (filteredStudents.length === 0) {
+      setSelectedFinanceStudentId(null);
+    }
+  }, [filteredStudents, selectedFinanceStudentId]);
+
+  const [searchTerm, setSearchTerm] = useState(search);
+  useEffect(() => {
+    setSearchTerm(search);
+  }, [search]);
+
   const [isSaving, setIsSaving] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [modalPaymentAmount, setModalPaymentAmount] = useState('');
   const [modalPaymentDate, setModalPaymentDate] = useState('');
   const [modalPaymentRef, setModalPaymentRef] = useState('');
 
-  const filteredStudents = useMemo(() => {
-    return parentStudents.filter(s => {
-      const name = s.name || '';
-      const nameEn = s.nameEn || '';
-      const idStr = String(s.id);
-      const searchLower = searchTerm.toLowerCase();
-      return name.toLowerCase().includes(searchLower) || 
-             nameEn.toLowerCase().includes(searchLower) || 
-             idStr.includes(searchLower);
-    });
-  }, [parentStudents, searchTerm]);
-
-  // Update selection if the parent students list changes or filter updates
-  useEffect(() => {
-    if (filteredStudents.length > 0 && (!selectedFinanceStudentId || !filteredStudents.some(s => s.id === selectedFinanceStudentId))) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedFinanceStudentId(filteredStudents[0].id);
-    } else if (filteredStudents.length === 0) {
-      setSelectedFinanceStudentId(null);
-    }
-  }, [filteredStudents, selectedFinanceStudentId, setSelectedFinanceStudentId]);
-
   // Auto-populate current date and generate unique reference when modal opens
   useEffect(() => {
     if (showPaymentModal) {
       const today = new Date().toISOString().split('T')[0];
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModalPaymentDate(today);
       const randomId = Math.floor(100000 + Math.random() * 900000);
       setModalPaymentRef(`PAY-${randomId}`);
@@ -166,6 +172,7 @@ export default function FinanceTab() {
           setModalPaymentAmount('');
           setModalPaymentDate('');
           setModalPaymentRef('');
+          fetchFinanceData(qs);
         }
       })
       .finally(() => {
@@ -173,30 +180,30 @@ export default function FinanceTab() {
       });
   };
 
-  // Calculate aggregates
-  // Calculate aggregates
-  const parentStudentIds = useMemo(() => parentStudents.map(s => s.id), [parentStudents]);
-  
-  const globalRequired = useMemo(() => {
-    return parentStudents.reduce((sum, s) => sum + (s.tuition_fee ?? s.tuitionFee ?? 10000), 0);
-  }, [parentStudents]);
-
-  const globalPaid = useMemo(() => {
-    return tuitionFees.payments
-      .filter(p => parentStudentIds.includes(p.studentId))
-      .reduce((sum, p) => sum + p.amount, 0);
-  }, [tuitionFees.payments, parentStudentIds]);
-
-  const globalRemaining = useMemo(() => globalRequired - globalPaid, [globalRequired, globalPaid]);
+  // Financial Dashboard Overview aggregates from the server
+  const globalRequired = financeStats.total_required || 0;
+  const globalPaid = financeStats.total_paid || 0;
+  const globalRemaining = financeStats.total_remaining || 0;
 
   const selectedStudent = useMemo(() => {
+    const feeRec = filteredStudents.find(s => s.student_id === selectedFinanceStudentId);
+    if (feeRec) {
+      return {
+        id: feeRec.student_id,
+        name: feeRec.student?.name_ar,
+        nameEn: feeRec.student?.name_en,
+        tuitionFee: feeRec.total_fees,
+        classId: feeRec.student?.class_id,
+      };
+    }
     return students.find(s => s.id === selectedFinanceStudentId);
-  }, [students, selectedFinanceStudentId]);
+  }, [filteredStudents, students, selectedFinanceStudentId]);
 
   const selectedRequired = useMemo(() => {
+    const feeRec = filteredStudents.find(s => s.student_id === selectedFinanceStudentId);
+    if (feeRec) return feeRec.total_fees;
     return selectedStudent ? (selectedStudent.tuition_fee ?? selectedStudent.tuitionFee ?? 10000) : 0;
-  }, [selectedStudent]);
-
+  }, [filteredStudents, selectedStudent, selectedFinanceStudentId]);
   const selectedPayments = useMemo(() => {
     return selectedStudent
       ? tuitionFees.payments.filter(p => p.studentId === selectedStudent.id)
@@ -267,13 +274,15 @@ export default function FinanceTab() {
             👥 {lang === 'ar' ? 'كشوفات الحساب المالية للطلاب' : 'Student Accounts List'}
           </h4>
 
-          {/* Search Box */}
           <div style={{ position: 'relative', width: '100%' }}>
             <input
               type="text"
               placeholder={lang === 'ar' ? '🔍 ابحث باسم الطالب أو الرقم الأكاديمي...' : '🔍 Search student by name or ID...'}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchTerm || ''}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setSearch(e.target.value);
+              }}
               className="text-field"
               style={{
                 width: '100%',
@@ -290,7 +299,10 @@ export default function FinanceTab() {
             />
             {searchTerm && (
               <button
-                onClick={() => setSearchTerm('')}
+                onClick={() => {
+                  setSearchTerm('');
+                  setSearch('');
+                }}
                 style={{
                   position: 'absolute',
                   left: lang === 'ar' ? '12px' : 'auto',
@@ -362,13 +374,43 @@ export default function FinanceTab() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="3" style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                      {lang === 'ar' ? '🔍 لا توجد نتائج مطابقة للبحث' : '🔍 No matching student accounts found'}
+                    <td colSpan="3" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '32px' }}>
+                          {search ? "🔍" : "📂"}
+                        </span>
+                        <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                          {search 
+                            ? (lang === 'ar' ? 'لا توجد نتائج تطابق بحثك' : 'No matching student accounts found')
+                            : (lang === 'ar' ? 'لا توجد حسابات مالية للطلاب حالياً' : 'No student accounts registered yet')
+                          }
+                        </span>
+                        <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                          {search 
+                            ? (lang === 'ar' ? 'جرب البحث باسم طالب مختلف' : 'Try searching for a different student name')
+                            : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
+                          }
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="no-print" style={{ marginTop: '4px' }}>
+            <PaginationBar
+              page={page}
+              lastPage={financePagination.lastPage}
+              total={financePagination.total}
+              from={financePagination.from}
+              to={financePagination.to}
+              perPage={perPage}
+              onPageChange={setPage}
+              onPerPageChange={setPerPage}
+              loading={loading}
+              lang={lang}
+            />
           </div>
         </div>
 
@@ -459,8 +501,16 @@ export default function FinanceTab() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3" style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                        ⚠️ {t.noPayments}
+                      <td colSpan="3" style={{ padding: '36px 16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '28px' }}>💳</span>
+                          <span style={{ fontWeight: '600', fontSize: '14px', color: 'var(--color-text-primary)' }}>
+                            {lang === 'ar' ? 'سجل السداد فارغ' : 'No Payments Recorded'}
+                          </span>
+                          <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                            {lang === 'ar' ? 'لم يسدد هذا الطالب أي دفعات مالية بعد.' : 'No payment transactions have been logged for this student.'}
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   )}

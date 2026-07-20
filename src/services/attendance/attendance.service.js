@@ -1,12 +1,12 @@
 import { api } from '../api';
 
 export const attendanceService = {
-  getAttendance: () => {
-    return api.get("/api/attendance");
+  getAttendance: (queryString = '') => {
+    return api.get(`/api/attendance${queryString}`);
   },
   
-  getAbsenceRequests: () => {
-    return api.get("/api/absence-requests");
+  getAbsenceRequests: (queryString = '') => {
+    return api.get(`/api/absence-requests${queryString}`);
   },
   
   saveAttendance: (payload) => {

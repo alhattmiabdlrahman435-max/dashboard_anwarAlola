@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { useClasses } from '../contexts/Classes/useClasses';
-import { Plus, X, Camera, User } from 'lucide-react';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
+import { Plus, X, Camera, User, Search } from 'lucide-react';
 
 export default function PrepSupervisorsTab() {
   const {
@@ -12,21 +14,49 @@ export default function PrepSupervisorsTab() {
 
   const {
     supervisors,
+    supervisorsPagination,
     handleAddSupervisor,
     handleEditSupervisor,
     handleDeleteSupervisor,
     fetchSupervisors,
+    loading
   } = useTeachers();
 
   const { classes, fetchClasses } = useClasses();
 
+  const {
+    page,
+    perPage,
+    search,
+    sort,
+    direction,
+    setPage,
+    setPerPage,
+    setSearch,
+    buildQueryString,
+    goToPrevIfEmpty,
+  } = usePagination({
+    moduleKey: 'supervisors',
+  });
+
+  const qs = buildQueryString();
+
   useEffect(() => {
-    fetchSupervisors();
+    fetchSupervisors(qs);
+  }, [fetchSupervisors, qs]);
+
+  useEffect(() => {
     fetchClasses();
-  }, [fetchSupervisors, fetchClasses]);
+  }, [fetchClasses]);
 
   // Local UI states
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(search);
+
+  useEffect(() => {
+    setSearchQuery(search);
+  }, [search]);
+
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
   const [showEditSupervisorModal, setShowEditSupervisorModal] = useState(false);
 
@@ -80,6 +110,7 @@ export default function PrepSupervisorsTab() {
           setModalPhoto('');
           setModalClasses([]);
           setModalSelectedClass('');
+          fetchSupervisors(qs);
         } else {
           setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
         }
@@ -132,6 +163,7 @@ export default function PrepSupervisorsTab() {
           setModalClasses([]);
           setModalSelectedClass('');
           setSelectedSupervisorIdForEdit(null);
+          fetchSupervisors(qs);
         } else {
           setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
         }
@@ -169,7 +201,15 @@ export default function PrepSupervisorsTab() {
     triggerConfirm({
       title: lang === 'ar' ? 'حذف مشرف التحضير' : 'Delete Prep Supervisor',
       message: lang === 'ar' ? 'هل أنت متأكد من حذف هذا المشرف نهائياً من النظام؟' : 'Are you sure you want to delete this supervisor from the system permanently?',
-      onConfirm: () => handleDeleteSupervisor(supervisorId)
+      onConfirm: () => {
+        handleDeleteSupervisor(supervisorId)
+          .then((res) => {
+            if (res && res.success) {
+              const nextQs = goToPrevIfEmpty(supervisors.length - 1);
+              fetchSupervisors(nextQs);
+            }
+          });
+      }
     });
   };
 
@@ -198,6 +238,23 @@ export default function PrepSupervisorsTab() {
               {lang === 'ar' ? 'إضافة مشرف تحضير' : 'Add Prep Supervisor'}
             </button>
           )}
+        </div>
+
+        {/* Search Box */}
+        <div className="students-controls no-print" style={{ marginBottom: 'var(--space-md)', padding: '0 var(--space-md)' }}>
+          <div className="search-box">
+            <Search size={18} />
+            <input 
+              type="text"
+              className="text-field"
+              placeholder={lang === 'ar' ? 'البحث باسم المشرف، الرقم الوظيفي، أو الجوال...' : 'Search by supervisor name, job ID, or phone...'}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSearch(e.target.value);
+              }}
+            />
+          </div>
         </div>
 
         <div className="students-table-container">
@@ -267,6 +324,20 @@ export default function PrepSupervisorsTab() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="no-print" style={{ padding: '0 var(--space-md)', marginBottom: 'var(--space-md)' }}>
+          <PaginationBar
+            page={page}
+            lastPage={supervisorsPagination.lastPage}
+            total={supervisorsPagination.total}
+            from={supervisorsPagination.from}
+            to={supervisorsPagination.to}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={setPerPage}
+            loading={loading}
+            lang={lang}
+          />
         </div>
       </div>
 

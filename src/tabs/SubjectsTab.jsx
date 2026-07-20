@@ -216,15 +216,40 @@ export default function SubjectsTab() {
 
       {/* Subjects grid container */}
       <div className="subjects-grid">
-        {subjects
-          .filter(sub => {
+        {(() => {
+          const filtered = subjects.filter(sub => {
             const query = subjectSearchQuery.toLowerCase();
             return (
               sub.name.toLowerCase().includes(query) ||
               sub.nameEn.toLowerCase().includes(query)
             );
-          })
-          .map(sub => {
+          });
+
+          if (filtered.length === 0) {
+            return (
+              <div style={{ gridColumn: '1 / -1', padding: '48px 24px', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-card)', background: 'var(--color-surface)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '32px' }}>
+                    {subjectSearchQuery ? "🔍" : "📂"}
+                  </span>
+                  <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                    {subjectSearchQuery 
+                      ? (lang === 'ar' ? 'لا توجد مواد تطابق بحثك' : 'No matching subjects found')
+                      : (lang === 'ar' ? 'لا توجد مواد دراسية مسجلة حالياً' : 'No subjects registered yet')
+                    }
+                  </span>
+                  <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                    {subjectSearchQuery 
+                      ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
+                      : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
+                    }
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          return filtered.map(sub => {
             // Find classes studying this subject
             const studyingClasses = classes.filter(c => c.subjects.includes(sub.name));
             // Find teachers teaching this subject
@@ -239,16 +264,26 @@ export default function SubjectsTab() {
                   <h4 className="title-large" style={{ margin: 0, fontWeight: '700' }}>
                     {lang === 'ar' ? sub.name : sub.nameEn}
                   </h4>
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                    {sub.id}
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                    {lang === 'ar' ? `الرمز: ${sub.code || sub.id}` : `Code: ${sub.code || sub.id}`}
                   </span>
                 </div>
                 
                 <div className="subject-card-body" style={{ marginTop: '8px' }}>
-                  {/* Classes using this subject */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                    <span>🏫 {lang === 'ar' ? 'الفصول الدراسية:' : 'Classes:'}</span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>{studyingClasses.length} {lang === 'ar' ? 'فصل' : 'classes'}</strong>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px' }}>
+                    <span>👨‍🏫 {lang === 'ar' ? 'معلمو المادة:' : 'Teachers:'}</span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>{teachingTeachers.length} {lang === 'ar' ? 'معلم' : 'teachers'}</strong>
+                  </div>
+
+                  {/* Classes preview */}
                   <div style={{ marginBottom: '12px' }}>
                     <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-text-secondary)' }}>
-                      🏫 {lang === 'ar' ? 'الفصول التي تدرس المادة:' : 'Classes studying this subject:'}
+                      📍 {lang === 'ar' ? 'الفصول المقررة:' : 'Assigned Classes:'}
                     </div>
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxHeight: '55px', overflowY: 'auto' }}>
                       {studyingClasses.length > 0 ? (
@@ -259,16 +294,16 @@ export default function SubjectsTab() {
                         ))
                       ) : (
                         <span style={{ fontSize: '11px', fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>
-                          {lang === 'ar' ? 'لم تسند لأي فصل بعد' : 'Not assigned to any class yet'}
+                          {lang === 'ar' ? 'غير مسندة لفصول' : 'Not assigned to classes'}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Teachers teaching this subject */}
+                  {/* Teachers preview */}
                   <div style={{ marginBottom: '12px' }}>
                     <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-text-secondary)' }}>
-                      👨‍🏫 {lang === 'ar' ? 'المعلمون المدرسون للمادة:' : 'Teachers teaching this subject:'}
+                      🎓 {lang === 'ar' ? 'هيئة التدريس:' : 'Teaching Faculty:'}
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                       {teachingTeachers.length > 0 ? (
@@ -278,12 +313,12 @@ export default function SubjectsTab() {
                             style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'rgba(30, 80, 142, 0.04)', borderRadius: '12px', border: '1px solid var(--color-border)' }}
                           >
                             <span>{teach.photo || "👨‍🏫"}</span>
-                            <span style={{ fontWeight: '500' }}>{lang === 'ar' ? teach.name : teach.nameEn}</span>
+                            <span style={{ fontWeight: '500' }}>{lang === 'ar' ? teach.name.split(' ').slice(1).join(' ') : teach.nameEn}</span>
                           </span>
                         ))
                       ) : (
                         <span style={{ fontSize: '11px', fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>
-                          {lang === 'ar' ? 'لا يوجد معلم مسند' : 'No teacher assigned'}
+                          {lang === 'ar' ? 'لا يوجد معلمون' : 'No teachers assigned'}
                         </span>
                       )}
                     </div>
@@ -292,30 +327,20 @@ export default function SubjectsTab() {
 
                 {/* Card Actions */}
                 <div className="subject-card-actions" style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-                  <button 
-                    className="btn-elevated"
-                    style={{ flex: 1, padding: '8px 4px', fontSize: '12px' }}
-                    onClick={() => {
-                      setSelectedSubjectForDetails(sub);
-                      setShowSubjectDetailsModal(true);
-                    }}
-                  >
-                    🔍 {lang === 'ar' ? 'عرض التفاصيل' : 'Details'}
-                  </button>
                   {canAction('subjects', 'update') && (
                     <button 
                       className="btn-elevated"
-                      style={{ padding: '8px 10px', fontSize: '12px' }}
+                      style={{ flex: 1, padding: '8px 4px', fontSize: '12px' }}
                       onClick={() => {
                         setFormError('');
                         setSelectedSubjectIdForEdit(sub.id);
                         setModalSubjectNameAr(sub.name);
-                        setModalSubjectNameEn(sub.nameEn);
+                        setModalSubjectNameEn(sub.nameEn || '');
                         setModalSubjectClasses(classes.filter(c => c.subjects.includes(sub.name)).map(c => c.name));
                         setShowEditSubjectModal(true);
                       }}
                     >
-                      📝
+                      📝 {lang === 'ar' ? 'تعديل / تعيين' : 'Edit / Assign'}
                     </button>
                   )}
                   {canAction('subjects', 'delete') && (
@@ -330,7 +355,8 @@ export default function SubjectsTab() {
                 </div>
               </div>
             );
-          })}
+          });
+        })()}
       </div>
       </div>
 

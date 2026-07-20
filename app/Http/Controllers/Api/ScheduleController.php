@@ -13,8 +13,12 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class ScheduleController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'grade_ar', 'section_ar', 'created_at'];
+
     public static function middleware(): array
     {
         return [
@@ -23,7 +27,7 @@ class ScheduleController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'schedule');
@@ -36,15 +40,40 @@ class ScheduleController extends Controller implements HasMiddleware
             $classQuery->whereIn('id', $scopedClassIds);
         }
 
-        // Fetch all schedules with classes and subjects
-        $schedules = $scheduleQuery->with(['schoolClass', 'subject'])->get();
+        // Apply search on classes
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $classQuery->where(function($q) use ($search) {
+                $q->where('grade_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('section_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('grade_en', 'LIKE', "%{$search}%")
+                  ->orWhere('section_en', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting on classes
+        $sortBy = $request->input('sort', 'id');
+        $direction = strtolower($request->input('direction', 'asc'));
+        if (in_array($sortBy, $this->sortableColumns)) {
+            $classQuery->orderBy($sortBy, $direction);
+        } else {
+            $classQuery->orderBy('id', 'asc');
+        }
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $classQuery->with(['teacherSubjects.teacher', 'teacherSubjects.subject'])->paginate($perPage);
+        $classes = $paginator->getCollection();
+
+        // Get only the schedules for the paginated classes
+        $classIds = $classes->pluck('id')->toArray();
+        $schedules = $scheduleQuery->whereIn('class_id', $classIds)
+                                   ->with(['schoolClass', 'subject'])
+                                   ->get();
         
-        // Group by class name (e.g. "الصف الأول - أ")
+        // Group by class name
         $grouped = [];
         $teachersMapping = [];
         
-        // Load all classes with teacher subjects
-        $classes = $classQuery->with(['teacherSubjects.teacher', 'teacherSubjects.subject'])->get();
         foreach ($classes as $cls) {
             $className = $cls->grade_ar . ' - ' . $cls->section_ar;
             
@@ -85,7 +114,11 @@ class ScheduleController extends Controller implements HasMiddleware
         return response()->json([
             'success' => true,
             'schedules' => $grouped,
-            'teachers' => $teachersMapping
+            'teachers' => $teachersMapping,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 
@@ -143,18 +176,52 @@ class ScheduleController extends Controller implements HasMiddleware
         foreach ($request->schedule as $day => $periods) {
             foreach ($periods as $idx => $subjName) {
                 if (!empty($subjName)) {
-                    $allSubjectNames[] = $subjName;
+                    $allSubjectNames[] = trim($subjName);
                 }
             }
         }
         $allSubjectNames = array_unique($allSubjectNames);
-        $subjectsMap = Subject::whereIn('name_ar', $allSubjectNames)->get()->keyBy('name_ar');
+        
+        $subjectsList = Subject::whereIn('name_ar', $allSubjectNames)
+            ->orWhereIn('name_en', $allSubjectNames)
+            ->get();
+        $subjectsByAr = $subjectsList->keyBy('name_ar');
+        $subjectsByEn = $subjectsList->keyBy('name_en');
 
         // Preload teacher subject assignments for this class
-        $teacherSubjectsMap = TeacherSubject::where('class_id', $cls->id)
+        $teacherSubjects = TeacherSubject::where('class_id', $cls->id)
             ->with('teacher')
             ->get()
-            ->groupBy('subject_id');
+            ->keyBy('subject_id');
+
+        $teacherIds = $teacherSubjects->pluck('teacher_id')->filter()->unique()->toArray();
+        $schedulesByTeacherAndSlot = [];
+
+        if (!empty($teacherIds)) {
+            $allSchedules = DB::table('schedules')
+                ->join('teacher_subjects', function($join) {
+                    $join->on('schedules.class_id', '=', 'teacher_subjects.class_id')
+                         ->on('schedules.subject_id', '=', 'teacher_subjects.subject_id');
+                })
+                ->join('classes', 'schedules.class_id', '=', 'classes.id')
+                ->join('subjects', 'schedules.subject_id', '=', 'subjects.id')
+                ->where('schedules.class_id', '!=', $cls->id)
+                ->whereIn('teacher_subjects.teacher_id', $teacherIds)
+                ->select(
+                    'schedules.day_of_week',
+                    'schedules.period',
+                    'teacher_subjects.teacher_id',
+                    'classes.grade_ar',
+                    'classes.section_ar',
+                    'subjects.name_ar as subject_name'
+                )
+                ->get();
+
+            foreach ($allSchedules as $schObj) {
+                $key = $schObj->teacher_id . '-' . strtolower($schObj->day_of_week) . '-' . $schObj->period;
+                $schedulesByTeacherAndSlot[$key] = $schObj;
+            }
+        }
 
         foreach ($request->schedule as $day => $periods) {
             foreach ($periods as $idx => $subjName) {
@@ -163,38 +230,18 @@ class ScheduleController extends Controller implements HasMiddleware
                 $dayKey = strtolower($day);
                 $periodNumber = $idx + 1;
                 
-                $subj = $subjectsMap->get($subjName);
+                $subj = $subjectsByAr->get(trim($subjName)) ?: $subjectsByEn->get(trim($subjName));
                 if (!$subj) continue;
 
-                $tsList = $teacherSubjectsMap->get($subj->id);
-                if (!$tsList || $tsList->isEmpty()) continue;
-                
-                $ts = $tsList->first();
-                if (!$ts->teacher) continue;
+                $ts = $teacherSubjects->get($subj->id);
+                if (!$ts || !$ts->teacher) continue;
                 
                 $teacherId = $ts->teacher_id;
                 $teacherName = $ts->teacher->name_ar ?? $ts->teacher->name;
 
-                // Query DB to check if this teacher is already assigned elsewhere at this day and period
-                $conflict = DB::table('schedules')
-                    ->join('teacher_subjects', function($join) {
-                        $join->on('schedules.class_id', '=', 'teacher_subjects.class_id')
-                             ->on('schedules.subject_id', '=', 'teacher_subjects.subject_id');
-                    })
-                    ->join('classes', 'schedules.class_id', '=', 'classes.id')
-                    ->join('subjects', 'schedules.subject_id', '=', 'subjects.id')
-                    ->where('schedules.class_id', '!=', $cls->id)
-                    ->where('schedules.day_of_week', $dayKey)
-                    ->where('schedules.period', $periodNumber)
-                    ->where('teacher_subjects.teacher_id', $teacherId)
-                    ->select(
-                        'classes.grade_ar',
-                        'classes.section_ar',
-                        'subjects.name_ar as subject_name'
-                    )
-                    ->first();
-
-                if ($conflict) {
+                $key = $teacherId . '-' . $dayKey . '-' . $periodNumber;
+                if (isset($schedulesByTeacherAndSlot[$key])) {
+                    $conflict = $schedulesByTeacherAndSlot[$key];
                     $conflictClassName = $conflict->grade_ar . ' - ' . $conflict->section_ar;
                     $dayAr = $dayNamesAr[$dayKey] ?? $day;
                     $periodAr = $periodNamesAr[$periodNumber] ?? "الحصة {$periodNumber}";
@@ -218,7 +265,10 @@ class ScheduleController extends Controller implements HasMiddleware
             ], 400);
         }
 
-        return DB::transaction(function() use ($request, $cls, $className, $dayNamesAr, $periodNamesAr) {
+        $teacherFcmToSend = [];
+        $parentsToNotify = [];
+
+        $response = DB::transaction(function() use ($request, $cls, $className, $dayNamesAr, $periodNamesAr, $subjectsByAr, $subjectsByEn, $teacherSubjects, &$teacherFcmToSend, &$parentsToNotify) {
             // 1. Get old schedules for comparison
             $oldSchedules = Schedule::where('class_id', $cls->id)->get();
             $oldPeriods = [];
@@ -226,22 +276,24 @@ class ScheduleController extends Controller implements HasMiddleware
                 $oldPeriods[strtolower($sch->day_of_week) . '-' . $sch->period] = $sch->subject_id;
             }
 
-            // 2. Preload teacher subjects for this class to map subject_id -> teacher
-            $teacherSubjects = TeacherSubject::where('class_id', $cls->id)->get()->keyBy('subject_id');
-
-            // 3. Build new periods mapping from request
+            // 2. Build new periods mapping from request
             $newPeriods = [];
             foreach ($request->schedule as $day => $periods) {
                 foreach ($periods as $idx => $subjName) {
                     if (empty($subjName)) continue;
-                    $subj = Subject::where('name_ar', trim($subjName))
-                        ->orWhere('name_en', trim($subjName))
-                        ->first();
+                    $subj = $subjectsByAr->get(trim($subjName)) ?: $subjectsByEn->get(trim($subjName));
                     if ($subj) {
                         $newPeriods[strtolower($day) . '-' . ($idx + 1)] = $subj->id;
                     }
                 }
             }
+
+            // 3. Preload all subject details for change notifications
+            $allSubjectIds = array_unique(array_merge(
+                array_values($oldPeriods),
+                array_values($newPeriods)
+            ));
+            $subjectsById = Subject::whereIn('id', $allSubjectIds)->get()->keyBy('id');
 
             // 4. Delete old schedules for this class
             Schedule::where('class_id', $cls->id)->delete();
@@ -257,7 +309,7 @@ class ScheduleController extends Controller implements HasMiddleware
                 ]);
             }
 
-            // 6. Calculate changes and notify teachers
+            // 6. Calculate changes and prepare notifications
             $notificationsToSend = []; // array of ['teacher_id' => ..., 'title' => ..., 'body' => ...]
 
             // Helper to get teacher from subject
@@ -266,16 +318,16 @@ class ScheduleController extends Controller implements HasMiddleware
                 return $ts ? $ts->teacher_id : null;
             };
 
-            // Detect deleted periods (existed in old, not in new OR new has different subject)
+            // Detect deleted periods
             foreach ($oldPeriods as $key => $oldSubjId) {
                 list($day, $period) = explode('-', $key);
                 $newSubjId = $newPeriods[$key] ?? null;
 
                 if ($newSubjId !== $oldSubjId) {
-                    // Session deleted or changed for the old subject's teacher
                     $oldTeacherId = $getTeacherId($oldSubjId);
                     if ($oldTeacherId) {
-                        $subjName = Subject::find($oldSubjId)->name_ar ?? '';
+                        $subjObj = $subjectsById->get($oldSubjId);
+                        $subjName = $subjObj ? $subjObj->name_ar : '';
                         $dayAr = $dayNamesAr[$day] ?? $day;
                         $periodAr = $periodNamesAr[$period] ?? "الحصة {$period}";
                         
@@ -288,16 +340,16 @@ class ScheduleController extends Controller implements HasMiddleware
                 }
             }
 
-            // Detect added periods (existed in new, not in old OR old had different subject)
+            // Detect added periods
             foreach ($newPeriods as $key => $newSubjId) {
                 list($day, $period) = explode('-', $key);
                 $oldSubjId = $oldPeriods[$key] ?? null;
 
                 if ($oldSubjId !== $newSubjId) {
-                    // Session added or changed for the new subject's teacher
                     $newTeacherId = $getTeacherId($newSubjId);
                     if ($newTeacherId) {
-                        $subjName = Subject::find($newSubjId)->name_ar ?? '';
+                        $subjObj = $subjectsById->get($newSubjId);
+                        $subjName = $subjObj ? $subjObj->name_ar : '';
                         $dayAr = $dayNamesAr[$day] ?? $day;
                         $periodAr = $periodNamesAr[$period] ?? "الحصة {$period}";
                         
@@ -310,7 +362,7 @@ class ScheduleController extends Controller implements HasMiddleware
                 }
             }
 
-            // Send calculated notifications
+            // Send calculated notifications (DB insertions inside transaction)
             foreach ($notificationsToSend as $notif) {
                 \App\Models\Notification::create([
                     'title' => $notif['title'],
@@ -322,19 +374,14 @@ class ScheduleController extends Controller implements HasMiddleware
 
                 $teacherUser = \App\Models\User::find($notif['teacher_id']);
                 if ($teacherUser) {
-                    \App\Services\FcmService::sendToUser(
-                        $teacherUser,
-                        $notif['title'] . ' 📅',
-                        $notif['body'],
-                        [
-                            'type' => 'weekly_schedule',
-                            'class_id' => (string)$cls->id
-                        ]
-                    );
+                    $teacherFcmToSend[] = [
+                        'user' => $teacherUser,
+                        'title' => $notif['title'] . ' 📅',
+                        'body' => $notif['body']
+                    ];
                 }
             }
-
-            // 7. Notify parents of the class as usual
+            // 7. Notify parents of the class as usual (DB insertions inside transaction)
             \App\Models\Notification::create([
                 'title' => 'تحديث الجدول الدراسي الأسبوعي',
                 'content' => 'تم تحديث الجدول الدراسي الأسبوعي للفصل ' . $className,
@@ -346,21 +393,46 @@ class ScheduleController extends Controller implements HasMiddleware
             $students = \App\Models\Student::with('parentUser')->where('class_id', $cls->id)->get();
             $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
             foreach ($parentUsers as $parentUser) {
-                \App\Services\FcmService::sendToUser(
-                    $parentUser,
-                    'تحديث الجدول الدراسي الأسبوعي 📅',
-                    'تم تحديث الجدول الدراسي الأسبوعي لصف ابنكم: ' . $className,
-                    [
-                        'type' => 'weekly_schedule',
-                        'class_id' => (string)$cls->id
-                    ]
-                );
+                $parentsToNotify[] = [
+                    'user' => $parentUser,
+                    'title' => 'تحديث الجدول الدراسي الأسبوعي 📅',
+                    'body' => 'تم تحديث الجدول الدراسي الأسبوعي لصف ابنكم: ' . $className
+                ];
             }
+
+            // 8. Register post-commit hook to dispatch synchronous FCM requests ONLY after transaction commits successfully
+            DB::afterCommit(function() use ($teacherFcmToSend, $parentsToNotify, $cls) {
+                foreach ($teacherFcmToSend as $item) {
+                    \App\Services\FcmService::sendToUser(
+                        $item['user'],
+                        $item['title'],
+                        $item['body'],
+                        [
+                            'type' => 'weekly_schedule',
+                            'class_id' => (string)$cls->id
+                        ]
+                    );
+                }
+
+                foreach ($parentsToNotify as $item) {
+                    \App\Services\FcmService::sendToUser(
+                        $item['user'],
+                        $item['title'],
+                        $item['body'],
+                        [
+                            'type' => 'weekly_schedule',
+                            'class_id' => (string)$cls->id
+                        ]
+                    );
+                }
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'تم حفظ جدول الفصل بنجاح'
             ]);
         });
+
+        return $response;
     }
 }

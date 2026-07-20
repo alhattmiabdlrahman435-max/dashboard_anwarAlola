@@ -55,4 +55,6 @@ check_db.php
 # Clockwork
 /storage/clockwork/
 clockwork.json
+.clockwork
+.clockwork.json
 /config/clockwork.php

@@ -11,8 +11,12 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class FinanceController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'name_ar', 'name_en', 'created_at'];
+
     public static function middleware(): array
     {
         return [
@@ -21,7 +25,7 @@ class FinanceController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'finance');
@@ -31,8 +35,37 @@ class FinanceController extends Controller implements HasMiddleware
             $query->whereIn('class_id', $scopedClassIds);
         }
 
-        $students = $query->with('payments')->get();
-        
+        // Apply filters
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->input('class_id'));
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%")
+                  ->orWhere('student_code', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'student_code', 'name_ar', 'name_en', 'class_id', 'tuition_fee', 'created_at'
+        ]);
+
+        $query->with('payments');
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+        $students = $paginator->getCollection();
+
         $records = $students->map(function($student) {
             $totalFees = (float)($student->tuition_fee ?? 10000.00);
             $paid = $student->payments->sum('amount');
@@ -55,7 +88,11 @@ class FinanceController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'students_fees' => $records
+            'students_fees' => $records,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 
@@ -118,11 +155,18 @@ class FinanceController extends Controller implements HasMiddleware
             ], 403);
         }
 
+        $refNo = $request->reference_no;
+        if (empty($refNo)) {
+            do {
+                $refNo = 'PAY-' . random_int(100000, 999999);
+            } while (Payment::where('reference_no', $refNo)->exists());
+        }
+
         $payment = Payment::create([
             'student_id' => $request->student_id,
             'amount' => $request->amount,
             'payment_date' => $request->payment_date,
-            'reference_no' => $request->reference_no ?: 'PAY-' . rand(100000, 999999),
+            'reference_no' => $refNo,
             'recorded_by' => auth()->id()
         ]);
 
@@ -141,8 +185,8 @@ class FinanceController extends Controller implements HasMiddleware
             ]);
 
             $parentUser = $student->parentUser;
-            if ($parentUser && $parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification($parentUser->fcm_token, $title, $content, [
+            if ($parentUser) {
+                \App\Services\FcmService::sendToUser($parentUser, $title, $content, [
                     'type' => 'finance',
                     'student_id' => (string)$student->id
                 ]);

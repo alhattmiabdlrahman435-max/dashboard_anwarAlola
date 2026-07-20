@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\User;
+use App\Models\Attendance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -12,8 +13,12 @@ use App\Services\PermissionService;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 
+use App\Http\Requests\ListRequest;
+
 class ParentController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'name_ar', 'name_en', 'national_id', 'phone', 'created_at'];
+
     public static function middleware(): array
     {
         return [
@@ -24,7 +29,7 @@ class ParentController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'parents');
@@ -36,10 +41,86 @@ class ParentController extends Controller implements HasMiddleware
             });
         }
 
-        $parents = $query->get();
+        // Apply filters
+        if ($request->filled('class_id')) {
+            $query->whereHas('children', function($q) use ($request) {
+                $q->where('class_id', $request->input('class_id'));
+            });
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%")
+                  ->orWhere('national_id', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe column selection
+        $query->select([
+            'id', 'name', 'username', 'role', 'national_id', 'phone', 'name_ar', 'name_en', 'photo_url', 'address', 'is_active', 'created_at'
+        ]);
+
+        $query->with(['children.schoolClass', 'children.attendances' => function($q) {
+            $q->where('record_date', today()->toDateString());
+        }]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+
+        $parents = collect($paginator->items())->map(function($parent) {
+            $children = $parent->children->map(function($student) use ($parent) {
+                $attendance = $student->attendances->first();
+                return [
+                    'id' => $student->id,
+                    'student_code' => $student->student_code,
+                    'name' => $student->name_ar,
+                    'name_ar' => $student->name_ar,
+                    'name_en' => $student->name_en,
+                    'nameEn' => $student->name_en,
+                    'grade' => $student->schoolClass ? $student->schoolClass->grade_ar : '',
+                    'gradeEn' => $student->schoolClass ? $student->schoolClass->grade_en : '',
+                    'section' => $student->schoolClass ? $student->schoolClass->section_ar : '',
+                    'sectionEn' => $student->schoolClass ? $student->schoolClass->section_en : '',
+                    'status' => $attendance ? $attendance->status : 'absent',
+                    'photo' => $student->photo_url ?: '👨‍🎓',
+                    'parentNationalId' => $parent->national_id,
+                ];
+            });
+
+            return [
+                'id' => $parent->id,
+                'name' => $parent->name_ar,
+                'name_ar' => $parent->name_ar,
+                'name_en' => $parent->name_en,
+                'username' => $parent->username,
+                'role' => $parent->role,
+                'national_id' => $parent->national_id,
+                'phone' => $parent->phone,
+                'photo' => $parent->photo_url ?: '🧔',
+                'photo_url' => $parent->photo_url ?: '🧔',
+                'address' => $parent->address,
+                'is_active' => $parent->is_active,
+                'created_at' => $parent->created_at,
+                'children' => $children,
+            ];
+        });
+
         return response()->json([
             'success' => true,
-            'parents' => $parents
+            'parents' => $parents,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 

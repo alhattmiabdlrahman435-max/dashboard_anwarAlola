@@ -11,19 +11,24 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 
+use App\Http\Requests\ListRequest;
+
 class AssignmentController extends Controller implements HasMiddleware
 {
+    public $sortableColumns = ['id', 'title', 'due_date', 'created_at'];
+
     public static function middleware(): array
     {
         return [
             new Middleware('check.permission:assignments,view', only: ['index', 'show', 'submissions']),
             new Middleware('check.permission:assignments,create', only: ['store']),
             new Middleware('check.permission:assignments,update', only: ['update', 'updateSubmissions']),
-            new Middleware('check.permission:assignments,delete', only: ['destroy', 'deleteAll']),
+            new Middleware('check.permission:assignments,delete', only: ['destroy']),
+            new Middleware('check.permission:assignments,deleteAll', only: ['deleteAll']),
         ];
     }
 
-    public function index(Request $request)
+    public function index(ListRequest $request)
     {
         $user = $request->user();
         $query = Assignment::with(['teacher', 'schoolClass', 'subject', 'submissions.student']);
@@ -39,13 +44,51 @@ class AssignmentController extends Controller implements HasMiddleware
                 $query->whereIn('class_id', $scopedClassIds);
             }
         }
-        
-        $assignments = $query->orderBy('created_at', 'desc')->get();
-        $this->ensureSubmissionsExist($assignments);
+
+        // Apply filters
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->input('class_id'));
+        }
+        if ($request->filled('subject_id')) {
+            $query->where('subject_id', $request->input('subject_id'));
+        }
+        if ($request->filled('teacher_id')) {
+            $query->where('teacher_id', $request->input('teacher_id'));
+        }
+        if ($request->filled('date')) {
+            $query->whereDate('date_created', $request->input('date'));
+        }
+
+        // Apply search
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'LIKE', "%{$search}%")
+                  ->orWhere('content', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'teacher_id', 'class_id', 'subject_id', 'title', 'content', 'date_created', 'due_date', 'attachment_url', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
+        $assignments = $paginator->getCollection();
         
         return response()->json([
             'success' => true,
-            'assignments' => $assignments
+            'assignments' => $assignments,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 
@@ -57,7 +100,7 @@ class AssignmentController extends Controller implements HasMiddleware
             'title' => 'required|string',
             'content' => 'nullable|string',
             'due_date' => 'required|date',
-            'attachment' => 'nullable|file|max:10240', // max 10MB
+            'attachment' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,zip,rar,txt|max:10240', // max 10MB
         ]);
 
         $user = $request->user();
@@ -74,7 +117,8 @@ class AssignmentController extends Controller implements HasMiddleware
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9_.-]/', '', $file->getClientOriginalName());
+            $ext = strtolower($file->getClientOriginalExtension());
+            $fileName = time() . '_' . uniqid() . '.' . $ext;
             $file->move(public_path('uploads/assignments'), $fileName);
             $attachmentUrl = url('uploads/assignments/' . $fileName);
         }
@@ -111,17 +155,15 @@ class AssignmentController extends Controller implements HasMiddleware
 
         $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
         foreach ($parentUsers as $parentUser) {
-            if ($parentUser->fcm_token) {
-                \App\Services\FcmService::sendNotification(
-                    $parentUser->fcm_token,
-                    'واجب مدرسي جديد 📝',
-                    'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
-                    [
-                        'type' => 'assignment',
-                        'class_id' => (string)$assignment->class_id
-                    ]
-                );
-            }
+            \App\Services\FcmService::sendToUser(
+                $parentUser,
+                'واجب مدرسي جديد 📝',
+                'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
+                [
+                    'type' => 'assignment',
+                    'class_id' => (string)$assignment->class_id
+                ]
+            );
         }
 
         return response()->json([
@@ -131,41 +173,23 @@ class AssignmentController extends Controller implements HasMiddleware
         ], 201);
     }
 
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
         $assignment = Assignment::with(['teacher', 'schoolClass', 'subject', 'submissions.student'])->find($id);
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
         }
-        $this->ensureSubmissionsExist(collect([$assignment]));
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
+        if ($scopedClassIds !== null && !in_array($assignment->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك باستعراض هذا الواجب.',
+            ], 403);
+        }
+
         return response()->json(['success' => true, 'assignment' => $assignment]);
-    }
-
-    /**
-     * Ensure that all students in the class have a submission record for the assignment.
-     */
-    private function ensureSubmissionsExist($assignments)
-    {
-        $needsReload = false;
-        foreach ($assignments as $assignment) {
-            $studentIds = Student::where('class_id', $assignment->class_id)->pluck('id')->toArray();
-            $existingStudentIds = $assignment->submissions->pluck('student_id')->toArray();
-            $missingStudentIds = array_diff($studentIds, $existingStudentIds);
-
-            if (!empty($missingStudentIds)) {
-                foreach ($missingStudentIds as $studentId) {
-                    AssignmentSubmission::create([
-                        'assignment_id' => $assignment->id,
-                        'student_id' => $studentId,
-                        'status' => 'pending',
-                    ]);
-                }
-                $needsReload = true;
-            }
-        }
-        if ($needsReload) {
-            $assignments->load('submissions.student');
-        }
     }
 
     public function update(Request $request, string $id)
@@ -193,7 +217,7 @@ class AssignmentController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
         $assignment = Assignment::find($id);
         if (!$assignment) {
@@ -218,7 +242,7 @@ class AssignmentController extends Controller implements HasMiddleware
     /**
      * عرض تسليمات الواجب
      */
-    public function submissions(Request $request, string $id)
+    public function submissions(ListRequest $request, string $id)
     {
         $assignment = Assignment::find($id);
         if (!$assignment) {
@@ -234,13 +258,37 @@ class AssignmentController extends Controller implements HasMiddleware
             ], 403);
         }
 
-        $submissions = AssignmentSubmission::with('student')
-                                            ->where('assignment_id', $id)
-                                            ->get();
+        $query = AssignmentSubmission::with('student')->where('assignment_id', $id);
+
+        // Apply search (on student name)
+        $search = $request->input('search');
+        if (!empty($search)) {
+            $query->whereHas('student', function($q) use ($search) {
+                $q->where('name_ar', 'LIKE', "%{$search}%")
+                  ->orWhere('name_en', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->input('sort', 'created_at');
+        $direction = strtolower($request->input('direction', 'desc'));
+        $query->orderBy($sortBy, $direction);
+
+        // Safe Column Selection
+        $query->select([
+            'id', 'assignment_id', 'student_id', 'status', 'teacher_note', 'submitted_at', 'created_at'
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
 
         return response()->json([
             'success' => true,
-            'submissions' => $submissions
+            'submissions' => $paginator->items(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total()
         ]);
     }
 

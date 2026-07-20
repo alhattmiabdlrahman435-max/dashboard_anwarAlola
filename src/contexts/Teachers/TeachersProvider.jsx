@@ -16,30 +16,42 @@ export default function TeachersProvider({ children }) {
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isStale, setIsStale] = useState(true);
+  const [teachersPagination, setTeachersPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20,
+  });
+  const [supervisorsPagination, setSupervisorsPagination] = useState({
+    total: 0, lastPage: 1, from: 0, to: 0, currentPage: 1, perPage: 20,
+  });
 
   const fetchTeachersRequestRef = useRef(0);
   const fetchSupervisorsRequestRef = useRef(0);
+  const teachersAbortRef = useRef(null);
+  const supervisorsAbortRef = useRef(null);
 
   // ─── Fetch Teachers ────────────────────────────────────────────────
-  const fetchTeachers = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    const tokenArg = args.find(a => typeof a === 'string');
-    const activeToken = tokenArg || localStorage.getItem("auth_token");
+  const fetchTeachers = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+
+    const activeToken = localStorage.getItem('auth_token');
     if (!activeToken) return;
 
-    if (!force && !isStale && teachers.length > 0) {
-      return;
-    }
+    if (!isForce && !isQueryString && !isStale && teachers.length > 0) return;
+
+    if (teachersAbortRef.current) teachersAbortRef.current.abort();
+    const controller = new AbortController();
+    teachersAbortRef.current = controller;
 
     const reqId = ++fetchTeachersRequestRef.current;
     setLoading(true);
-    teachersService.getTeachers()
+    teachersService.getTeachers(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
-        if (!localStorage.getItem('auth_token')) return;
+        if (controller.signal.aborted) return;
         if (reqId !== fetchTeachersRequestRef.current) return;
+        if (!localStorage.getItem('auth_token')) return;
         if (data.success) {
-          const mapped = data.teachers.map((t) => {
+          const mapped = (data.teachers || []).map((t) => {
             const classNames = [];
             const subjectNames = [];
             const teachingAssignments = [];
@@ -48,76 +60,98 @@ export default function TeachersProvider({ children }) {
               t.assignments.forEach((assign) => {
                 const className = assign.school_class
                   ? assign.school_class.name_ar || assign.school_class.name
-                  : "";
+                  : '';
                 const subjectName = assign.subject
                   ? assign.subject.name_ar || assign.subject.name
-                  : "";
+                  : '';
 
-                if (className && !classNames.includes(className)) {
-                  classNames.push(className);
-                }
-                if (subjectName && !subjectNames.includes(subjectName)) {
-                  subjectNames.push(subjectName);
-                }
-                if (className && subjectName) {
-                  teachingAssignments.push({ subject: subjectName, class: className });
-                }
+                if (className && !classNames.includes(className)) classNames.push(className);
+                if (subjectName && !subjectNames.includes(subjectName)) subjectNames.push(subjectName);
+                if (className && subjectName) teachingAssignments.push({ subject: subjectName, class: className });
               });
             }
 
             return {
               id: t.id,
               jobId: t.job_id,
-              phone: t.phone || "",
-              address: t.address || "",
-              name: t.name_ar || t.name_en || "",
-              nameEn: t.name_en || t.name_ar || "",
-              subject: subjectNames.join("، "),
-              subjectEn: subjectNames.join(", "),
+              phone: t.phone || '',
+              address: t.address || '',
+              name: t.name_ar || t.name_en || '',
+              nameEn: t.name_en || t.name_ar || '',
+              subject: subjectNames.join('، '),
+              subjectEn: subjectNames.join(', '),
               subjects: subjectNames,
               classes: classNames,
               teachingAssignments: teachingAssignments,
               gradesEntered: t.grades_entered || 0,
               assignments: t.assignments_count || 0,
-              photo: t.photo_url || "👨‍🏫",
+              photo: t.photo_url || '👨\u200d🏫',
             };
           });
           setTeachers(mapped);
           setIsStale(false);
+          const pg = data.pagination || data.meta || {};
+          setTeachersPagination({
+            total:       pg.total        ?? data.total        ?? mapped.length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? mapped.length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? mapped.length,
+          });
         }
       })
       .catch((err) => {
-        if (reqId === fetchTeachersRequestRef.current) {
-          console.error("Error fetching teachers:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchTeachersRequestRef.current) return;
+        console.error('Error fetching teachers:', err);
       })
       .finally(() => {
         if (reqId === fetchTeachersRequestRef.current) {
           setLoading(false);
+          teachersAbortRef.current = null;
         }
       });
   }, [isStale, teachers.length]);
 
   // ─── Fetch Supervisors ─────────────────────────────────────────────
-  const fetchSupervisors = useCallback((...args) => {
-    const force = args.find(a => typeof a === 'boolean') || false;
-    if (!force && !isStale && supervisors.length > 0) {
-      return;
-    }
+  const fetchSupervisors = useCallback((arg) => {
+    const isForce = arg === true;
+    const isQueryString = typeof arg === 'string';
+    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+
+    if (!isForce && !isQueryString && !isStale && supervisors.length > 0) return;
+
+    if (supervisorsAbortRef.current) supervisorsAbortRef.current.abort();
+    const controller = new AbortController();
+    supervisorsAbortRef.current = controller;
+
     const reqId = ++fetchSupervisorsRequestRef.current;
-    teachersService.getSupervisors()
+    teachersService.getSupervisors(queryString)
       .then((data) => {
-        // Guard: ignore response if user has logged out
-        if (!localStorage.getItem('auth_token')) return;
+        if (controller.signal.aborted) return;
         if (reqId !== fetchSupervisorsRequestRef.current) return;
+        if (!localStorage.getItem('auth_token')) return;
         if (data.success) {
-          setSupervisors(data.supervisors);
+          setSupervisors(data.supervisors || []);
+          const pg = data.pagination || data.meta || {};
+          setSupervisorsPagination({
+            total:       pg.total        ?? data.total        ?? (data.supervisors || []).length,
+            lastPage:    pg.last_page    ?? data.last_page    ?? 1,
+            from:        pg.from         ?? data.from         ?? 1,
+            to:          pg.to           ?? data.to           ?? (data.supervisors || []).length,
+            currentPage: pg.current_page ?? data.current_page ?? 1,
+            perPage:     pg.per_page     ?? data.per_page     ?? (data.supervisors || []).length,
+          });
         }
       })
       .catch((err) => {
-        if (reqId === fetchSupervisorsRequestRef.current) {
-          console.error("Error fetching supervisors:", err);
-        }
+        if (err.name === 'AbortError' || controller.signal.aborted) return;
+        if (reqId !== fetchSupervisorsRequestRef.current) return;
+        console.error('Error fetching supervisors:', err);
+      })
+      .finally(() => {
+        if (reqId === fetchSupervisorsRequestRef.current) supervisorsAbortRef.current = null;
       });
   }, [isStale, supervisors.length]);
 
@@ -360,12 +394,14 @@ export default function TeachersProvider({ children }) {
     setTeachers,
     loading,
     fetchTeachers,
+    teachersPagination,
     handleAddTeacher,
     handleEditTeacher,
     // Supervisors
     supervisors,
     setSupervisors,
     fetchSupervisors,
+    supervisorsPagination,
     handleAddSupervisor,
     handleEditSupervisor,
     handleDeleteSupervisor,
@@ -374,10 +410,12 @@ export default function TeachersProvider({ children }) {
     setTeachers,
     loading,
     fetchTeachers,
+    teachersPagination,
     handleAddTeacher,
     handleEditTeacher,
     supervisors,
     fetchSupervisors,
+    supervisorsPagination,
     handleAddSupervisor,
     handleEditSupervisor,
     handleDeleteSupervisor,
