@@ -632,7 +632,7 @@ export default function AssignmentsTab() {
                 </span>
               </div>
 
-              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '16px 24px' }}>
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '16px 24px', overscrollBehavior: 'contain' }}>
                 {/* Attachments */}
                 {selectedAssign.attachments && selectedAssign.attachments.length > 0 && (
                   <div style={{ marginBottom: '16px', padding: '10px 14px', backgroundColor: 'var(--color-surface)', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
@@ -649,7 +649,7 @@ export default function AssignmentsTab() {
                 )}
 
                 {/* Submissions Table */}
-                <div className="students-table-container">
+                <div className="students-table-container" style={{ maxHeight: '52vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
                   <table className="students-table">
                     <thead>
                       <tr>
