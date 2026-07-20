@@ -28,6 +28,8 @@ export default function TeachersProvider({ children }) {
   const teachersAbortRef = useRef(null);
   const supervisorsAbortRef = useRef(null);
 
+  const lastTeachersQueryRef = useRef(null);
+
   // ─── Fetch Teachers ────────────────────────────────────────────────
   const fetchTeachers = useCallback((arg) => {
     const isForce = arg === true;
@@ -37,7 +39,8 @@ export default function TeachersProvider({ children }) {
     const activeToken = localStorage.getItem('auth_token');
     if (!activeToken) return;
 
-    if (!isForce && !isQueryString && !isStale && teachers.length > 0) return;
+    if (!isForce && !isStale && teachers.length > 0 && lastTeachersQueryRef.current === queryString) return;
+    lastTeachersQueryRef.current = queryString;
 
     if (teachersAbortRef.current) teachersAbortRef.current.abort();
     const controller = new AbortController();

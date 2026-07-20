@@ -54,15 +54,17 @@ export default function StudentsProvider({ children }) {
    *   fetchStudents(queryString) — paginated: fetches with full query string
    *   fetchStudents(true)       — force refresh with current queryString
    */
+  const lastStudentsQueryRef = useRef(null);
+
   const fetchStudents = useCallback((arg) => {
     const isForce = arg === true;
     const isQueryString = typeof arg === 'string';
     const queryString = isQueryString ? arg : '?page=1&per_page=20';
 
-    // Stale guard (only for legacy calls with no queryString)
-    if (!isForce && !isQueryString && !isStale && rawStudents.length > 0) {
+    if (!isForce && !isStale && rawStudents.length > 0 && lastStudentsQueryRef.current === queryString) {
       return;
     }
+    lastStudentsQueryRef.current = queryString;
 
     // Cancel any in-flight request
     if (abortRef.current) {
