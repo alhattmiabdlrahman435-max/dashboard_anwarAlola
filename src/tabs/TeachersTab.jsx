@@ -4,7 +4,9 @@ import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { teachersService } from '../services/teachers/teachers.service';
-import { Plus, X, Trash2, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
+import { Plus, Search, X, Trash2, Download, Upload, FileSpreadsheet } from 'lucide-react';
 
 export default function TeachersTab() {
   const {
@@ -17,16 +19,32 @@ export default function TeachersTab() {
 
   const {
     teachers,
+    loading,
+    teachersPagination,
     fetchTeachers,
     handleAddTeacher,
     handleEditTeacher
   } = useTeachers();
 
+  const {
+    page,
+    perPage,
+    search,
+    setPage,
+    setPerPage,
+    setSearch,
+    buildQueryString,
+  } = usePagination({
+    moduleKey: 'teachers',
+  });
+
+  const qs = buildQueryString();
+
   useEffect(() => {
-    fetchTeachers();
+    fetchTeachers(qs);
     fetchClasses();
     fetchSubjects();
-  }, [fetchTeachers, fetchClasses, fetchSubjects]);
+  }, [fetchTeachers, fetchClasses, fetchSubjects, qs]);
 
   // Local UI states
   const [isSaving, setIsSaving] = useState(false);
@@ -333,7 +351,18 @@ export default function TeachersTab() {
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           {t.teachersTitle}
         </h3>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="search-box" style={{ position: 'relative', width: '280px' }}>
+            <Search size={16} style={{ position: 'absolute', right: lang === 'ar' ? '12px' : 'auto', left: lang === 'ar' ? 'auto' : '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
+            <input
+              type="text"
+              className="text-field"
+              style={{ paddingRight: lang === 'ar' ? '36px' : '12px', paddingLeft: lang === 'ar' ? '12px' : '36px', height: '40px', fontSize: '13px' }}
+              placeholder={lang === 'ar' ? 'البحث عن معلم بالاسم أو الرقم الوظيفي...' : 'Search teacher by name or job ID...'}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           {(canAction('teachers', 'export') || canAction('teachers', 'import')) && (
             <button 
               className="btn-elevated" 
@@ -381,60 +410,82 @@ export default function TeachersTab() {
         </div>
       </div>
 
-      <div className="students-table-container">
-        <table className="students-table">
+      <div className="students-table-container" style={{ width: '100%', overflowX: 'auto' }}>
+        <table className="students-table" style={{ width: '100%', minWidth: '100%' }}>
           <thead>
             <tr>
-              <th>{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'}</th>
-              <th>{t.teacherName}</th>
-              <th>{t.subject}</th>
-              <th>{t.assignedClasses}</th>
-              <th>{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'}</th>
-              <th>{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</th>
-              <th>{t.gradesEntered}</th>
-              <th>{t.assignmentsPublished}</th>
-              <th className="no-print">{t.action}</th>
+              <th style={{ width: '95px', whiteSpace: 'nowrap' }}>{lang === 'ar' ? 'الرقم الوظيفي' : 'Job ID'}</th>
+              <th style={{ minWidth: '140px' }}>{t.teacherName}</th>
+              <th style={{ maxWidth: '170px' }}>{t.subject}</th>
+              <th style={{ maxWidth: '160px' }}>{t.assignedClasses}</th>
+              <th style={{ width: '100px' }}>{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'}</th>
+              <th style={{ maxWidth: '100px' }}>{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</th>
+              <th style={{ width: '75px', textAlign: 'center' }}>{t.gradesEntered}</th>
+              <th style={{ width: '75px', textAlign: 'center' }}>{t.assignmentsPublished}</th>
+              <th className="no-print" style={{ width: '85px', textAlign: 'center' }}>{t.action}</th>
             </tr>
           </thead>
           <tbody>
             {teachers.length > 0 ? (
               teachers.map((teacher) => (
                 <tr key={teacher.id}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.jobId || `T${teacher.id}`}</td>
-                  <td style={{ fontWeight: '600' }}>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', fontSize: '12px' }}>{teacher.jobId || `T${teacher.id}`}</td>
+                  <td style={{ fontWeight: '600', fontSize: '13px' }}>
                     {renderAvatar(teacher.photo, "👨‍--")}
                     {lang === 'ar' ? teacher.name : teacher.nameEn}
                   </td>
-                  <td>
-                    <span style={{
-                      padding: '4px 10px',
-                      background: 'rgba(30, 80, 142, 0.08)',
-                      color: 'var(--color-primary-ui)',
-                      borderRadius: '10px',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}>
-                      {lang === 'ar' ? teacher.subject : teacher.subjectEn}
-                    </span>
+                  <td style={{ whiteSpace: 'normal', maxWidth: '170px' }}>
+                    {teacher.subjects && teacher.subjects.length > 0 ? (
+                      <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+                        {teacher.subjects.map((sub, idx) => (
+                          <span key={idx} style={{
+                            padding: '2px 7px',
+                            background: 'rgba(30, 80, 142, 0.08)',
+                            color: 'var(--color-primary-ui)',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            lineHeight: '1.3'
+                          }}>
+                            {sub}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{
+                        padding: '2px 7px',
+                        background: 'rgba(30, 80, 142, 0.08)',
+                        color: 'var(--color-primary-ui)',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: '600'
+                      }}>
+                        {lang === 'ar' ? teacher.subject : teacher.subjectEn}
+                      </span>
+                    )}
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      {teacher.classes.map((c, idx) => (
-                        <span key={idx} className="chip" style={{ cursor: 'default', fontSize: '11px', padding: '2px 8px' }}>
-                          {c}
-                        </span>
-                      ))}
+                  <td style={{ whiteSpace: 'normal', maxWidth: '160px' }}>
+                    <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+                      {teacher.classes && teacher.classes.length > 0 ? (
+                        teacher.classes.map((c, idx) => (
+                          <span key={idx} className="chip" style={{ cursor: 'default', fontSize: '10px', padding: '1px 6px', lineHeight: '1.3' }}>
+                            {c}
+                          </span>
+                        ))
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>—</span>
+                      )}
                     </div>
                   </td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.phone || '—'}</td>
-                  <td style={{ fontSize: '12px' }}>{teacher.address || '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{teacher.gradesEntered} %</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{teacher.assignments}</td>
-                  <td className="no-print">
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{teacher.phone || '—'}</td>
+                  <td style={{ fontSize: '12px', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teacher.address || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', textAlign: 'center', fontSize: '12px' }}>{teacher.gradesEntered} %</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', textAlign: 'center', fontSize: '12px' }}>{teacher.assignments}</td>
+                  <td className="no-print" style={{ textAlign: 'center' }}>
                     {canAction('teachers', 'update') && (
                       <button 
                         className="btn-elevated"
-                        style={{ padding: '6px 12px', fontSize: '11px' }}
+                        style={{ padding: '4px 10px', fontSize: '11px' }}
                         onClick={() => {
                           setFormError('');
                           setSelectedTeacherIdForEdit(teacher.id);
@@ -451,7 +502,7 @@ export default function TeachersTab() {
                           setModalTeacherAssignmentClass('');
                         }}
                       >
-                        📝 {lang === 'ar' ? 'تعديل / إعادة تعيين' : 'Edit / Reset'}
+                        {t.editBtn}
                       </button>
                     )}
                   </td>
@@ -477,6 +528,19 @@ export default function TeachersTab() {
           </tbody>
         </table>
       </div>
+
+      <PaginationBar
+        page={teachersPagination.currentPage || page}
+        lastPage={teachersPagination.lastPage || 1}
+        total={teachersPagination.total || teachers.length}
+        from={teachersPagination.from || 1}
+        to={teachersPagination.to || teachers.length}
+        perPage={perPage}
+        onPageChange={setPage}
+        onPerPageChange={setPerPage}
+        loading={loading}
+        lang={lang}
+      />
 
       {/* MODAL DIALOG 4: REGISTER TEACHER FORM */}
       {showTeacherModal && (

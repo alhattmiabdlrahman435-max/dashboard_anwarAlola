@@ -25,7 +25,7 @@ export default function SubjectsTab() {
   useEffect(() => {
     fetchSubjects();
     fetchClasses();
-    fetchTeachers();
+    fetchTeachers('?per_page=1000');
   }, [fetchSubjects, fetchClasses, fetchTeachers]);
 
 
@@ -252,8 +252,13 @@ export default function SubjectsTab() {
           return filtered.map(sub => {
             // Find classes studying this subject
             const studyingClasses = classes.filter(c => c.subjects.includes(sub.name));
-            // Find teachers teaching this subject
-            const teachingTeachers = teachers.filter(t => (t.subjects && t.subjects.includes(sub.name)) || t.subject === sub.name);
+            // Find teachers teaching this subject by name or ID
+            const rawSubId = sub.id ? parseInt(String(sub.id).replace(/\D/g, ''), 10) : null;
+            const teachingTeachers = teachers.filter(t => 
+              (t.subjects && t.subjects.includes(sub.name)) ||
+              (t.subjectIds && rawSubId && t.subjectIds.includes(rawSubId)) ||
+              t.subject === sub.name
+            );
 
             return (
               <div className="subject-card" key={sub.id}>
@@ -313,7 +318,7 @@ export default function SubjectsTab() {
                             style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'rgba(30, 80, 142, 0.04)', borderRadius: '12px', border: '1px solid var(--color-border)' }}
                           >
                             <span>{teach.photo || "👨‍🏫"}</span>
-                            <span style={{ fontWeight: '500' }}>{lang === 'ar' ? teach.name.split(' ').slice(1).join(' ') : teach.nameEn}</span>
+                            <span style={{ fontWeight: '500' }}>{lang === 'ar' ? teach.name : (teach.nameEn || teach.name)}</span>
                           </span>
                         ))
                       ) : (

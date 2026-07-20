@@ -56,9 +56,8 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // 2. Check if password matches (either actual hashed password OR fallback phone number)
-        $passwordMatches = Hash::check($inputPassword, $user->password) || 
-                           ($user->phone && ($inputPassword === $user->phone || $phoneInputClean === $user->phone));
+        // 2. Check if password matches strictly using Hash::check against stored hashed password
+        $passwordMatches = Hash::check($inputPassword, $user->password);
 
         $logMatches = $passwordMatches ? "Yes" : "No";
         file_put_contents(storage_path('logs/login_debug.log'), sprintf("User ID=%d, Role=%s, DB Phone=%s, Password Matches=%s\n", $user->id, $user->role, $user->phone, $logMatches), FILE_APPEND);
@@ -194,9 +193,8 @@ class AuthController extends Controller
             $phoneInputClean = substr($phoneInputClean, 1);
         }
 
-        // Check if current password matches (either actual hashed password OR fallback phone number)
-        $currentPasswordMatches = Hash::check($request->current_password, $user->password) || 
-                                  ($user->phone && ($request->current_password === $user->phone || $phoneInputClean === $user->phone));
+        // Check if current password matches stored hashed password
+        $currentPasswordMatches = Hash::check($request->current_password, $user->password);
 
         if (!$currentPasswordMatches) {
             return response()->json([

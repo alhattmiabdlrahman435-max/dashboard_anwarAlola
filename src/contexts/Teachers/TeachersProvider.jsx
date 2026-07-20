@@ -53,21 +53,36 @@ export default function TeachersProvider({ children }) {
         if (data.success) {
           const mapped = (data.teachers || []).map((t) => {
             const classNames = [];
+            const classIds = [];
             const subjectNames = [];
+            const subjectIds = [];
             const teachingAssignments = [];
 
             if (t.assignments) {
               t.assignments.forEach((assign) => {
-                const className = assign.school_class
-                  ? assign.school_class.name_ar || assign.school_class.name
+                const sc = assign.school_class;
+                const className = sc
+                  ? (sc.name_ar || sc.name || `${sc.grade_ar || ''} - ${sc.section_ar || ''}`.trim())
                   : '';
-                const subjectName = assign.subject
-                  ? assign.subject.name_ar || assign.subject.name
+                const classId = sc ? sc.id : null;
+                const sub = assign.subject;
+                const subjectName = sub
+                  ? (sub.name_ar || sub.name)
                   : '';
+                const subjectId = sub ? sub.id : null;
 
                 if (className && !classNames.includes(className)) classNames.push(className);
+                if (classId && !classIds.includes(classId)) classIds.push(classId);
                 if (subjectName && !subjectNames.includes(subjectName)) subjectNames.push(subjectName);
-                if (className && subjectName) teachingAssignments.push({ subject: subjectName, class: className });
+                if (subjectId && !subjectIds.includes(subjectId)) subjectIds.push(subjectId);
+                if (className || subjectName) {
+                  teachingAssignments.push({
+                    subject: subjectName,
+                    subjectId,
+                    class: className,
+                    classId
+                  });
+                }
               });
             }
 
@@ -81,11 +96,13 @@ export default function TeachersProvider({ children }) {
               subject: subjectNames.join('، '),
               subjectEn: subjectNames.join(', '),
               subjects: subjectNames,
+              subjectIds: subjectIds,
               classes: classNames,
+              classIds: classIds,
               teachingAssignments: teachingAssignments,
               gradesEntered: t.grades_entered || 0,
               assignments: t.assignments_count || 0,
-              photo: t.photo_url || '👨\u200d🏫',
+              photo: t.photo_url || '👨‍🏫',
             };
           });
           setTeachers(mapped);

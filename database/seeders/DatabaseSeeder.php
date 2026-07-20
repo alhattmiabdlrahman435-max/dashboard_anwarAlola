@@ -107,7 +107,7 @@ class DatabaseSeeder extends Seeder
             ]));
         }
 
-      /*   $supervisorId = DB::table('users')->insertGetId([
+        $supervisorId = DB::table('users')->insertGetId([
             'name' => 'supervisor',
             'username' => 'supervisor',
             'national_id' => '1000000002',
@@ -626,6 +626,6 @@ class DatabaseSeeder extends Seeder
             'status' => 'reviewed',
             'created_at' => now()->subDays(10),
             'updated_at' => now(),
-        ]); */
+        ]);
     }
 }

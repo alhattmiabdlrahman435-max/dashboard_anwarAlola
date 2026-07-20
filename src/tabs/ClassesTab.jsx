@@ -32,7 +32,7 @@ export default function ClassesTab() {
 
   useEffect(() => {
     fetchClasses();
-    fetchTeachers();
+    fetchTeachers('?per_page=1000');
     fetchStudents();
     fetchSubjects();
   }, [fetchClasses, fetchTeachers, fetchStudents, fetchSubjects]);
@@ -359,8 +359,12 @@ export default function ClassesTab() {
           return filtered.map(cls => {
             // Calculate students count in this class
             const studentCount = students.filter(s => s.grade === cls.grade && s.section === cls.section).length;
-            // Find teachers teaching in this class
-            const classTeachers = teachers.filter(t => t.classes.includes(cls.name));
+            // Find teachers teaching in this class by name or ID
+            const rawClassId = cls.id ? parseInt(String(cls.id).replace(/\D/g, ''), 10) : null;
+            const classTeachers = teachers.filter(t => 
+              (t.classes && t.classes.includes(cls.name)) ||
+              (t.classIds && rawClassId && t.classIds.includes(rawClassId))
+            );
 
             return (
               <div className="class-card" key={cls.id}>
@@ -421,7 +425,7 @@ export default function ClassesTab() {
                             title={lang === 'ar' ? teach.subject : teach.subjectEn}
                           >
                             <span>{teach.photo || "👨‍🏫"}</span>
-                            <span style={{ fontWeight: '500' }}>{lang === 'ar' ? teach.name.split(' ').slice(1).join(' ') : teach.nameEn}</span>
+                            <span style={{ fontWeight: '500' }}>{lang === 'ar' ? teach.name : (teach.nameEn || teach.name)}</span>
                           </span>
                         ))
                       ) : (
@@ -792,9 +796,13 @@ export default function ClassesTab() {
                       selectedClassForDetails.subjects.map((subName, index) => {
                         const subjectObj = subjects.find(s => s.name === subName);
                         const subNameEn = subjectObj ? subjectObj.nameEn : subName;
+                        const rawDetailsClassId = selectedClassForDetails.id ? parseInt(String(selectedClassForDetails.id).replace(/\D/g, ''), 10) : null;
                         const teacherObj = teachers.find(t => 
                           t.teachingAssignments && 
-                          t.teachingAssignments.some(a => a.subject === subName && a.class === selectedClassForDetails.name)
+                          t.teachingAssignments.some(a => 
+                            (a.subject === subName || (subjectObj && a.subjectId === subjectObj.id)) && 
+                            (a.class === selectedClassForDetails.name || (rawDetailsClassId && a.classId === rawDetailsClassId))
+                          )
                         );
                         return (
                           <tr key={index}>
