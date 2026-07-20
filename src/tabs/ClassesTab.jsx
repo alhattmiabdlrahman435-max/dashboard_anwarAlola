@@ -602,7 +602,9 @@ export default function ClassesTab() {
         <div className="modal-overlay no-print">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
-              <h3 className="modal-title">🏫 {lang === 'ar' ? 'تعديل بيانات الفصل الدراسي' : 'Edit Class Details'}</h3>
+              <h3 className="modal-title">
+                🏫 {lang === 'ar' ? `تعديل مواد وبيانات الفصل: ${modalClassGrade} - ${modalClassSection}` : `Edit Class & Subjects: ${modalClassGrade} - ${modalClassSection}`}
+              </h3>
               <button className="modal-close-btn" onClick={() => setShowEditClassModal(false)}>
                 <X size={20} strokeWidth={2.5} />
               </button>
@@ -642,7 +644,7 @@ export default function ClassesTab() {
                         setModalClassGradeEn(gradeMap[e.target.value] || 'Grade 1');
                       }}
                     >
-                      {availableGrades.map((g, idx) => (
+                      {Array.from(new Set([...availableGrades, modalClassGrade])).filter(Boolean).map((g, idx) => (
                         <option key={idx} value={g}>{g}</option>
                       ))}
                     </select>

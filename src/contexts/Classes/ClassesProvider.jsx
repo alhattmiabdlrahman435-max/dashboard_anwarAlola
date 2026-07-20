@@ -28,6 +28,9 @@ export default function ClassesProvider({ children }) {
     'الصف الأول المتوسط',
     'الصف الثاني المتوسط',
     'الصف الثالث المتوسط',
+    'الصف الأول الثانوي',
+    'الصف الثاني الثانوي',
+    'الصف الثالث الثانوي',
   ]);
 
   const [availableSections, setAvailableSections] = useState([
