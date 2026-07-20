@@ -6,7 +6,7 @@ import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { teachersService } from '../services/teachers/teachers.service';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
-import { Plus, Search, X, Trash2, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, X, Trash2, Edit3, Download, Upload, FileSpreadsheet } from 'lucide-react';
 
 export default function TeachersTab() {
   const {
@@ -481,30 +481,78 @@ export default function TeachersTab() {
                   <td style={{ fontSize: '12px', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teacher.address || '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', textAlign: 'center', fontSize: '12px' }}>{teacher.gradesEntered} %</td>
                   <td style={{ fontFamily: 'var(--font-mono)', textAlign: 'center', fontSize: '12px' }}>{teacher.assignments}</td>
-                  <td className="no-print" style={{ textAlign: 'center' }}>
-                    {canAction('teachers', 'update') && (
-                      <button 
-                        className="btn-elevated"
-                        style={{ padding: '4px 10px', fontSize: '11px' }}
-                        onClick={() => {
-                          setFormError('');
-                          setSelectedTeacherIdForEdit(teacher.id);
-                          setModalTeacherName(teacher.name);
-                          setModalTeacherAssignments(teacher.teachingAssignments || [
-                            { subject: teacher.subject, class: teacher.classes[0] || 'الصف الأول - أ' }
-                          ]);
-                          setModalTeacherJobId(teacher.jobId || `T${teacher.id}`);
-                          setModalTeacherPhone(teacher.phone || '');
-                          setModalTeacherAddress(teacher.address || '');
-                          setModalTeacherPhoto(teacher.photo || '');
-                          setShowEditTeacherModal(true);
-                          setModalTeacherAssignmentSubject('');
-                          setModalTeacherAssignmentClass('');
-                        }}
-                      >
-                        {t.editBtn}
-                      </button>
-                    )}
+                  <td className="no-print" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      {canAction('teachers', 'update') && (
+                        <button 
+                          className="btn-filled"
+                          style={{
+                            padding: '6px 14px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: 'pointer',
+                            borderRadius: '8px',
+                            minHeight: '34px',
+                            boxShadow: 'var(--shadow-sm)'
+                          }}
+                          onClick={() => {
+                            setFormError('');
+                            setSelectedTeacherIdForEdit(teacher.id);
+                            setModalTeacherName(teacher.name);
+                            setModalTeacherAssignments(teacher.teachingAssignments || [
+                              { subject: teacher.subject, class: teacher.classes[0] || 'الصف الأول - أ' }
+                            ]);
+                            setModalTeacherJobId(teacher.jobId || `T${teacher.id}`);
+                            setModalTeacherPhone(teacher.phone || '');
+                            setModalTeacherAddress(teacher.address || '');
+                            setModalTeacherPhoto(teacher.photo || '');
+                            setShowEditTeacherModal(true);
+                            setModalTeacherAssignmentSubject('');
+                            setModalTeacherAssignmentClass('');
+                          }}
+                          title={t.editBtn}
+                        >
+                          <Edit3 size={15} />
+                          <span>{t.editBtn}</span>
+                        </button>
+                      )}
+
+                      {canAction('teachers', 'delete') && (
+                        <button 
+                          type="button"
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '8px',
+                            minHeight: '34px',
+                            border: '1px solid rgba(220, 38, 38, 0.25)',
+                            background: 'rgba(220, 38, 38, 0.08)',
+                            color: '#dc2626',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseOver={e => {
+                            e.currentTarget.style.background = 'rgba(220, 38, 38, 0.16)';
+                            e.currentTarget.style.borderColor = '#dc2626';
+                          }}
+                          onMouseOut={e => {
+                            e.currentTarget.style.background = 'rgba(220, 38, 38, 0.08)';
+                            e.currentTarget.style.borderColor = 'rgba(220, 38, 38, 0.25)';
+                          }}
+                          onClick={() => handleDeleteTeacher(teacher.id)}
+                          title={lang === 'ar' ? 'حذف المعلم' : 'Delete Teacher'}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
