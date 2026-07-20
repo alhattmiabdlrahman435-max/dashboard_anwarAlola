@@ -4,28 +4,39 @@ import { useApp } from '../../context/AppContext';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useAuth } from '../../contexts/Auth/useAuth';
 
+// Helper for safe lazy loading to recover seamlessly from stale bundle chunk 404 errors
+const safeLazy = (importFn) => lazy(async () => {
+  try {
+    return await importFn();
+  } catch (error) {
+    console.error("Chunk load failure, reloading page...", error);
+    window.location.reload();
+    return new Promise(() => {});
+  }
+});
+
 // Lazy load pages
-const LoginPage = lazy(() => import('../../pages/LoginPage'));
-const DashboardPage = lazy(() => import('../../pages/DashboardPage'));
-const StudentsPage = lazy(() => import('../../pages/StudentsPage'));
-const TeachersPage = lazy(() => import('../../pages/TeachersPage'));
-const ParentsPage = lazy(() => import('../../pages/ParentsPage'));
-const ClassesPage = lazy(() => import('../../pages/ClassesPage'));
-const SubjectsPage = lazy(() => import('../../pages/SubjectsPage'));
-const AttendancePage = lazy(() => import('../../pages/AttendancePage'));
-const FinancePage = lazy(() => import('../../pages/FinancePage'));
-const ReportsPage = lazy(() => import('../../pages/ReportsPage'));
-const NotificationsPage = lazy(() => import('../../pages/NotificationsPage'));
-const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
-const PrepSupervisorsPage = lazy(() => import('../../pages/PrepSupervisorsPage'));
-const SupervisorsPage = lazy(() => import('../../pages/SupervisorsPage'));
-const ControlPage = lazy(() => import('../../pages/ControlPage'));
-const TeacherReportsPage = lazy(() => import('../../pages/TeacherReportsPage'));
-const AbsenceRequestsPage = lazy(() => import('../../pages/AbsenceRequestsPage'));
-const AssignmentsPage = lazy(() => import('../../pages/AssignmentsPage'));
-const DetailedGradesPage = lazy(() => import('../../pages/DetailedGradesPage'));
-const ExamSchedulesPage = lazy(() => import('../../pages/ExamSchedulesPage'));
-const SchedulePage = lazy(() => import('../../pages/SchedulePage'));
+const LoginPage = safeLazy(() => import('../../pages/LoginPage'));
+const DashboardPage = safeLazy(() => import('../../pages/DashboardPage'));
+const StudentsPage = safeLazy(() => import('../../pages/StudentsPage'));
+const TeachersPage = safeLazy(() => import('../../pages/TeachersPage'));
+const ParentsPage = safeLazy(() => import('../../pages/ParentsPage'));
+const ClassesPage = safeLazy(() => import('../../pages/ClassesPage'));
+const SubjectsPage = safeLazy(() => import('../../pages/SubjectsPage'));
+const AttendancePage = safeLazy(() => import('../../pages/AttendancePage'));
+const FinancePage = safeLazy(() => import('../../pages/FinancePage'));
+const ReportsPage = safeLazy(() => import('../../pages/ReportsPage'));
+const NotificationsPage = safeLazy(() => import('../../pages/NotificationsPage'));
+const SettingsPage = safeLazy(() => import('../../pages/SettingsPage'));
+const PrepSupervisorsPage = safeLazy(() => import('../../pages/PrepSupervisorsPage'));
+const SupervisorsPage = safeLazy(() => import('../../pages/SupervisorsPage'));
+const ControlPage = safeLazy(() => import('../../pages/ControlPage'));
+const TeacherReportsPage = safeLazy(() => import('../../pages/TeacherReportsPage'));
+const AbsenceRequestsPage = safeLazy(() => import('../../pages/AbsenceRequestsPage'));
+const AssignmentsPage = safeLazy(() => import('../../pages/AssignmentsPage'));
+const DetailedGradesPage = safeLazy(() => import('../../pages/DetailedGradesPage'));
+const ExamSchedulesPage = safeLazy(() => import('../../pages/ExamSchedulesPage'));
+const SchedulePage = safeLazy(() => import('../../pages/SchedulePage'));
 
 function LoadingFallback() {
   const { lang } = useApp();
