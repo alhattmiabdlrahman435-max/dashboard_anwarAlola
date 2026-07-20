@@ -191,6 +191,7 @@ export default function ClassesTab() {
               }
               return c;
             }));
+            fetchClasses(true);
             fetchTeachers(token);
             setShowEditClassModal(false);
             setToastMessage(lang === 'ar' ? 'تم تحديث بيانات الفصل بنجاح!' : 'Class details updated successfully!');
