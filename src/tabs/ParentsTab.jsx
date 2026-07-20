@@ -5,6 +5,8 @@ import { useParents } from '../contexts/Parents/useParents';
 import { useStudents } from '../contexts/Students/useStudents';
 import { parentsService } from '../services/parents/parents.service';
 import { Search, X, Download, Upload, FileSpreadsheet, Edit3, Trash2 } from 'lucide-react';
+import { usePagination } from '../hooks/usePagination';
+import PaginationBar from '../components/PaginationBar';
 
 export default function ParentsTab() {
   const {
@@ -14,19 +16,35 @@ export default function ParentsTab() {
 
   const {
     parentUsers,
+    loading,
+    parentsPagination,
     fetchParents,
     handleAddParent,
     handleEditParent,
     handleDeleteParent
   } = useParents();
 
+  const {
+    page,
+    perPage,
+    search,
+    setPage,
+    setPerPage,
+    setSearch,
+    buildQueryString,
+  } = usePagination({
+    moduleKey: 'parents',
+  });
+
   const { students, fetchStudents } = useStudents();
   const { currentUser } = useAuth();
 
+  const qs = buildQueryString();
+
   useEffect(() => {
-    fetchParents();
+    fetchParents(qs);
     fetchStudents();
-  }, [fetchParents, fetchStudents]);
+  }, [fetchParents, fetchStudents, qs]);
 
   // Local UI states
   const [isSaving, setIsSaving] = useState(false);
@@ -425,6 +443,19 @@ export default function ParentsTab() {
           </tbody>
         </table>
       </div>
+
+      <PaginationBar
+        page={parentsPagination?.currentPage || page}
+        lastPage={parentsPagination?.lastPage || 1}
+        total={parentsPagination?.total || parentUsers.length}
+        from={parentsPagination?.from || 1}
+        to={parentsPagination?.to || parentUsers.length}
+        perPage={perPage}
+        onPageChange={setPage}
+        onPerPageChange={setPerPage}
+        loading={loading}
+        lang={lang}
+      />
 
       {/* MODAL DIALOG: ADD PARENT ACCOUNT */}
       {showAddParentModal && (
