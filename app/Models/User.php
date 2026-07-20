@@ -67,4 +67,29 @@ class User extends Authenticatable
     {
         return $this->hasMany(SupervisorClass::class, 'supervisor_id');
     }
+
+    /**
+     * Auto-sync 'name' with 'name_ar' on save to eliminate redundancy in controllers
+     */
+    protected static function booted()
+    {
+        static::saving(function ($user) {
+            if (empty($user->name) && !empty($user->name_ar)) {
+                $user->name = $user->name_ar;
+            } elseif (empty($user->name_ar) && !empty($user->name)) {
+                $user->name_ar = $user->name;
+            }
+        });
+    }
+
+    /**
+     * Dynamic Name Accessor according to app locale
+     */
+    public function getNameAttribute($value)
+    {
+        if (app()->getLocale() === 'en' && !empty($this->attributes['name_en'])) {
+            return $this->attributes['name_en'];
+        }
+        return $this->attributes['name_ar'] ?? $value;
+    }
 }
