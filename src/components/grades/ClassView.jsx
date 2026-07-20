@@ -54,16 +54,13 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
     });
   }, [students, selectedClass, targetClassObj, targetClassId]);
 
-  // Dynamic list of real subjects associated with selectedClass or overall subjects
+  // Dynamic list of real subjects associated with selectedClass
   const classSubjectsList = useMemo(() => {
-    if (targetClassObj && targetClassObj.subjects && targetClassObj.subjects.length > 0) {
+    if (targetClassObj && Array.isArray(targetClassObj.subjects)) {
       return targetClassObj.subjects;
     }
-    if (subjects && subjects.length > 0) {
-      return subjects.map(sub => lang === 'ar' ? sub.name : (sub.nameEn || sub.name));
-    }
-    return ['الرياضيات', 'العلوم', 'لغتي', 'اللغة الإنجليزية'];
-  }, [targetClassObj, subjects, lang]);
+    return [];
+  }, [targetClassObj]);
 
   const handleDetailedGradeChange = useCallback((studentId, subject, term, monthKey, field, val) => {
     handleDetailedGradeChangeContext(studentId, subject, term, monthKey, field, val, students, subjects);
@@ -124,6 +121,24 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
             </thead>
             <tbody>
               {(() => {
+                if (classSubjectsList.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '24px' }}>📚</span>
+                          <span style={{ fontWeight: '600' }}>
+                            {lang === 'ar' ? `لا توجد مواد مقررة لـ ${selectedClass}` : `No assigned subjects for ${selectedClass}`}
+                          </span>
+                          <span style={{ fontSize: '13px', opacity: 0.8 }}>
+                            {lang === 'ar' ? 'يمكن ربط وتعيين المواد بهذا الفصل من صفحة المواد الدراسية.' : 'You can assign subjects to this class from the Subjects page.'}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
                 if (classStudents.length === 0) {
                   return (
                     <tr>

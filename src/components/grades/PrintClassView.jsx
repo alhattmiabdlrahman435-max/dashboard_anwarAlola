@@ -50,16 +50,13 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
     });
   }, [students, selectedClass, targetClassObj, targetClassId]);
 
-  // Dynamic list of real subjects associated with selectedClass or overall subjects
+  // Dynamic list of real subjects associated with selectedClass
   const classSubjectsList = useMemo(() => {
-    if (targetClassObj && targetClassObj.subjects && targetClassObj.subjects.length > 0) {
+    if (targetClassObj && Array.isArray(targetClassObj.subjects)) {
       return targetClassObj.subjects;
     }
-    if (subjects && subjects.length > 0) {
-      return subjects.map(sub => lang === 'ar' ? sub.name : (sub.nameEn || sub.name));
-    }
-    return ['الرياضيات', 'العلوم', 'لغتي', 'اللغة الإنجليزية'];
-  }, [targetClassObj, subjects, lang]);
+    return [];
+  }, [targetClassObj]);
 
   const getSubjectPeriodGradeLocal = (studentId, subject, term, period) => {
     return getSubjectPeriodGrade(studentId, subject, term, period, getStudentDetailedGrades);

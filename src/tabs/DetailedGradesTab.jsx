@@ -450,9 +450,9 @@ export default function DetailedGradesTab() {
               <div style={{ position: 'relative', zIndex: 7 }}>
                 {(() => {
                   const selectedClassObj = classes.find(c => `${c.grade} - ${c.section}` === selectedClass || c.name === selectedClass);
-                  const realClassSubjects = selectedClassObj && selectedClassObj.subjects && selectedClassObj.subjects.length > 0
+                  const realClassSubjects = selectedClassObj && Array.isArray(selectedClassObj.subjects)
                     ? selectedClassObj.subjects
-                    : (subjects && subjects.length > 0 ? subjects.map(s => s.name) : ['الرياضيات', 'العلوم', 'لغتي', 'اللغة الإنجليزية']);
+                    : [];
 
                   const classSubjectOptions = [
                     { value: 'all', label: lang === 'ar' ? 'جميع المواد (إجمالي)' : 'All Subjects (Summary)' },
