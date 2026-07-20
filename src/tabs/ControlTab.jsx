@@ -370,7 +370,12 @@ export default function ControlTab() {
       </div>
 
       <PaginationBar
-        pagination={controlPagination}
+        page={page}
+        lastPage={controlPagination?.lastPage || 1}
+        total={controlPagination?.total || 0}
+        from={controlPagination?.from}
+        to={controlPagination?.to}
+        perPage={perPage}
         onPageChange={setPage}
         onPerPageChange={setPerPage}
         loading={settingsLoading}

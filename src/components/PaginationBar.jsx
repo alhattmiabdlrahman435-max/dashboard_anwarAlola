@@ -77,12 +77,13 @@ function buildPageRange(page, lastPage) {
  * @param {string}   [props.lang]          - 'ar' | 'en'
  */
 export default function PaginationBar({
-  page,
-  lastPage,
-  total,
-  from,
-  to,
-  perPage,
+  page: propPage,
+  lastPage: propLastPage,
+  total: propTotal,
+  from: propFrom,
+  to: propTo,
+  perPage: propPerPage,
+  pagination,
   onPageChange,
   onPerPageChange,
   loading = false,
@@ -90,6 +91,13 @@ export default function PaginationBar({
   onRetry,
   lang = 'ar',
 }) {
+  const page = Math.max(1, Number(propPage ?? pagination?.currentPage ?? pagination?.page ?? 1) || 1);
+  const lastPage = Math.max(1, Number(propLastPage ?? pagination?.lastPage ?? 1) || 1);
+  const total = Math.max(0, Number(propTotal ?? pagination?.total ?? 0) || 0);
+  const perPage = Math.max(1, Number(propPerPage ?? pagination?.perPage ?? 20) || 20);
+  const from = Number(propFrom ?? pagination?.from ?? ((page - 1) * perPage + 1)) || 1;
+  const to = Number(propTo ?? pagination?.to ?? Math.min(from + perPage - 1, total)) || total;
+
   const isRtl = lang === 'ar';
   const isFirst = page <= 1;
   const isLast  = page >= lastPage;

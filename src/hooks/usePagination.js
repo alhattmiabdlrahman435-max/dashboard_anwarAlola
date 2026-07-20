@@ -174,8 +174,9 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
 
   const setPage = useCallback(
     (newPage) => {
-      _setPage(newPage);
-      pushToUrl({ page: newPage, perPage, search, sort, direction, filters });
+      const validPage = Math.max(1, parseInt(newPage, 10) || 1);
+      _setPage(validPage);
+      pushToUrl({ page: validPage, perPage, search, sort, direction, filters });
     },
     [perPage, search, sort, direction, filters, pushToUrl]
   );
