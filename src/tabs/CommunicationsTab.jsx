@@ -1398,7 +1398,7 @@ export default function CommunicationsTab() {
                       value={modalNotificationStudentId}
                       onChange={(e) => setModalNotificationStudentId(e.target.value)}
                       className="text-field"
-                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px' }}
+                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px', boxSizing: 'border-box', lineHeight: 'normal' }}
                     >
                       {filteredStudentsList.map(s => (
                         <option key={s.id} value={s.id}>
@@ -1416,7 +1416,7 @@ export default function CommunicationsTab() {
                       value={modalNotificationGrade} 
                       onChange={(e) => setModalNotificationGrade(e.target.value)}
                       className="text-field"
-                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px' }}
+                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px', boxSizing: 'border-box', lineHeight: 'normal' }}
                     >
                       {availableGrades.map(g => (
                         <option key={g} value={g}>{g}</option>
@@ -1440,7 +1440,7 @@ export default function CommunicationsTab() {
                       value={modalNotificationTeacherId}
                       onChange={(e) => setModalNotificationTeacherId(e.target.value)}
                       className="text-field"
-                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px' }}
+                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px', boxSizing: 'border-box', lineHeight: 'normal' }}
                     >
                       {filteredTeachersList.map(t => (
                         <option key={t.id} value={t.id}>
