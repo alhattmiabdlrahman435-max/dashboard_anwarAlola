@@ -4558,4 +4558,111 @@ body[dir="rtl"] .menu-item.active {
   gap: 4px;
 }
 
+/* Print Mode for Single Student Smart Card */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  body[data-print-mode="card"] html,
+  body[data-print-mode="card"] body {
+    height: 100% !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body[data-print-mode="card"] .app-container,
+  body[data-print-mode="card"] .main-workspace,
+  body[data-print-mode="card"] .main-content-layout,
+  body[data-print-mode="card"] .content-area,
+  body[data-print-mode="card"] .section-card {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  body[data-print-mode="card"] * {
+    visibility: hidden !important;
+  }
+
+  body[data-print-mode="card"] .student-card-modal-overlay,
+  body[data-print-mode="card"] .student-card-modal-overlay *,
+  body[data-print-mode="card"] .student-id-card,
+  body[data-print-mode="card"] .student-id-card * {
+    visibility: visible !important;
+  }
+
+  body[data-print-mode="card"] .no-print,
+  body[data-print-mode="card"] .modal-header,
+  body[data-print-mode="card"] .modal-footer {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body[data-print-mode="card"] .student-card-modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #ffffff !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    backdrop-filter: none !important;
+    z-index: 9999999 !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body[data-print-mode="card"] .student-card-modal-overlay .modal-container {
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: auto !important;
+  }
+
+  body[data-print-mode="card"] .student-card-visualizer {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  body[data-print-mode="card"] .student-id-card {
+    position: relative !important;
+    box-shadow: none !important;
+    border: 1.5px solid #1e293b !important;
+    margin: 0 auto !important;
+    width: 310px !important;
+    height: 460px !important;
+    transform: none !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
 

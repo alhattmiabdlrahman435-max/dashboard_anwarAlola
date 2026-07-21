@@ -22,7 +22,12 @@ export default function StudentCardModal() {
   } = useStudents();
 
   const handlePrint = () => {
+    document.body.setAttribute('data-print-mode', 'card');
     window.print();
+    const afterPrintCleanup = () => {
+      document.body.removeAttribute('data-print-mode');
+    };
+    window.addEventListener('afterprint', afterPrintCleanup, { once: true });
   };
 
   const executePrint = () => {
@@ -41,7 +46,7 @@ export default function StudentCardModal() {
     <>
       {/* MODAL DIALOG 2: SMART QR CARD VISUALIZER */}
       {showCardVisualizerModal && selectedStudentForCard && (
-        <div className="modal-overlay no-print animate-fade-in">
+        <div className="modal-overlay student-card-modal-overlay animate-fade-in">
           <div className="modal-container glass-panel animate-scale-up" style={{ maxWidth: '380px' }}>
             <header className="modal-header no-print">
               <h3 className="modal-title">🪪 {t.viewCard}</h3>
