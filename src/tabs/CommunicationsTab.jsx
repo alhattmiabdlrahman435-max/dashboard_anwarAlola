@@ -1427,7 +1427,7 @@ export default function CommunicationsTab() {
 
                 {modalNotificationType === 'teacher' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11.5px', fontWeight: '700' }}>🔍 {lang === 'ar' ? 'اختر المعلم' : 'Select Teacher'}</label>
+                    <label style={{ fontSize: '11.5px', fontWeight: '700' }}>🔍 {lang === 'ar' ? 'إختيار المعلم' : 'Select Teacher'}</label>
                     <input 
                       type="text"
                       placeholder={lang === 'ar' ? 'ابحث باسم المعلم...' : 'Search teacher...'}
