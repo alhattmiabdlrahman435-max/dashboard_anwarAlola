@@ -1240,9 +1240,9 @@ export default function CommunicationsTab() {
                 className="modal-close-btn" 
                 type="button"
                 onClick={() => setShowNotificationModal(false)}
-                style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'background 0.2s' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                style={{ background: '#ef4444', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#dc2626'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#ef4444'}
               >
                 <X size={16} />
               </button>
@@ -1398,7 +1398,7 @@ export default function CommunicationsTab() {
                       value={modalNotificationStudentId}
                       onChange={(e) => setModalNotificationStudentId(e.target.value)}
                       className="text-field"
-                      style={{ minHeight: '40px', height: 'auto', fontSize: '12px', padding: '8px 12px' }}
+                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px' }}
                     >
                       {filteredStudentsList.map(s => (
                         <option key={s.id} value={s.id}>
@@ -1416,7 +1416,7 @@ export default function CommunicationsTab() {
                       value={modalNotificationGrade} 
                       onChange={(e) => setModalNotificationGrade(e.target.value)}
                       className="text-field"
-                      style={{ minHeight: '40px', height: 'auto', fontSize: '12px', padding: '8px 12px' }}
+                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px' }}
                     >
                       {availableGrades.map(g => (
                         <option key={g} value={g}>{g}</option>
@@ -1440,7 +1440,7 @@ export default function CommunicationsTab() {
                       value={modalNotificationTeacherId}
                       onChange={(e) => setModalNotificationTeacherId(e.target.value)}
                       className="text-field"
-                      style={{ minHeight: '40px', height: 'auto', fontSize: '12px', padding: '8px 12px' }}
+                      style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px' }}
                     >
                       {filteredTeachersList.map(t => (
                         <option key={t.id} value={t.id}>
