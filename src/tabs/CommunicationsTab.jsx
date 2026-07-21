@@ -9,7 +9,7 @@ import PaginationBar from '../components/PaginationBar';
 import { 
   X, Search, Plus, Bell, Send, Users, User, GraduationCap, 
   Layers, CheckCircle2, Volume2, Info, Trash2, CheckCheck,
-  Copy, Sparkles, Filter, Calendar, Clock, ArrowLeftRight, FileText, Check
+  Copy, Sparkles, Filter, Calendar, Clock, ArrowLeftRight, FileText, Check, AlertCircle
 } from 'lucide-react';
 
 export default function CommunicationsTab() {
@@ -100,7 +100,7 @@ export default function CommunicationsTab() {
   const [studentSearchText, setStudentSearchText] = useState('');
   const [teacherSearchText, setTeacherSearchText] = useState('');
 
-  // Delete handlers with high safety feedback
+  // Delete handlers
   const onDeleteNotificationClick = (e, notifId) => {
     e.stopPropagation();
     triggerConfirm({
@@ -122,7 +122,7 @@ export default function CommunicationsTab() {
     });
   };
 
-  // Copy notification content helper
+  // Copy helper
   const handleCopyContent = (e, notif) => {
     e.stopPropagation();
     const textToCopy = `${notif.title}\n${notif.content}`;
@@ -134,7 +134,7 @@ export default function CommunicationsTab() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Quick Preset Templates for Instant High-Quality Messaging
+  // Quick Preset Templates
   const applyPresetTemplate = (templateKey) => {
     if (templateKey === 'absence') {
       setModalNotificationTitle(lang === 'ar' ? 'تنبيه غياب وتأخر دراسي' : 'Absence & Attendance Alert');
@@ -279,12 +279,29 @@ export default function CommunicationsTab() {
     }
   }, [lang]);
 
+  // Accurate KPI Stats Calculation
+  const statsTotal = notificationsPagination.total || notifications.length;
+  
+  const statsParents = useMemo(() => {
+    return notifications.filter(n => n.type === 'general' || n.type === 'parents' || n.type === 'broadcast_parents').length;
+  }, [notifications]);
+
+  const statsClasses = useMemo(() => {
+    return notifications.filter(n => n.type === 'class').length;
+  }, [notifications]);
+
+  const statsPrivate = useMemo(() => {
+    return notifications.filter(n => n.type === 'student' || n.type === 'private' || n.type === 'teacher').length;
+  }, [notifications]);
+
   // Filtered Notifications List
   const filteredNotifications = useMemo(() => {
     return notifications.filter(notif => {
       if (filterDate && !notif.date.startsWith(filterDate)) return false;
+      if (activeFilter === 'parents') return notif.type === 'parents' || notif.type === 'general' || notif.type === 'broadcast_parents';
       if (activeFilter === 'classes') return notif.type === 'class';
-      if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private' || notif.type === 'teacher';
+      if (activeFilter === 'teachers') return notif.type === 'teachers' || notif.type === 'teacher' || notif.type === 'broadcast_teachers';
+      if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private';
       return true;
     });
   }, [notifications, filterDate, activeFilter]);
@@ -323,7 +340,7 @@ export default function CommunicationsTab() {
 
   // Dynamic Category Details
   const getCategoryDetails = (type, grade, studentName, studentNameEn, teacherName, teacherNameEn) => {
-    if (type === 'general' || type === 'parents') {
+    if (type === 'general' || type === 'parents' || type === 'broadcast_parents') {
       return {
         label: lang === 'ar' ? 'تعميم عام لأولياء الأمور' : 'All Parents Broadcast',
         bgGlow: 'rgba(30, 80, 142, 0.08)',
@@ -333,14 +350,14 @@ export default function CommunicationsTab() {
       };
     } else if (type === 'class') {
       return {
-        label: lang === 'ar' ? `الصف الدراسي: ${grade}` : `Class: ${grade}`,
+        label: lang === 'ar' ? `الصف الدراسي: ${grade || 'عام'}` : `Class: ${grade || 'General'}`,
         bgGlow: 'rgba(217, 119, 6, 0.08)',
         borderColor: '#d97706',
         textColor: '#b45309',
         icon: <Layers size={16} />
       };
     } else if (type === 'student' || type === 'private') {
-      const name = lang === 'ar' ? studentName : (studentNameEn || studentName);
+      const name = lang === 'ar' ? (studentName || 'طالب مخصص') : (studentNameEn || studentName || 'Private Student');
       return {
         label: lang === 'ar' ? `طالب: ${name}` : `Student: ${name}`,
         bgGlow: 'rgba(225, 29, 72, 0.08)',
@@ -348,7 +365,7 @@ export default function CommunicationsTab() {
         textColor: '#be123c',
         icon: <GraduationCap size={16} />
       };
-    } else if (type === 'teachers') {
+    } else if (type === 'teachers' || type === 'broadcast_teachers') {
       return {
         label: lang === 'ar' ? 'تعميم لجميع المعلمين' : 'All Teachers Broadcast',
         bgGlow: 'rgba(16, 185, 129, 0.08)',
@@ -357,7 +374,7 @@ export default function CommunicationsTab() {
         icon: <Users size={16} />
       };
     } else if (type === 'teacher') {
-      const name = lang === 'ar' ? teacherName : (teacherNameEn || teacherName);
+      const name = lang === 'ar' ? (teacherName || 'معلم مخصص') : (teacherNameEn || teacherName || 'Teacher');
       return {
         label: lang === 'ar' ? `المعلم: ${name}` : `Teacher: ${name}`,
         bgGlow: 'rgba(15, 118, 110, 0.08)',
@@ -392,12 +409,12 @@ export default function CommunicationsTab() {
 
   return (
     <div className="notif-command-center">
-      {/* Scope CSS for Apple / Linear Grade UI */}
+      {/* Scope Custom CSS for State-of-the-Art Dashboard */}
       <style>{`
         .notif-command-center {
           display: flex;
           flex-direction: column;
-          gap: var(--space-xl);
+          gap: 20px;
           animation: notifFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
@@ -406,99 +423,155 @@ export default function CommunicationsTab() {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        /* 1. Header Banner & Executive Actions */
-        .notif-header-banner {
-          background: linear-gradient(135deg, var(--color-surface-alt) 0%, var(--color-surface) 100%);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-card);
-          padding: var(--space-xl);
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        /* 1. Header Banner */
+        .notif-banner-modern {
+          background: linear-gradient(135deg, rgba(30, 80, 142, 0.06) 0%, var(--color-surface-alt) 100%);
+          border: 1.5px solid rgba(30, 80, 142, 0.18);
+          border-radius: 20px;
+          padding: 18px 24px;
           display: flex;
+          align-items: center;
           justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: var(--space-lg);
-          position: relative;
-          overflow: hidden;
+          gap: 16px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
         }
 
-        .notif-header-title-box {
+        .notif-banner-info-left {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 14px;
         }
 
-        .notif-header-icon-badge {
-          width: 52px;
-          height: 52px;
-          border-radius: 16px;
+        .notif-banner-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 14px;
           background: var(--gradient-brand);
           color: white;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 8px 20px rgba(30, 80, 142, 0.25);
-          position: relative;
+          box-shadow: 0 6px 16px rgba(30, 80, 142, 0.25);
+          flex-shrink: 0;
         }
 
-        .notif-unread-glow-dot {
-          position: absolute;
-          top: -3px;
-          right: -3px;
-          width: 14px;
-          height: 14px;
-          background: #ef4444;
-          border: 2.5px solid var(--color-surface);
-          border-radius: 50%;
-          animation: pulseDot 2s infinite;
-        }
-
-        @keyframes pulseDot {
-          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-          70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-
-        .notif-header-title {
-          font-size: 20px;
+        .notif-banner-text h3 {
+          font-size: 15px;
           font-weight: 800;
           color: var(--color-text-primary);
           margin: 0;
-          display: flex;
-          align-items: center;
-          gap: 10px;
+          line-height: 1.3;
         }
 
-        .notif-header-subtitle {
-          font-size: 13px;
+        .notif-banner-text p {
+          font-size: 12.5px;
           color: var(--color-text-secondary);
-          margin-top: 4px;
+          margin-top: 2px;
+          margin-bottom: 0;
           font-weight: 500;
         }
 
-        /* 2. Control Toolbar */
-        .notif-toolbar-container {
+        /* 2. KPI Stats Cards Grid */
+        .notif-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+        }
+
+        @media (max-width: 1024px) {
+          .notif-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 640px) {
+          .notif-stats-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .notif-stat-card {
           background: var(--color-surface-alt);
-          border: 1px solid var(--color-border);
-          border-radius: 18px;
-          padding: 12px 16px;
+          border: 1.5px solid var(--color-border);
+          border-radius: 20px;
+          padding: 20px 22px;
           display: flex;
-          flex-wrap: wrap;
           align-items: center;
           justify-content: space-between;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .notif-stat-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+          border-color: var(--color-primary-ui);
+        }
+
+        .notif-stat-content {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .notif-stat-number {
+          font-size: 32px;
+          font-weight: 900;
+          color: var(--color-text-primary);
+          line-height: 1;
+          letter-spacing: -0.5px;
+        }
+
+        .notif-stat-label {
+          font-size: 12.5px;
+          font-weight: 700;
+          color: var(--color-text-secondary);
+          margin-top: 4px;
+        }
+
+        .notif-stat-icon-wrapper {
+          width: 52px;
+          height: 52px;
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+          flex-shrink: 0;
+        }
+
+        /* 3. Control Toolbar */
+        .notif-toolbar-container {
+          background: var(--color-surface-alt);
+          border: 1.5px solid var(--color-border);
+          border-radius: 20px;
+          padding: 14px 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .notif-toolbar-top-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
           gap: 12px;
+          flex-wrap: wrap;
         }
 
         .notif-search-box {
           position: relative;
-          min-width: 260px;
+          min-width: 280px;
           flex-grow: 1;
-          max-width: 420px;
+          max-width: 440px;
         }
 
         .notif-search-box input {
           width: 100%;
-          padding: 10px 40px 10px 16px;
+          padding: 10px 42px 10px 16px;
           border-radius: 12px;
           border: 1.5px solid var(--color-border);
           background: var(--color-surface);
@@ -509,7 +582,7 @@ export default function CommunicationsTab() {
         }
 
         body[dir="ltr"] .notif-search-box input {
-          padding: 10px 16px 10px 40px;
+          padding: 10px 16px 10px 42px;
         }
 
         .notif-search-box input:focus {
@@ -522,29 +595,29 @@ export default function CommunicationsTab() {
           position: absolute;
           top: 50%;
           transform: translateY(-50%);
-          right: 12px;
+          right: 14px;
           color: var(--color-text-secondary);
         }
 
         body[dir="ltr"] .notif-search-icon {
           right: auto;
-          left: 12px;
+          left: 14px;
         }
 
         .notif-filter-chips {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
           overflow-x: auto;
           padding-bottom: 2px;
         }
 
         .notif-chip-btn {
-          border: 1px solid var(--color-border);
+          border: 1.5px solid var(--color-border);
           background: var(--color-surface);
           color: var(--color-text-secondary);
-          padding: 7px 14px;
-          border-radius: 20px;
+          padding: 8px 16px;
+          border-radius: 14px;
           font-size: 12.5px;
           font-weight: 700;
           cursor: pointer;
@@ -564,49 +637,29 @@ export default function CommunicationsTab() {
           background: var(--color-primary-ui);
           color: white;
           border-color: var(--color-primary-ui);
-          box-shadow: 0 4px 12px rgba(30, 80, 142, 0.25);
+          box-shadow: 0 4px 14px rgba(30, 80, 142, 0.25);
         }
 
         .notif-chip-counter {
-          font-size: 10px;
-          padding: 1px 6px;
+          font-size: 10.5px;
+          padding: 1px 7px;
           border-radius: 10px;
-          background: rgba(0, 0, 0, 0.1);
+          background: rgba(0, 0, 0, 0.12);
           color: inherit;
         }
 
-        /* 3. Chronological Feed Cards */
-        .notif-timeline-group {
+        /* 4. Notification Cards Feed */
+        .notif-feed-list {
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 14px;
         }
 
-        .notif-timeline-header {
-          font-size: 12.5px;
-          font-weight: 800;
-          color: var(--color-text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 8px;
-        }
-
-        .notif-timeline-header::after {
-          content: '';
-          flex-grow: 1;
-          height: 1px;
-          background: var(--color-border);
-          opacity: 0.6;
-        }
-
-        .notif-card-linear {
+        .notif-card-modern {
           background: var(--color-surface-alt);
-          border: 1px solid var(--color-border);
-          border-radius: 16px;
-          padding: 18px 20px;
+          border: 1.5px solid var(--color-border);
+          border-radius: 18px;
+          padding: 20px 22px;
           display: flex;
           flex-direction: column;
           gap: 12px;
@@ -615,52 +668,51 @@ export default function CommunicationsTab() {
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
         }
 
-        .notif-card-linear.unread {
+        .notif-card-modern.unread {
           background: linear-gradient(135deg, rgba(30, 80, 142, 0.04) 0%, var(--color-surface-alt) 100%);
-          border-color: rgba(30, 80, 142, 0.3);
-          box-shadow: 0 4px 16px rgba(30, 80, 142, 0.06);
+          border-color: rgba(30, 80, 142, 0.35);
+          box-shadow: 0 4px 18px rgba(30, 80, 142, 0.07);
         }
 
-        .notif-card-linear:hover {
+        .notif-card-modern:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-          border-color: rgba(30, 80, 142, 0.4);
+          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
+          border-color: rgba(30, 80, 142, 0.45);
         }
 
-        .notif-card-top-row {
+        .notif-card-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           gap: 12px;
         }
 
-        .notif-card-title-group {
+        .notif-card-title-area {
           display: flex;
           align-items: flex-start;
           gap: 14px;
         }
 
-        .notif-avatar-box {
-          width: 44px;
-          height: 44px;
+        .notif-card-avatar {
+          width: 46px;
+          height: 46px;
           border-radius: 14px;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          font-weight: bold;
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .notif-card-title {
-          font-size: 15px;
+          font-size: 15.5px;
           font-weight: 800;
           color: var(--color-text-primary);
-          line-height: 1.3;
+          line-height: 1.35;
           margin: 0;
         }
 
-        .notif-card-meta-row {
+        .notif-card-meta {
           display: flex;
           align-items: center;
           gap: 10px;
@@ -681,9 +733,9 @@ export default function CommunicationsTab() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding-top: 12px;
+          padding-top: 14px;
           border-top: 1px dashed var(--color-border);
-          font-size: 11.5px;
+          font-size: 12px;
           color: var(--color-text-secondary);
           font-weight: 600;
         }
@@ -692,18 +744,12 @@ export default function CommunicationsTab() {
           display: flex;
           align-items: center;
           gap: 6px;
-          opacity: 0.85;
-          transition: opacity 0.2s ease;
         }
 
-        .notif-card-linear:hover .notif-action-btn-group {
-          opacity: 1;
-        }
-
-        .notif-icon-action {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
+        .notif-icon-btn {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
           border: 1px solid var(--color-border);
           background: var(--color-surface);
           color: var(--color-text-secondary);
@@ -714,19 +760,19 @@ export default function CommunicationsTab() {
           transition: all 0.15s ease;
         }
 
-        .notif-icon-action:hover {
+        .notif-icon-btn:hover {
           color: var(--color-primary-ui);
           border-color: var(--color-primary-ui);
           background: rgba(30, 80, 142, 0.08);
         }
 
-        .notif-icon-action.danger:hover {
+        .notif-icon-btn.danger:hover {
           color: #ef4444;
           border-color: #ef4444;
           background: rgba(239, 68, 68, 0.08);
         }
 
-        /* Modal Quick Templates Chips */
+        /* Preset Chips Modal */
         .preset-templates-container {
           display: flex;
           gap: 8px;
@@ -735,12 +781,12 @@ export default function CommunicationsTab() {
         }
 
         .preset-template-chip {
-          padding: 6px 12px;
+          padding: 7px 14px;
           border-radius: 12px;
-          border: 1px solid var(--color-border);
+          border: 1.5px solid var(--color-border);
           background: var(--color-surface);
           color: var(--color-text-primary);
-          font-size: 11.5px;
+          font-size: 12px;
           font-weight: 700;
           cursor: pointer;
           white-space: nowrap;
@@ -757,119 +803,214 @@ export default function CommunicationsTab() {
         }
       `}</style>
 
-      {/* 1. Header Banner & Executive Actions */}
-      <div className="notif-header-banner no-print">
-        <div className="notif-header-title-box">
-          <div className="notif-header-icon-badge">
-            <Bell size={26} />
-            {unreadCount > 0 && <span className="notif-unread-glow-dot" />}
+      {/* 1. Header Banner */}
+      <div className="notif-banner-modern no-print">
+        <div className="notif-banner-info-left">
+          <div className="notif-banner-icon">
+            <Info size={24} />
           </div>
-          <div>
-            <h2 className="notif-header-title">
-              <span>{lang === 'ar' ? 'مركز الاتصالات والإشعارات الفورية' : 'Notification Command Center'}</span>
-              {unreadCount > 0 && (
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  background: '#ef4444',
-                  color: 'white',
-                  padding: '2px 9px',
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
-                }}>
-                  {unreadCount} {lang === 'ar' ? 'جديد' : 'Unread'}
-                </span>
-              )}
-            </h2>
-            <p className="notif-header-subtitle">
+          <div className="notif-banner-text">
+            <h3>{lang === 'ar' ? 'منصة الاتصالات والإشعارات الموحدة' : 'Unified Communications & Alerts Platform'}</h3>
+            <p>
               {lang === 'ar' 
-                ? 'إدارة البلاغات الجماعية، والتعاميم الفورية، والتنبيهات المخصصة للطلاب وأولياء الأمور والمعلمين'
-                : 'Manage general broadcasts, urgent announcements, and targeted student & parent notifications'}
+                ? 'تتيح لك إرسال التنبيهات الفورية الفعالة والتعاميم المباشرة لفئات مختلفة في المدرسة مع تتبع فوري لحالة التسليم.'
+                : 'Send instant broadcast notifications and targeted alerts to students, parents, and teachers with live delivery status.'}
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {unreadCount > 0 && (
-            <button
-              className="btn-elevated"
-              onClick={() => {
-                notifications.filter(n => !n.isRead).forEach(n => handleMarkNotificationAsRead(n.id));
-              }}
-              style={{
-                height: '42px',
-                padding: '0 16px',
-                borderRadius: '12px',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-surface)',
-                color: 'var(--color-primary-ui)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <CheckCheck size={16} />
-              <span>{lang === 'ar' ? 'تحديد الكل كمقروء' : 'Mark All as Read'}</span>
-            </button>
-          )}
+        {unreadCount > 0 && (
+          <button
+            onClick={() => {
+              notifications.filter(n => !n.isRead).forEach(n => handleMarkNotificationAsRead(n.id));
+            }}
+            style={{
+              height: '38px',
+              padding: '0 14px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: '700',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-primary-ui)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <CheckCheck size={16} />
+            <span>{lang === 'ar' ? 'تحديد الكل كمقروء' : 'Mark All Read'}</span>
+          </button>
+        )}
+      </div>
 
-          {canAction('communications', 'create') && (
-            <button
-              onClick={() => {
-                setModalNotificationType('parents');
-                setModalNotificationTitle('');
-                setModalNotificationContent('');
-                setShowNotificationModal(true);
-              }}
-              style={{
-                height: '42px',
-                padding: '0 20px',
-                borderRadius: '12px',
-                fontSize: '13px',
-                fontWeight: '800',
-                border: 'none',
-                background: 'var(--gradient-brand)',
-                color: 'white',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 6px 18px rgba(30, 80, 142, 0.28)'
-              }}
-            >
-              <Plus size={18} strokeWidth={2.5} />
-              <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
-            </button>
-          )}
+      {/* 2. KPI Stats Cards Grid (The 4 essential stats cards requested by user) */}
+      <div className="notif-stats-grid">
+        {/* Card 1: Total Notifications */}
+        <div className="notif-stat-card">
+          <div className="notif-stat-content">
+            <span className="notif-stat-number">{statsTotal}</span>
+            <span className="notif-stat-label">{lang === 'ar' ? 'إجمالي الإشعارات' : 'Total Notifications'}</span>
+          </div>
+          <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #1e508e 0%, #103058 100%)' }}>
+            <Bell size={24} />
+          </div>
+        </div>
+
+        {/* Card 2: Parents Broadcasts */}
+        <div className="notif-stat-card">
+          <div className="notif-stat-content">
+            <span className="notif-stat-number">{statsParents}</span>
+            <span className="notif-stat-label">{lang === 'ar' ? 'تعاميم أولياء الأمور' : 'Parents Broadcasts'}</span>
+          </div>
+          <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}>
+            <Users size={24} />
+          </div>
+        </div>
+
+        {/* Card 3: Class Broadcasts */}
+        <div className="notif-stat-card">
+          <div className="notif-stat-content">
+            <span className="notif-stat-number">{statsClasses}</span>
+            <span className="notif-stat-label">{lang === 'ar' ? 'تعاميم الفصول' : 'Class Broadcasts'}</span>
+          </div>
+          <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }}>
+            <Layers size={24} />
+          </div>
+        </div>
+
+        {/* Card 4: Private Alerts */}
+        <div className="notif-stat-card">
+          <div className="notif-stat-content">
+            <span className="notif-stat-number">{statsPrivate}</span>
+            <span className="notif-stat-label">{lang === 'ar' ? 'التنبيهات الفردية' : 'Private Alerts'}</span>
+          </div>
+          <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)' }}>
+            <GraduationCap size={24} />
+          </div>
         </div>
       </div>
 
-      {/* 2. Control Toolbar & Filtering */}
+      {/* 3. Control Toolbar */}
       <div className="notif-toolbar-container no-print">
-        {/* Search */}
-        <div className="notif-search-box">
-          <Search size={16} className="notif-search-icon" />
-          <input 
-            type="text"
-            placeholder={lang === 'ar' ? 'البحث بالاسم، العنوان، أو المحتوى...' : 'Search title, content, or recipient...'}
-            value={searchQuery || ''}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setSearch(e.target.value);
-            }}
-          />
+        <div className="notif-toolbar-top-row">
+          {/* Search */}
+          <div className="notif-search-box">
+            <Search size={16} className="notif-search-icon" />
+            <input 
+              type="text"
+              placeholder={lang === 'ar' ? 'البحث في سجل الإشعارات المرسلة...' : 'Search notifications history...'}
+              value={searchQuery || ''}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSearch(e.target.value);
+              }}
+            />
+          </div>
+
+          {/* Date Picker & Action Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input 
+                type="date"
+                className="text-field"
+                style={{ 
+                  height: '42px', 
+                  padding: '0 12px', 
+                  borderRadius: '12px', 
+                  border: '1.5px solid var(--color-border)',
+                  backgroundColor: 'var(--color-surface)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  outline: 'none'
+                }}
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                title={lang === 'ar' ? 'تصفية حسب التاريخ' : 'Filter by Date'}
+              />
+              {filterDate && (
+                <button
+                  type="button"
+                  onClick={() => setFilterDate('')}
+                  style={{
+                    position: 'absolute',
+                    left: lang === 'ar' ? '8px' : 'auto',
+                    right: lang === 'ar' ? 'auto' : '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-text-secondary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {canAction('communications', 'delete') && notifications.length > 0 && (
+              <button
+                onClick={onDeleteAllNotificationsClick}
+                style={{
+                  height: '42px',
+                  padding: '0 16px',
+                  borderRadius: '12px',
+                  border: '1.5px solid rgba(239, 68, 68, 0.3)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                  color: '#ef4444',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Trash2 size={15} />
+                <span>{lang === 'ar' ? 'حذف الكل' : 'Delete All'}</span>
+              </button>
+            )}
+
+            {canAction('communications', 'create') && (
+              <button
+                onClick={() => {
+                  setModalNotificationType('parents');
+                  setModalNotificationTitle('');
+                  setModalNotificationContent('');
+                  setShowNotificationModal(true);
+                }}
+                style={{
+                  height: '42px',
+                  padding: '0 20px',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  border: 'none',
+                  background: 'var(--gradient-brand)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 6px 18px rgba(30, 80, 142, 0.28)'
+                }}
+              >
+                <Plus size={18} strokeWidth={2.5} />
+                <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Category Chips */}
+        {/* Filter Chips Pills Row */}
         <div className="notif-filter-chips">
           <button 
             onClick={() => setActiveFilter('all')}
             className={`notif-chip-btn ${activeFilter === 'all' ? 'active' : ''}`}
           >
-            <span>{lang === 'ar' ? 'جميع الإشعارات' : 'All Alerts'}</span>
+            <span>{lang === 'ar' ? 'الكل' : 'All'}</span>
             <span className="notif-chip-counter">{notifications.length}</span>
           </button>
 
@@ -886,7 +1027,7 @@ export default function CommunicationsTab() {
             className={`notif-chip-btn ${activeFilter === 'classes' ? 'active' : ''}`}
           >
             <Layers size={14} />
-            <span>{lang === 'ar' ? 'الصفوف الدراسية' : 'Classes'}</span>
+            <span>{lang === 'ar' ? 'الصفوف' : 'Classes'}</span>
           </button>
 
           <button 
@@ -902,132 +1043,39 @@ export default function CommunicationsTab() {
             className={`notif-chip-btn ${activeFilter === 'private' ? 'active' : ''}`}
           >
             <GraduationCap size={14} />
-            <span>{lang === 'ar' ? 'إشعارات خاصة' : 'Private'}</span>
+            <span>{lang === 'ar' ? 'إشعار خاص' : 'Private Alerts'}</span>
           </button>
-        </div>
-
-        {/* Date Filter & Bulk Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <input 
-              type="date"
-              className="text-field"
-              style={{ 
-                height: '36px', 
-                padding: '0 10px', 
-                borderRadius: '10px', 
-                border: '1px solid var(--color-border)',
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text-primary)',
-                fontSize: '12px',
-                outline: 'none'
-              }}
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              title={lang === 'ar' ? 'تصفية حسب التاريخ' : 'Filter by Date'}
-            />
-            {filterDate && (
-              <button
-                type="button"
-                onClick={() => setFilterDate('')}
-                style={{
-                  position: 'absolute',
-                  left: lang === 'ar' ? '6px' : 'auto',
-                  right: lang === 'ar' ? 'auto' : '6px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--color-text-secondary)',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-
-          {notifications.length > 0 && canAction('communications', 'delete') && (
-            <button
-              onClick={onDeleteAllNotificationsClick}
-              title={lang === 'ar' ? 'حذف سجل الإشعارات بالكامل' : 'Delete all history'}
-              style={{
-                height: '36px',
-                padding: '0 12px',
-                borderRadius: '10px',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                color: '#ef4444',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
-              <Trash2 size={14} />
-              <span>{lang === 'ar' ? 'مسح الكل' : 'Clear All'}</span>
-            </button>
-          )}
         </div>
       </div>
 
-      {/* 3. Chronological Feed View */}
+      {/* Section Header Title */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 0 -8px 0' }}>
+        <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--color-text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Volume2 size={18} style={{ color: 'var(--color-primary-ui)' }} />
+          <span>{lang === 'ar' ? 'سجل الإرسال التاريخي' : 'Historical Dispatch Log'}</span>
+        </h4>
+        <span style={{ fontSize: '12px', fontWeight: '800', background: 'var(--color-surface-alt)', border: '1px solid var(--color-border)', padding: '2px 10px', borderRadius: '12px', color: 'var(--color-text-secondary)' }}>
+          {filteredNotifications.length} {lang === 'ar' ? 'إشعار' : 'alerts'}
+        </span>
+      </div>
+
+      {/* 4. Notifications Feed List */}
       {loading ? (
-        /* Skeleton Shimmer Loading State */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {[1, 2, 3].map(i => (
             <div key={i} style={{
               height: '110px',
-              borderRadius: '16px',
+              borderRadius: '18px',
               backgroundColor: 'var(--color-surface-alt)',
-              border: '1px solid var(--color-border)',
+              border: '1.5px solid var(--color-border)',
               opacity: 0.6,
               animation: 'pulse 1.5s infinite ease-in-out'
             }} />
           ))}
         </div>
       ) : filteredNotifications.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-          {/* Group 1: Today */}
-          {groupedNotifications.today.length > 0 && (
-            <div className="notif-timeline-group">
-              <div className="notif-timeline-header">
-                <Clock size={14} />
-                <span>{lang === 'ar' ? 'اليوم' : 'Today'}</span>
-                <span style={{ opacity: 0.7 }}>({groupedNotifications.today.length})</span>
-              </div>
-
-              {groupedNotifications.today.map(notif => renderNotificationCard(notif))}
-            </div>
-          )}
-
-          {/* Group 2: Yesterday */}
-          {groupedNotifications.yesterday.length > 0 && (
-            <div className="notif-timeline-group">
-              <div className="notif-timeline-header">
-                <Calendar size={14} />
-                <span>{lang === 'ar' ? 'أمس' : 'Yesterday'}</span>
-                <span style={{ opacity: 0.7 }}>({groupedNotifications.yesterday.length})</span>
-              </div>
-
-              {groupedNotifications.yesterday.map(notif => renderNotificationCard(notif))}
-            </div>
-          )}
-
-          {/* Group 3: Earlier */}
-          {groupedNotifications.earlier.length > 0 && (
-            <div className="notif-timeline-group">
-              <div className="notif-timeline-header">
-                <FileText size={14} />
-                <span>{lang === 'ar' ? 'سجلات أقدم' : 'Earlier Notifications'}</span>
-                <span style={{ opacity: 0.7 }}>({groupedNotifications.earlier.length})</span>
-              </div>
-
-              {groupedNotifications.earlier.map(notif => renderNotificationCard(notif))}
-            </div>
-          )}
+        <div className="notif-feed-list">
+          {filteredNotifications.map(notif => renderNotificationCard(notif))}
 
           {/* Pagination Footer */}
           <div className="no-print" style={{ marginTop: 'var(--space-md)' }}>
@@ -1046,13 +1094,13 @@ export default function CommunicationsTab() {
           </div>
         </div>
       ) : (
-        /* Bespoke High-Craft Empty State */
+        /* Empty State */
         <div style={{ 
           padding: '60px 24px', 
           textAlign: 'center', 
           backgroundColor: 'var(--color-surface-alt)', 
           borderRadius: '24px', 
-          border: '1px dashed var(--color-border)',
+          border: '1.5px dashed var(--color-border)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -1114,7 +1162,7 @@ export default function CommunicationsTab() {
         </div>
       )}
 
-      {/* 4. Smart Notification Composer Modal */}
+      {/* 5. Notification Composer Modal */}
       {showNotificationModal && (
         <div className="modal-overlay no-print" style={{ backdropFilter: 'blur(8px)' }}>
           <div className="modal-container" style={{ maxWidth: '640px', borderRadius: '24px', overflow: 'hidden' }}>
@@ -1352,7 +1400,7 @@ export default function CommunicationsTab() {
     </div>
   );
 
-  // Helper render for single Notification Card in Linear/Apple style
+  // Single Notification Card Render
   function renderNotificationCard(notif) {
     const student = notif.type === 'student' ? students.find(s => s.id === Number(notif.studentId)) : null;
     const resolvedStudentName = student ? student.name : notif.studentName;
@@ -1372,18 +1420,18 @@ export default function CommunicationsTab() {
     return (
       <div 
         key={notif.id}
-        className={`notif-card-linear ${!notif.isRead ? 'unread' : ''}`}
+        className={`notif-card-modern ${!notif.isRead ? 'unread' : ''}`}
         onClick={() => {
           if (!notif.isRead) {
             handleMarkNotificationAsRead(notif.id);
           }
         }}
       >
-        <div className="notif-card-top-row">
-          <div className="notif-card-title-group">
+        <div className="notif-card-header">
+          <div className="notif-card-title-area">
             {/* Category Avatar Box */}
             <div 
-              className="notif-avatar-box" 
+              className="notif-card-avatar" 
               style={{ backgroundColor: cat.bgGlow, color: cat.textColor, border: `1px solid ${cat.borderColor}` }}
             >
               {cat.icon}
@@ -1394,11 +1442,11 @@ export default function CommunicationsTab() {
                 {notif.title}
                 {!notif.isRead && (
                   <span style={{
-                    fontSize: '10px',
+                    fontSize: '10.5px',
                     fontWeight: '800',
                     background: '#ef4444',
                     color: 'white',
-                    padding: '1px 7px',
+                    padding: '1px 8px',
                     borderRadius: '10px',
                     marginInlineStart: '8px',
                     display: 'inline-block',
@@ -1409,7 +1457,7 @@ export default function CommunicationsTab() {
                 )}
               </h4>
 
-              <div className="notif-card-meta-row">
+              <div className="notif-card-meta">
                 {/* Category Badge Pill */}
                 <span style={{
                   fontSize: '11px',
@@ -1417,24 +1465,24 @@ export default function CommunicationsTab() {
                   color: cat.textColor,
                   background: cat.bgGlow,
                   padding: '2px 8px',
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   border: `1px solid ${cat.borderColor}`
                 }}>
                   {cat.label}
                 </span>
 
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
                   🕒 {timeAgo} ({notif.date})
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Quick Hover/Tap Action Icons */}
+          {/* Actions Group */}
           <div className="notif-action-btn-group no-print" onClick={e => e.stopPropagation()}>
             {!notif.isRead && (
               <button
-                className="notif-icon-action"
+                className="notif-icon-btn"
                 onClick={() => handleMarkNotificationAsRead(notif.id)}
                 title={lang === 'ar' ? 'تحديد كمقروء' : 'Mark as read'}
               >
@@ -1443,7 +1491,7 @@ export default function CommunicationsTab() {
             )}
 
             <button
-              className="notif-icon-action"
+              className="notif-icon-btn"
               onClick={(e) => handleCopyContent(e, notif)}
               title={lang === 'ar' ? 'نسخ نص الإشعار' : 'Copy notification text'}
             >
@@ -1452,7 +1500,7 @@ export default function CommunicationsTab() {
 
             {canAction('communications', 'delete') && (
               <button
-                className="notif-icon-action danger"
+                className="notif-icon-btn danger"
                 onClick={(e) => onDeleteNotificationClick(e, notif.id)}
                 title={lang === 'ar' ? 'حذف الإشعار' : 'Delete notification'}
               >
