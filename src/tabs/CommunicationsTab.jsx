@@ -58,16 +58,19 @@ export default function CommunicationsTab() {
     params.set('page', page);
     params.set('per_page', perPage);
     if (search) params.set('search', search);
+    if (filterDate) params.set('date', filterDate);
 
     if (activeFilter === 'parents') {
-      params.set('type', 'broadcast_parents');
+      params.set('target_type', 'all_parents');
     } else if (activeFilter === 'teachers') {
-      params.set('type', 'broadcast_teachers');
-    } else if (activeFilter === 'classes' || activeFilter === 'private') {
-      params.set('type', 'broadcast');
+      params.set('target_type', 'all_teachers');
+    } else if (activeFilter === 'classes') {
+      params.set('target_type', 'by_class');
+    } else if (activeFilter === 'private') {
+      params.set('target_type', 'by_student');
     }
     return '?' + params.toString();
-  }, [page, perPage, search, activeFilter]);
+  }, [page, perPage, search, filterDate, activeFilter]);
 
   useEffect(() => {
     fetchNotifications(qs);
@@ -320,11 +323,11 @@ export default function CommunicationsTab() {
   // Filtered Notifications List
   const filteredNotifications = useMemo(() => {
     return notifications.filter(notif => {
-      if (filterDate && !notif.date.startsWith(filterDate)) return false;
+      if (filterDate && notif.date && !notif.date.substring(0, 10).startsWith(filterDate)) return false;
       if (activeFilter === 'parents') return notif.type === 'parents' || notif.type === 'general' || notif.type === 'broadcast_parents';
       if (activeFilter === 'classes') return notif.type === 'class';
       if (activeFilter === 'teachers') return notif.type === 'teachers' || notif.type === 'teacher' || notif.type === 'broadcast_teachers';
-      if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private';
+      if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private' || notif.type === 'teacher';
       return true;
     });
   }, [notifications, filterDate, activeFilter]);
@@ -1001,13 +1004,19 @@ export default function CommunicationsTab() {
                   outline: 'none'
                 }}
                 value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
+                onChange={(e) => {
+                  setFilterDate(e.target.value);
+                  setPage(1);
+                }}
                 title={lang === 'ar' ? 'تصفية حسب التاريخ' : 'Filter by Date'}
               />
               {filterDate && (
                 <button
                   type="button"
-                  onClick={() => setFilterDate('')}
+                  onClick={() => {
+                    setFilterDate('');
+                    setPage(1);
+                  }}
                   style={{
                     position: 'absolute',
                     left: lang === 'ar' ? '8px' : 'auto',
@@ -1080,7 +1089,7 @@ export default function CommunicationsTab() {
         {/* Filter Chips Pills Row */}
         <div className="notif-filter-chips">
           <button 
-            onClick={() => setActiveFilter('all')}
+            onClick={() => { setActiveFilter('all'); setPage(1); }}
             className={`notif-chip-btn ${activeFilter === 'all' ? 'active' : ''}`}
           >
             <span>{lang === 'ar' ? 'الكل' : 'All'}</span>
@@ -1088,7 +1097,7 @@ export default function CommunicationsTab() {
           </button>
 
           <button 
-            onClick={() => setActiveFilter('parents')}
+            onClick={() => { setActiveFilter('parents'); setPage(1); }}
             className={`notif-chip-btn ${activeFilter === 'parents' ? 'active' : ''}`}
           >
             <Users size={14} />
@@ -1096,7 +1105,7 @@ export default function CommunicationsTab() {
           </button>
 
           <button 
-            onClick={() => setActiveFilter('classes')}
+            onClick={() => { setActiveFilter('classes'); setPage(1); }}
             className={`notif-chip-btn ${activeFilter === 'classes' ? 'active' : ''}`}
           >
             <Layers size={14} />
@@ -1104,7 +1113,7 @@ export default function CommunicationsTab() {
           </button>
 
           <button 
-            onClick={() => setActiveFilter('teachers')}
+            onClick={() => { setActiveFilter('teachers'); setPage(1); }}
             className={`notif-chip-btn ${activeFilter === 'teachers' ? 'active' : ''}`}
           >
             <User size={14} />
@@ -1112,7 +1121,7 @@ export default function CommunicationsTab() {
           </button>
 
           <button 
-            onClick={() => setActiveFilter('private')}
+            onClick={() => { setActiveFilter('private'); setPage(1); }}
             className={`notif-chip-btn ${activeFilter === 'private' ? 'active' : ''}`}
           >
             <GraduationCap size={14} />
@@ -1289,6 +1298,24 @@ export default function CommunicationsTab() {
                   </label>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '8px' }}>
+                    <div 
+                      onClick={() => setModalNotificationType('all_users')}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '12px',
+                        border: modalNotificationType === 'all_users' ? '2px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                        background: modalNotificationType === 'all_users' ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface)',
+                        color: modalNotificationType === 'all_users' ? 'var(--color-primary-ui)' : 'var(--color-text-primary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '11.5px',
+                        fontWeight: '700'
+                      }}
+                    >
+                      <Sparkles size={18} style={{ margin: '0 auto 4px auto', display: 'block' }} />
+                      <span>{lang === 'ar' ? 'جميع المستخدمين' : 'All Users'}</span>
+                    </div>
+
                     <div 
                       onClick={() => setModalNotificationType('parents')}
                       style={{

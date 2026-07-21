@@ -41,9 +41,12 @@ export default function NotificationsProvider({ children }) {
         if (data.success) {
           const mapped = data.notifications.map((notif) => {
             let type = "parents";
-            if (notif.target_type === "by_class") type = "class";
-            else if (notif.target_type === "by_student") type = "student";
-            else if (notif.target_type === "specific_teacher") type = "teacher";
+            if (notif.target_type === "by_class" || notif.type === "class") type = "class";
+            else if (notif.target_type === "by_student" || notif.type === "student") type = "student";
+            else if (notif.target_type === "specific_teacher" || notif.type === "teacher") type = "teacher";
+            else if (notif.target_type === "all_teachers" || notif.type === "broadcast_teachers" || notif.type === "teachers") type = "teachers";
+            else if (notif.target_type === "all_parents" || notif.type === "broadcast_parents" || notif.type === "parents") type = "parents";
+            else if (notif.type) type = notif.type;
 
             let studentName = null;
             let studentNameEn = null;

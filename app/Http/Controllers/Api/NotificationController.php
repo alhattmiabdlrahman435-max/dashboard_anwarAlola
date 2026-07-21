@@ -42,7 +42,7 @@ class NotificationController extends Controller implements HasMiddleware
                       $subQ->whereNull('student_id')
                            ->whereNull('class_id')
                            ->whereNull('teacher_id')
-                           ->where('type', '!=', 'broadcast_teachers');
+                           ->whereIn('type', ['broadcast_parents', 'general']);
                   });
             });
         } elseif ($user->role === 'teacher') {
@@ -52,7 +52,7 @@ class NotificationController extends Controller implements HasMiddleware
                       $subQ->whereNull('student_id')
                            ->whereNull('class_id')
                            ->whereNull('teacher_id')
-                           ->where('type', '!=', 'broadcast_parents');
+                           ->whereIn('type', ['broadcast_teachers', 'general']);
                   });
             });
         } else {
@@ -79,11 +79,29 @@ class NotificationController extends Controller implements HasMiddleware
         }
 
         // Apply filters
-        if ($request->filled('type')) {
+        if ($request->filled('target_type')) {
+            $targetType = $request->input('target_type');
+            if ($targetType === 'all_parents' || $targetType === 'parents') {
+                $query->where('type', 'broadcast_parents');
+            } elseif ($targetType === 'all_teachers' || $targetType === 'teachers') {
+                $query->where('type', 'broadcast_teachers');
+            } elseif ($targetType === 'by_class' || $targetType === 'classes') {
+                $query->where('type', 'broadcast')->whereNotNull('class_id');
+            } elseif ($targetType === 'by_student' || $targetType === 'private' || $targetType === 'student') {
+                $query->where('type', 'broadcast')->where(function($q) {
+                    $q->whereNotNull('student_id')->orWhereNotNull('teacher_id');
+                });
+            }
+        } elseif ($request->filled('type')) {
             $query->where('type', $request->input('type'));
         }
+
         if ($request->filled('class_id')) {
             $query->where('class_id', $request->input('class_id'));
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $request->input('date'));
         }
 
         // Apply search
@@ -162,7 +180,7 @@ class NotificationController extends Controller implements HasMiddleware
         $request->validate([
             'title' => 'required|string',
             'content' => 'required|string',
-            'target_type' => 'required|string|in:all_parents,by_class,by_student,all_teachers,specific_teacher',
+            'target_type' => 'required|string|in:all_users,all_parents,by_class,by_student,all_teachers,specific_teacher',
             'target_id' => 'nullable|integer',
         ]);
 
@@ -178,7 +196,7 @@ class NotificationController extends Controller implements HasMiddleware
                     return response()->json(['success' => false, 'message' => 'غير مصرح لك بنشر إشعار لهذا الطالب.'], 403);
                 }
             }
-            if (in_array($request->target_type, ['all_parents', 'all_teachers', 'specific_teacher'])) {
+            if (in_array($request->target_type, ['all_users', 'all_parents', 'all_teachers', 'specific_teacher'])) {
                 return response()->json(['success' => false, 'message' => 'غير مصرح لك بنشر إشعارات عامة لجميع المعلمين أو أولياء الأمور.'], 403);
             }
         }
@@ -196,7 +214,9 @@ class NotificationController extends Controller implements HasMiddleware
         }
 
         $type = 'broadcast';
-        if ($request->target_type === 'all_teachers') {
+        if ($request->target_type === 'all_users') {
+            $type = 'general';
+        } elseif ($request->target_type === 'all_teachers') {
             $type = 'broadcast_teachers';
         } elseif ($request->target_type === 'all_parents') {
             $type = 'broadcast_parents';
@@ -214,7 +234,20 @@ class NotificationController extends Controller implements HasMiddleware
 
         // Collect target FCM tokens
         $tokens = [];
-        if ($request->target_type === 'all_parents') {
+        if ($request->target_type === 'all_users') {
+            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
+                    $q->whereIn('role', ['parent', 'teacher']);
+                })
+                ->pluck('fcm_token')
+                ->toArray();
+            
+            $oldTokens = \App\Models\User::whereIn('role', ['parent', 'teacher'])
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->toArray();
+            $tokens = array_unique(array_merge($tokens, $oldTokens));
+        } elseif ($request->target_type === 'all_parents') {
             $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
                     $q->where('role', 'parent');
                 })
