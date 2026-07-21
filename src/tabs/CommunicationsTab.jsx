@@ -164,7 +164,8 @@ export default function CommunicationsTab() {
       extraDetails = {
         studentId: Number(modalNotificationStudentId),
         studentName: targetStudent ? targetStudent.name : null,
-        studentNameEn: targetStudent ? targetStudent.nameEn : null
+        studentNameEn: targetStudent ? targetStudent.nameEn : null,
+        grade: targetStudent ? targetStudent.grade : null
       };
     } else if (modalNotificationType === 'class') {
       extraDetails = {
@@ -256,7 +257,34 @@ export default function CommunicationsTab() {
     };
   }, [lang]);
 
-  // Relative Time & Date Formatting Helper
+  // Format 12-Hour Makkah Time (ص / م)
+  const formatTime12hMakkah = useCallback((dateStr) => {
+    if (!dateStr) return '';
+    try {
+      let d = new Date(dateStr.replace(' ', 'T'));
+      if (isNaN(d.getTime())) {
+        d = new Date(dateStr);
+      }
+      if (isNaN(d.getTime())) return dateStr;
+
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      
+      let hours = d.getHours();
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const period = hours >= 12 ? (lang === 'ar' ? 'م' : 'PM') : (lang === 'ar' ? 'ص' : 'AM');
+      hours = hours % 12;
+      hours = hours ? hours : 12; // Convert 0 to 12
+      const formattedHours = String(hours).padStart(2, '0');
+
+      return `${year}-${month}-${day} ${formattedHours}:${minutes} ${period}`;
+    } catch (e) {
+      return dateStr;
+    }
+  }, [lang]);
+
+  // Relative Time Helper
   const formatTimeAgo = useCallback((dateStr) => {
     if (!dateStr) return '';
     try {
@@ -273,11 +301,11 @@ export default function CommunicationsTab() {
       if (diffDays === 1) return lang === 'ar' ? 'أمس' : 'Yesterday';
       if (diffDays < 7) return lang === 'ar' ? `منذ ${diffDays} أيام` : `${diffDays}d ago`;
 
-      return dateStr.substring(0, 10);
+      return formatTime12hMakkah(dateStr);
     } catch (e) {
       return dateStr;
     }
-  }, [lang]);
+  }, [lang, formatTime12hMakkah]);
 
   // Accurate KPI Stats Calculation
   const statsTotal = notificationsPagination.total || notifications.length;
@@ -338,8 +366,24 @@ export default function CommunicationsTab() {
     return notifications.filter(n => !n.isRead).length;
   }, [notifications]);
 
+  // Clean Grade Resolver without nulls
+  const resolveGradeName = (rawGrade, studentId) => {
+    if (rawGrade && rawGrade !== 'null' && rawGrade !== 'NULL' && rawGrade !== 'undefined') {
+      return rawGrade;
+    }
+    if (studentId) {
+      const targetStudent = students.find(s => s.id === Number(studentId));
+      if (targetStudent && targetStudent.grade && targetStudent.grade !== 'null') {
+        return targetStudent.grade;
+      }
+    }
+    return lang === 'ar' ? 'العام الدراسي' : 'General Grade';
+  };
+
   // Dynamic Category Details
-  const getCategoryDetails = (type, grade, studentName, studentNameEn, teacherName, teacherNameEn) => {
+  const getCategoryDetails = (type, grade, studentId, studentName, studentNameEn, teacherName, teacherNameEn) => {
+    const cleanGrade = resolveGradeName(grade, studentId);
+
     if (type === 'general' || type === 'parents' || type === 'broadcast_parents') {
       return {
         label: lang === 'ar' ? 'تعميم عام لأولياء الأمور' : 'All Parents Broadcast',
@@ -350,7 +394,7 @@ export default function CommunicationsTab() {
       };
     } else if (type === 'class') {
       return {
-        label: lang === 'ar' ? `الصف الدراسي: ${grade || 'عام'}` : `Class: ${grade || 'General'}`,
+        label: lang === 'ar' ? `الصف: ${cleanGrade}` : `Class: ${cleanGrade}`,
         bgGlow: 'rgba(217, 119, 6, 0.08)',
         borderColor: '#d97706',
         textColor: '#b45309',
@@ -359,7 +403,7 @@ export default function CommunicationsTab() {
     } else if (type === 'student' || type === 'private') {
       const name = lang === 'ar' ? (studentName || 'طالب مخصص') : (studentNameEn || studentName || 'Private Student');
       return {
-        label: lang === 'ar' ? `طالب: ${name}` : `Student: ${name}`,
+        label: lang === 'ar' ? `طالب (${cleanGrade}): ${name}` : `Student (${cleanGrade}): ${name}`,
         bgGlow: 'rgba(225, 29, 72, 0.08)',
         borderColor: '#e11d48',
         textColor: '#be123c',
@@ -384,7 +428,7 @@ export default function CommunicationsTab() {
       };
     }
     return {
-      label: lang === 'ar' ? 'إشعار إداري' : 'System Alert',
+      label: lang === 'ar' ? `إشعار إداري - الصف: ${cleanGrade}` : `System Alert - Class: ${cleanGrade}`,
       bgGlow: 'rgba(100, 116, 139, 0.08)',
       borderColor: '#64748b',
       textColor: '#475569',
@@ -846,7 +890,7 @@ export default function CommunicationsTab() {
         )}
       </div>
 
-      {/* 2. KPI Stats Cards Grid (The 4 essential stats cards requested by user) */}
+      {/* 2. KPI Stats Cards Grid */}
       <div className="notif-stats-grid">
         {/* Card 1: Total Notifications */}
         <div className="notif-stat-card">
@@ -1409,6 +1453,7 @@ export default function CommunicationsTab() {
     const cat = getCategoryDetails(
       notif.type,
       notif.grade,
+      notif.studentId,
       resolvedStudentName,
       resolvedStudentNameEn,
       notif.teacherName,
@@ -1416,6 +1461,7 @@ export default function CommunicationsTab() {
     );
 
     const timeAgo = formatTimeAgo(notif.date);
+    const time12hFormatted = formatTime12hMakkah(notif.date);
 
     return (
       <div 
@@ -1458,7 +1504,7 @@ export default function CommunicationsTab() {
               </h4>
 
               <div className="notif-card-meta">
-                {/* Category Badge Pill */}
+                {/* Category Badge Pill - NEVER NULL */}
                 <span style={{
                   fontSize: '11px',
                   fontWeight: '700',
@@ -1471,8 +1517,9 @@ export default function CommunicationsTab() {
                   {cat.label}
                 </span>
 
-                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
-                  🕒 {timeAgo} ({notif.date})
+                {/* 12-Hour Makkah Time Display (AM/PM - ص/م) */}
+                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                  🕒 {timeAgo} ({time12hFormatted})
                 </span>
               </div>
             </div>
