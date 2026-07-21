@@ -131,9 +131,9 @@ class NotificationController extends Controller implements HasMiddleware
         $query->orderBy($sortBy, $direction);
 
         $query->with([
-            'student:id,name,name_en',
-            'teacher:id,name,name_en',
-            'schoolClass:id,name,grade_name'
+            'student:id,name_ar,name_en',
+            'teacher:id,name,name_ar,name_en',
+            'schoolClass:id,name_ar,name_en,grade_ar,section_ar'
         ]);
 
         // Safe Column Selection
@@ -170,6 +170,12 @@ class NotificationController extends Controller implements HasMiddleware
                 $attachmentUrl = str_replace(['127.0.0.1:8000', 'localhost:8000'], $requestHost, $attachmentUrl);
             }
 
+            $studentName = $notif->student ? ($notif->student->name_ar ?: $notif->student->name_en) : null;
+            $studentNameEn = $notif->student ? ($notif->student->name_en ?: $notif->student->name_ar) : null;
+            $teacherName = $notif->teacher ? ($notif->teacher->name_ar ?: ($notif->teacher->name ?: $notif->teacher->name_en)) : null;
+            $teacherNameEn = $notif->teacher ? ($notif->teacher->name_en ?: ($notif->teacher->name ?: $notif->teacher->name_ar)) : null;
+            $className = $notif->schoolClass ? ($notif->schoolClass->name_ar ?: $notif->schoolClass->name_en) : null;
+
             return [
                 'id' => $notif->id,
                 'title' => $notif->title,
@@ -179,13 +185,13 @@ class NotificationController extends Controller implements HasMiddleware
                 'target_type' => $targetType,
                 'target_id' => $targetId,
                 'student_id' => $notif->student_id,
-                'student_name' => $notif->student ? ($notif->student->name ?: $notif->student->name_en) : null,
-                'student_name_en' => $notif->student ? ($notif->student->name_en ?: $notif->student->name) : null,
+                'student_name' => $studentName,
+                'student_name_en' => $studentNameEn,
                 'teacher_id' => $notif->teacher_id,
-                'teacher_name' => $notif->teacher ? ($notif->teacher->name ?: $notif->teacher->name_en) : null,
-                'teacher_name_en' => $notif->teacher ? ($notif->teacher->name_en ?: $notif->teacher->name) : null,
+                'teacher_name' => $teacherName,
+                'teacher_name_en' => $teacherNameEn,
                 'class_id' => $notif->class_id,
-                'class_name' => $notif->schoolClass ? ($notif->schoolClass->name ?: $notif->schoolClass->grade_name) : null,
+                'class_name' => $className,
                 'attachment_url' => $attachmentUrl,
                 'created_at' => $notif->created_at,
             ];
