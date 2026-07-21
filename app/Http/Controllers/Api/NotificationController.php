@@ -81,14 +81,26 @@ class NotificationController extends Controller implements HasMiddleware
         // Apply filters
         if ($request->filled('target_type')) {
             $targetType = $request->input('target_type');
-            if ($targetType === 'all_parents' || $targetType === 'parents') {
-                $query->where('type', 'broadcast_parents');
+            if ($targetType === 'all_users' || $targetType === 'general') {
+                $query->whereIn('type', ['general', 'all_users']);
+            } elseif ($targetType === 'all_parents' || $targetType === 'parents') {
+                $query->where(function($q) {
+                    $q->whereIn('type', ['broadcast_parents', 'parents', 'general', 'broadcast'])
+                      ->whereNull('teacher_id')
+                      ->whereNull('student_id')
+                      ->whereNull('class_id');
+                });
             } elseif ($targetType === 'all_teachers' || $targetType === 'teachers') {
-                $query->where('type', 'broadcast_teachers');
+                $query->where(function($q) {
+                    $q->whereIn('type', ['broadcast_teachers', 'teachers', 'general', 'broadcast'])
+                      ->whereNull('student_id')
+                      ->whereNull('class_id')
+                      ->whereNull('teacher_id');
+                });
             } elseif ($targetType === 'by_class' || $targetType === 'classes') {
-                $query->where('type', 'broadcast')->whereNotNull('class_id');
+                $query->whereNotNull('class_id');
             } elseif ($targetType === 'by_student' || $targetType === 'private' || $targetType === 'student') {
-                $query->where('type', 'broadcast')->where(function($q) {
+                $query->where(function($q) {
                     $q->whereNotNull('student_id')->orWhereNotNull('teacher_id');
                 });
             }

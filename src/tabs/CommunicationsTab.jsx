@@ -308,25 +308,61 @@ export default function CommunicationsTab() {
   // Accurate KPI Stats Calculation
   const statsTotal = notificationsPagination.total || notifications.length;
   
+  const statsAllUsers = useMemo(() => {
+    return notifications.filter(n => n.type === 'general' || n.type === 'all_users').length;
+  }, [notifications]);
+
   const statsParents = useMemo(() => {
-    return notifications.filter(n => n.type === 'general' || n.type === 'parents' || n.type === 'broadcast_parents').length;
+    return notifications.filter(n => n.type === 'parents' || n.type === 'broadcast_parents').length;
   }, [notifications]);
 
-  const statsClasses = useMemo(() => {
-    return notifications.filter(n => n.type === 'class').length;
+  const statsTeachers = useMemo(() => {
+    return notifications.filter(n => n.type === 'teachers' || n.type === 'broadcast_teachers').length;
   }, [notifications]);
 
-  const statsPrivate = useMemo(() => {
-    return notifications.filter(n => n.type === 'student' || n.type === 'private' || n.type === 'teacher').length;
+  const statsClassesAndPrivate = useMemo(() => {
+    return notifications.filter(n => n.type === 'class' || n.type === 'student' || n.type === 'private' || n.type === 'teacher').length;
   }, [notifications]);
+
+  // Recipient Resolver Helper
+  const getNotificationRecipient = useCallback((notif) => {
+    const type = notif.type;
+    const cleanGrade = resolveGradeName(notif);
+
+    if (type === 'general' || type === 'all_users') {
+      return lang === 'ar' ? 'جميع المستخدمين (معلمين وأولياء أمور)' : 'All Users (Teachers & Parents)';
+    }
+    if (type === 'parents' || type === 'broadcast_parents') {
+      return lang === 'ar' ? 'جميع أولياء الأمور' : 'All Parents';
+    }
+    if (type === 'teachers' || type === 'broadcast_teachers') {
+      return lang === 'ar' ? 'جميع المعلمين' : 'All Teachers';
+    }
+    if (type === 'class') {
+      return lang === 'ar' ? `الصف: ${cleanGrade}` : `Class: ${cleanGrade}`;
+    }
+    if (type === 'student' || type === 'private') {
+      const targetStudent = students.find(s => s.id === Number(notif.studentId));
+      const sName = targetStudent ? targetStudent.name : (notif.studentName || (lang === 'ar' ? 'طالب مخصص' : 'Student'));
+      return lang === 'ar' ? `الطالب: ${sName}` : `Student: ${sName}`;
+    }
+    if (type === 'teacher') {
+      const targetTeacher = teachers.find(t => t.id === Number(notif.teacherId));
+      const tName = targetTeacher ? targetTeacher.name : (notif.teacherName || (lang === 'ar' ? 'معلم مخصص' : 'Teacher'));
+      return lang === 'ar' ? `المعلم: ${tName}` : `Teacher: ${tName}`;
+    }
+
+    return lang === 'ar' ? 'عام' : 'General';
+  }, [lang, students, teachers]);
 
   // Filtered Notifications List
   const filteredNotifications = useMemo(() => {
     return notifications.filter(notif => {
       if (filterDate && notif.date && !notif.date.substring(0, 10).startsWith(filterDate)) return false;
-      if (activeFilter === 'parents') return notif.type === 'parents' || notif.type === 'general' || notif.type === 'broadcast_parents';
+      if (activeFilter === 'all_users') return notif.type === 'general' || notif.type === 'all_users';
+      if (activeFilter === 'parents') return notif.type === 'parents' || notif.type === 'broadcast_parents' || notif.type === 'general' || notif.type === 'broadcast';
+      if (activeFilter === 'teachers') return notif.type === 'teachers' || notif.type === 'broadcast_teachers' || notif.type === 'general' || notif.type === 'broadcast';
       if (activeFilter === 'classes') return notif.type === 'class';
-      if (activeFilter === 'teachers') return notif.type === 'teachers' || notif.type === 'teacher' || notif.type === 'broadcast_teachers';
       if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private' || notif.type === 'teacher';
       return true;
     });
@@ -553,13 +589,13 @@ export default function CommunicationsTab() {
         /* 2. KPI Stats Cards Grid */
         .notif-stats-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 14px;
         }
 
-        @media (max-width: 1024px) {
+        @media (max-width: 1200px) {
           .notif-stats-grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
           }
         }
 
@@ -934,40 +970,51 @@ export default function CommunicationsTab() {
             <span className="notif-stat-label">{lang === 'ar' ? 'إجمالي الإشعارات' : 'Total Notifications'}</span>
           </div>
           <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #1e508e 0%, #103058 100%)' }}>
-            <Bell size={24} />
+            <Bell size={22} />
           </div>
         </div>
 
-        {/* Card 2: Parents Broadcasts */}
+        {/* Card 2: All Users Broadcasts */}
+        <div className="notif-stat-card">
+          <div className="notif-stat-content">
+            <span className="notif-stat-number">{statsAllUsers}</span>
+            <span className="notif-stat-label">{lang === 'ar' ? 'جميع المستخدمين' : 'All Users'}</span>
+          </div>
+          <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' }}>
+            <Sparkles size={22} />
+          </div>
+        </div>
+
+        {/* Card 3: Parents Broadcasts */}
         <div className="notif-stat-card">
           <div className="notif-stat-content">
             <span className="notif-stat-number">{statsParents}</span>
             <span className="notif-stat-label">{lang === 'ar' ? 'تعاميم أولياء الأمور' : 'Parents Broadcasts'}</span>
           </div>
           <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}>
-            <Users size={24} />
+            <Users size={22} />
           </div>
         </div>
 
-        {/* Card 3: Class Broadcasts */}
+        {/* Card 4: Teachers Broadcasts */}
         <div className="notif-stat-card">
           <div className="notif-stat-content">
-            <span className="notif-stat-number">{statsClasses}</span>
-            <span className="notif-stat-label">{lang === 'ar' ? 'تعاميم الفصول' : 'Class Broadcasts'}</span>
+            <span className="notif-stat-number">{statsTeachers}</span>
+            <span className="notif-stat-label">{lang === 'ar' ? 'تعاميم المعلمين' : 'Teachers Broadcasts'}</span>
+          </div>
+          <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)' }}>
+            <User size={22} />
+          </div>
+        </div>
+
+        {/* Card 5: Classes & Individual Alerts */}
+        <div className="notif-stat-card">
+          <div className="notif-stat-content">
+            <span className="notif-stat-number">{statsClassesAndPrivate}</span>
+            <span className="notif-stat-label">{lang === 'ar' ? 'الفصول والتنبيهات الفردية' : 'Classes & Private'}</span>
           </div>
           <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }}>
-            <Layers size={24} />
-          </div>
-        </div>
-
-        {/* Card 4: Private Alerts */}
-        <div className="notif-stat-card">
-          <div className="notif-stat-content">
-            <span className="notif-stat-number">{statsPrivate}</span>
-            <span className="notif-stat-label">{lang === 'ar' ? 'التنبيهات الفردية' : 'Private Alerts'}</span>
-          </div>
-          <div className="notif-stat-icon-wrapper" style={{ background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)' }}>
-            <GraduationCap size={24} />
+            <Layers size={22} />
           </div>
         </div>
       </div>
@@ -1097,6 +1144,14 @@ export default function CommunicationsTab() {
           </button>
 
           <button 
+            onClick={() => { setActiveFilter('all_users'); setPage(1); }}
+            className={`notif-chip-btn ${activeFilter === 'all_users' ? 'active' : ''}`}
+          >
+            <Sparkles size={14} />
+            <span>{lang === 'ar' ? 'جميع المستخدمين' : 'All Users'}</span>
+          </button>
+
+          <button 
             onClick={() => { setActiveFilter('parents'); setPage(1); }}
             className={`notif-chip-btn ${activeFilter === 'parents' ? 'active' : ''}`}
           >
@@ -1216,7 +1271,24 @@ export default function CommunicationsTab() {
           {canAction('communications', 'create') && (
             <button
               onClick={() => {
-                setModalNotificationType('parents');
+                let targetType = 'parents';
+                if (activeFilter === 'all_users') targetType = 'all_users';
+                else if (activeFilter === 'parents') targetType = 'parents';
+                else if (activeFilter === 'classes') targetType = 'class';
+                else if (activeFilter === 'teachers') targetType = 'teachers';
+                else if (activeFilter === 'private') targetType = 'student';
+
+                setModalNotificationType(targetType);
+                if (targetType === 'class' && availableGrades.length > 0 && !modalNotificationGrade) {
+                  setModalNotificationGrade(availableGrades[0]);
+                }
+                if (targetType === 'student' && students.length > 0 && !modalNotificationStudentId) {
+                  setModalNotificationStudentId(students[0].id);
+                }
+                if (targetType === 'teacher' && teachers.length > 0 && !modalNotificationTeacherId) {
+                  setModalNotificationTeacherId(teachers[0].id);
+                }
+
                 setModalNotificationTitle('');
                 setModalNotificationContent('');
                 setShowNotificationModal(true);
@@ -1297,7 +1369,7 @@ export default function CommunicationsTab() {
                     🎯 {lang === 'ar' ? 'اختر الفئة المستهدفة:' : 'Select Target Audience:'}
                   </label>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px' }}>
                     <div 
                       onClick={() => setModalNotificationType('all_users')}
                       style={{
@@ -1665,8 +1737,9 @@ export default function CommunicationsTab() {
 
         {/* Card Footer */}
         <div className="notif-card-footer">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>✍️ {lang === 'ar' ? 'المرسل: ' : 'Sender: '}{getNotificationSender(notif).name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <span>✍️ {lang === 'ar' ? 'المرسل: ' : 'Sender: '}<strong>{getNotificationSender(notif).name}</strong></span>
+            <span>🎯 {lang === 'ar' ? 'الموجه إليه: ' : 'Recipient: '}<strong style={{ color: 'var(--color-primary-ui)' }}>{getNotificationRecipient(notif)}</strong></span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--color-success)' }}>
