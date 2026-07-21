@@ -29,8 +29,9 @@ export default function AssignmentsTab() {
 
   const { availableGrades, availableSections, fetchClasses } = useClasses();
   const { subjects, fetchSubjects } = useSubjects();
-  const { teachers, fetchTeachers } = useTeachers();
+  const { teachers, setTeachers, fetchTeachers } = useTeachers();
   const { students, fetchStudents } = useStudents();
+  const { setSmsLogs } = useNotifications();
 
   const {
     page,
