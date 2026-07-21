@@ -1356,6 +1356,27 @@ export default function CommunicationsTab() {
                       <Users size={18} style={{ margin: '0 auto 4px auto', display: 'block' }} />
                       <span>{t.targetAllTeachers}</span>
                     </div>
+
+                    <div 
+                      onClick={() => {
+                        setModalNotificationType('teacher');
+                        if (teachers.length > 0 && !modalNotificationTeacherId) setModalNotificationTeacherId(teachers[0].id);
+                      }}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '12px',
+                        border: modalNotificationType === 'teacher' ? '2px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                        background: modalNotificationType === 'teacher' ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface)',
+                        color: modalNotificationType === 'teacher' ? 'var(--color-primary-ui)' : 'var(--color-text-primary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '11.5px',
+                        fontWeight: '700'
+                      }}
+                    >
+                      <User size={18} style={{ margin: '0 auto 4px auto', display: 'block' }} />
+                      <span>{lang === 'ar' ? 'حسب المعلم' : 'By Teacher'}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -1397,6 +1418,32 @@ export default function CommunicationsTab() {
                     >
                       {availableGrades.map(g => (
                         <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {modalNotificationType === 'teacher' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: '700' }}>🔍 {lang === 'ar' ? 'اختر المعلم' : 'Select Teacher'}</label>
+                    <input 
+                      type="text"
+                      placeholder={lang === 'ar' ? 'ابحث باسم المعلم...' : 'Search teacher...'}
+                      value={teacherSearchText}
+                      onChange={(e) => setTeacherSearchText(e.target.value)}
+                      className="text-field"
+                      style={{ height: '36px', fontSize: '12px', padding: '0 10px' }}
+                    />
+                    <select
+                      value={modalNotificationTeacherId}
+                      onChange={(e) => setModalNotificationTeacherId(e.target.value)}
+                      className="text-field"
+                      style={{ height: '38px', fontSize: '12px' }}
+                    >
+                      {filteredTeachersList.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {lang === 'ar' ? t.name : (t.nameEn || t.name)} (#{t.id})
+                        </option>
                       ))}
                     </select>
                   </div>
