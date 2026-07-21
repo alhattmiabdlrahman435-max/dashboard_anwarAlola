@@ -1444,7 +1444,7 @@ export default function CommunicationsTab() {
                     >
                       {filteredTeachersList.map(t => (
                         <option key={t.id} value={t.id}>
-                          {lang === 'ar' ? t.name : (t.nameEn || t.name)} (#{t.id})
+                          {lang === 'ar' ? t.name : (t.nameEn || t.name)}
                         </option>
                       ))}
                     </select>
