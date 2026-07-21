@@ -8,7 +8,8 @@ import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 import { 
   X, Search, Plus, Bell, Send, Users, User, GraduationCap, 
-  Layers, CheckCircle2, MessageSquare, Volume2, Info, Trash2
+  Layers, CheckCircle2, Volume2, Info, Trash2, CheckCheck,
+  Copy, Sparkles, Filter, Calendar, Clock, ArrowLeftRight, FileText, Check
 } from 'lucide-react';
 
 export default function CommunicationsTab() {
@@ -16,7 +17,8 @@ export default function CommunicationsTab() {
     lang,
     t,
     triggerConfirm,
-    canAction
+    canAction,
+    setToastMessage
   } = useApp();
 
   const { availableGrades, fetchClasses } = useClasses();
@@ -42,12 +44,19 @@ export default function CommunicationsTab() {
     setPage,
     setPerPage,
     setSearch,
-    buildQueryString,
   } = usePagination({
     moduleKey: 'notifications',
   });
 
   const [activeFilter, setActiveFilter] = useState('all');
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(search);
+  const [filterDate, setFilterDate] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
+
+  useEffect(() => {
+    setSearchQuery(search);
+  }, [search]);
 
   const qs = useMemo(() => {
     const params = new URLSearchParams();
@@ -75,18 +84,23 @@ export default function CommunicationsTab() {
     fetchTeachers();
   }, [fetchClasses, fetchStudents, fetchTeachers]);
 
+  // Form states inside modal
+  const [modalNotificationType, setModalNotificationType] = useState('parents');
+  const [modalNotificationStudentId, setModalNotificationStudentId] = useState(
+    students.length > 0 ? students[0].id : ''
+  );
+  const [modalNotificationGrade, setModalNotificationGrade] = useState(
+    availableGrades.length > 0 ? availableGrades[0] : ''
+  );
+  const [modalNotificationTeacherId, setModalNotificationTeacherId] = useState(
+    teachers.length > 0 ? teachers[0].id : ''
+  );
+  const [modalNotificationTitle, setModalNotificationTitle] = useState('');
+  const [modalNotificationContent, setModalNotificationContent] = useState('');
+  const [studentSearchText, setStudentSearchText] = useState('');
+  const [teacherSearchText, setTeacherSearchText] = useState('');
 
-  // Local UI states
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(search);
-
-  useEffect(() => {
-    setSearchQuery(search);
-  }, [search]);
-
-  const [filterDate, setFilterDate] = useState('');
-  const [filterSender] = useState('all');
-
+  // Delete handlers with high safety feedback
   const onDeleteNotificationClick = (e, notifId) => {
     e.stopPropagation();
     triggerConfirm({
@@ -108,34 +122,43 @@ export default function CommunicationsTab() {
     });
   };
 
-  // Form states
-  const [modalNotificationType, setModalNotificationType] = useState('parents');
-  const [modalNotificationStudentId, setModalNotificationStudentId] = useState(
-    students.length > 0 ? students[0].id : ''
-  );
-  const [modalNotificationGrade, setModalNotificationGrade] = useState(
-    availableGrades.length > 0 ? availableGrades[0] : ''
-  );
-  const [modalNotificationTeacherId, setModalNotificationTeacherId] = useState(
-    teachers.length > 0 ? teachers[0].id : ''
-  );
-  const [modalNotificationTitle, setModalNotificationTitle] = useState('');
-  const [modalNotificationContent, setModalNotificationContent] = useState('');
+  // Copy notification content helper
+  const handleCopyContent = (e, notif) => {
+    e.stopPropagation();
+    const textToCopy = `${notif.title}\n${notif.content}`;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedId(notif.id);
+    if (setToastMessage) {
+      setToastMessage(lang === 'ar' ? 'تم نسخ نص الإشعار بنجاح' : 'Notification content copied');
+    }
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
-  // Search filter states inside the modal
-  const [studentSearchText, setStudentSearchText] = useState('');
-  const [teacherSearchText, setTeacherSearchText] = useState('');
+  // Quick Preset Templates for Instant High-Quality Messaging
+  const applyPresetTemplate = (templateKey) => {
+    if (templateKey === 'absence') {
+      setModalNotificationTitle(lang === 'ar' ? 'تنبيه غياب وتأخر دراسي' : 'Absence & Attendance Alert');
+      setModalNotificationContent(lang === 'ar' ? 'نود إحاطتكم بحضور ومواظبة الطالب/الطالبة، نرجو المتابعة الحثيثة والتواصل مع إدارة المدرسة لضمان التفوق.' : 'We would like to inform you regarding student attendance. Please follow up with school administration.');
+    } else if (templateKey === 'exam') {
+      setModalNotificationTitle(lang === 'ar' ? 'إعلان جدول الاختبارات النهائية' : 'Final Exam Schedule Announcement');
+      setModalNotificationContent(lang === 'ar' ? 'تم اعتماد ونشر جدول الاختبارات التقييمية. نرجو الحرص على مراجعة المقررات والالتزام بالحضور في المواعيد المحددة.' : 'The evaluation exam schedule has been published. Please ensure thorough revision and timely attendance.');
+    } else if (templateKey === 'parents_meeting') {
+      setModalNotificationTitle(lang === 'ar' ? 'دعوة لاجتماع أولياء الأمور الدوري' : 'Parents-Teachers Meeting Invitation');
+      setModalNotificationContent(lang === 'ar' ? 'يسر إدارة المدرسة دعوتكم لحضور الاجتماع الدوري لمناقشة المستوى الأكاديمي والتربوي لأبنائنا الطلاب يوم الخميس القادم.' : 'You are cordially invited to attend the periodic parents meeting next Thursday.');
+    } else if (templateKey === 'general_announcement') {
+      setModalNotificationTitle(lang === 'ar' ? 'تعميم إداري هام للجميع' : 'Important School Announcement');
+      setModalNotificationContent(lang === 'ar' ? 'تود إدارة رياض ومدارس أنوار العلى الدولية تذكير جميع الطلاب وأولياء الأمور بالتعليمات والأنشطة القادمة.' : 'Anwar Al-Ola Int. Model Schools would like to remind all students & parents of upcoming activities.');
+    }
+  };
 
-  // Submit Handler (Preserving original business logic and simulated SMS log format)
+  // Form Submission
   const onSendNotificationSubmit = (e) => {
     e.preventDefault();
-    if (!modalNotificationTitle.trim() || !modalNotificationContent.trim()) {
-      return;
-    }
+    if (!modalNotificationTitle.trim() || !modalNotificationContent.trim()) return;
 
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    
     let extraDetails = {};
+
     if (modalNotificationType === 'student') {
       const targetStudent = students.find(s => s.id === Number(modalNotificationStudentId));
       extraDetails = {
@@ -165,7 +188,6 @@ export default function CommunicationsTab() {
       ...extraDetails
     };
 
-    // Calculate extra SMS logs to pass
     const extraLogs = [];
     if (modalNotificationType === 'student') {
       const targetStudent = students.find(s => s.id === Number(modalNotificationStudentId));
@@ -214,8 +236,6 @@ export default function CommunicationsTab() {
     }
 
     handleSendNotification(newNotification, extraLogs);
-
-    // Reset states
     setShowNotificationModal(false);
     setModalNotificationTitle('');
     setModalNotificationContent('');
@@ -223,8 +243,6 @@ export default function CommunicationsTab() {
     setTeacherSearchText('');
   };
 
-  // Helper to determine simulated sender
-  // Helper to determine simulated sender
   const getNotificationSender = useCallback((notif) => {
     if (notif.type === 'attendance') {
       return {
@@ -238,48 +256,126 @@ export default function CommunicationsTab() {
     };
   }, [lang]);
 
-  // Filter sent notifications based on pills, search query, date, and sender
+  // Relative Time & Date Formatting Helper
+  const formatTimeAgo = useCallback((dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const notifDate = new Date(dateStr.replace(' ', 'T'));
+      const now = new Date();
+      const diffMs = now - notifDate;
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffMins < 2) return lang === 'ar' ? 'الآن' : 'Just now';
+      if (diffMins < 60) return lang === 'ar' ? `منذ ${diffMins} دقيقة` : `${diffMins}m ago`;
+      if (diffHours < 24) return lang === 'ar' ? `منذ ${diffHours} ساعة` : `${diffHours}h ago`;
+      if (diffDays === 1) return lang === 'ar' ? 'أمس' : 'Yesterday';
+      if (diffDays < 7) return lang === 'ar' ? `منذ ${diffDays} أيام` : `${diffDays}d ago`;
+
+      return dateStr.substring(0, 10);
+    } catch (e) {
+      return dateStr;
+    }
+  }, [lang]);
+
+  // Filtered Notifications List
   const filteredNotifications = useMemo(() => {
     return notifications.filter(notif => {
-      // 1. Date Filter
-      if (filterDate) {
-        if (!notif.date.startsWith(filterDate)) {
-          return false;
-        }
-      }
-
-      // 2. Sender Filter
-      if (filterSender !== 'all') {
-        const sender = getNotificationSender(notif);
-        if (sender.key !== filterSender) {
-          return false;
-        }
-      }
-
-      // 3. Tab Filter (Fine-grained client-side sub-filtering for mixed database types)
+      if (filterDate && !notif.date.startsWith(filterDate)) return false;
       if (activeFilter === 'classes') return notif.type === 'class';
       if (activeFilter === 'private') return notif.type === 'student' || notif.type === 'private' || notif.type === 'teacher';
-      
       return true;
     });
-  }, [notifications, filterDate, filterSender, activeFilter, getNotificationSender]);
+  }, [notifications, filterDate, activeFilter]);
 
-  // Dynamic statistics calculations
-  const statsTotal = notificationsPagination.total || 0;
-  
-  const statsParents = useMemo(() => {
-    return activeFilter === 'parents' ? notificationsPagination.total : 0;
-  }, [activeFilter, notificationsPagination.total]);
+  // Group notifications chronologically (Today, Yesterday, Earlier)
+  const groupedNotifications = useMemo(() => {
+    const today = new Date().toISOString().substring(0, 10);
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().substring(0, 10);
 
-  const statsClasses = useMemo(() => {
-    return activeFilter === 'classes' ? notificationsPagination.total : 0;
-  }, [activeFilter, notificationsPagination.total]);
+    const groups = {
+      today: [],
+      yesterday: [],
+      earlier: []
+    };
 
-  const statsPrivate = useMemo(() => {
-    return activeFilter === 'private' ? notificationsPagination.total : 0;
-  }, [activeFilter, notificationsPagination.total]);
+    filteredNotifications.forEach(notif => {
+      const d = notif.date ? notif.date.substring(0, 10) : '';
+      if (d === today) {
+        groups.today.push(notif);
+      } else if (d === yesterday) {
+        groups.yesterday.push(notif);
+      } else {
+        groups.earlier.push(notif);
+      }
+    });
 
-  // Filter helpers for student select in the modal
+    return groups;
+  }, [filteredNotifications]);
+
+  // Unread Count Stats
+  const unreadCount = useMemo(() => {
+    return notifications.filter(n => !n.isRead).length;
+  }, [notifications]);
+
+  // Dynamic Category Details
+  const getCategoryDetails = (type, grade, studentName, studentNameEn, teacherName, teacherNameEn) => {
+    if (type === 'general' || type === 'parents') {
+      return {
+        label: lang === 'ar' ? 'تعميم عام لأولياء الأمور' : 'All Parents Broadcast',
+        bgGlow: 'rgba(30, 80, 142, 0.08)',
+        borderColor: 'var(--color-primary-ui)',
+        textColor: 'var(--color-primary-ui)',
+        icon: <Users size={16} />
+      };
+    } else if (type === 'class') {
+      return {
+        label: lang === 'ar' ? `الصف الدراسي: ${grade}` : `Class: ${grade}`,
+        bgGlow: 'rgba(217, 119, 6, 0.08)',
+        borderColor: '#d97706',
+        textColor: '#b45309',
+        icon: <Layers size={16} />
+      };
+    } else if (type === 'student' || type === 'private') {
+      const name = lang === 'ar' ? studentName : (studentNameEn || studentName);
+      return {
+        label: lang === 'ar' ? `طالب: ${name}` : `Student: ${name}`,
+        bgGlow: 'rgba(225, 29, 72, 0.08)',
+        borderColor: '#e11d48',
+        textColor: '#be123c',
+        icon: <GraduationCap size={16} />
+      };
+    } else if (type === 'teachers') {
+      return {
+        label: lang === 'ar' ? 'تعميم لجميع المعلمين' : 'All Teachers Broadcast',
+        bgGlow: 'rgba(16, 185, 129, 0.08)',
+        borderColor: '#10b981',
+        textColor: '#047857',
+        icon: <Users size={16} />
+      };
+    } else if (type === 'teacher') {
+      const name = lang === 'ar' ? teacherName : (teacherNameEn || teacherName);
+      return {
+        label: lang === 'ar' ? `المعلم: ${name}` : `Teacher: ${name}`,
+        bgGlow: 'rgba(15, 118, 110, 0.08)',
+        borderColor: '#0f766e',
+        textColor: '#0f766e',
+        icon: <User size={16} />
+      };
+    }
+    return {
+      label: lang === 'ar' ? 'إشعار إداري' : 'System Alert',
+      bgGlow: 'rgba(100, 116, 139, 0.08)',
+      borderColor: '#64748b',
+      textColor: '#475569',
+      icon: <Bell size={16} />
+    };
+  };
+
+  // Student & Teacher Search Filters for Modal
   const filteredStudentsList = useMemo(() => {
     return students.filter(s => 
       s.name.toLowerCase().includes(studentSearchText.toLowerCase()) ||
@@ -287,7 +383,6 @@ export default function CommunicationsTab() {
     );
   }, [students, studentSearchText]);
 
-  // Filter helpers for teacher select in the modal
   const filteredTeachersList = useMemo(() => {
     return teachers.filter(teach => 
       teach.name.toLowerCase().includes(teacherSearchText.toLowerCase()) ||
@@ -295,519 +390,471 @@ export default function CommunicationsTab() {
     );
   }, [teachers, teacherSearchText]);
 
-  // Get localized category texts and details
-  const getCategoryDetails = (type, grade, studentName, studentNameEn, teacherName, teacherNameEn) => {
-    if (type === 'general' || type === 'parents') {
-      return {
-        label: lang === 'ar' ? 'عام لأولياء الأمور' : 'All Parents',
-        colorClass: 'badge-parents',
-        gradientBorder: 'var(--gradient-brand)',
-        icon: <Users size={15} />
-      };
-    } else if (type === 'class') {
-      return {
-        label: lang === 'ar' ? `الصف: ${grade}` : `Class: ${grade}`,
-        colorClass: 'badge-class',
-        gradientBorder: 'var(--gradient-warning)',
-        icon: <Layers size={15} />
-      };
-    } else if (type === 'student' || type === 'private') {
-      const name = lang === 'ar' ? studentName : (studentNameEn || studentName);
-      return {
-        label: lang === 'ar' ? `طالب: ${name}` : `Student: ${name}`,
-        colorClass: 'badge-student',
-        gradientBorder: 'var(--gradient-error)',
-        icon: <GraduationCap size={15} />
-      };
-    } else if (type === 'teachers') {
-      return {
-        label: lang === 'ar' ? 'جميع المعلمين' : 'All Teachers',
-        colorClass: 'badge-teachers',
-        gradientBorder: 'var(--gradient-success)',
-        icon: <Users size={15} />
-      };
-    } else if (type === 'teacher') {
-      const name = lang === 'ar' ? teacherName : (teacherNameEn || teacherName);
-      return {
-        label: lang === 'ar' ? `المعلم: ${name}` : `Teacher: ${name}`,
-        colorClass: 'badge-teacher',
-        gradientBorder: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
-        icon: <User size={15} />
-      };
-    }
-    return {
-      label: lang === 'ar' ? 'إشعار' : 'Alert',
-      colorClass: 'badge-neutral',
-      gradientBorder: 'var(--color-border)',
-      icon: <Bell size={15} />
-    };
-  };
-
   return (
-    <div className="notifications-dashboard-container">
-      {/* Scope CSS for springy/premium transitions and styled elements */}
+    <div className="notif-command-center">
+      {/* Scope CSS for Apple / Linear Grade UI */}
       <style>{`
-        .notifications-dashboard-container {
+        .notif-command-center {
           display: flex;
           flex-direction: column;
           gap: var(--space-xl);
-          animation: fadeIn 0.4s ease-out;
+          animation: notifFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* 1. KPI Cards Grid */
-        .stats-grid-modern {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: var(--space-lg);
+        @keyframes notifFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .stat-card-glass {
-          background: var(--color-surface-alt);
+
+        /* 1. Header Banner & Executive Actions */
+        .notif-header-banner {
+          background: linear-gradient(135deg, var(--color-surface-alt) 0%, var(--color-surface) 100%);
           border: 1px solid var(--color-border);
           border-radius: var(--radius-card);
           padding: var(--space-xl);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
           display: flex;
+          justify-content: space-between;
           align-items: center;
+          flex-wrap: wrap;
           gap: var(--space-lg);
-          box-shadow: var(--color-shadow);
-          transition: var(--transition-normal);
           position: relative;
           overflow: hidden;
         }
-        .stat-card-glass:hover {
-          transform: translateY(-5px);
-          box-shadow: var(--color-shadow-hover);
-          border-color: var(--color-primary-ui);
+
+        .notif-header-title-box {
+          display: flex;
+          align-items: center;
+          gap: 16px;
         }
-        .stat-icon-wrapper {
+
+        .notif-header-icon-badge {
           width: 52px;
           height: 52px;
-          border-radius: 18px;
+          border-radius: 16px;
+          background: var(--gradient-brand);
+          color: white;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: white;
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+          box-shadow: 0 8px 20px rgba(30, 80, 142, 0.25);
+          position: relative;
         }
-        .stat-content {
-          display: flex;
-          flex-direction: column;
+
+        .notif-unread-glow-dot {
+          position: absolute;
+          top: -3px;
+          right: -3px;
+          width: 14px;
+          height: 14px;
+          background: #ef4444;
+          border: 2.5px solid var(--color-surface);
+          border-radius: 50%;
+          animation: pulseDot 2s infinite;
         }
-        .stat-number-value {
-          font-size: 26px;
+
+        @keyframes pulseDot {
+          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+          70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .notif-header-title {
+          font-size: 20px;
           font-weight: 800;
           color: var(--color-text-primary);
-          line-height: 1.1;
-          font-family: var(--font-english);
+          margin: 0;
+          display: flex;
+          align-items: center;
+          gap: 10px;
         }
-        .stat-label-text {
+
+        .notif-header-subtitle {
           font-size: 13px;
           color: var(--color-text-secondary);
           margin-top: 4px;
-          font-weight: 600;
+          font-weight: 500;
         }
 
         /* 2. Control Toolbar */
-        .toolbar-panel-glass {
+        .notif-toolbar-container {
           background: var(--color-surface-alt);
           border: 1px solid var(--color-border);
-          border-radius: var(--radius-card);
-          padding: var(--space-lg) var(--space-xl);
+          border-radius: 18px;
+          padding: 12px 16px;
           display: flex;
           flex-wrap: wrap;
-          justify-content: space-between;
           align-items: center;
-          gap: var(--space-lg);
-          box-shadow: var(--color-shadow);
+          justify-content: space-between;
+          gap: 12px;
         }
-        .search-input-modern-wrapper {
+
+        .notif-search-box {
           position: relative;
-          min-width: 280px;
+          min-width: 260px;
           flex-grow: 1;
-          max-width: 450px;
+          max-width: 420px;
         }
-        .search-input-modern-wrapper input {
+
+        .notif-search-box input {
           width: 100%;
-          padding: 10px 42px 10px 16px;
-          border-radius: 14px;
+          padding: 10px 40px 10px 16px;
+          border-radius: 12px;
           border: 1.5px solid var(--color-border);
           background: var(--color-surface);
           color: var(--color-text-primary);
-          font-size: 13.5px;
+          font-size: 13px;
           font-weight: 500;
-          transition: var(--transition-fast);
+          transition: all 0.2s ease;
         }
-        body[dir="ltr"] .search-input-modern-wrapper input {
-          padding: 10px 16px 10px 42px;
+
+        body[dir="ltr"] .notif-search-box input {
+          padding: 10px 16px 10px 40px;
         }
-        .search-input-modern-wrapper input:focus {
+
+        .notif-search-box input:focus {
           border-color: var(--color-primary-ui);
-          box-shadow: var(--color-focus-glow);
+          box-shadow: 0 0 0 3px rgba(30, 80, 142, 0.12);
           outline: none;
         }
-        .search-input-icon {
+
+        .notif-search-icon {
           position: absolute;
           top: 50%;
           transform: translateY(-50%);
-          right: 14px;
+          right: 12px;
           color: var(--color-text-secondary);
         }
-        body[dir="ltr"] .search-input-icon {
+
+        body[dir="ltr"] .notif-search-icon {
           right: auto;
-          left: 14px;
+          left: 12px;
         }
 
-        /* Segmented Pills */
-        .filter-pills-modern {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
-          background: var(--color-surface);
-          padding: 5px;
-          border-radius: 16px;
-          border: 1px solid var(--color-border);
-        }
-        .pill-btn-modern {
-          border: none;
-          background: transparent;
-          color: var(--color-text-secondary);
-          padding: 8px 16px;
-          border-radius: 12px;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: var(--transition-fast);
-        }
-        .pill-btn-modern:hover {
-          color: var(--color-text-primary);
-          background: rgba(0, 0, 0, 0.03);
-        }
-        .pill-btn-modern.active-pill {
-          background: var(--color-surface-alt);
-          color: var(--color-primary-ui);
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
-        }
-        .btn-gradient-compose {
-          background: var(--gradient-brand);
-          color: white;
-          font-weight: 700;
-          font-size: 13.5px;
-          border: none;
-          border-radius: 14px;
-          padding: 10px 22px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          box-shadow: 0 4px 14px rgba(30, 80, 142, 0.2);
-          transition: var(--transition-fast);
-        }
-        .btn-gradient-compose:hover {
-          transform: scale(1.02);
-          box-shadow: 0 6px 20px rgba(30, 80, 142, 0.3);
-        }
-
-        /* 3. Notification Feed */
-        .feed-container-modern {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-md);
-        }
-        .notif-card-modern {
-          background: var(--color-surface-alt);
-          border: 1.5px solid var(--color-border);
-          border-radius: 22px;
-          padding: var(--space-xl);
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-md);
-          box-shadow: var(--color-shadow);
-          transition: var(--transition-normal);
-          position: relative;
-        }
-        .notif-card-modern.unread-notif {
-          background: rgba(30, 80, 142, 0.03);
-          border-color: var(--color-primary-ui);
-        }
-        .notif-card-modern::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          right: 0;
-          width: 6px;
-          background: var(--border-grad, var(--gradient-brand));
-          border-radius: 0 22px 22px 0;
-        }
-        body[dir="rtl"] .notif-card-modern::before {
-          right: 0;
-          left: auto;
-          border-radius: 0 22px 22px 0;
-        }
-        body[dir="ltr"] .notif-card-modern::before {
-          right: auto;
-          left: 0;
-          border-radius: 22px 0 0 22px;
-        }
-        .notif-card-modern:hover {
-          transform: translateY(-3px);
-          box-shadow: var(--color-shadow-hover);
-          border-color: rgba(30, 80, 142, 0.15);
-        }
-        .notif-header-modern {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: var(--space-lg);
-        }
-        .notif-title-section {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .notif-category-icon {
-          width: 38px;
-          height: 38px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--color-surface);
-          color: var(--color-primary-ui);
-          border: 1px solid var(--color-border);
-        }
-        .notif-title-text {
-          font-size: 15px;
-          font-weight: 700;
-          color: var(--color-text-primary);
-        }
-        
-        /* Badges status style overrides */
-        .badge-parents {
-          background: rgba(30, 80, 142, 0.08);
-          color: var(--color-primary-ui);
-        }
-        .badge-class {
-          background: rgba(230, 150, 15, 0.08);
-          color: var(--color-warning);
-        }
-        .badge-student {
-          background: rgba(220, 40, 40, 0.08);
-          color: var(--color-error);
-        }
-        .badge-teachers {
-          background: rgba(16, 120, 60, 0.08);
-          color: var(--color-success);
-        }
-        .badge-teacher {
-          background: rgba(15, 118, 110, 0.08);
-          color: #0f766e;
-        }
-
-        .notif-body-text {
-          font-size: 13.5px;
-          line-height: 1.6;
-          color: var(--color-text-secondary);
-          font-weight: 500;
-          white-space: pre-line;
-        }
-        .notif-footer-modern {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 11.5px;
-          font-weight: 600;
-          color: var(--color-text-secondary);
-          border-top: 1px dashed var(--color-border);
-          padding-top: 12px;
-        }
-        .notif-footer-item {
+        .notif-filter-chips {
           display: flex;
           align-items: center;
           gap: 6px;
+          overflow-x: auto;
+          padding-bottom: 2px;
         }
 
-        /* 4. Audience Cards Selection (Inside Modal) */
-        .audience-grid-cards {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-          gap: 12px;
-          margin-bottom: var(--space-lg);
-        }
-        .audience-card-item {
-          border: 2px solid var(--color-border);
-          border-radius: 18px;
-          padding: var(--space-lg) var(--space-md);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          cursor: pointer;
-          background: var(--color-surface);
-          transition: var(--transition-normal);
-          text-align: center;
-        }
-        .audience-card-item:hover {
-          border-color: rgba(30, 80, 142, 0.3);
-          background: var(--color-surface-alt);
-        }
-        .audience-card-item.selected-audience-card {
-          border-color: var(--color-primary-ui);
-          background: rgba(30, 80, 142, 0.04);
-          transform: scale(1.02);
-          box-shadow: 0 4px 14px rgba(30, 80, 142, 0.06);
-        }
-        .audience-card-icon-circle {
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: var(--color-surface-alt);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--color-text-secondary);
+        .notif-chip-btn {
           border: 1px solid var(--color-border);
-          transition: var(--transition-fast);
+          background: var(--color-surface);
+          color: var(--color-text-secondary);
+          padding: 7px 14px;
+          border-radius: 20px;
+          font-size: 12.5px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          white-space: nowrap;
         }
-        .selected-audience-card .audience-card-icon-circle {
+
+        .notif-chip-btn:hover {
+          color: var(--color-text-primary);
+          border-color: var(--color-primary-ui);
+        }
+
+        .notif-chip-btn.active {
           background: var(--color-primary-ui);
           color: white;
           border-color: var(--color-primary-ui);
-        }
-        .audience-card-label {
-          font-size: 12px;
-          font-weight: 700;
-          color: var(--color-text-primary);
+          box-shadow: 0 4px 12px rgba(30, 80, 142, 0.25);
         }
 
-        /* Interactive Select/Search Wrapper */
-        .live-search-select-wrapper {
-          border: 1.5px solid var(--color-border);
-          border-radius: 14px;
-          background: var(--color-surface);
-          padding: 8px;
+        .notif-chip-counter {
+          font-size: 10px;
+          padding: 1px 6px;
+          border-radius: 10px;
+          background: rgba(0, 0, 0, 0.1);
+          color: inherit;
+        }
+
+        /* 3. Chronological Feed Cards */
+        .notif-timeline-group {
           display: flex;
           flex-direction: column;
+          gap: 12px;
+        }
+
+        .notif-timeline-header {
+          font-size: 12.5px;
+          font-weight: 800;
+          color: var(--color-text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          display: flex;
+          align-items: center;
           gap: 8px;
+          margin-top: 8px;
         }
-        .live-search-select-results {
-          max-height: 150px;
-          overflow-y: auto;
-          border: 1px solid var(--color-border);
-          border-radius: 10px;
+
+        .notif-timeline-header::after {
+          content: '';
+          flex-grow: 1;
+          height: 1px;
+          background: var(--color-border);
+          opacity: 0.6;
+        }
+
+        .notif-card-linear {
           background: var(--color-surface-alt);
+          border: 1px solid var(--color-border);
+          border-radius: 16px;
+          padding: 18px 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          position: relative;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
         }
-        .live-search-select-row {
-          padding: 10px 14px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: var(--transition-fast);
+
+        .notif-card-linear.unread {
+          background: linear-gradient(135deg, rgba(30, 80, 142, 0.04) 0%, var(--color-surface-alt) 100%);
+          border-color: rgba(30, 80, 142, 0.3);
+          box-shadow: 0 4px 16px rgba(30, 80, 142, 0.06);
+        }
+
+        .notif-card-linear:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+          border-color: rgba(30, 80, 142, 0.4);
+        }
+
+        .notif-card-top-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+        }
+
+        .notif-card-title-group {
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+        }
+
+        .notif-avatar-box {
+          width: 44px;
+          height: 44px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          font-weight: bold;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+        }
+
+        .notif-card-title {
+          font-size: 15px;
+          font-weight: 800;
+          color: var(--color-text-primary);
+          line-height: 1.3;
+          margin: 0;
+        }
+
+        .notif-card-meta-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 4px;
+          flex-wrap: wrap;
+        }
+
+        .notif-card-body {
+          font-size: 13.5px;
+          line-height: 1.65;
+          color: var(--color-text-secondary);
+          font-weight: 500;
+          white-space: pre-line;
+          margin: 0;
+        }
+
+        .notif-card-footer {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          padding-top: 12px;
+          border-top: 1px dashed var(--color-border);
+          font-size: 11.5px;
+          color: var(--color-text-secondary);
+          font-weight: 600;
         }
-        .live-search-select-row:hover {
-          background: rgba(30, 80, 142, 0.05);
+
+        .notif-action-btn-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          opacity: 0.85;
+          transition: opacity 0.2s ease;
+        }
+
+        .notif-card-linear:hover .notif-action-btn-group {
+          opacity: 1;
+        }
+
+        .notif-icon-action {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          border: 1px solid var(--color-border);
+          background: var(--color-surface);
+          color: var(--color-text-secondary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .notif-icon-action:hover {
           color: var(--color-primary-ui);
-        }
-        .live-search-select-row.selected-row-item {
+          border-color: var(--color-primary-ui);
           background: rgba(30, 80, 142, 0.08);
+        }
+
+        .notif-icon-action.danger:hover {
+          color: #ef4444;
+          border-color: #ef4444;
+          background: rgba(239, 68, 68, 0.08);
+        }
+
+        /* Modal Quick Templates Chips */
+        .preset-templates-container {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding-bottom: 4px;
+        }
+
+        .preset-template-chip {
+          padding: 6px 12px;
+          border-radius: 12px;
+          border: 1px solid var(--color-border);
+          background: var(--color-surface);
+          color: var(--color-text-primary);
+          font-size: 11.5px;
+          font-weight: 700;
+          cursor: pointer;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.15s ease;
+        }
+
+        .preset-template-chip:hover {
+          background: rgba(30, 80, 142, 0.08);
+          border-color: var(--color-primary-ui);
           color: var(--color-primary-ui);
         }
       `}</style>
 
-      {/* Modern Info Banner */}
-      <div className="informative-banner-modern no-print" style={{
-        padding: 'var(--space-lg) var(--space-xl)',
-        background: 'var(--color-surface-alt)',
-        border: '1px solid var(--color-border)',
-        borderInlineStart: '4px solid var(--color-primary-ui)',
-        borderRadius: 'var(--radius-card)',
-        boxShadow: 'var(--color-shadow)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 'var(--space-md)'
-      }}>
-        <div style={{
-          width: '38px',
-          height: '38px',
-          borderRadius: '10px',
-          background: 'rgba(30, 80, 142, 0.06)',
-          color: 'var(--color-primary-ui)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <Info size={18} />
+      {/* 1. Header Banner & Executive Actions */}
+      <div className="notif-header-banner no-print">
+        <div className="notif-header-title-box">
+          <div className="notif-header-icon-badge">
+            <Bell size={26} />
+            {unreadCount > 0 && <span className="notif-unread-glow-dot" />}
+          </div>
+          <div>
+            <h2 className="notif-header-title">
+              <span>{lang === 'ar' ? 'مركز الاتصالات والإشعارات الفورية' : 'Notification Command Center'}</span>
+              {unreadCount > 0 && (
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  background: '#ef4444',
+                  color: 'white',
+                  padding: '2px 9px',
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
+                }}>
+                  {unreadCount} {lang === 'ar' ? 'جديد' : 'Unread'}
+                </span>
+              )}
+            </h2>
+            <p className="notif-header-subtitle">
+              {lang === 'ar' 
+                ? 'إدارة البلاغات الجماعية، والتعاميم الفورية، والتنبيهات المخصصة للطلاب وأولياء الأمور والمعلمين'
+                : 'Manage general broadcasts, urgent announcements, and targeted student & parent notifications'}
+            </p>
+          </div>
         </div>
-        <p style={{
-          margin: 0,
-          fontSize: '13px',
-          lineHeight: '1.6',
-          color: 'var(--color-text-secondary)',
-          fontWeight: '600'
-        }}>
-          {lang === 'ar' 
-            ? 'منصة الاتصالات والإشعارات الموحدة: تتيح لك إرسال التنبيهات الفورية الفعالة والتعاميم المباشرة لفئات مختلفة في المدرسة مع تتبع فوري لحالة التسليم.' 
-            : 'Unified Communications & Notifications Platform: Allows you to push instant notifications and announcements to various school segments with direct delivery tracking.'}
-        </p>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {unreadCount > 0 && (
+            <button
+              className="btn-elevated"
+              onClick={() => {
+                notifications.filter(n => !n.isRead).forEach(n => handleMarkNotificationAsRead(n.id));
+              }}
+              style={{
+                height: '42px',
+                padding: '0 16px',
+                borderRadius: '12px',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface)',
+                color: 'var(--color-primary-ui)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <CheckCheck size={16} />
+              <span>{lang === 'ar' ? 'تحديد الكل كمقروء' : 'Mark All as Read'}</span>
+            </button>
+          )}
+
+          {canAction('communications', 'create') && (
+            <button
+              onClick={() => {
+                setModalNotificationType('parents');
+                setModalNotificationTitle('');
+                setModalNotificationContent('');
+                setShowNotificationModal(true);
+              }}
+              style={{
+                height: '42px',
+                padding: '0 20px',
+                borderRadius: '12px',
+                fontSize: '13px',
+                fontWeight: '800',
+                border: 'none',
+                background: 'var(--gradient-brand)',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 6px 18px rgba(30, 80, 142, 0.28)'
+              }}
+            >
+              <Plus size={18} strokeWidth={2.5} />
+              <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Stats Cards Row */}
-      <div className="stats-grid-modern no-print">
-        {/* Card 1: Total sent */}
-        <div className="stat-card-glass">
-          <div className="stat-icon-wrapper" style={{ background: 'var(--gradient-brand)' }}>
-            <Bell size={24} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-number-value">{statsTotal}</span>
-            <span className="stat-label-text">{lang === 'ar' ? 'إجمالي الإشعارات' : 'Total Notifications'}</span>
-          </div>
-        </div>
-
-        {/* Card 2: Broadcast to parents */}
-        <div className="stat-card-glass">
-          <div className="stat-icon-wrapper" style={{ background: 'var(--gradient-info)' }}>
-            <Users size={24} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-number-value">{statsParents}</span>
-            <span className="stat-label-text">{lang === 'ar' ? 'تعاميم أولياء الأمور' : 'Parents Broadcasts'}</span>
-          </div>
-        </div>
-
-        {/* Card 3: Class broadcasts */}
-        <div className="stat-card-glass">
-          <div className="stat-icon-wrapper" style={{ background: 'var(--gradient-warning)' }}>
-            <Layers size={24} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-number-value">{statsClasses}</span>
-            <span className="stat-label-text">{lang === 'ar' ? 'تعاميم الفصول' : 'Class Broadcasts'}</span>
-          </div>
-        </div>
-
-        {/* Card 4: Private Alerts */}
-        <div className="stat-card-glass">
-          <div className="stat-icon-wrapper" style={{ background: 'var(--gradient-error)' }}>
-            <GraduationCap size={24} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-number-value">{statsPrivate}</span>
-            <span className="stat-label-text">{lang === 'ar' ? 'التنبيهات الفردية' : 'Private Alerts'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Control Toolbar */}
-      <div className="toolbar-panel-glass no-print">
-        <div className="search-input-modern-wrapper">
-          <Search size={18} className="search-input-icon" />
+      {/* 2. Control Toolbar & Filtering */}
+      <div className="notif-toolbar-container no-print">
+        {/* Search */}
+        <div className="notif-search-box">
+          <Search size={16} className="notif-search-icon" />
           <input 
             type="text"
-            placeholder={lang === 'ar' ? 'البحث في سجل الإشعارات المرسلة...' : 'Search sent history...'}
+            placeholder={lang === 'ar' ? 'البحث بالاسم، العنوان، أو المحتوى...' : 'Search title, content, or recipient...'}
             value={searchQuery || ''}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -815,20 +862,64 @@ export default function CommunicationsTab() {
             }}
           />
         </div>
-        {/* Date Filter & Sender Filter */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+
+        {/* Category Chips */}
+        <div className="notif-filter-chips">
+          <button 
+            onClick={() => setActiveFilter('all')}
+            className={`notif-chip-btn ${activeFilter === 'all' ? 'active' : ''}`}
+          >
+            <span>{lang === 'ar' ? 'جميع الإشعارات' : 'All Alerts'}</span>
+            <span className="notif-chip-counter">{notifications.length}</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveFilter('parents')}
+            className={`notif-chip-btn ${activeFilter === 'parents' ? 'active' : ''}`}
+          >
+            <Users size={14} />
+            <span>{lang === 'ar' ? 'أولياء الأمور' : 'Parents'}</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveFilter('classes')}
+            className={`notif-chip-btn ${activeFilter === 'classes' ? 'active' : ''}`}
+          >
+            <Layers size={14} />
+            <span>{lang === 'ar' ? 'الصفوف الدراسية' : 'Classes'}</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveFilter('teachers')}
+            className={`notif-chip-btn ${activeFilter === 'teachers' ? 'active' : ''}`}
+          >
+            <User size={14} />
+            <span>{lang === 'ar' ? 'المعلمون' : 'Teachers'}</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveFilter('private')}
+            className={`notif-chip-btn ${activeFilter === 'private' ? 'active' : ''}`}
+          >
+            <GraduationCap size={14} />
+            <span>{lang === 'ar' ? 'إشعارات خاصة' : 'Private'}</span>
+          </button>
+        </div>
+
+        {/* Date Filter & Bulk Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input 
               type="date"
               className="text-field"
               style={{ 
-                height: '42px', 
-                padding: '0 12px', 
-                borderRadius: '14px', 
-                border: '1.5px solid var(--color-border)',
+                height: '36px', 
+                padding: '0 10px', 
+                borderRadius: '10px', 
+                border: '1px solid var(--color-border)',
                 backgroundColor: 'var(--color-surface)',
                 color: 'var(--color-text-primary)',
-                fontSize: '13px',
+                fontSize: '12px',
                 outline: 'none'
               }}
               value={filterDate}
@@ -841,445 +932,355 @@ export default function CommunicationsTab() {
                 onClick={() => setFilterDate('')}
                 style={{
                   position: 'absolute',
-                  left: lang === 'ar' ? '8px' : 'auto',
-                  right: lang === 'ar' ? 'auto' : '8px',
+                  left: lang === 'ar' ? '6px' : 'auto',
+                  right: lang === 'ar' ? 'auto' : '6px',
                   background: 'transparent',
                   border: 'none',
                   color: 'var(--color-text-secondary)',
                   cursor: 'pointer',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  fontSize: '12px'
                 }}
               >
-                <X size={14} />
+                <X size={12} />
               </button>
             )}
           </div>
-        </div>
 
-        {/* Segmented Pills Filters */}
-        <div className="filter-pills-modern">
-          <button 
-            onClick={() => setActiveFilter('all')}
-            className={`pill-btn-modern ${activeFilter === 'all' ? 'active-pill' : ''}`}
-          >
-            {lang === 'ar' ? 'الكل' : 'All'}
-          </button>
-          <button 
-            onClick={() => setActiveFilter('parents')}
-            className={`pill-btn-modern ${activeFilter === 'parents' ? 'active-pill' : ''}`}
-          >
-            {lang === 'ar' ? 'أولياء الأمور' : 'Parents'}
-          </button>
-          <button 
-            onClick={() => setActiveFilter('classes')}
-            className={`pill-btn-modern ${activeFilter === 'classes' ? 'active-pill' : ''}`}
-          >
-            {lang === 'ar' ? 'الصفوف' : 'Classes'}
-          </button>
-          <button 
-            onClick={() => setActiveFilter('teachers')}
-            className={`pill-btn-modern ${activeFilter === 'teachers' ? 'active-pill' : ''}`}
-          >
-            {lang === 'ar' ? 'المعلمون' : 'Teachers'}
-          </button>
-          <button 
-            onClick={() => setActiveFilter('private')}
-            className={`pill-btn-modern ${activeFilter === 'private' ? 'active-pill' : ''}`}
-          >
-            {lang === 'ar' ? 'إشعار خاص' : 'Private'}
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {notifications.length > 0 && canAction('communications', 'delete') && (
             <button
-              className="btn-elevated"
+              onClick={onDeleteAllNotificationsClick}
+              title={lang === 'ar' ? 'حذف سجل الإشعارات بالكامل' : 'Delete all history'}
               style={{
-                borderRadius: '12px',
-                borderColor: 'rgba(239, 68, 68, 0.3)',
+                height: '36px',
+                padding: '0 12px',
+                borderRadius: '10px',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
                 backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                color: 'var(--color-error)',
+                color: '#ef4444',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                paddingInline: '16px',
-                fontWeight: '700',
-                minHeight: '40px',
-                cursor: 'pointer'
+                gap: '5px'
               }}
-              onClick={onDeleteAllNotificationsClick}
             >
-              <Trash2 size={16} />
-              <span>{lang === 'ar' ? 'حذف الكل' : 'Delete All'}</span>
+              <Trash2 size={14} />
+              <span>{lang === 'ar' ? 'مسح الكل' : 'Clear All'}</span>
             </button>
           )}
+        </div>
+      </div>
 
-          {/* Compose Button */}
+      {/* 3. Chronological Feed View */}
+      {loading ? (
+        /* Skeleton Shimmer Loading State */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{
+              height: '110px',
+              borderRadius: '16px',
+              backgroundColor: 'var(--color-surface-alt)',
+              border: '1px solid var(--color-border)',
+              opacity: 0.6,
+              animation: 'pulse 1.5s infinite ease-in-out'
+            }} />
+          ))}
+        </div>
+      ) : filteredNotifications.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+          {/* Group 1: Today */}
+          {groupedNotifications.today.length > 0 && (
+            <div className="notif-timeline-group">
+              <div className="notif-timeline-header">
+                <Clock size={14} />
+                <span>{lang === 'ar' ? 'اليوم' : 'Today'}</span>
+                <span style={{ opacity: 0.7 }}>({groupedNotifications.today.length})</span>
+              </div>
+
+              {groupedNotifications.today.map(notif => renderNotificationCard(notif))}
+            </div>
+          )}
+
+          {/* Group 2: Yesterday */}
+          {groupedNotifications.yesterday.length > 0 && (
+            <div className="notif-timeline-group">
+              <div className="notif-timeline-header">
+                <Calendar size={14} />
+                <span>{lang === 'ar' ? 'أمس' : 'Yesterday'}</span>
+                <span style={{ opacity: 0.7 }}>({groupedNotifications.yesterday.length})</span>
+              </div>
+
+              {groupedNotifications.yesterday.map(notif => renderNotificationCard(notif))}
+            </div>
+          )}
+
+          {/* Group 3: Earlier */}
+          {groupedNotifications.earlier.length > 0 && (
+            <div className="notif-timeline-group">
+              <div className="notif-timeline-header">
+                <FileText size={14} />
+                <span>{lang === 'ar' ? 'سجلات أقدم' : 'Earlier Notifications'}</span>
+                <span style={{ opacity: 0.7 }}>({groupedNotifications.earlier.length})</span>
+              </div>
+
+              {groupedNotifications.earlier.map(notif => renderNotificationCard(notif))}
+            </div>
+          )}
+
+          {/* Pagination Footer */}
+          <div className="no-print" style={{ marginTop: 'var(--space-md)' }}>
+            <PaginationBar
+              page={page}
+              lastPage={notificationsPagination.lastPage}
+              total={notificationsPagination.total}
+              from={notificationsPagination.from}
+              to={notificationsPagination.to}
+              perPage={perPage}
+              onPageChange={setPage}
+              onPerPageChange={setPerPage}
+              loading={loading}
+              lang={lang}
+            />
+          </div>
+        </div>
+      ) : (
+        /* Bespoke High-Craft Empty State */
+        <div style={{ 
+          padding: '60px 24px', 
+          textAlign: 'center', 
+          backgroundColor: 'var(--color-surface-alt)', 
+          borderRadius: '24px', 
+          border: '1px dashed var(--color-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px'
+        }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '20px',
+            backgroundColor: 'rgba(30, 80, 142, 0.08)',
+            color: 'var(--color-primary-ui)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Bell size={32} />
+          </div>
+          <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--color-text-primary)', margin: 0 }}>
+            {search 
+              ? (lang === 'ar' ? 'لا توجد نتائج تطابق كلمة البحث' : 'No notifications match search')
+              : (lang === 'ar' ? 'لا توجد إشعارات مسجلة في هذا التبويب' : 'No notifications found in this tab')
+            }
+          </h3>
+          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0, maxWidth: '400px', lineHeight: 1.5 }}>
+            {lang === 'ar'
+              ? 'يمكنك التبديل بين التبويبات أو النقر على "إنشاء إشعار فوري" لإرسال تنبيه جديد.'
+              : 'Switch tabs or click "Compose Alert" to broadcast a new notification.'}
+          </p>
+
           {canAction('communications', 'create') && (
-            <button 
-              className="btn-gradient-compose"
+            <button
               onClick={() => {
                 setModalNotificationType('parents');
                 setModalNotificationTitle('');
                 setModalNotificationContent('');
                 setShowNotificationModal(true);
               }}
+              style={{
+                marginTop: '8px',
+                height: '38px',
+                padding: '0 18px',
+                borderRadius: '10px',
+                fontSize: '12.5px',
+                fontWeight: '800',
+                border: 'none',
+                backgroundColor: 'var(--color-primary-ui)',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
             >
-              <Plus size={16} strokeWidth={3} />
-              <span>{lang === 'ar' ? 'إنشاء إشعار فوري' : 'Compose Alert'}</span>
+              <Plus size={16} />
+              <span>{lang === 'ar' ? 'إنشاء إشعار جديد الآن' : 'Compose Alert Now'}</span>
             </button>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Feed Timeline Section */}
-      <div className="feed-container-modern">
-        <h4 style={{ 
-          fontSize: '15px', 
-          fontWeight: '800', 
-          color: 'var(--color-text-primary)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          margin: 'var(--space-sm) 0'
-        }}>
-          <Volume2 size={18} style={{ color: 'var(--color-primary-ui)' }} />
-          <span>{t.notificationsHistoryTitle}</span>
-          <span style={{
-            fontSize: '11px',
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            padding: '2px 8px',
-            borderRadius: '20px',
-            color: 'var(--color-text-secondary)',
-            fontFamily: 'var(--font-english)'
-          }}>
-            {filteredNotifications.length}
-          </span>
-        </h4>
-
-        {filteredNotifications.length > 0 ? (
-          filteredNotifications.map(notif => {
-            const student = notif.type === 'student' ? students.find(s => s.id === Number(notif.studentId)) : null;
-            const resolvedStudentName = student ? student.name : notif.studentName;
-            const resolvedStudentNameEn = student ? student.nameEn : notif.studentNameEn;
-
-            const cat = getCategoryDetails(
-              notif.type,
-              notif.grade,
-              resolvedStudentName,
-              resolvedStudentNameEn,
-              notif.teacherName,
-              notif.teacherNameEn
-            );
-
-            return (
-              <div 
-                key={notif.id}
-                className={`notif-card-modern ${!notif.isRead ? 'unread-notif' : ''}`}
-                style={{ 
-                  '--border-grad': cat.gradientBorder,
-                  cursor: notif.isRead ? 'default' : 'pointer'
-                }}
-                onClick={() => {
-                  if (!notif.isRead) {
-                    handleMarkNotificationAsRead(notif.id);
-                  }
-                }}
-              >
-                {/* Header */}
-                <div className="notif-header-modern">
-                  <div className="notif-title-section">
-                    <div className="notif-category-icon">
-                      {cat.icon}
-                    </div>
-                    <span className="notif-title-text">
-                      {notif.title}
-                      {!notif.isRead && (
-                        <span className="badge-new-notif" style={{
-                          backgroundColor: 'var(--color-error)',
-                          color: 'white',
-                          padding: '2px 8px',
-                          borderRadius: '10px',
-                          fontSize: '10px',
-                          fontWeight: 'bold',
-                          marginInlineStart: '8px',
-                          display: 'inline-block',
-                          verticalAlign: 'middle'
-                        }}>
-                          {lang === 'ar' ? 'جديد' : 'New'}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
-                    {/* Localized Category Badge */}
-                    <span className={`badge-status ${cat.colorClass}`} style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      padding: '6px 14px',
-                      borderRadius: '12px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}>
-                      {cat.icon}
-                      <span>{cat.label}</span>
-                    </span>
-
-                    {/* Delete Button */}
-                    {canAction('communications', 'delete') && (
-                      <button 
-                        className="btn-elevated"
-                        style={{ 
-                          padding: '6px', 
-                          borderRadius: '8px', 
-                          color: 'var(--color-error)', 
-                          border: '1px solid rgba(239, 68, 68, 0.2)', 
-                          backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          minHeight: 'auto'
-                        }}
-                        onClick={(e) => onDeleteNotificationClick(e, notif.id)}
-                        title={lang === 'ar' ? 'حذف الإشعار' : 'Delete Notification'}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Message Content */}
-                <p className="notif-body-text">{notif.content}</p>
-
-                {/* Footer metadata */}
-                <div className="notif-footer-modern">
-                  <div className="notif-footer-item">
-                    <span>🕒 {notif.date}</span>
-                  </div>
-                  <div className="notif-footer-item" style={{ fontWeight: '600', color: 'var(--color-primary-ui)' }}>
-                    <span>✍️ {lang === 'ar' ? 'المرسل: ' : 'Sender: '}{getNotificationSender(notif).name}</span>
-                  </div>
-                  <div className="notif-footer-item" style={{ color: 'var(--color-success)' }}>
-                    <CheckCircle2 size={12} />
-                    <span>{lang === 'ar' ? 'تم النشر كإشعار فوري للهاتف والـ SMS' : 'Broadcasted via Push Notification & SMS'}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div style={{ 
-            padding: '48px 24px', 
-            textAlign: 'center', 
-            backgroundColor: 'var(--color-surface)', 
-            borderRadius: 'var(--radius-card)', 
-            border: '1px dashed var(--color-border)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}>
-            <span style={{ fontSize: '32px' }}>
-              {search ? "🔍" : activeFilter !== 'all' ? "ℹ️" : "📂"}
-            </span>
-            <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
-              {search 
-                ? (lang === 'ar' ? 'لا توجد بلاغات تطابق بحثك' : 'No matching broadcasts found')
-                : activeFilter !== 'all'
-                  ? (lang === 'ar' ? 'لا توجد بلاغات تطابق القسم المحدد' : 'No broadcasts match the selected category')
-                  : (lang === 'ar' ? 'لا توجد بلاغات مرسلة حالياً' : 'No broadcasts sent yet')
-              }
-            </span>
-            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-              {search 
-                ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
-                : activeFilter !== 'all'
-                  ? (lang === 'ar' ? 'جرب تغيير تصفية القسم' : 'Try changing your category tab selection')
-                  : (lang === 'ar' ? 'لم يتم إرسال أي بلاغ جماعي أو تنبيه بعد' : 'No general broadcasts or alerts have been sent yet')
-              }
-            </span>
-          </div>
-        )}
-        <div className="no-print" style={{ marginTop: 'var(--space-md)' }}>
-          <PaginationBar
-            page={page}
-            lastPage={notificationsPagination.lastPage}
-            total={notificationsPagination.total}
-            from={notificationsPagination.from}
-            to={notificationsPagination.to}
-            perPage={perPage}
-            onPageChange={setPage}
-            onPerPageChange={setPerPage}
-            loading={loading}
-            lang={lang}
-          />
-        </div>
-      </div>
-
-      {/* Gorgeous Slide-over / Modal Dialog */}
+      {/* 4. Smart Notification Composer Modal */}
       {showNotificationModal && (
         <div className="modal-overlay no-print" style={{ backdropFilter: 'blur(8px)' }}>
-          <div className="modal-container" style={{ maxWidth: '650px', borderRadius: '30px', overflow: 'hidden' }}>
-            <header className="modal-header" style={{ padding: 'var(--space-xl) var(--space-xxl)', borderBottom: '1px solid var(--color-border)' }}>
-              <h3 className="modal-title" style={{ fontSize: '17px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="modal-container" style={{ maxWidth: '640px', borderRadius: '24px', overflow: 'hidden' }}>
+            <header className="modal-header" style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)' }}>
+              <h3 className="modal-title" style={{ fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Send size={18} style={{ color: 'var(--color-primary-ui)' }} />
-                <span>{lang === 'ar' ? 'إرسال إشعار فوري جديد' : 'Send Push Announcement'}</span>
+                <span>{lang === 'ar' ? 'إرسال ونشر إشعار فوري جديد' : 'Compose Instant Announcement'}</span>
               </h3>
               <button 
                 className="modal-close-btn" 
                 type="button"
                 onClick={() => setShowNotificationModal(false)}
-                style={{ background: 'var(--color-surface)', width: '34px', height: '34px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}
+                style={{ background: 'var(--color-surface)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}
               >
-                <X size={16} strokeWidth={2.5} />
+                <X size={16} />
               </button>
             </header>
 
             <form onSubmit={onSendNotificationSubmit}>
-              <div className="modal-body" style={{ padding: 'var(--space-xl) var(--space-xxl)', display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-                
-                {/* 1. Target Audience Cards Selection */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                    🎯 {lang === 'ar' ? 'اختر الجمهور المستهدف' : 'Select Target Audience'}
+              <div className="modal-body" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                {/* Quick Templates Chips */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-primary-ui)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Sparkles size={14} />
+                    <span>{lang === 'ar' ? 'قوالب جاهزة بنقرة واحدة:' : 'Quick Presets:'}</span>
                   </label>
-                  
-                  <div className="audience-grid-cards">
-                    {/* Parents Card */}
+
+                  <div className="preset-templates-container">
+                    <button type="button" className="preset-template-chip" onClick={() => applyPresetTemplate('general_announcement')}>
+                      <span>📜 {lang === 'ar' ? 'تعميم إداري' : 'General Notice'}</span>
+                    </button>
+                    <button type="button" className="preset-template-chip" onClick={() => applyPresetTemplate('exam')}>
+                      <span>📅 {lang === 'ar' ? 'جدول الاختبارات' : 'Exam Schedule'}</span>
+                    </button>
+                    <button type="button" className="preset-template-chip" onClick={() => applyPresetTemplate('parents_meeting')}>
+                      <span>👥 {lang === 'ar' ? 'اجتماع أولياء الأمور' : 'Parents Meeting'}</span>
+                    </button>
+                    <button type="button" className="preset-template-chip" onClick={() => applyPresetTemplate('absence')}>
+                      <span>⚠️ {lang === 'ar' ? 'تنبيه مواظبة' : 'Attendance Alert'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target Selection */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
+                    🎯 {lang === 'ar' ? 'اختر الفئة المستهدفة:' : 'Select Target Audience:'}
+                  </label>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '8px' }}>
                     <div 
-                      className={`audience-card-item ${modalNotificationType === 'parents' ? 'selected-audience-card' : ''}`}
                       onClick={() => setModalNotificationType('parents')}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '12px',
+                        border: modalNotificationType === 'parents' ? '2px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                        background: modalNotificationType === 'parents' ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface)',
+                        color: modalNotificationType === 'parents' ? 'var(--color-primary-ui)' : 'var(--color-text-primary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '11.5px',
+                        fontWeight: '700'
+                      }}
                     >
-                      <div className="audience-card-icon-circle">
-                        <Users size={20} />
-                      </div>
-                      <span className="audience-card-label">{t.targetAllParents}</span>
+                      <Users size={18} style={{ margin: '0 auto 4px auto', display: 'block' }} />
+                      <span>{t.targetAllParents}</span>
                     </div>
 
-                    {/* Class Card */}
                     <div 
-                      className={`audience-card-item ${modalNotificationType === 'class' ? 'selected-audience-card' : ''}`}
                       onClick={() => {
                         setModalNotificationType('class');
-                        if (availableGrades.length > 0 && !modalNotificationGrade) {
-                          setModalNotificationGrade(availableGrades[0]);
-                        }
+                        if (availableGrades.length > 0 && !modalNotificationGrade) setModalNotificationGrade(availableGrades[0]);
+                      }}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '12px',
+                        border: modalNotificationType === 'class' ? '2px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                        background: modalNotificationType === 'class' ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface)',
+                        color: modalNotificationType === 'class' ? 'var(--color-primary-ui)' : 'var(--color-text-primary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '11.5px',
+                        fontWeight: '700'
                       }}
                     >
-                      <div className="audience-card-icon-circle">
-                        <Layers size={20} />
-                      </div>
-                      <span className="audience-card-label">{t.targetByClass}</span>
+                      <Layers size={18} style={{ margin: '0 auto 4px auto', display: 'block' }} />
+                      <span>{t.targetByClass}</span>
                     </div>
 
-                    {/* Student Card */}
                     <div 
-                      className={`audience-card-item ${modalNotificationType === 'student' ? 'selected-audience-card' : ''}`}
                       onClick={() => {
                         setModalNotificationType('student');
-                        if (students.length > 0 && !modalNotificationStudentId) {
-                          setModalNotificationStudentId(students[0].id);
-                        }
+                        if (students.length > 0 && !modalNotificationStudentId) setModalNotificationStudentId(students[0].id);
+                      }}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '12px',
+                        border: modalNotificationType === 'student' ? '2px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                        background: modalNotificationType === 'student' ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface)',
+                        color: modalNotificationType === 'student' ? 'var(--color-primary-ui)' : 'var(--color-text-primary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '11.5px',
+                        fontWeight: '700'
                       }}
                     >
-                      <div className="audience-card-icon-circle">
-                        <GraduationCap size={20} />
-                      </div>
-                      <span className="audience-card-label">{t.targetByStudent}</span>
+                      <GraduationCap size={18} style={{ margin: '0 auto 4px auto', display: 'block' }} />
+                      <span>{t.targetByStudent}</span>
                     </div>
 
-                    {/* Teachers Card */}
                     <div 
-                      className={`audience-card-item ${modalNotificationType === 'teachers' ? 'selected-audience-card' : ''}`}
                       onClick={() => setModalNotificationType('teachers')}
-                    >
-                      <div className="audience-card-icon-circle">
-                        <Users size={20} />
-                      </div>
-                      <span className="audience-card-label">{t.targetAllTeachers}</span>
-                    </div>
-
-                    {/* Specific Teacher Card */}
-                    <div 
-                      className={`audience-card-item ${modalNotificationType === 'teacher' ? 'selected-audience-card' : ''}`}
-                      onClick={() => {
-                        setModalNotificationType('teacher');
-                        if (teachers.length > 0 && !modalNotificationTeacherId) {
-                          setModalNotificationTeacherId(teachers[0].id);
-                        }
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '12px',
+                        border: modalNotificationType === 'teachers' ? '2px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                        background: modalNotificationType === 'teachers' ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface)',
+                        color: modalNotificationType === 'teachers' ? 'var(--color-primary-ui)' : 'var(--color-text-primary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '11.5px',
+                        fontWeight: '700'
                       }}
                     >
-                      <div className="audience-card-icon-circle">
-                        <User size={20} />
-                      </div>
-                      <span className="audience-card-label">{t.targetSpecificTeacher}</span>
+                      <Users size={18} style={{ margin: '0 auto 4px auto', display: 'block' }} />
+                      <span>{t.targetAllTeachers}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 2. Custom selectors based on Target selection */}
-
-                {/* If Target is Student: Show search and select */}
+                {/* Sub-selector for specific targets */}
                 {modalNotificationType === 'student' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                      🔍 {t.selectStudent}
-                    </label>
-                    <div className="live-search-select-wrapper">
-                      <div style={{ position: 'relative' }}>
-                        <Search size={16} style={{ position: 'absolute', top: '50%', right: '12px', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
-                        <input 
-                          type="text"
-                          placeholder={lang === 'ar' ? 'ابحث باسم الطالب أو الرقم الأكاديمي...' : 'Search student by name or ID...'}
-                          value={studentSearchText}
-                          onChange={(e) => setStudentSearchText(e.target.value)}
-                          className="text-field"
-                          style={{ paddingRight: '36px', minHeight: '38px', borderRadius: '10px' }}
-                        />
-                      </div>
-                      
-                      <div className="live-search-select-results">
-                        {filteredStudentsList.length > 0 ? (
-                          filteredStudentsList.map(s => (
-                            <div 
-                              key={s.id}
-                              className={`live-search-select-row ${modalNotificationStudentId === s.id ? 'selected-row-item' : ''}`}
-                              onClick={() => setModalNotificationStudentId(s.id)}
-                            >
-                              <span>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</span>
-                              <span style={{ fontSize: '11px', opacity: 0.6, fontFamily: 'var(--font-mono)' }}>#{s.id}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div style={{ padding: '12px', fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                            {lang === 'ar' ? 'لا يوجد نتائج مطابقة' : 'No matches found'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: '700' }}>🔍 {t.selectStudent}</label>
+                    <input 
+                      type="text"
+                      placeholder={lang === 'ar' ? 'ابحث باسم الطالب...' : 'Search student...'}
+                      value={studentSearchText}
+                      onChange={(e) => setStudentSearchText(e.target.value)}
+                      className="text-field"
+                      style={{ height: '36px', fontSize: '12px', padding: '0 10px' }}
+                    />
+                    <select
+                      value={modalNotificationStudentId}
+                      onChange={(e) => setModalNotificationStudentId(e.target.value)}
+                      className="text-field"
+                      style={{ height: '38px', fontSize: '12px' }}
+                    >
+                      {filteredStudentsList.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {lang === 'ar' ? s.name : (s.nameEn || s.name)} (#{s.id})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
 
-                {/* If Target is Class: Show grade selector */}
                 {modalNotificationType === 'class' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                      🏫 {t.selectClass}
-                    </label>
+                    <label style={{ fontSize: '11.5px', fontWeight: '700' }}>🏫 {t.selectClass}</label>
                     <select 
                       value={modalNotificationGrade} 
                       onChange={(e) => setModalNotificationGrade(e.target.value)}
                       className="text-field"
-                      style={{ minHeight: '42px', borderRadius: '12px' }}
+                      style={{ height: '38px', fontSize: '12px' }}
                     >
                       {availableGrades.map(g => (
                         <option key={g} value={g}>{g}</option>
@@ -1288,103 +1289,59 @@ export default function CommunicationsTab() {
                   </div>
                 )}
 
-                {/* If Target is Teacher: Show search and select */}
-                {modalNotificationType === 'teacher' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                      🔍 {t.selectTeacher}
-                    </label>
-                    <div className="live-search-select-wrapper">
-                      <div style={{ position: 'relative' }}>
-                        <Search size={16} style={{ position: 'absolute', top: '50%', right: '12px', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
-                        <input 
-                          type="text"
-                          placeholder={lang === 'ar' ? 'ابحث باسم المعلم أو الرقم الوظيفي...' : 'Search teacher by name...'}
-                          value={teacherSearchText}
-                          onChange={(e) => setTeacherSearchText(e.target.value)}
-                          className="text-field"
-                          style={{ paddingRight: '36px', minHeight: '38px', borderRadius: '10px' }}
-                        />
-                      </div>
-                      
-                      <div className="live-search-select-results">
-                        {filteredTeachersList.length > 0 ? (
-                          filteredTeachersList.map(teach => (
-                            <div 
-                              key={teach.id}
-                              className={`live-search-select-row ${modalNotificationTeacherId === teach.id ? 'selected-row-item' : ''}`}
-                              onClick={() => setModalNotificationTeacherId(teach.id)}
-                            >
-                              <span>{lang === 'ar' ? teach.name : (teach.nameEn || teach.name)}</span>
-                              <span style={{ fontSize: '11px', opacity: 0.6 }}>#{teach.id}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div style={{ padding: '12px', fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                            {lang === 'ar' ? 'لا يوجد نتائج مطابقة' : 'No matches found'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Title */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
+                {/* Title & Content */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
                     📝 {t.notificationTitleLabel}
                   </label>
                   <input 
                     type="text" 
                     value={modalNotificationTitle} 
                     onChange={(e) => setModalNotificationTitle(e.target.value)}
-                    placeholder={lang === 'ar' ? 'أدخل عنواناً جذاباً ومختصراً...' : 'Enter a short and appealing title...'}
+                    placeholder={lang === 'ar' ? 'عنوان الإشعار...' : 'Notification title...'}
                     className="text-field"
-                    style={{ borderRadius: '12px', minHeight: '42px' }}
+                    style={{ height: '38px', fontSize: '12px', padding: '0 12px' }}
                     required
                   />
                 </div>
 
-                {/* 4. Content */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
                     💬 {t.notificationContentLabel}
                   </label>
                   <textarea 
                     value={modalNotificationContent} 
                     onChange={(e) => setModalNotificationContent(e.target.value)}
-                    placeholder={lang === 'ar' ? 'اكتب تفاصيل ومحتوى الإشعار هنا بوضوح...' : 'Type fully details and instructions here...'}
+                    placeholder={lang === 'ar' ? 'محتوى وتفاصيل البلاغ...' : 'Notification content...'}
                     className="text-field"
-                    style={{ minHeight: '110px', resize: 'vertical', borderRadius: '14px', padding: '12px 16px' }}
+                    style={{ minHeight: '90px', fontSize: '12px', padding: '10px 12px', resize: 'vertical' }}
                     required
                   />
+                </div>
+
+                {/* Channels Badge Info */}
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                  <CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} />
+                  <span>{lang === 'ar' ? 'سيتم النشر كإشعار فوري للتطبيق وكسجل رسائل SMS كالمعتاد.' : 'Will be broadcasted as instant Push Notification & SMS.'}</span>
                 </div>
 
               </div>
 
               {/* Modal Footer */}
-              <footer className="modal-footer" style={{ 
-                display: 'flex', 
-                justifyContent: 'flex-end', 
-                gap: '12px', 
-                padding: 'var(--space-xl) var(--space-xxl)', 
-                borderTop: '1px solid var(--color-border)',
-                background: 'var(--color-surface)'
-              }}>
+              <footer className="modal-footer" style={{ padding: '14px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button 
                   type="button" 
                   className="btn-elevated"
                   onClick={() => setShowNotificationModal(false)}
-                  style={{ borderRadius: '12px', padding: '10px 20px', border: 'none', cursor: 'pointer' }}
+                  style={{ height: '36px', padding: '0 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
                 >
                   {t.cancel}
                 </button>
                 <button 
                   type="submit" 
-                  className="btn-gradient-compose"
-                  style={{ padding: '10px 24px', boxShadow: 'none' }}
+                  style={{ height: '36px', padding: '0 20px', borderRadius: '8px', fontSize: '12px', fontWeight: '800', background: 'var(--gradient-brand)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <Send size={15} />
+                  <Send size={14} />
                   <span>{lang === 'ar' ? 'إرسال ونشر الآن' : 'Broadcast Now'}</span>
                 </button>
               </footer>
@@ -1394,4 +1351,132 @@ export default function CommunicationsTab() {
       )}
     </div>
   );
+
+  // Helper render for single Notification Card in Linear/Apple style
+  function renderNotificationCard(notif) {
+    const student = notif.type === 'student' ? students.find(s => s.id === Number(notif.studentId)) : null;
+    const resolvedStudentName = student ? student.name : notif.studentName;
+    const resolvedStudentNameEn = student ? student.nameEn : notif.studentNameEn;
+
+    const cat = getCategoryDetails(
+      notif.type,
+      notif.grade,
+      resolvedStudentName,
+      resolvedStudentNameEn,
+      notif.teacherName,
+      notif.teacherNameEn
+    );
+
+    const timeAgo = formatTimeAgo(notif.date);
+
+    return (
+      <div 
+        key={notif.id}
+        className={`notif-card-linear ${!notif.isRead ? 'unread' : ''}`}
+        onClick={() => {
+          if (!notif.isRead) {
+            handleMarkNotificationAsRead(notif.id);
+          }
+        }}
+      >
+        <div className="notif-card-top-row">
+          <div className="notif-card-title-group">
+            {/* Category Avatar Box */}
+            <div 
+              className="notif-avatar-box" 
+              style={{ backgroundColor: cat.bgGlow, color: cat.textColor, border: `1px solid ${cat.borderColor}` }}
+            >
+              {cat.icon}
+            </div>
+
+            <div>
+              <h4 className="notif-card-title">
+                {notif.title}
+                {!notif.isRead && (
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: '800',
+                    background: '#ef4444',
+                    color: 'white',
+                    padding: '1px 7px',
+                    borderRadius: '10px',
+                    marginInlineStart: '8px',
+                    display: 'inline-block',
+                    verticalAlign: 'middle'
+                  }}>
+                    {lang === 'ar' ? 'جديد' : 'New'}
+                  </span>
+                )}
+              </h4>
+
+              <div className="notif-card-meta-row">
+                {/* Category Badge Pill */}
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: cat.textColor,
+                  background: cat.bgGlow,
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  border: `1px solid ${cat.borderColor}`
+                }}>
+                  {cat.label}
+                </span>
+
+                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                  🕒 {timeAgo} ({notif.date})
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Hover/Tap Action Icons */}
+          <div className="notif-action-btn-group no-print" onClick={e => e.stopPropagation()}>
+            {!notif.isRead && (
+              <button
+                className="notif-icon-action"
+                onClick={() => handleMarkNotificationAsRead(notif.id)}
+                title={lang === 'ar' ? 'تحديد كمقروء' : 'Mark as read'}
+              >
+                <Check size={14} />
+              </button>
+            )}
+
+            <button
+              className="notif-icon-action"
+              onClick={(e) => handleCopyContent(e, notif)}
+              title={lang === 'ar' ? 'نسخ نص الإشعار' : 'Copy notification text'}
+            >
+              {copiedId === notif.id ? <Check size={14} style={{ color: 'var(--color-success)' }} /> : <Copy size={14} />}
+            </button>
+
+            {canAction('communications', 'delete') && (
+              <button
+                className="notif-icon-action danger"
+                onClick={(e) => onDeleteNotificationClick(e, notif.id)}
+                title={lang === 'ar' ? 'حذف الإشعار' : 'Delete notification'}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Message Content */}
+        <p className="notif-card-body">{notif.content}</p>
+
+        {/* Card Footer */}
+        <div className="notif-card-footer">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>✍️ {lang === 'ar' ? 'المرسل: ' : 'Sender: '}{getNotificationSender(notif).name}</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--color-success)' }}>
+            <CheckCircle2 size={13} />
+            <span>{lang === 'ar' ? 'تم النشر كإشعار فوري وتنبيه SMS' : 'Sent via Push & SMS'}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }
