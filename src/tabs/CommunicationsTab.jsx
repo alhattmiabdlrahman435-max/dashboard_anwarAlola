@@ -342,14 +342,16 @@ export default function CommunicationsTab() {
       return lang === 'ar' ? `الصف: ${cleanGrade}` : `Class: ${cleanGrade}`;
     }
     if (type === 'student' || type === 'private') {
-      const targetStudent = students.find(s => s.id === Number(notif.studentId));
-      const sName = targetStudent ? targetStudent.name : (notif.studentName || (lang === 'ar' ? 'طالب مخصص' : 'Student'));
-      return lang === 'ar' ? `الطالب: ${sName}` : `Student: ${sName}`;
+      const targetStudent = students.find(s => String(s.id) === String(notif.studentId));
+      const sName = notif.studentName || (targetStudent ? (targetStudent.name || targetStudent.name_ar || targetStudent.name_en) : null);
+      if (sName) return lang === 'ar' ? `الطالب: ${sName}` : `Student: ${sName}`;
+      return notif.studentId ? (lang === 'ar' ? `الطالب (رقم #${notif.studentId})` : `Student (#${notif.studentId})`) : (lang === 'ar' ? 'طالب مخصص' : 'Student');
     }
     if (type === 'teacher') {
-      const targetTeacher = teachers.find(t => t.id === Number(notif.teacherId));
-      const tName = targetTeacher ? targetTeacher.name : (notif.teacherName || (lang === 'ar' ? 'معلم مخصص' : 'Teacher'));
-      return lang === 'ar' ? `المعلم: ${tName}` : `Teacher: ${tName}`;
+      const targetTeacher = teachers.find(t => String(t.id) === String(notif.teacherId));
+      const tName = notif.teacherName || (targetTeacher ? (targetTeacher.name || targetTeacher.name_ar || targetTeacher.name_en) : null);
+      if (tName) return lang === 'ar' ? `المعلم: ${tName}` : `Teacher: ${tName}`;
+      return notif.teacherId ? (lang === 'ar' ? `المعلم (رقم #${notif.teacherId})` : `Teacher (#${notif.teacherId})`) : (lang === 'ar' ? 'معلم مخصص' : 'Teacher');
     }
 
     return lang === 'ar' ? 'عام' : 'General';

@@ -130,6 +130,12 @@ class NotificationController extends Controller implements HasMiddleware
         $direction = strtolower($request->input('direction', 'desc'));
         $query->orderBy($sortBy, $direction);
 
+        $query->with([
+            'student:id,name,name_en',
+            'teacher:id,name,name_en',
+            'schoolClass:id,name,grade_name'
+        ]);
+
         // Safe Column Selection
         $query->select([
             'id', 'title', 'content', 'type', 'is_read', 'student_id', 'class_id', 'teacher_id', 'attachment_url', 'created_at'
@@ -172,6 +178,14 @@ class NotificationController extends Controller implements HasMiddleware
                 'is_read' => $notif->is_read,
                 'target_type' => $targetType,
                 'target_id' => $targetId,
+                'student_id' => $notif->student_id,
+                'student_name' => $notif->student ? ($notif->student->name ?: $notif->student->name_en) : null,
+                'student_name_en' => $notif->student ? ($notif->student->name_en ?: $notif->student->name) : null,
+                'teacher_id' => $notif->teacher_id,
+                'teacher_name' => $notif->teacher ? ($notif->teacher->name ?: $notif->teacher->name_en) : null,
+                'teacher_name_en' => $notif->teacher ? ($notif->teacher->name_en ?: $notif->teacher->name) : null,
+                'class_id' => $notif->class_id,
+                'class_name' => $notif->schoolClass ? ($notif->schoolClass->name ?: $notif->schoolClass->grade_name) : null,
                 'attachment_url' => $attachmentUrl,
                 'created_at' => $notif->created_at,
             ];

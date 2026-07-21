@@ -49,11 +49,11 @@ export default function NotificationsProvider({ children }) {
             else if (notif.target_type === "all_parents" || notif.type === "broadcast_parents" || notif.type === "parents" || notif.type === "broadcast") type = "parents";
             else if (notif.type) type = notif.type;
 
-            let studentName = null;
-            let studentNameEn = null;
-            const teacherName = null;
-            const teacherNameEn = null;
-            let gradeName = null;
+            const studentName = notif.student_name || null;
+            const studentNameEn = notif.student_name_en || null;
+            const teacherName = notif.teacher_name || null;
+            const teacherNameEn = notif.teacher_name_en || null;
+            const gradeName = notif.class_name || null;
 
             return {
               id: notif.id,
@@ -64,16 +64,13 @@ export default function NotificationsProvider({ children }) {
                 : "",
               type: type,
               isRead: !!notif.is_read,
-              studentId:
-                notif.target_type === "by_student" ? notif.target_id : null,
+              studentId: notif.student_id || (notif.target_type === "by_student" ? notif.target_id : null),
               studentName: studentName,
               studentNameEn: studentNameEn,
-              teacherId:
-                notif.target_type === "specific_teacher"
-                  ? notif.target_id
-                  : null,
+              teacherId: notif.teacher_id || (notif.target_type === "specific_teacher" ? notif.target_id : null),
               teacherName: teacherName,
               teacherNameEn: teacherNameEn,
+              classId: notif.class_id || (notif.target_type === "by_class" ? notif.target_id : null),
               grade: gradeName,
             };
           });
