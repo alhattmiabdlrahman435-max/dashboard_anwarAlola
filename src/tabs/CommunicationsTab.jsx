@@ -50,13 +50,8 @@ export default function CommunicationsTab() {
 
   const [activeFilter, setActiveFilter] = useState('all');
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(search);
   const [filterDate, setFilterDate] = useState('');
   const [copiedId, setCopiedId] = useState(null);
-
-  useEffect(() => {
-    setSearchQuery(search);
-  }, [search]);
 
   const qs = useMemo(() => {
     const params = new URLSearchParams();
@@ -946,11 +941,8 @@ export default function CommunicationsTab() {
             <input 
               type="text"
               placeholder={lang === 'ar' ? 'البحث في سجل الإشعارات المرسلة...' : 'Search notifications history...'}
-              value={searchQuery || ''}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setSearch(e.target.value);
-              }}
+              value={search || ''}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
