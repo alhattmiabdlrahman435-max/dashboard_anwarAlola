@@ -10,6 +10,8 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
 use App\Http\Requests\ListRequest;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class ReportController extends Controller implements HasMiddleware
 {
@@ -114,26 +116,41 @@ class ReportController extends Controller implements HasMiddleware
             'student_id'  => 'required|integer',
             'type'        => 'required|string|in:academic,behavioral,homework,psychological',
             'description' => 'required|string',
-            'image'       => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image'       => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
         $imageUrl = null;
+        $newPath  = null;
+
         if ($request->hasFile('image')) {
-            $file     = $request->file('image');
-            $ext      = strtolower($file->getClientOriginalExtension());
-            $filename = time() . '_' . uniqid() . '.' . $ext;
-            $file->move(public_path('uploads/reports'), $filename);
+            $file        = $request->file('image');
+            $ext         = strtolower($file->getClientOriginalExtension());
+            $filename    = Str::uuid() . '.' . $ext;
+            $destination = public_path('uploads/reports');
+            $newPath     = $destination . DIRECTORY_SEPARATOR . $filename;
+            $file->move($destination, $filename);
             $imageUrl = asset('uploads/reports/' . $filename);
         }
 
-        $report = Report::create([
-            'student_id'  => $request->student_id,
-            'teacher_id'  => $request->user()->id,
-            'type'        => $request->type,
-            'description' => $request->description,
-            'image_url'   => $imageUrl,
-            'status'      => 'pending',
-        ]);
+        // Save to DB — rollback file on failure
+        try {
+            $report = Report::create([
+                'student_id'  => $request->student_id,
+                'teacher_id'  => $request->user()->id,
+                'type'        => $request->type,
+                'description' => $request->description,
+                'image_url'   => $imageUrl,
+                'status'      => 'pending',
+            ]);
+        } catch (\Throwable $e) {
+            if ($newPath && File::exists($newPath)) {
+                File::delete($newPath);
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل حفظ التقرير. يرجى المحاولة مرة أخرى.'
+            ], 500);
+        }
 
         $report->load(['student.schoolClass', 'teacher']);
 
@@ -313,6 +330,16 @@ class ReportController extends Controller implements HasMiddleware
      public function destroy($id)
      {
          $report = Report::findOrFail($id);
+
+         // Delete report image from storage
+         if ($report->image_url) {
+             $relative = str_replace(url('/'), '', $report->image_url);
+             $absolute = public_path(ltrim($relative, '/'));
+             if (File::exists($absolute)) {
+                 File::delete($absolute);
+             }
+         }
+
          $report->delete();
          return response()->json([
              'success' => true,
@@ -322,6 +349,15 @@ class ReportController extends Controller implements HasMiddleware
 
      public function deleteAll()
      {
+         // Delete all report files from disk
+         $dir = public_path('uploads/reports');
+         if (File::isDirectory($dir)) {
+             $files = File::files($dir);
+             foreach ($files as $file) {
+                 File::delete($file->getPathname());
+             }
+         }
+
          Report::query()->delete();
          return response()->json([
              'success' => true,

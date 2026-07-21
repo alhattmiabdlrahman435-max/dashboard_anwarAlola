@@ -3,24 +3,19 @@
  *
  * Features:
  * - First / Previous / Page Numbers (max 7 visible, with ellipsis) / Next / Last
+ * - Lucide SVG icons for crisp directional rendering without text Bidi mirroring flips
  * - Rows Per Page selector: 10 | 20 | 50 | 100 (default 20)
  * - Total records display: "Showing 21–40 of 1,247 records"
- * - Retry button when error prop is truthy
  * - RTL-aware (Arabic / English)
- * - Disabled states for boundary pages
+ * - Premium modern design with smooth hover and active states
  */
 
 import React from 'react';
+import { ChevronRight, ChevronLeft, ChevronsRight, ChevronsLeft } from 'lucide-react';
 import { ALLOWED_PER_PAGE } from '../hooks/usePagination';
 
 /**
  * Build the list of page buttons to render (max 7 numbered buttons + ellipsis).
- * Always shows first and last page.
- * Shows a window of 5 pages centered on current page.
- * Inserts '...' for gaps > 1 page.
- *
- * Examples (lastPage=58, current=17):
- *   [1, '...', 15, 16, 17, 18, 19, '...', 58]
  */
 function buildPageRange(page, lastPage) {
   if (lastPage <= 1) return [1];
@@ -29,53 +24,32 @@ function buildPageRange(page, lastPage) {
   }
 
   const items = [];
-  // Window: current ± 2 (5 pages centered on current)
   const windowStart = Math.max(2, page - 2);
   const windowEnd   = Math.min(lastPage - 1, page + 2);
 
-  // First page always
   items.push(1);
 
-  // Left ellipsis
   if (windowStart > 2) {
     items.push('...');
   } else if (windowStart === 2) {
     items.push(2);
   }
 
-  // Window pages (exclude 1 and lastPage — handled separately)
   for (let p = Math.max(windowStart, 2); p <= Math.min(windowEnd, lastPage - 1); p++) {
     if (!items.includes(p)) items.push(p);
   }
 
-  // Right ellipsis
   if (windowEnd < lastPage - 1) {
     items.push('...');
   } else if (windowEnd === lastPage - 1) {
     if (!items.includes(lastPage - 1)) items.push(lastPage - 1);
   }
 
-  // Last page always
   items.push(lastPage);
 
   return items;
 }
 
-/**
- * @param {object} props
- * @param {number}   props.page            - current page (1-indexed)
- * @param {number}   props.lastPage        - total pages
- * @param {number}   props.total           - total records
- * @param {number}   [props.from]          - first record index on this page
- * @param {number}   [props.to]            - last record index on this page
- * @param {number}   props.perPage         - currently selected rows per page
- * @param {function} props.onPageChange    - (page: number) => void
- * @param {function} props.onPerPageChange - (perPage: number) => void
- * @param {boolean}  [props.loading]       - show skeleton / disable buttons
- * @param {Error}    [props.error]         - if truthy, show retry button
- * @param {function} [props.onRetry]       - called when retry is clicked
- * @param {string}   [props.lang]          - 'ar' | 'en'
- */
 export default function PaginationBar({
   page: propPage,
   lastPage: propLastPage,
@@ -107,20 +81,20 @@ export default function PaginationBar({
   // Labels
   const labels = {
     ar: {
-      first: '«',
-      prev:  '‹',
-      next:  '›',
-      last:  '»',
+      first: 'الصفحة الأولى',
+      prev:  'الصفحة السابقة',
+      next:  'الصفحة التالية',
+      last:  'الصفحة الأخيرة',
       rows:  'عدد الصفوف:',
       showing: (f, t, total) => `عرض ${f}–${t} من ${total.toLocaleString('ar-SA')} سجل`,
       retry:   'إعادة المحاولة',
       error:   'فشل التحميل.',
     },
     en: {
-      first: '«',
-      prev:  '‹',
-      next:  '›',
-      last:  '»',
+      first: 'First page',
+      prev:  'Previous page',
+      next:  'Next page',
+      last:  'Last page',
       rows:  'Rows:',
       showing: (f, t, total) => `Showing ${f}–${t} of ${total.toLocaleString()} records`,
       retry:   'Retry',
@@ -129,16 +103,17 @@ export default function PaginationBar({
   };
   const L = labels[lang] || labels.en;
 
-  // ── Styles (inline, no external CSS dependency) ──
+  // Inline styling tokens for premium appearance
   const containerStyle = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: '12px',
-    padding: '12px 0',
+    padding: '16px 4px',
     direction: isRtl ? 'rtl' : 'ltr',
     fontSize: '13px',
+    userSelect: 'none',
   };
 
   const groupStyle = {
@@ -152,26 +127,28 @@ export default function PaginationBar({
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: '32px',
-    height: '32px',
+    minWidth: '36px',
+    height: '36px',
     padding: '0 8px',
-    borderRadius: '6px',
+    borderRadius: '10px',
     border: '1px solid var(--color-border, #e2e8f0)',
     background: 'var(--color-surface, #ffffff)',
     color: 'var(--color-text, #1e293b)',
     cursor: 'pointer',
-    fontWeight: '500',
+    fontWeight: '600',
     fontSize: '13px',
-    transition: 'background 0.15s, border-color 0.15s',
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     lineHeight: 1,
   };
 
   const btnActive = {
     ...btnBase,
-    background: 'var(--color-primary-ui, #4f46e5)',
-    borderColor: 'var(--color-primary-ui, #4f46e5)',
+    background: 'var(--color-primary-ui, #1E508E)',
+    borderColor: 'var(--color-primary-ui, #1E508E)',
     color: '#ffffff',
     fontWeight: '700',
+    boxShadow: '0 4px 12px rgba(30, 80, 142, 0.28)',
   };
 
   const btnDisabled = {
@@ -179,24 +156,30 @@ export default function PaginationBar({
     opacity: 0.35,
     cursor: 'not-allowed',
     pointerEvents: 'none',
+    boxShadow: 'none',
+    background: 'var(--color-surface-hover, #f8fafc)',
   };
 
   const btnNavStyle = (disabled) => (disabled || loading ? btnDisabled : btnBase);
 
   const selectStyle = {
-    height: '32px',
-    padding: '0 8px',
-    borderRadius: '6px',
+    height: '36px',
+    padding: '0 12px',
+    borderRadius: '10px',
     border: '1px solid var(--color-border, #e2e8f0)',
     background: 'var(--color-surface, #ffffff)',
     color: 'var(--color-text, #1e293b)',
     fontSize: '13px',
+    fontWeight: '600',
     cursor: 'pointer',
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+    outline: 'none',
   };
 
   const infoStyle = {
     color: 'var(--color-text-secondary, #64748b)',
     fontSize: '13px',
+    fontWeight: '500',
     whiteSpace: 'nowrap',
   };
 
@@ -206,13 +189,14 @@ export default function PaginationBar({
     gap: '8px',
     color: 'var(--color-danger, #ef4444)',
     fontSize: '13px',
+    fontWeight: '600',
   };
 
   const retryBtnStyle = {
     ...btnBase,
     borderColor: 'var(--color-danger, #ef4444)',
     color: 'var(--color-danger, #ef4444)',
-    padding: '0 10px',
+    padding: '0 12px',
     fontSize: '12px',
   };
 
@@ -236,43 +220,74 @@ export default function PaginationBar({
       ? L.showing(from, to, total)
       : null;
 
+  /**
+   * Directional Icon Assignments:
+   *
+   * In RTL (Arabic):
+   * - Buttons on the RIGHT of numbers (First & Prev) MUST point RIGHT (ChevronsRight & ChevronRight).
+   * - Buttons on the LEFT of numbers (Next & Last) MUST point LEFT (ChevronLeft & ChevronsLeft).
+   *
+   * In LTR (English):
+   * - Buttons on the LEFT of numbers (First & Prev) point LEFT (ChevronsLeft & ChevronLeft).
+   * - Buttons on the RIGHT of numbers (Next & Last) point RIGHT (ChevronRight & ChevronsRight).
+   */
+  const FirstIcon = isRtl ? ChevronsRight : ChevronsLeft;
+  const PrevIcon  = isRtl ? ChevronRight  : ChevronLeft;
+  const NextIcon  = isRtl ? ChevronLeft   : ChevronRight;
+  const LastIcon  = isRtl ? ChevronsLeft  : ChevronsRight;
+
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="pagination-bar-container">
       {/* ── Left: records info ── */}
       <div style={groupStyle}>
         {showingText && <span style={infoStyle}>{showingText}</span>}
       </div>
 
       {/* ── Center: page buttons ── */}
-      <div style={groupStyle}>
-        {/* First */}
+      <div style={groupStyle} className="pagination-buttons-group">
+        {/* First Page Button */}
         <button
+          type="button"
           style={btnNavStyle(isFirst)}
           onClick={() => !isFirst && onPageChange(1)}
-          aria-label={lang === 'ar' ? 'أول صفحة' : 'First page'}
+          aria-label={L.first}
+          title={L.first}
           disabled={isFirst || loading}
         >
-          {isRtl ? L.last : L.first}
+          <FirstIcon size={18} strokeWidth={2.2} />
         </button>
 
-        {/* Previous */}
+        {/* Previous Page Button */}
         <button
+          type="button"
           style={btnNavStyle(isFirst)}
           onClick={() => !isFirst && onPageChange(page - 1)}
-          aria-label={lang === 'ar' ? 'الصفحة السابقة' : 'Previous page'}
+          aria-label={L.prev}
+          title={L.prev}
           disabled={isFirst || loading}
         >
-          {isRtl ? L.next : L.prev}
+          <PrevIcon size={18} strokeWidth={2.2} />
         </button>
 
         {/* Page numbers */}
         {pageItems.map((item, idx) =>
           item === '...' ? (
-            <span key={`ellipsis-${idx}`} style={{ ...btnBase, cursor: 'default', borderColor: 'transparent', background: 'transparent' }}>
+            <span
+              key={`ellipsis-${idx}`}
+              style={{
+                ...btnBase,
+                cursor: 'default',
+                borderColor: 'transparent',
+                background: 'transparent',
+                boxShadow: 'none',
+                color: 'var(--color-text-secondary, #94a3b8)',
+              }}
+            >
               …
             </span>
           ) : (
             <button
+              type="button"
               key={item}
               style={item === page ? btnActive : (loading ? btnDisabled : btnBase)}
               onClick={() => item !== page && onPageChange(item)}
@@ -285,24 +300,28 @@ export default function PaginationBar({
           )
         )}
 
-        {/* Next */}
+        {/* Next Page Button */}
         <button
+          type="button"
           style={btnNavStyle(isLast)}
           onClick={() => !isLast && onPageChange(page + 1)}
-          aria-label={lang === 'ar' ? 'الصفحة التالية' : 'Next page'}
+          aria-label={L.next}
+          title={L.next}
           disabled={isLast || loading}
         >
-          {isRtl ? L.prev : L.next}
+          <NextIcon size={18} strokeWidth={2.2} />
         </button>
 
-        {/* Last */}
+        {/* Last Page Button */}
         <button
+          type="button"
           style={btnNavStyle(isLast)}
           onClick={() => !isLast && onPageChange(lastPage)}
-          aria-label={lang === 'ar' ? 'آخر صفحة' : 'Last page'}
+          aria-label={L.last}
+          title={L.last}
           disabled={isLast || loading}
         >
-          {isRtl ? L.first : L.last}
+          <LastIcon size={18} strokeWidth={2.2} />
         </button>
       </div>
 
@@ -311,10 +330,12 @@ export default function PaginationBar({
         <label htmlFor="paginationbar-perpage" style={infoStyle}>{L.rows}</label>
         <select
           id="paginationbar-perpage"
+          name="per_page"
           style={selectStyle}
           value={perPage}
           onChange={(e) => onPerPageChange(Number(e.target.value))}
           disabled={loading}
+          aria-label={L.rows}
         >
           {ALLOWED_PER_PAGE.map((n) => (
             <option key={n} value={n}>{n}</option>

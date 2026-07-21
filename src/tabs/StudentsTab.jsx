@@ -8,7 +8,8 @@ import { useParents } from '../contexts/Parents/useParents';
 import { useSettings } from '../contexts/Settings/useSettings';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
-import { Plus, Search, X, Download, Upload, Camera, User, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Trash2, CreditCard, Download, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, RefreshCw, X, User, Camera } from 'lucide-react';
+import { processAndCompressFile } from '../utils/fileCompressor';
 
 export default function StudentsTab() {
   const {
@@ -533,10 +534,13 @@ export default function StudentsTab() {
             <div className="search-box" style={{ margin: 0, minWidth: '280px' }}>
               <Search size={18} />
               <input 
+                id="search-students"
+                name="search"
                 type="text"
                 className="text-field"
                 placeholder={lang === 'ar' ? 'البحث باسم الطالب، الرقم الأكاديمي، أو هوية ولي الأمر...' : 'Search by student name, number, or parent national ID...'}
                 value={searchQuery}
+                aria-label={lang === 'ar' ? 'البحث باسم الطالب' : 'Search students'}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setSearch(e.target.value);
@@ -546,6 +550,9 @@ export default function StudentsTab() {
 
             {/* Class Filter Dropdown */}
             <select 
+              id="filter-students-class"
+              name="class_filter"
+              aria-label={lang === 'ar' ? 'تصفية حسب الفصل' : 'Filter by class'}
               className="text-field"
               value={classFilter}
               onChange={(e) => setFilters({ class_id: e.target.value })}
@@ -663,7 +670,7 @@ export default function StudentsTab() {
                               e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.15)';
                             }}
                           >
-                            <Edit3 size={15} />
+                            <Edit2 size={15} />
                           </button>
                         )}
 
@@ -791,20 +798,25 @@ export default function StudentsTab() {
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">{t.formStudentName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="add-student-name" className="form-label">{t.formStudentName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
+                    id="add-student-name"
+                    name="name"
                     type="text" 
                     className="text-field"
                     placeholder="مثال: عبدالمجيد بن فهد العتيبي"
                     value={modalStudentName}
                     onChange={(e) => setModalStudentName(e.target.value)}
                     required
+                    autoComplete="name"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الفصل الدراسي والشعبة' : 'Class & Section'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="add-student-class" className="form-label">{lang === 'ar' ? 'الفصل الدراسي والشعبة' : 'Class & Section'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <select 
+                    id="add-student-class"
+                    name="class_id"
                     className="text-field"
                     value={selectedClassId}
                     onChange={(e) => setSelectedClassId(e.target.value)}
@@ -820,8 +832,10 @@ export default function StudentsTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.ي)' : 'Annual Tuition Fee (R.Y)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="add-student-tuition" className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.ي)' : 'Annual Tuition Fee (R.Y)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
+                    id="add-student-tuition"
+                    name="tuition"
                     type="number" 
                     className="text-field"
                     placeholder="10000"
@@ -832,19 +846,24 @@ export default function StudentsTab() {
                 </div>
 
                 <div className="form-group" style={{ borderTop: '1px dashed var(--color-border)', paddingTop: 'var(--space-md)', marginTop: 'var(--space-md)' }}>
-                  <label className="form-label">{lang === 'ar' ? 'ربط بحساب ولي أمر' : 'Link to Parent Account'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="add-student-parent-search" className="form-label">{lang === 'ar' ? 'ربط بحساب ولي أمر' : 'Link to Parent Account'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   
                   {/* Parent Search Input */}
                   <input
+                    id="add-student-parent-search"
+                    name="parent_search"
                     type="text"
                     className="text-field"
                     style={{ marginBottom: '8px' }}
                     placeholder={lang === 'ar' ? '🔍 اكتب اسم ولي الأمر أو الرقم الوطني للبحث...' : '🔍 Type parent name or national ID to search...'}
                     value={parentSearchText}
                     onChange={(e) => setParentSearchText(e.target.value)}
+                    aria-label={lang === 'ar' ? 'البحث عن ولي أمر' : 'Search parent'}
                   />
 
                   <select
+                    id="add-student-parent-select"
+                    name="parent_national_id"
                     className="text-field"
                     value={selectedParentLinkOption}
                     onChange={(e) => {
@@ -1073,20 +1092,25 @@ export default function StudentsTab() {
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">{t.studentName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="edit-student-name" className="form-label">{t.studentName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
+                    id="edit-student-name"
+                    name="name"
                     type="text" 
                     className="text-field"
                     value={editStudentName}
                     onChange={(e) => setEditStudentName(e.target.value)}
                     placeholder={lang === 'ar' ? 'مثال: ياسر بن محمد الرويلي' : 'e.g. Yasser bin Mohammed'}
                     required
+                    autoComplete="name"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الفصل الدراسي والشعبة' : 'Class & Section'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="edit-student-class" className="form-label">{lang === 'ar' ? 'الفصل الدراسي والشعبة' : 'Class & Section'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <select 
+                    id="edit-student-class"
+                    name="class_id"
                     className="text-field"
                     value={editClassId}
                     onChange={(e) => setEditClassId(e.target.value)}
@@ -1102,8 +1126,10 @@ export default function StudentsTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.ي)' : 'Annual Tuition Fee (R.Y)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="edit-student-tuition" className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.ي)' : 'Annual Tuition Fee (R.Y)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
+                    id="edit-student-tuition"
+                    name="tuition"
                     type="number" 
                     className="text-field"
                     value={editTuitionFee}
@@ -1281,10 +1307,12 @@ export default function StudentsTab() {
                 <form onSubmit={handleImportExcel} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                    {/* Select Default Class */}
                   <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: '600' }}>
+                    <label htmlFor="import-target-class" className="form-label" style={{ fontWeight: '600' }}>
                       {lang === 'ar' ? 'حدد الفصل الدراسي المستهدف للاستيراد:' : 'Target Class for Import:'} <span style={{ color: 'var(--color-error)' }}>*</span>
                     </label>
                     <select
+                      id="import-target-class"
+                      name="import_class_id"
                       className="text-field"
                       value={excelDefaultClassId}
                       onChange={(e) => setExcelDefaultClassId(e.target.value)}

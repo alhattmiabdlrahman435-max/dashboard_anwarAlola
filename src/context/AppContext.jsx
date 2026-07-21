@@ -56,8 +56,11 @@ export const AppProvider = ({ children }) => {
   });
 
   const fetchControlGradesRequestRef = useRef(0);
-  const fetchAssignmentsRequestRef = useRef(0);
-  const assignmentsAbortRef = useRef(null);
+  const fetchAssignmentsRequestRef   = useRef(0);
+  const assignmentsAbortRef          = useRef(null);
+  // Stable refs to avoid stale-closure deps in fetchAssignments
+  const isStaleAssignmentsRef = useRef(true);
+  const assignmentsCountRef   = useRef(0);
 
 
   // Vice Principals (Supervisors) state
@@ -243,11 +246,12 @@ export const AppProvider = ({ children }) => {
   }, [isStaleControl, grades.length, setGrades, setControlPagination]);
 
   const fetchAssignments = useCallback((arg) => {
-    const isForce = arg === true;
+    const isForce       = arg === true;
     const isQueryString = typeof arg === 'string';
-    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+    const queryString   = isQueryString ? arg : '?page=1&per_page=20';
 
-    if (!isForce && !isQueryString && !isStaleAssignments && assignments.length > 0) return;
+    // Use stable refs — no re-creation when assignments change
+    if (!isForce && !isQueryString && !isStaleAssignmentsRef.current && assignmentsCountRef.current > 0) return;
 
     if (assignmentsAbortRef.current) assignmentsAbortRef.current.abort();
     const controller = new AbortController();
@@ -262,39 +266,41 @@ export const AppProvider = ({ children }) => {
         if (data.success) {
           const rawList = data.assignments || data.data || [];
           const mapped = rawList.map((ass) => {
-            const classObj = ass.school_class || {};
-            const subjObj = ass.subject || {};
-            const teacherObj = ass.teacher || {};
+            const classObj   = ass.school_class || {};
+            const subjObj    = ass.subject      || {};
+            const teacherObj = ass.teacher      || {};
             const subs = (ass.submissions || []).map((sub) => {
               let status = 'notSubmitted';
-              if (sub.status === 'submitted') status = 'submitted';
+              if (sub.status === 'submitted')      status = 'submitted';
               else if (sub.status === 'submitted_late') status = 'submittedLate';
-              else if (sub.status === 'not_submitted') status = 'notSubmitted';
+              else if (sub.status === 'not_submitted')  status = 'notSubmitted';
               return {
-                studentId: Number(sub.student_id),
+                studentId:   Number(sub.student_id),
                 studentName: sub.student ? sub.student.name_ar : '',
-                status: status,
+                status,
                 teacherNote: sub.teacher_note || '',
               };
             });
-
             return {
-              id: ass.id,
-              grade: classObj.grade_ar || '',
-              section: classObj.section_ar || '',
-              subjectName: subjObj.name_ar || '',
-              subjectNameEn: subjObj.name_en || '',
-              teacherName: teacherObj.name_ar || teacherObj.name_en || '',
-              teacherNameEn: teacherObj.name_en || teacherObj.name_ar || '',
-              teacherId: teacherObj.id || null,
-              title: ass.title,
-              content: ass.content || '',
-              dateCreated: ass.date_created || (ass.created_at ? ass.created_at.split('T')[0] : ''),
-              dueDate: ass.due_date,
-              attachments: ass.attachment_url ? [ass.attachment_url] : [],
-              submissions: subs,
+              id:            ass.id,
+              grade:         classObj.grade_ar   || '',
+              section:       classObj.section_ar || '',
+              subjectName:   subjObj.name_ar     || '',
+              subjectNameEn: subjObj.name_en     || '',
+              teacherName:   teacherObj.name_ar  || teacherObj.name_en || '',
+              teacherNameEn: teacherObj.name_en  || teacherObj.name_ar || '',
+              teacherId:     teacherObj.id       || null,
+              title:         ass.title,
+              content:       ass.content         || '',
+              dateCreated:   ass.date_created    || (ass.created_at ? ass.created_at.split('T')[0] : ''),
+              dueDate:       ass.due_date,
+              attachments:   ass.attachment_url  ? [ass.attachment_url] : [],
+              submissions:   subs,
             };
           });
+          // Update stable refs first
+          isStaleAssignmentsRef.current = false;
+          assignmentsCountRef.current   = mapped.length;
           setAssignments(mapped);
           setIsStaleAssignments(false);
 
@@ -313,9 +319,10 @@ export const AppProvider = ({ children }) => {
         if (err.name === 'AbortError' || controller.signal.aborted) return;
         if (reqId !== fetchAssignmentsRequestRef.current) return;
         console.error('Error fetching assignments:', err);
-        setToastMessage(err.message, "error");
+        setToastMessage(err.message, 'error');
       });
-  }, [isStaleAssignments, assignments.length, setAssignments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  // ← stable: refs keep state without re-creating the function
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -324,6 +331,9 @@ export const AppProvider = ({ children }) => {
       setDetailedGrades([]);
       setIsStaleControl(true);
       setIsStaleAssignments(true);
+      // Reset stable refs on logout
+      isStaleAssignmentsRef.current = true;
+      assignmentsCountRef.current   = 0;
     }
   }, [isAuthenticated]);
 

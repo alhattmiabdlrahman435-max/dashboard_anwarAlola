@@ -118,48 +118,58 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
 
   const debounceRef = useRef(null);
 
+  // ── Stable ref: always holds latest state without causing dep churn ──
+  const stateRef = useRef({ page, perPage, search, sort, direction, filters, defaultPerPage });
+  useEffect(() => {
+    stateRef.current = { page, perPage, search, sort, direction, filters, defaultPerPage };
+  }); // no deps — runs after every render to stay current
+
   // ── Sync sessionStorage whenever page / perPage change ──
   useEffect(() => {
     writeSession(moduleKey, page, perPage);
   }, [moduleKey, page, perPage]);
 
-  // ── Re-sync local state when URL changes (Back / Forward) ──
+  // ── Re-sync local state when URL changes (Back / Forward navigation) ──
   useEffect(() => {
     const urlPage = parseInt(searchParams.get('page'), 10);
-    if (!isNaN(urlPage) && urlPage > 0 && urlPage !== page) _setPage(urlPage);
+    if (!isNaN(urlPage) && urlPage > 0 && urlPage !== stateRef.current.page) {
+      _setPage(urlPage);
+    }
 
-    const urlPP = clampPerPage(searchParams.get('per_page') || String(perPage));
-    if (urlPP !== perPage) _setPerPage(urlPP);
+    const urlPP = clampPerPage(searchParams.get('per_page') || String(stateRef.current.perPage));
+    if (urlPP !== stateRef.current.perPage) _setPerPage(urlPP);
 
     const urlSearch = searchParams.get('search') || '';
-    if (urlSearch !== search) _setSearch(urlSearch);
+    if (urlSearch !== stateRef.current.search) _setSearch(urlSearch);
 
     const urlSort = searchParams.get('sort') || '';
-    if (urlSort !== sort) _setSort(urlSort);
+    if (urlSort !== stateRef.current.sort) _setSort(urlSort);
 
     const urlDir = searchParams.get('direction') || 'desc';
-    if (urlDir !== direction) _setDir(urlDir);
+    if (urlDir !== stateRef.current.direction) _setDir(urlDir);
 
-    const urlFilters = { ...filters };
+    // ── FIX: also sync filters from URL (was missing before) ──
+    const currentFilters = stateRef.current.filters;
+    const newFilters = { ...currentFilters };
+    let filtersChanged = false;
     Object.keys(defaultFilters).forEach((k) => {
-      const v = searchParams.get(k);
-      if (v !== null && v !== urlFilters[k]) urlFilters[k] = v;
+      const v = searchParams.get(k) ?? '';
+      if (v !== (currentFilters[k] ?? '')) {
+        newFilters[k] = v;
+        filtersChanged = true;
+      }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+    if (filtersChanged) _setFilters(newFilters);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]); // only re-run when URL actually changes
 
-  // ── Internal: push state to URL (creates a history entry for Back/Forward) ──
+  // ── Internal: push state to URL (stable — uses ref, not state deps) ──
   const pushToUrl = useCallback(
     (state) => {
+      const { defaultPerPage: dp } = stateRef.current;
       const params = new URLSearchParams();
-      // Only set page in URL if page > 1 or searchParams already contains page
-      if (state.page > 1 || searchParams.has('page')) {
-        params.set('page', String(state.page));
-      }
-      // Only set per_page in URL if non-default or searchParams already contains per_page
-      if (state.perPage !== defaultPerPage || searchParams.has('per_page')) {
-        params.set('per_page', String(state.perPage));
-      }
+      if (state.page > 1) params.set('page', String(state.page));
+      if (state.perPage !== dp) params.set('per_page', String(state.perPage));
       if (state.search) params.set('search', state.search);
       if (state.sort) params.set('sort', state.sort);
       if (state.direction && state.direction !== 'desc') params.set('direction', state.direction);
@@ -167,24 +177,21 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
         if (v !== null && v !== undefined && v !== '' && v !== 'all') params.set(k, String(v));
       });
 
-      const newQuery = params.toString();
-      const currentQuery = searchParams.toString();
-      if (newQuery !== currentQuery) {
-        setSearchParams(params, { replace: true });
-      }
+      setSearchParams(params, { replace: true });
     },
-    [searchParams, setSearchParams, defaultPerPage]
+    [setSearchParams] // stable — setSearchParams from react-router never changes
   );
 
-  // ── Public setters ──
+  // ── Public setters — all stable (ref-based, no state in deps) ──
 
   const setPage = useCallback(
     (newPage) => {
       const validPage = Math.max(1, parseInt(newPage, 10) || 1);
       _setPage(validPage);
-      pushToUrl({ page: validPage, perPage, search, sort, direction, filters });
+      const s = stateRef.current;
+      pushToUrl({ page: validPage, perPage: s.perPage, search: s.search, sort: s.sort, direction: s.direction, filters: s.filters });
     },
-    [perPage, search, sort, direction, filters, pushToUrl]
+    [pushToUrl]
   );
 
   const setPerPage = useCallback(
@@ -192,9 +199,10 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
       const clamped = clampPerPage(String(newPerPage));
       _setPerPage(clamped);
       _setPage(1);
-      pushToUrl({ page: 1, perPage: clamped, search, sort, direction, filters });
+      const s = stateRef.current;
+      pushToUrl({ page: 1, perPage: clamped, search: s.search, sort: s.sort, direction: s.direction, filters: s.filters });
     },
-    [search, sort, direction, filters, pushToUrl]
+    [pushToUrl]
   );
 
   const setSort = useCallback(
@@ -202,19 +210,21 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
       _setSort(newSort);
       _setDir(newDir);
       _setPage(1);
-      pushToUrl({ page: 1, perPage, search, sort: newSort, direction: newDir, filters });
+      const s = stateRef.current;
+      pushToUrl({ page: 1, perPage: s.perPage, search: s.search, sort: newSort, direction: newDir, filters: s.filters });
     },
-    [perPage, search, filters, pushToUrl]
+    [pushToUrl]
   );
 
   const setFilters = useCallback(
     (newFilters) => {
-      const merged = { ...filters, ...newFilters };
+      const s = stateRef.current;
+      const merged = { ...s.filters, ...newFilters };
       _setFilters(merged);
       _setPage(1);
-      pushToUrl({ page: 1, perPage, search, sort, direction, filters: merged });
+      pushToUrl({ page: 1, perPage: s.perPage, search: s.search, sort: s.sort, direction: s.direction, filters: merged });
     },
-    [perPage, search, sort, direction, filters, pushToUrl]
+    [pushToUrl]
   );
 
   /** Debounced search — cancels previous timer before scheduling next */
@@ -228,15 +238,18 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
         _setPage(1);
-        pushToUrl({ page: 1, perPage, search: newSearch, sort, direction, filters });
+        const s = stateRef.current;
+        pushToUrl({ page: 1, perPage: s.perPage, search: newSearch, sort: s.sort, direction: s.direction, filters: s.filters });
       }, 300);
     },
-    [perPage, sort, direction, filters, pushToUrl]
+    [pushToUrl]
   );
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   // ── Query string builder for API calls ──
+  // NOTE: Must keep state in deps so `const qs = buildQueryString()` returns
+  // a new string value (and triggers useEffect) whenever state changes.
   const buildQueryString = useCallback(
     (overrides = {}) => {
       const s = { page, perPage, search, sort, direction, filters, ...overrides };
@@ -254,21 +267,23 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
     [page, perPage, search, sort, direction, filters]
   );
 
+
   /**
    * After delete: if itemsOnCurrentPage === 0 AND page > 1, decrement page.
    * Returns the query string for the next fetch.
    */
   const goToPrevIfEmpty = useCallback(
     (itemsOnCurrentPage) => {
-      if (itemsOnCurrentPage === 0 && page > 1) {
-        const prev = page - 1;
+      if (itemsOnCurrentPage === 0 && stateRef.current.page > 1) {
+        const prev = stateRef.current.page - 1;
         _setPage(prev);
-        pushToUrl({ page: prev, perPage, search, sort, direction, filters });
+        const s = stateRef.current;
+        pushToUrl({ page: prev, perPage: s.perPage, search: s.search, sort: s.sort, direction: s.direction, filters: s.filters });
         return buildQueryString({ page: prev });
       }
       return buildQueryString();
     },
-    [page, perPage, search, sort, direction, filters, buildQueryString, pushToUrl]
+    [buildQueryString, pushToUrl]
   );
 
   return {

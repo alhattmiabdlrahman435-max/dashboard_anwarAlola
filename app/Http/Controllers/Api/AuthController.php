@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -140,32 +142,56 @@ class AuthController extends Controller
     public function updatePhoto(Request $request)
     {
         $request->validate([
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'photo' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
         $user = $request->user();
 
-        if ($request->hasFile('photo')) {
-            $file = $request->file('photo');
-            $ext = strtolower($file->getClientOriginalExtension());
-            $filename = time() . '_' . uniqid() . '.' . $ext;
-            $file->move(public_path('uploads/avatars'), $filename);
-            
-            $url = asset('uploads/avatars/' . $filename);
-            
-            $user->update(['photo_url' => $url]);
-
+        if (!$request->hasFile('photo')) {
             return response()->json([
-                'success' => true,
-                'message' => 'تم تحديث الصورة بنجاح',
-                'photo_url' => $url
-            ]);
+                'success' => false,
+                'message' => 'لم يتم العثور على ملف الصورة'
+            ], 400);
+        }
+
+        $file = $request->file('photo');
+        $ext  = strtolower($file->getClientOriginalExtension());
+
+        // UUID filename — prevents enumeration & collisions
+        $filename    = Str::uuid() . '.' . $ext;
+        $destination = public_path('uploads/avatars');
+        $newPath     = $destination . DIRECTORY_SEPARATOR . $filename;
+
+        // Move file to disk first
+        $file->move($destination, $filename);
+        $newUrl = asset('uploads/avatars/' . $filename);
+
+        // Delete old photo (if exists and is a local file)
+        $oldUrl = $user->photo_url;
+        if ($oldUrl) {
+            $oldRelative = str_replace(url('/'), '', $oldUrl);
+            $oldAbsolute = public_path(ltrim($oldRelative, '/'));
+            if (File::exists($oldAbsolute)) {
+                File::delete($oldAbsolute);
+            }
+        }
+
+        // Save to DB — rollback file on failure
+        try {
+            $user->update(['photo_url' => $newUrl]);
+        } catch (\Throwable $e) {
+            File::delete($newPath);
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل حفظ البيانات. يرجى المحاولة مرة أخرى.'
+            ], 500);
         }
 
         return response()->json([
-            'success' => false,
-            'message' => 'لم يتم العثور على ملف الصورة'
-        ], 400);
+            'success'   => true,
+            'message'   => 'تم تحديث الصورة بنجاح',
+            'photo_url' => $newUrl,
+        ]);
     }
 
     /**

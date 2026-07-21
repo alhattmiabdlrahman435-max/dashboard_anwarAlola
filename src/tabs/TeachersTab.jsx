@@ -355,11 +355,14 @@ export default function TeachersTab() {
           <div className="search-box" style={{ position: 'relative', width: '280px' }}>
             <Search size={16} style={{ position: 'absolute', right: lang === 'ar' ? '12px' : 'auto', left: lang === 'ar' ? 'auto' : '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
             <input
+              id="search-teachers"
+              name="search"
               type="text"
               className="text-field"
               style={{ paddingRight: lang === 'ar' ? '36px' : '12px', paddingLeft: lang === 'ar' ? '12px' : '36px', height: '40px', fontSize: '13px' }}
               placeholder={lang === 'ar' ? 'البحث عن معلم بالاسم أو الرقم الوظيفي...' : 'Search teacher by name or job ID...'}
               value={search}
+              aria-label={lang === 'ar' ? 'البحث عن معلمين' : 'Search teachers'}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
@@ -410,7 +413,7 @@ export default function TeachersTab() {
         </div>
       </div>
 
-      <div className="students-table-container" style={{ width: '100%', overflowX: 'auto' }}>
+      <div className="students-table-container responsive-hide-on-mobile" style={{ width: '100%', overflowX: 'auto' }}>
         <table className="students-table" style={{ width: '100%', minWidth: '100%' }}>
           <thead>
             <tr>
@@ -431,13 +434,13 @@ export default function TeachersTab() {
                 <tr key={teacher.id}>
                   <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', fontSize: '12px' }}>{teacher.jobId || `T${teacher.id}`}</td>
                   <td style={{ fontWeight: '600', fontSize: '13px' }}>
-                    {renderAvatar(teacher.photo, "👨‍--")}
+                    {renderAvatar(teacher.photo, "👨‍🏫")}
                     {lang === 'ar' ? teacher.name : teacher.nameEn}
                   </td>
                   <td style={{ whiteSpace: 'normal', maxWidth: '170px' }}>
                     {teacher.subjects && teacher.subjects.length > 0 ? (
-                      <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
-                        {teacher.subjects.map((sub, idx) => (
+                      <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', maxHeight: '54px', overflowY: 'auto' }}>
+                        {teacher.subjects.slice(0, 3).map((sub, idx) => (
                           <span key={idx} style={{
                             padding: '2px 7px',
                             background: 'rgba(30, 80, 142, 0.08)',
@@ -450,6 +453,19 @@ export default function TeachersTab() {
                             {sub}
                           </span>
                         ))}
+                        {teacher.subjects.length > 3 && (
+                          <span title={teacher.subjects.join(', ')} style={{
+                            padding: '2px 7px',
+                            background: 'rgba(30, 80, 142, 0.15)',
+                            color: 'var(--color-primary-ui)',
+                            borderRadius: '6px',
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            cursor: 'help'
+                          }}>
+                            +{teacher.subjects.length - 3} {lang === 'ar' ? 'أخرى' : 'more'}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <span style={{
@@ -464,14 +480,21 @@ export default function TeachersTab() {
                       </span>
                     )}
                   </td>
-                  <td style={{ whiteSpace: 'normal', maxWidth: '160px' }}>
-                    <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+                  <td style={{ whiteSpace: 'normal', maxWidth: '180px' }}>
+                    <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', maxHeight: '54px', overflowY: 'auto' }}>
                       {teacher.classes && teacher.classes.length > 0 ? (
-                        teacher.classes.map((c, idx) => (
-                          <span key={idx} className="chip" style={{ cursor: 'default', fontSize: '10px', padding: '1px 6px', lineHeight: '1.3' }}>
-                            {c}
-                          </span>
-                        ))
+                        <>
+                          {teacher.classes.slice(0, 3).map((c, idx) => (
+                            <span key={idx} className="chip" style={{ cursor: 'default', fontSize: '10px', padding: '1px 6px', lineHeight: '1.3' }}>
+                              {c}
+                            </span>
+                          ))}
+                          {teacher.classes.length > 3 && (
+                            <span title={teacher.classes.join(', ')} className="chip" style={{ cursor: 'help', fontSize: '10px', padding: '1px 6px', lineHeight: '1.3', background: 'var(--color-primary-ui)', color: '#fff', fontWeight: 'bold' }}>
+                              +{teacher.classes.length - 3} {lang === 'ar' ? 'فصول أخرى' : 'more'}
+                            </span>
+                          )}
+                        </>
                       ) : (
                         <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>—</span>
                       )}
@@ -577,6 +600,108 @@ export default function TeachersTab() {
         </table>
       </div>
 
+      {/* Mobile Teacher Cards View (Mobile-First / Touch-First System) */}
+      <div className="teacher-mobile-cards-grid no-print">
+        {teachers.length > 0 ? (
+          teachers.map((teacher) => (
+            <div key={teacher.id} className="teacher-mobile-card">
+              <div className="teacher-card-top">
+                <div className="teacher-card-avatar">
+                  {renderAvatar(teacher.photo, "👨‍🏫")}
+                </div>
+                <div className="teacher-card-identity">
+                  <h4 className="teacher-card-name">
+                    {lang === 'ar' ? teacher.name : (teacher.nameEn || teacher.name)}
+                  </h4>
+                  <div className="teacher-card-badges">
+                    <span className="teacher-job-badge">{teacher.jobId || `T${teacher.id}`}</span>
+                    <span className="teacher-subject-badge">
+                      {lang === 'ar' ? (teacher.subject || 'معلم') : (teacher.subjectEn || 'Teacher')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="teacher-card-body">
+                <div className="teacher-card-info-row">
+                  <span className="info-label">📱 {lang === 'ar' ? 'رقم الجوال:' : 'Phone:'}</span>
+                  {teacher.phone ? (
+                    <a href={`tel:${teacher.phone}`} className="info-value-phone">{teacher.phone}</a>
+                  ) : (
+                    <span className="info-value-phone" style={{ opacity: 0.5 }}>—</span>
+                  )}
+                </div>
+                <div className="teacher-card-info-row">
+                  <span className="info-label">🏠 {lang === 'ar' ? 'العنوان:' : 'Address:'}</span>
+                  <span style={{ fontSize: '13px', fontWeight: '500' }}>{teacher.address || '—'}</span>
+                </div>
+                <div className="teacher-card-info-row">
+                  <span className="info-label">📊 {lang === 'ar' ? 'نسبة رصد الدرجات:' : 'Grades:'}</span>
+                  <span className="info-value-grade">{teacher.gradesEntered}%</span>
+                </div>
+
+                <div className="teacher-card-classes-section">
+                  <span className="classes-title">🎯 {lang === 'ar' ? 'الفصول المكلف بها:' : 'Assigned Classes:'}</span>
+                  <div className="classes-chips-wrapper">
+                    {teacher.classes && teacher.classes.length > 0 ? (
+                      teacher.classes.map((c, idx) => (
+                        <span key={idx} className="teacher-class-pill">{c}</span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>—</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {(canAction('teachers', 'update') || canAction('teachers', 'delete')) && (
+                <div className="teacher-card-actions">
+                  {canAction('teachers', 'update') && (
+                    <button
+                      type="button"
+                      className="teacher-action-btn edit-btn"
+                      onClick={() => {
+                        setFormError('');
+                        setSelectedTeacherIdForEdit(teacher.id);
+                        setModalTeacherName(teacher.name);
+                        setModalTeacherAssignments(teacher.teachingAssignments || [
+                          { subject: teacher.subject, class: teacher.classes[0] || 'الصف الأول - أ' }
+                        ]);
+                        setModalTeacherJobId(teacher.jobId || `T${teacher.id}`);
+                        setModalTeacherPhone(teacher.phone || '');
+                        setModalTeacherAddress(teacher.address || '');
+                        setModalTeacherPhoto(teacher.photo || '');
+                        setShowEditTeacherModal(true);
+                      }}
+                    >
+                      <Edit3 size={16} />
+                      <span>{t.editBtn}</span>
+                    </button>
+                  )}
+                  {canAction('teachers', 'delete') && (
+                    <button
+                      type="button"
+                      className="teacher-action-btn delete-btn"
+                      onClick={() => handleDeleteTeacher(teacher.id)}
+                    >
+                      <Trash2 size={16} />
+                      <span>{lang === 'ar' ? 'حذف' : 'Delete'}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div style={{ padding: '32px 16px', textAlign: 'center', background: 'var(--color-surface)', borderRadius: '16px', border: '1px dashed var(--color-border)' }}>
+            <span style={{ fontSize: '28px', display: 'block', marginBottom: '8px' }}>📂</span>
+            <span style={{ fontWeight: '600', fontSize: '14px' }}>
+              {lang === 'ar' ? 'لا يوجد معلمون مسجلون حالياً' : 'No teachers registered yet'}
+            </span>
+          </div>
+        )}
+      </div>
+
       <PaginationBar
         page={teachersPagination.currentPage || page}
         lastPage={teachersPagination.lastPage || 1}
@@ -659,8 +784,10 @@ export default function TeachersTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="edit-teacher-name" className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
+                    id="edit-teacher-name"
+                    name="name"
                     type="text" 
                     className="text-field"
                     placeholder={lang === 'ar' ? 'مثال: أحمد الحربي' : 'e.g. Ahmad Al-Harbi'}
@@ -672,8 +799,10 @@ export default function TeachersTab() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
-                    <label className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label htmlFor="edit-teacher-job-id" className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <input 
+                      id="edit-teacher-job-id"
+                      name="job_id"
                       type="text" 
                       className="text-field"
                       placeholder="1011111111"
@@ -683,8 +812,10 @@ export default function TeachersTab() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label htmlFor="edit-teacher-phone" className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <input 
+                      id="edit-teacher-phone"
+                      name="phone"
                       type="text" 
                       className="text-field"
                       placeholder="7XXXXXXXX"
@@ -696,8 +827,10 @@ export default function TeachersTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
+                  <label htmlFor="edit-teacher-address" className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
                   <input 
+                    id="edit-teacher-address"
+                    name="address"
                     type="text" 
                     className="text-field"
                     placeholder={lang === 'ar' ? 'مثال: حي النزهة، الرياض' : 'e.g. Al-Nuzha, Riyadh'}
@@ -714,8 +847,10 @@ export default function TeachersTab() {
                   {/* Add Row Controls */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr auto', gap: '8px', alignItems: 'end', marginBottom: '12px' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11px' }}>{lang === 'ar' ? 'المادة الدراسية' : 'Subject'}</label>
+                      <label htmlFor="edit-teacher-subject" className="form-label" style={{ fontSize: '11px' }}>{lang === 'ar' ? 'المادة الدراسية' : 'Subject'}</label>
                       <select 
+                        id="edit-teacher-subject"
+                        name="subject"
                         className="text-field"
                         style={{ height: '38px', padding: '6px 12px' }}
                         value={modalTeacherAssignmentSubject}
@@ -729,8 +864,10 @@ export default function TeachersTab() {
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11px' }}>{lang === 'ar' ? 'الفصل الدراسي' : 'Class'}</label>
+                      <label htmlFor="edit-teacher-class" className="form-label" style={{ fontSize: '11px' }}>{lang === 'ar' ? 'الفصل الدراسي' : 'Class'}</label>
                       <select 
+                        id="edit-teacher-class"
+                        name="class"
                         className="text-field"
                         style={{ height: '38px', padding: '6px 12px' }}
                         value={modalTeacherAssignmentClass}
@@ -873,20 +1010,20 @@ export default function TeachersTab() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalTeacherName} onChange={(e) => setModalTeacherName(e.target.value)} required />
+                  <label htmlFor="add-teacher-name" className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input id="add-teacher-name" name="name" type="text" className="text-field" value={modalTeacherName} onChange={(e) => setModalTeacherName(e.target.value)} required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalTeacherJobId} onChange={(e) => setModalTeacherJobId(e.target.value)} required />
+                  <label htmlFor="add-teacher-job-id" className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input id="add-teacher-job-id" name="job_id" type="text" className="text-field" value={modalTeacherJobId} onChange={(e) => setModalTeacherJobId(e.target.value)} required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalTeacherPhone} onChange={(e) => setModalTeacherPhone(e.target.value)} placeholder="7XXXXXXXX" required />
+                  <label htmlFor="add-teacher-phone" className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input id="add-teacher-phone" name="phone" type="text" className="text-field" value={modalTeacherPhone} onChange={(e) => setModalTeacherPhone(e.target.value)} placeholder="7XXXXXXXX" required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
-                  <input type="text" className="text-field" value={modalTeacherAddress} onChange={(e) => setModalTeacherAddress(e.target.value)} placeholder={lang === 'ar' ? 'مثال: صنعاء، شارع حدة' : 'e.g. Sanaa, Hadda St'} />
+                  <label htmlFor="add-teacher-address" className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
+                  <input id="add-teacher-address" name="address" type="text" className="text-field" value={modalTeacherAddress} onChange={(e) => setModalTeacherAddress(e.target.value)} placeholder={lang === 'ar' ? 'مثال: صنعاء، شارع حدة' : 'e.g. Sanaa, Hadda St'} />
                 </div>
                 
                 <div style={{ padding: '14px', background: 'rgba(30, 80, 142, 0.03)', border: '1px solid var(--color-border)', borderRadius: '16px', marginBottom: '16px' }}>
@@ -897,8 +1034,10 @@ export default function TeachersTab() {
                   {/* Add Row Controls */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr auto', gap: '8px', alignItems: 'end', marginBottom: '12px' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11px' }}>{lang === 'ar' ? 'المادة الدراسية' : 'Subject'}</label>
+                      <label htmlFor="add-teacher-subject" className="form-label" style={{ fontSize: '11px' }}>{lang === 'ar' ? 'المادة الدراسية' : 'Subject'}</label>
                       <select 
+                        id="add-teacher-subject"
+                        name="subject"
                         className="text-field"
                         style={{ height: '38px', padding: '6px 12px' }}
                         value={modalTeacherAssignmentSubject}
@@ -912,8 +1051,10 @@ export default function TeachersTab() {
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label" style={{ fontSize: '11px' }}>{lang === 'ar' ? 'الفصل الدراسي' : 'Class'}</label>
+                      <label htmlFor="add-teacher-class" className="form-label" style={{ fontSize: '11px' }}>{lang === 'ar' ? 'الفصل الدراسي' : 'Class'}</label>
                       <select 
+                        id="add-teacher-class"
+                        name="class"
                         className="text-field"
                         style={{ height: '38px', padding: '6px 12px' }}
                         value={modalTeacherAssignmentClass}

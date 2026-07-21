@@ -421,20 +421,13 @@ class DatabaseSeeder extends Seeder
             ]);
 
             // 10. Exam Subjects details
-            $examDates = [
-                'الرياضيات' => Carbon::now()->addDays(10)->toDateString(),
-                'العلوم' => Carbon::now()->addDays(11)->toDateString(),
-                'لغتي' => Carbon::now()->addDays(12)->toDateString(),
-                'اللغة الإنجليزية' => Carbon::now()->addDays(13)->toDateString(),
-            ];
-
             foreach ($examDates as $sName => $eDate) {
                 DB::table('exam_subjects')->insert([
                     'exam_schedule_id' => $examSchId,
                     'subject_id' => $subjectIds[$sName],
                     'exam_date' => $eDate,
                     'exam_time' => '08:30 AM',
-                    'note' => 'يشمل المنهج بالكامل، احضار الأدوات الهندسية.',
+                    'note' => null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);

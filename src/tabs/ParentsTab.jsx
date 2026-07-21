@@ -278,6 +278,8 @@ export default function ParentsTab() {
         <div className="search-box">
           <Search size={18} />
           <input 
+            id="search-parents"
+            name="search"
             type="text"
             className="text-field"
             placeholder={t.searchParentPlaceholder}
@@ -462,7 +464,7 @@ export default function ParentsTab() {
         <div className="modal-overlay no-print">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
-              <h3 className="modal-title">👨🏼‍💼 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent Account'}</h3>
+              <h3 className="modal-title">👨🏼‍💼 {lang === 'ar' ? 'تسجيل حساب ولي أمر جديد' : 'Register New Parent'}</h3>
               <button 
                 className="modal-close-btn" 
                 onClick={() => {
@@ -482,19 +484,19 @@ export default function ParentsTab() {
                 )}
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'اسم ولي الأمر (بالعربية)' : 'Parent Name (Arabic)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentNameAr} onChange={(e) => setModalParentNameAr(e.target.value)} required />
+                  <input id="parent-name-ar" name="name_ar" type="text" className="text-field" value={modalParentNameAr} onChange={(e) => setModalParentNameAr(e.target.value)} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'اسم ولي الأمر (بالانجليزية - اختياري)' : 'Parent Name (English - Optional)'}</label>
-                  <input type="text" className="text-field" value={modalParentNameEn} onChange={(e) => setModalParentNameEn(e.target.value)} />
+                  <input id="parent-name-en" name="name_en" type="text" className="text-field" value={modalParentNameEn} onChange={(e) => setModalParentNameEn(e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'الرقم الوطني' : 'National ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentNationalIdVal} onChange={(e) => setModalParentNationalIdVal(e.target.value)} required />
+                  <input id="parent-national-id" name="national_id" type="text" className="text-field" value={modalParentNationalIdVal} onChange={(e) => setModalParentNationalIdVal(e.target.value)} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="7XXXXXXXX" required />
+                  <input id="parent-phone" name="phone" type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="7XXXXXXXX" required />
                 </div>
               </div>
               <footer className="modal-footer">
@@ -533,19 +535,19 @@ export default function ParentsTab() {
                 )}
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'اسم ولي الأمر (بالعربية)' : 'Parent Name (Arabic)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentNameAr} onChange={(e) => setModalParentNameAr(e.target.value)} required />
+                  <input id="edit-parent-name-ar" name="edit_name_ar" type="text" className="text-field" value={modalParentNameAr} onChange={(e) => setModalParentNameAr(e.target.value)} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'اسم ولي الأمر (بالانجليزية)' : 'Parent Name (English)'}</label>
-                  <input type="text" className="text-field" value={modalParentNameEn} onChange={(e) => setModalParentNameEn(e.target.value)} />
+                  <input id="edit-parent-name-en" name="edit_name_en" type="text" className="text-field" value={modalParentNameEn} onChange={(e) => setModalParentNameEn(e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'الرقم الوطني (لا يمكن تعديله)' : 'National ID (Cannot be modified)'}</label>
-                  <input type="text" className="text-field" value={modalParentNationalIdVal} disabled />
+                  <input id="edit-parent-national-id" name="edit_national_id" type="text" className="text-field" value={modalParentNationalIdVal} disabled />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="7XXXXXXXX" required />
+                  <input id="edit-parent-phone" name="edit_phone" type="text" className="text-field" value={modalParentPhoneNum} onChange={(e) => setModalParentPhoneNum(e.target.value)} placeholder="7XXXXXXXX" required />
                 </div>
               </div>
               <footer className="modal-footer">

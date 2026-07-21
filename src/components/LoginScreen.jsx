@@ -111,6 +111,8 @@ export default function LoginScreen() {
                   <User size={18} />
                 </div>
                 <input
+                  id="username"
+                  name="username"
                   type="text"
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
@@ -132,12 +134,15 @@ export default function LoginScreen() {
                   <Lock size={18} />
                 </div>
                 <input
+                  id="password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder={t.passwordPlaceholder}
                   className="login-input focus-ring"
                   dir={lang === 'ar' ? 'rtl' : 'ltr'}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"

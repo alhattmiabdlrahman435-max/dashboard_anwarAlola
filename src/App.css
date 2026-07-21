@@ -2086,39 +2086,75 @@ body:has(.modal-overlay) {
   html, body {
     height: auto !important;
     overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
+
   .app-container,
   .main-workspace,
   .main-content-layout,
   .content-area,
-  .section-card,
-  .section-card > div {
+  .section-card {
     display: block !important;
     overflow: visible !important;
     height: auto !important;
     position: static !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  body * {
-    visibility: hidden;
+
+  .printable-only-header {
+    display: block !important;
+    visibility: visible !important;
   }
-  .printable-area, .printable-area * {
-    visibility: visible;
+
+  .exam-schedule-card,
+  .printable-card,
+  .exam-subjects-timeline,
+  .exam-subject-timeline-item {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: flex !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
-  .printable-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+
+  .exam-schedule-card {
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    margin-bottom: 20px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
   }
-  .no-print {
+
+  .exam-subject-timeline-item {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-inline-start: 4px solid #1E508E !important;
+  }
+
+  .no-print,
+  .sidebar,
+  .top-header,
+  .hamburger-btn,
+  .modal-overlay,
+  .pagination-container,
+  .pagination-bar-container {
     display: none !important;
   }
 }
 
 /* ==========================================================================
-   Responsive Adaptation Layout
+   📱 Mobile-First & Tablet Responsive Adjustments (≤1024px)
    ========================================================================== */
-@media (max-width: 800px) {
+@media (max-width: 1024px) {
   .app-container {
     position: relative;
   }
@@ -3771,8 +3807,8 @@ body[dir="rtl"] .menu-item.active {
    Breakpoints: ≤800px (tablet/mobile) | ≤480px (small phones)
    ========================================================================== */
 
-/* ── 800px: Tablets & large phones ──────────────────────────────────────── */
-@media (max-width: 800px) {
+/* ── 1024px: Tablets, split screen & mobile ──────────────────────────────────────── */
+@media (max-width: 1024px) {
 
   /* Main workspace takes full width (sidebar becomes overlay drawer) */
   .main-workspace {
@@ -4039,6 +4075,487 @@ body[dir="rtl"] .menu-item.active {
     left: var(--space-md) !important;
     justify-content: flex-start !important;
   }
+}
+
+/* ==========================================================================
+   📱 Mobile Teacher Cards & Class Cards Responsive System
+   (Skills: mobile-design & frontend-design)
+   ========================================================================== */
+
+.teacher-mobile-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+@media (min-width: 769px) {
+  .teacher-mobile-cards-grid {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .students-table-container.responsive-hide-on-mobile {
+    display: none !important;
+  }
+  .teacher-mobile-cards-grid {
+    display: flex !important;
+  }
+
+  .classes-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .class-card {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  .class-card-actions {
+    flex-direction: row !important;
+  }
+
+  .class-card-actions button {
+    min-height: 44px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+}
+
+.teacher-mobile-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.teacher-mobile-card:active {
+  transform: scale(0.99);
+}
+
+.teacher-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.teacher-card-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(30, 80, 142, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  border: 1px solid rgba(30, 80, 142, 0.15);
+}
+
+.teacher-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.teacher-card-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary, #1e293b);
+}
+
+.teacher-card-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.teacher-job-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(30, 80, 142, 0.1);
+  color: var(--color-primary-ui, #1E508E);
+}
+
+.teacher-subject-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.teacher-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-surface-alt, #f8fafc);
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.03);
+}
+
+.teacher-card-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.info-label {
+  color: var(--color-text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.info-value-phone {
+  color: var(--color-primary-ui, #1E508E);
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  text-decoration: none;
+  direction: ltr;
+  padding: 4px 8px;
+  background: rgba(30, 80, 142, 0.06);
+  border-radius: 6px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.info-value-grade {
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: #0284c7;
+}
+
+.teacher-card-classes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.classes-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary, #475569);
+}
+
+.classes-chips-wrapper {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.teacher-class-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--color-border, #e2e8f0);
+  color: var(--color-text-primary, #334155);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.teacher-card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.teacher-action-btn {
+  flex: 1;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.teacher-action-btn.edit-btn {
+  background: var(--color-primary-ui, #1E508E);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(30, 80, 142, 0.2);
+}
+
+.teacher-action-btn.delete-btn {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* ==========================================================================
+   📅 Exam Schedules System & Timeline Cards
+   (Skills: frontend-design & mobile-design)
+   ========================================================================== */
+
+.exam-schedules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--space-xl);
+  margin-top: 16px;
+}
+
+@media (max-width: 640px) {
+  .exam-schedules-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+.exam-schedule-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.exam-schedule-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1E508E 0%, #3b82f6 50%, #06b6d4 100%);
+}
+
+.exam-schedule-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(30, 80, 142, 0.12);
+  border-color: rgba(30, 80, 142, 0.3);
+}
+
+.exam-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--color-border, #e2e8f0);
+}
+
+.exam-card-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exam-card-class-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--color-text-primary, #0f172a);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exam-card-sub-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.exam-term-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: rgba(30, 80, 142, 0.08);
+  color: var(--color-primary-ui, #1E508E);
+}
+
+.exam-period-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.exam-status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exam-status-pill.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.exam-status-pill.upcoming {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.exam-status-pill.completed {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.exam-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.exam-card-action-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exam-card-action-icon:hover {
+  background: rgba(30, 80, 142, 0.08);
+  color: var(--color-primary-ui, #1E508E);
+  border-color: var(--color-primary-ui, #1E508E);
+}
+
+.exam-card-action-icon.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+/* Exam Subject Timeline Items */
+.exam-subjects-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exam-subject-timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-surface-alt, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  border-inline-start: 4px solid var(--color-primary-ui, #1E508E);
+  transition: all 0.2s ease;
+}
+
+.exam-subject-timeline-item:hover {
+  background: #ffffff;
+  border-color: rgba(30, 80, 142, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.exam-date-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.exam-date-day-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-primary-ui, #1E508E);
+  text-transform: uppercase;
+}
+
+.exam-date-number {
+  font-size: 13px;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text-primary, #0f172a);
+  line-height: 1.1;
+}
+
+.exam-subject-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.exam-subject-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.exam-subject-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary, #1e293b);
+}
+
+.exam-subject-time {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text-secondary, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0,0,0,0.03);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.exam-subject-note {
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 

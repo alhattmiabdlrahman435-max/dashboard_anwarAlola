@@ -53,22 +53,48 @@ export default function AssignmentsTab() {
 
   const qs = buildQueryString();
 
+  // ── Fetch assignments whenever pagination/filter/search changes ───────────
   useEffect(() => {
     fetchAssignments(qs);
   }, [fetchAssignments, qs]);
 
-  useEffect(() => {
-    fetchClasses();
-    fetchSubjects();
-    fetchTeachers();
-    fetchStudents();
-  }, [fetchClasses, fetchSubjects, fetchTeachers, fetchStudents]);  const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);
+  // ── Helper data: use stale-while-revalidate from each provider ────────────
+  // fetchClasses/fetchSubjects/fetchTeachers/fetchStudents already guard
+  // against duplicate requests via isStale + lastQueryRef inside their
+  // providers — so these are no-ops if data is already loaded.
+  useEffect(() => { fetchClasses();   }, [fetchClasses]);
+  useEffect(() => { fetchSubjects();  }, [fetchSubjects]);
+  useEffect(() => { fetchTeachers();  }, [fetchTeachers]);
+  useEffect(() => { fetchStudents();  }, [fetchStudents]);
+
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
-  
-  // Filter States
-  const [filterDate, setFilterDate] = useState('');
-  const [filterTeacherId, setFilterTeacherId] = useState('all');
-  const [filterSubject, setFilterSubject] = useState('all');
+
+  // ── Filter dropdowns — drive usePagination directly (no local mirror) ────
+  // Derive display values from usePagination filters (single source of truth)
+  const filterTeacherId = filters.teacher_id || 'all';
+  const filterSubject   = (() => {
+    if (!filters.subject_id) return 'all';
+    const found = subjects.find(s => String(s.id).replace('sub-', '') === String(filters.subject_id));
+    return found ? found.name : 'all';
+  })();
+  const filterDate = filters.date || '';
+
+  const handleFilterTeacher = (val) => {
+    setFilters({ teacher_id: val === 'all' ? '' : val, subject_id: filters.subject_id || '', date: filters.date || '' });
+  };
+  const handleFilterSubject = (val) => {
+    if (val === 'all') {
+      setFilters({ teacher_id: filters.teacher_id || '', subject_id: '', date: filters.date || '' });
+    } else {
+      const matched = subjects.find(s => s.name === val || s.nameEn === val);
+      const subjectId = matched ? String(matched.id).replace('sub-', '') : '';
+      setFilters({ teacher_id: filters.teacher_id || '', subject_id: subjectId, date: filters.date || '' });
+    }
+  };
+  const handleFilterDate = (val) => {
+    setFilters({ teacher_id: filters.teacher_id || '', subject_id: filters.subject_id || '', date: val });
+  };
 
   // Modal visibility
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
@@ -109,33 +135,19 @@ export default function AssignmentsTab() {
     return dateStr.trim();
   };
 
-  // Sync filters to usePagination hook
-  useEffect(() => {
-    const matchedSubject = subjects.find(s => s.name === filterSubject || s.nameEn === filterSubject);
-    const subjectId = matchedSubject ? Number(String(matchedSubject.id).replace('sub-', '')) : '';
-    const teacherId = filterTeacherId === 'all' ? '' : filterTeacherId;
-    setFilters({
-      subject_id: subjectId,
-      teacher_id: teacherId,
-      date: filterDate
-    });
-  }, [filterSubject, filterTeacherId, filterDate, subjects, setFilters]);
-
-  // Compute filtered assignments
+  // ── Assignments list (API-filtered, no client-side re-filter needed) ──────
   const filteredAssignments = assignments;
 
-  // Sync selected assignment with filtered list
+  // Auto-select first assignment when list loads or changes significantly
   useEffect(() => {
-    if (filteredAssignments.length > 0) {
-      const exists = filteredAssignments.some(a => a.id === selectedAssignmentId);
-      if (!exists) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSelectedAssignmentId(filteredAssignments[0].id);
-      }
-    } else {
+    if (filteredAssignments.length > 0 && !selectedAssignmentId) {
+      setSelectedAssignmentId(filteredAssignments[0].id);
+    } else if (filteredAssignments.length === 0) {
       setSelectedAssignmentId(null);
     }
-  }, [filteredAssignments, selectedAssignmentId]);
+  // Only run when list length changes — not on every re-render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredAssignments.length]);
 
   // CRUD Handlers
   const handleAddAssignment = async (e) => {
@@ -362,12 +374,12 @@ export default function AssignmentsTab() {
             type="date"
             className="text-field"
             value={filterDate}
-            onChange={e => setFilterDate(e.target.value)}
+            onChange={e => handleFilterDate(e.target.value)}
             style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: '130px' }}
           />
           {filterDate && (
             <button 
-              onClick={() => setFilterDate('')} 
+              onClick={() => handleFilterDate('')} 
               style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '12px', padding: 0 }}
             >
               ✕
@@ -381,7 +393,7 @@ export default function AssignmentsTab() {
           <select
             className="text-field"
             value={filterTeacherId}
-            onChange={e => setFilterTeacherId(e.target.value)}
+            onChange={e => handleFilterTeacher(e.target.value)}
             style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: 'auto' }}
           >
             <option value="all">{lang === 'ar' ? 'جميع المعلمين' : 'All Teachers'}</option>
@@ -397,7 +409,7 @@ export default function AssignmentsTab() {
           <select
             className="text-field"
             value={filterSubject}
-            onChange={e => setFilterSubject(e.target.value)}
+            onChange={e => handleFilterSubject(e.target.value)}
             style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: 'auto' }}
           >
             <option value="all">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>

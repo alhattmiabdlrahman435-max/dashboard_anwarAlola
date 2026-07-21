@@ -245,10 +245,13 @@ export default function PrepSupervisorsTab() {
           <div className="search-box">
             <Search size={18} />
             <input 
+              id="search-prep-supervisors"
+              name="search"
               type="text"
               className="text-field"
               placeholder={lang === 'ar' ? 'البحث باسم المشرف، الرقم الوظيفي، أو الجوال...' : 'Search by supervisor name, job ID, or phone...'}
               value={searchQuery}
+              aria-label={lang === 'ar' ? 'البحث باسم المشرف' : 'Search supervisors'}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setSearch(e.target.value);
@@ -277,12 +280,23 @@ export default function PrepSupervisorsTab() {
                     {lang === 'ar' ? supervisor.name : supervisor.nameEn}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      {supervisor.classes.map((c, idx) => (
-                        <span key={idx} className="chip" style={{ cursor: 'default', fontSize: '11px', padding: '2px 8px' }}>
-                          {c}
-                        </span>
-                      ))}
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxHeight: '54px', overflowY: 'auto' }}>
+                      {supervisor.classes && supervisor.classes.length > 0 ? (
+                        <>
+                          {supervisor.classes.slice(0, 3).map((c, idx) => (
+                            <span key={idx} className="chip" style={{ cursor: 'default', fontSize: '11px', padding: '2px 8px' }}>
+                              {c}
+                            </span>
+                          ))}
+                          {supervisor.classes.length > 3 && (
+                            <span title={supervisor.classes.join(', ')} className="chip" style={{ cursor: 'help', fontSize: '11px', padding: '2px 8px', background: 'var(--color-primary-ui)', color: '#fff', fontWeight: 'bold' }}>
+                              +{supervisor.classes.length - 3} {lang === 'ar' ? 'فصول أخرى' : 'more'}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>—</span>
+                      )}
                     </div>
                   </td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{supervisor.phone || supervisor.password}</td>
@@ -375,38 +389,47 @@ export default function PrepSupervisorsTab() {
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'اسم المشرف ثنائي أو ثلاثي' : 'Supervisor Name'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="add-prep-name" className="form-label">{lang === 'ar' ? 'اسم المشرف ثنائي أو ثلاثي' : 'Supervisor Name'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
+                    id="add-prep-name"
+                    name="name"
                     type="text" 
                     className="text-field"
                     placeholder={lang === 'ar' ? 'مثال: أ. منى الحربي' : 'e.g. Ms. Mona Al-Harbi'}
                     value={modalName}
                     onChange={(e) => setModalName(e.target.value)}
                     required
+                    autoComplete="name"
                   />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
-                    <label className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label htmlFor="add-prep-job-id" className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <input 
+                      id="add-prep-job-id"
+                      name="job_id"
                       type="text" 
                       className="text-field"
                       placeholder="P102"
                       value={modalJobId}
                       onChange={(e) => setModalJobId(e.target.value)}
                       required
+                      autoComplete="off"
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label htmlFor="add-prep-phone" className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <input 
+                      id="add-prep-phone"
+                      name="phone"
                       type="text" 
                       className="text-field"
                       placeholder="7xxxxxxxx"
                       value={modalPhone}
                       onChange={(e) => setModalPhone(e.target.value)}
                       required
+                      autoComplete="tel"
                     />
                   </div>
                 </div>
@@ -420,6 +443,9 @@ export default function PrepSupervisorsTab() {
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr auto', gap: '8px', alignItems: 'end', marginBottom: '12px' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <select 
+                        id="add-prep-assigned-class"
+                        name="assigned_class"
+                        aria-label={lang === 'ar' ? 'اختر الفصل الدراسي للتكليف' : 'Select assigned class'}
                         className="text-field"
                         style={{ height: '38px', padding: '6px 12px' }}
                         value={modalSelectedClass}
@@ -558,35 +584,44 @@ export default function PrepSupervisorsTab() {
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'اسم المشرف ثنائي أو ثلاثي' : 'Supervisor Name'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="edit-prep-name" className="form-label">{lang === 'ar' ? 'اسم المشرف ثنائي أو ثلاثي' : 'Supervisor Name'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
+                    id="edit-prep-name"
+                    name="name"
                     type="text" 
                     className="text-field"
                     value={modalName}
                     onChange={(e) => setModalName(e.target.value)}
                     required
+                    autoComplete="name"
                   />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
-                    <label className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label htmlFor="edit-prep-job-id" className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <input 
+                      id="edit-prep-job-id"
+                      name="job_id"
                       type="text" 
                       className="text-field"
                       value={modalJobId}
                       onChange={(e) => setModalJobId(e.target.value)}
                       required
+                      autoComplete="off"
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label htmlFor="edit-prep-phone" className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <input 
+                      id="edit-prep-phone"
+                      name="phone"
                       type="text" 
                       className="text-field"
                       value={modalPhone}
                       onChange={(e) => setModalPhone(e.target.value)}
                       required
+                      autoComplete="tel"
                     />
                   </div>
                 </div>
@@ -600,6 +635,9 @@ export default function PrepSupervisorsTab() {
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr auto', gap: '8px', alignItems: 'end', marginBottom: '12px' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <select 
+                        id="edit-prep-assigned-class"
+                        name="assigned_class"
+                        aria-label={lang === 'ar' ? 'اختر الفصل الدراسي للتكليف' : 'Select assigned class'}
                         className="text-field"
                         style={{ height: '38px', padding: '6px 12px' }}
                         value={modalSelectedClass}

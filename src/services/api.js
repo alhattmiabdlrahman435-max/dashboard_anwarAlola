@@ -161,7 +161,7 @@ async function request(endpoint, options = {}) {
   // Clean up when request settles
   fetchPromise.finally(() => {
     activeRequests.delete(requestKey);
-  });
+  }).catch(() => {});
 
   return fetchPromise;
 }

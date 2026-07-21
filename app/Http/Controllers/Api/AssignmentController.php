@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 use App\Http\Requests\ListRequest;
 
@@ -112,27 +114,41 @@ class AssignmentController extends Controller implements HasMiddleware
             ], 403);
         }
 
-        $teacherId = $request->input('teacher_id') ?: $request->user()->id;
+        $teacherId     = $request->input('teacher_id') ?: $request->user()->id;
         $attachmentUrl = null;
+        $newPath       = null;
 
         if ($request->hasFile('attachment')) {
-            $file = $request->file('attachment');
-            $ext = strtolower($file->getClientOriginalExtension());
-            $fileName = time() . '_' . uniqid() . '.' . $ext;
-            $file->move(public_path('uploads/assignments'), $fileName);
-            $attachmentUrl = url('uploads/assignments/' . $fileName);
+            $file        = $request->file('attachment');
+            $ext         = strtolower($file->getClientOriginalExtension());
+            $filename    = Str::uuid() . '.' . $ext;
+            $destination = public_path('uploads/assignments');
+            $newPath     = $destination . DIRECTORY_SEPARATOR . $filename;
+            $file->move($destination, $filename);
+            $attachmentUrl = url('uploads/assignments/' . $filename);
         }
 
-        $assignment = Assignment::create([
-            'teacher_id' => $teacherId,
-            'class_id' => $request->input('class_id'),
-            'subject_id' => $request->input('subject_id'),
-            'title' => $request->input('title'),
-            'content' => $request->input('content'),
-            'due_date' => $request->input('due_date'),
-            'date_created' => now()->toDateString(),
-            'attachment_url' => $attachmentUrl,
-        ]);
+        // Save to DB — rollback file on failure
+        try {
+            $assignment = Assignment::create([
+                'teacher_id'     => $teacherId,
+                'class_id'       => $request->input('class_id'),
+                'subject_id'     => $request->input('subject_id'),
+                'title'          => $request->input('title'),
+                'content'        => $request->input('content'),
+                'due_date'       => $request->input('due_date'),
+                'date_created'   => now()->toDateString(),
+                'attachment_url' => $attachmentUrl,
+            ]);
+        } catch (\Throwable $e) {
+            if ($newPath && File::exists($newPath)) {
+                File::delete($newPath);
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل حفظ الواجب. يرجى المحاولة مرة أخرى.'
+            ], 500);
+        }
 
         // Auto-populate submissions for all students in the class
         $students = \App\Models\Student::with('parentUser')->where('class_id', $request->input('class_id'))->get();
@@ -232,12 +248,23 @@ class AssignmentController extends Controller implements HasMiddleware
                 'message' => 'غير مصرح لك بحذف واجب في هذا الفصل الدراسي.',
             ], 403);
         }
+
+        // Delete attachment file from storage
+        if ($assignment->attachment_url) {
+            $relative = str_replace(url('/'), '', $assignment->attachment_url);
+            $absolute = public_path(ltrim($relative, '/'));
+            if (File::exists($absolute)) {
+                File::delete($absolute);
+            }
+        }
+
         // Safely delete associated submissions from database
         AssignmentSubmission::where('assignment_id', $assignment->id)->delete();
         
         $assignment->delete();
         return response()->json(['success' => true, 'message' => 'تم حذف الواجب بنجاح']);
     }
+
 
     /**
      * عرض تسليمات الواجب
@@ -337,6 +364,15 @@ class AssignmentController extends Controller implements HasMiddleware
 
     public function deleteAll()
     {
+        // Delete all assignment files from disk
+        $dir = public_path('uploads/assignments');
+        if (File::isDirectory($dir)) {
+            $files = File::files($dir);
+            foreach ($files as $file) {
+                File::delete($file->getPathname());
+            }
+        }
+
         AssignmentSubmission::query()->delete();
         Assignment::query()->delete();
         return response()->json([
