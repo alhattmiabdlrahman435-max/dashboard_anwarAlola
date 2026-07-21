@@ -462,17 +462,25 @@ export default function CommunicationsTab() {
 
   // Student & Teacher Search Filters for Modal
   const filteredStudentsList = useMemo(() => {
-    return students.filter(s => 
-      s.name.toLowerCase().includes(studentSearchText.toLowerCase()) ||
-      s.id.toString().includes(studentSearchText)
-    );
+    const q = studentSearchText.toLowerCase().trim();
+    if (!q) return students;
+    return students.filter(s => {
+      const nameMatch = s.name?.toLowerCase().includes(q) || s.nameEn?.toLowerCase().includes(q);
+      const idMatch = s.id?.toString().includes(q);
+      const studentNumMatch = (s.student_number || s.studentNumber || s.academic_number || s.national_id || s.code)?.toString().toLowerCase().includes(q);
+      return nameMatch || idMatch || studentNumMatch;
+    });
   }, [students, studentSearchText]);
 
   const filteredTeachersList = useMemo(() => {
-    return teachers.filter(teach => 
-      teach.name.toLowerCase().includes(teacherSearchText.toLowerCase()) ||
-      teach.id.toString().includes(teacherSearchText)
-    );
+    const q = teacherSearchText.toLowerCase().trim();
+    if (!q) return teachers;
+    return teachers.filter(teach => {
+      const nameMatch = teach.name?.toLowerCase().includes(q) || teach.nameEn?.toLowerCase().includes(q);
+      const idMatch = teach.id?.toString().includes(q);
+      const jobIdMatch = (teach.jobId || teach.job_number || teach.job_no)?.toString().toLowerCase().includes(q);
+      return nameMatch || idMatch || jobIdMatch;
+    });
   }, [teachers, teacherSearchText]);
 
   return (
@@ -1388,7 +1396,7 @@ export default function CommunicationsTab() {
                     <label style={{ fontSize: '11.5px', fontWeight: '700' }}>🔍 {t.selectStudent}</label>
                     <input 
                       type="text"
-                      placeholder={lang === 'ar' ? 'ابحث باسم الطالب...' : 'Search student...'}
+                      placeholder={lang === 'ar' ? 'ابحث باسم الطالب أو الرقم الأكاديمي...' : 'Search by student name or ID...'}
                       value={studentSearchText}
                       onChange={(e) => setStudentSearchText(e.target.value)}
                       className="text-field"
@@ -1402,7 +1410,7 @@ export default function CommunicationsTab() {
                     >
                       {filteredStudentsList.map(s => (
                         <option key={s.id} value={s.id}>
-                          {lang === 'ar' ? s.name : (s.nameEn || s.name)} (#{s.id})
+                          {lang === 'ar' ? s.name : (s.nameEn || s.name)}
                         </option>
                       ))}
                     </select>
@@ -1430,7 +1438,7 @@ export default function CommunicationsTab() {
                     <label style={{ fontSize: '11.5px', fontWeight: '700' }}>🔍 {lang === 'ar' ? 'إختيار المعلم' : 'Select Teacher'}</label>
                     <input 
                       type="text"
-                      placeholder={lang === 'ar' ? 'ابحث باسم المعلم...' : 'Search teacher...'}
+                      placeholder={lang === 'ar' ? 'ابحث باسم المعلم أو الرقم الوظيفي...' : 'Search by teacher name or Job ID...'}
                       value={teacherSearchText}
                       onChange={(e) => setTeacherSearchText(e.target.value)}
                       className="text-field"
