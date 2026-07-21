@@ -27,23 +27,19 @@ export default function AssignmentsTab() {
     loading
   } = useApp();
 
-  const { classes, availableGrades, availableSections, fetchClasses } = useClasses();
+  const { availableGrades, availableSections, fetchClasses } = useClasses();
   const { subjects, fetchSubjects } = useSubjects();
-  const { teachers, setTeachers, fetchTeachers } = useTeachers();
+  const { teachers, fetchTeachers } = useTeachers();
   const { students, fetchStudents } = useStudents();
-  const { setSmsLogs } = useNotifications();
 
   const {
     page,
     perPage,
     search,
-    sort,
-    direction,
     filters,
     setPage,
     setPerPage,
     setFilters,
-    setSearch,
     buildQueryString,
     goToPrevIfEmpty,
   } = usePagination({
