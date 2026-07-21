@@ -361,23 +361,42 @@ export default function CommunicationsTab() {
     return notifications.filter(n => !n.isRead).length;
   }, [notifications]);
 
-  // Clean Grade Resolver without nulls
-  const resolveGradeName = (rawGrade, studentId) => {
-    if (rawGrade && rawGrade !== 'null' && rawGrade !== 'NULL' && rawGrade !== 'undefined') {
-      return rawGrade;
+  // Smart Grade Resolver
+  const resolveGradeName = (notif) => {
+    if (!notif) return lang === 'ar' ? 'الصف الدراسي' : 'Class';
+
+    // 1. Direct grade/class_name properties on notification object
+    const directGrade = notif.grade || notif.class_name || notif.className || notif.grade_name || notif.gradeName;
+    if (directGrade && directGrade !== 'null' && directGrade !== 'NULL' && directGrade !== 'undefined') {
+      return directGrade;
     }
-    if (studentId) {
-      const targetStudent = students.find(s => s.id === Number(studentId));
-      if (targetStudent && targetStudent.grade && targetStudent.grade !== 'null') {
-        return targetStudent.grade;
+
+    // 2. Lookup from student record if studentId exists
+    if (notif.studentId) {
+      const targetStudent = students.find(s => s.id === Number(notif.studentId));
+      if (targetStudent) {
+        const studentGrade = targetStudent.grade || targetStudent.class_name || targetStudent.grade_name;
+        if (studentGrade && studentGrade !== 'null' && studentGrade !== 'NULL' && studentGrade !== 'undefined') {
+          return studentGrade;
+        }
       }
     }
-    return lang === 'ar' ? 'العام الدراسي' : 'General Grade';
+
+    // 3. Extract grade/class name from notification content/title if present (e.g. "تم تحديث الجدول الدراسي الأسبوعي للفصل الصف الأول - ج")
+    const textToSearch = `${notif.title || ''} ${notif.content || ''}`;
+    const classMatch = textToSearch.match(/(?:للفصل|فصل|الصف)\s+([^\s\:\,\.\-]+(?:\s*[\-\–]\s*[^\s\:\,\.\-]+)?)/);
+    if (classMatch && classMatch[1] && !classMatch[1].includes('العام') && !classMatch[1].includes('ابنكم')) {
+      return classMatch[1].trim();
+    }
+
+    // 4. Default clean fallback
+    return lang === 'ar' ? 'الصف الدراسي' : 'Class';
   };
 
   // Dynamic Category Details
-  const getCategoryDetails = (type, grade, studentId, studentName, studentNameEn, teacherName, teacherNameEn) => {
-    const cleanGrade = resolveGradeName(grade, studentId);
+  const getCategoryDetails = (notif, studentName, studentNameEn, teacherName, teacherNameEn) => {
+    const type = notif.type;
+    const cleanGrade = resolveGradeName(notif);
 
     if (type === 'general' || type === 'parents' || type === 'broadcast_parents') {
       return {
@@ -387,7 +406,7 @@ export default function CommunicationsTab() {
         textColor: 'var(--color-primary-ui)',
         icon: <Users size={16} />
       };
-    } else if (type === 'class') {
+    } else if (type === 'class' || type === 'assignment' || type === 'homework') {
       return {
         label: lang === 'ar' ? `الصف: ${cleanGrade}` : `Class: ${cleanGrade}`,
         bgGlow: 'rgba(217, 119, 6, 0.08)',
@@ -397,8 +416,11 @@ export default function CommunicationsTab() {
       };
     } else if (type === 'student' || type === 'private') {
       const name = lang === 'ar' ? (studentName || 'طالب مخصص') : (studentNameEn || studentName || 'Private Student');
+      const studentLabel = cleanGrade !== 'الصف الدراسي' && cleanGrade !== 'Class'
+        ? (lang === 'ar' ? `طالب (${cleanGrade}): ${name}` : `Student (${cleanGrade}): ${name}`)
+        : (lang === 'ar' ? `طالب: ${name}` : `Student: ${name}`);
       return {
-        label: lang === 'ar' ? `طالب (${cleanGrade}): ${name}` : `Student (${cleanGrade}): ${name}`,
+        label: studentLabel,
         bgGlow: 'rgba(225, 29, 72, 0.08)',
         borderColor: '#e11d48',
         textColor: '#be123c',
@@ -422,8 +444,15 @@ export default function CommunicationsTab() {
         icon: <User size={16} />
       };
     }
+    
+    // Default fallback
+    const isHomework = (notif.title && notif.title.includes('واجب')) || (notif.content && notif.content.includes('واجب'));
+    const defaultLabel = isHomework 
+      ? (lang === 'ar' ? `الصف: ${cleanGrade}` : `Class: ${cleanGrade}`)
+      : (lang === 'ar' ? `الصف: ${cleanGrade}` : `Class: ${cleanGrade}`);
+
     return {
-      label: lang === 'ar' ? `إشعار إداري - الصف: ${cleanGrade}` : `System Alert - Class: ${cleanGrade}`,
+      label: defaultLabel,
       bgGlow: 'rgba(100, 116, 139, 0.08)',
       borderColor: '#64748b',
       textColor: '#475569',
@@ -1443,9 +1472,7 @@ export default function CommunicationsTab() {
     const resolvedStudentNameEn = student ? student.nameEn : notif.studentNameEn;
 
     const cat = getCategoryDetails(
-      notif.type,
-      notif.grade,
-      notif.studentId,
+      notif,
       resolvedStudentName,
       resolvedStudentNameEn,
       notif.teacherName,
