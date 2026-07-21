@@ -5,23 +5,23 @@ import { Plus, Edit3, Trash2, Copy, Shield, ShieldCheck, Search, X } from 'lucid
 import { useClasses } from '../contexts/Classes/useClasses';
 
 const ALL_MODULES = [
-  { key: 'students', labelAr: 'الطلاب', labelEn: 'Students', actions: ['view', 'create', 'update', 'delete', 'export', 'import'] },
-  { key: 'parents', labelAr: 'أولياء الأمور', labelEn: 'Parents', actions: ['view', 'create', 'update', 'delete', 'export', 'import'] },
-  { key: 'teachers', labelAr: 'المعلمون', labelEn: 'Teachers', actions: ['view', 'create', 'update', 'delete', 'export', 'import'] },
+  { key: 'students', labelAr: 'الطلاب', labelEn: 'Students', actions: ['view', 'create', 'update', 'delete', 'export', 'import'], hasScope: true },
+  { key: 'parents', labelAr: 'أولياء الأمور', labelEn: 'Parents', actions: ['view', 'create', 'update', 'delete', 'export', 'import'], hasScope: true },
+  { key: 'teachers', labelAr: 'المعلمون', labelEn: 'Teachers', actions: ['view', 'create', 'update', 'delete', 'export', 'import'], hasScope: true },
   { key: 'prepSupervisors', labelAr: 'مشرفو التحضير', labelEn: 'Prep Supervisors', actions: ['view', 'create', 'update', 'delete'] },
-  { key: 'classes', labelAr: 'الفصول الدراسية', labelEn: 'Classes', actions: ['view', 'create', 'update', 'delete'] },
+  { key: 'classes', labelAr: 'الفصول الدراسية', labelEn: 'Classes', actions: ['view', 'create', 'update', 'delete'], hasScope: true },
   { key: 'subjects', labelAr: 'المواد الدراسية', labelEn: 'Subjects', actions: ['view', 'create', 'update', 'delete'] },
-  { key: 'schedule', labelAr: 'الجدول الدراسي', labelEn: 'Timetable', actions: ['view', 'create', 'update', 'delete'] },
-  { key: 'scanner', labelAr: 'سجل الحضور', labelEn: 'Attendance', actions: ['view', 'create', 'update'] },
-  { key: 'absenceRequests', labelAr: 'طلبات الغياب', labelEn: 'Absence Requests', actions: ['view', 'approve', 'reject'] },
-  { key: 'assignments', labelAr: 'منصة الواجبات', labelEn: 'Assignments', actions: ['view', 'create', 'update', 'delete'] },
-  { key: 'examSchedules', labelAr: 'جداول الاختبارات', labelEn: 'Exam Schedules', actions: ['view', 'create', 'delete'] },
+  { key: 'schedule', labelAr: 'الجدول الدراسي', labelEn: 'Timetable', actions: ['view', 'create', 'update', 'delete'], hasScope: true },
+  { key: 'scanner', labelAr: 'سجل الحضور', labelEn: 'Attendance', actions: ['view', 'create', 'update'], hasScope: true },
+  { key: 'absenceRequests', labelAr: 'طلبات الغياب', labelEn: 'Absence Requests', actions: ['view', 'approve', 'reject'], hasScope: true },
+  { key: 'assignments', labelAr: 'منصة الواجبات', labelEn: 'Assignments', actions: ['view', 'create', 'update', 'delete'], hasScope: true },
+  { key: 'examSchedules', labelAr: 'جداول الاختبارات', labelEn: 'Exam Schedules', actions: ['view', 'create', 'delete'], hasScope: true },
   { key: 'detailedGrades', labelAr: 'الدرجات', labelEn: 'Grades', actions: ['view', 'create', 'update', 'delete', 'export', 'import'], hasScope: true },
-  { key: 'finance', labelAr: 'المالية والرسوم', labelEn: 'Finance', actions: ['view', 'create', 'update', 'export'] },
-  { key: 'communications', labelAr: 'الإشعارات', labelEn: 'Notifications', actions: ['view', 'create'] },
-  { key: 'control', labelAr: 'الكنترول الرقمي', labelEn: 'Digital Control', actions: ['view', 'update'] },
-  { key: 'reports', labelAr: 'التقارير', labelEn: 'Reports', actions: ['view', 'export'] },
-  { key: 'teacherReports', labelAr: 'بلاغات المعلمين', labelEn: 'Teacher Reports', actions: ['view', 'approve', 'reject'] },
+  { key: 'finance', labelAr: 'المالية والرسوم', labelEn: 'Finance', actions: ['view', 'create', 'update', 'export'], hasScope: true },
+  { key: 'communications', labelAr: 'الإشعارات', labelEn: 'Notifications', actions: ['view', 'create'], hasScope: true },
+  { key: 'control', labelAr: 'الكنترول الرقمي', labelEn: 'Digital Control', actions: ['view', 'update'], hasScope: true },
+  { key: 'reports', labelAr: 'التقارير', labelEn: 'Reports', actions: ['view', 'export'], hasScope: true },
+  { key: 'teacherReports', labelAr: 'بلاغات المعلمين', labelEn: 'Teacher Reports', actions: ['view', 'approve', 'reject'], hasScope: true },
 ];
 
 const ACTION_LABELS = {
@@ -690,7 +690,7 @@ export default function SupervisorsTab() {
                                   }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                                       <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
-                                        {lang === 'ar' ? 'نطاق الصلاحية للدرجات:' : 'Scope of Access for Grades:'}
+                                        {lang === 'ar' ? 'نطاق الصلاحية (الفصول المتاحة):' : 'Scope of Access (Allowed Classes):'}
                                       </span>
                                       <select 
                                         className="text-field" 
