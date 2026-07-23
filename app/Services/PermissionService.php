@@ -15,6 +15,12 @@ class PermissionService
         if ($module === 'grades') {
             $module = 'detailedGrades';
         }
+        if ($module === 'reports') {
+            $module = 'teacherReports';
+        }
+        if ($module === 'notifications') {
+            $module = 'communications';
+        }
 
         // Admin always has full access
         if ($user->role === 'admin') {
@@ -51,8 +57,8 @@ class PermissionService
             }
         }
 
-        // Only supervisors can have custom permissions
-        if ($user->role !== 'supervisor') {
+        // Supervisors / Vice Principals custom permissions check
+        if ($user->role !== 'supervisor' && $user->role !== 'vice_principal') {
             return false;
         }
 
@@ -67,9 +73,18 @@ class PermissionService
             return true;
         }
 
-        // Check if module permissions exist
+        // Check if module permissions exist (with key fallback alias)
         if (!isset($permissions[$module])) {
-            return false;
+            $altKey = match($module) {
+                'detailedGrades' => 'grades',
+                'teacherReports' => 'reports',
+                'communications' => 'notifications',
+                default => null
+            };
+            if (!$altKey || !isset($permissions[$altKey])) {
+                return false;
+            }
+            $module = $altKey;
         }
 
         $modulePerms = $permissions[$module];
