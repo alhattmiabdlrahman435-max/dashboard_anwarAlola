@@ -1157,54 +1157,7 @@ export default function CommunicationsTab() {
         }
       `}</style>
 
-      {/* 1. Header Banner */}
-      <div className="notif-banner-modern no-print">
-        <div className="notif-banner-info-left">
-          <div className="notif-banner-icon">
-            <Info size={24} />
-          </div>
-          <div className="notif-banner-text">
-            <h3>
-              {lang === "ar"
-                ? "منصة الاتصالات والإشعارات الموحدة"
-                : "Unified Communications & Alerts Platform"}
-            </h3>
-            <p>
-              {lang === "ar"
-                ? "تتيح لك إرسال التنبيهات الفورية الفعالة والتعاميم المباشرة لفئات مختلفة في المدرسة مع تتبع فوري لحالة التسليم."
-                : "Send instant broadcast notifications and targeted alerts to students, parents, and teachers with live delivery status."}
-            </p>
-          </div>
-        </div>
 
-        {unreadCount > 0 && (
-          <button
-            onClick={() => {
-              notifications
-                .filter((n) => !n.isRead)
-                .forEach((n) => handleMarkNotificationAsRead(n.id));
-            }}
-            style={{
-              height: "38px",
-              padding: "0 14px",
-              borderRadius: "10px",
-              fontSize: "12px",
-              fontWeight: "700",
-              border: "1px solid var(--color-border)",
-              background: "var(--color-surface)",
-              color: "var(--color-primary-ui)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <CheckCheck size={16} />
-            <span>{lang === "ar" ? "تحديد الكل كمقروء" : "Mark All Read"}</span>
-          </button>
-        )}
-      </div>
 
       {/* 2. KPI Stats Cards Grid */}
       <div className="notif-stats-grid">
@@ -2312,30 +2265,7 @@ export default function CommunicationsTab() {
                   />
                 </div>
 
-                {/* Channels Badge Info */}
-                <div
-                  style={{
-                    fontSize: "11px",
-                    color: "var(--color-text-secondary)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    background: "var(--color-surface)",
-                    padding: "8px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--color-border)",
-                  }}
-                >
-                  <CheckCircle2
-                    size={14}
-                    style={{ color: "var(--color-success)" }}
-                  />
-                  <span>
-                    {lang === "ar"
-                      ? "سيتم النشر كإشعار فوري للتطبيق وكسجل رسائل SMS كالمعتاد."
-                      : "Will be broadcasted as instant Push Notification & SMS."}
-                  </span>
-                </div>
+
               </div>
 
               {/* Modal Footer */}
