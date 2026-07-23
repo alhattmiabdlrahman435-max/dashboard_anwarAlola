@@ -42,13 +42,18 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
   }, [value]);
 
   const handleChange = (e) => {
-    const rawVal = e.target.value;
+    let rawVal = e.target.value;
 
-    // Allow empty string while editing
+    // 1. Allow empty string while editing
     if (rawVal === '') {
       setLocalValue('');
       onChange(0);
       return;
+    }
+
+    // Strip leading zero if user typed a digit after 0 (e.g. "05" -> "5")
+    if (rawVal.length > 1 && rawVal.startsWith('0')) {
+      rawVal = rawVal.replace(/^0+/, '') || '0';
     }
 
     let numVal = Number(rawVal);
@@ -56,7 +61,7 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
       numVal = minNum;
     }
 
-    // Clamp value to maximum allowed limit (e.g. max 15, max 10, max 50)
+    // 2. Strict max enforcement: Cap at maxNum if typed value > maxNum
     if (numVal > maxNum) {
       numVal = maxNum;
     }
@@ -67,14 +72,14 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
     setLocalValue(numVal);
     onChange(numVal);
 
-    // Auto-advance focus to next field when max digits entered (e.g. 2 digits for max 15 or 50)
+    // 3. Auto-Tab: Trigger auto-advance when 2 digits or max length entered
     const strVal = String(numVal);
     const maxStrLen = String(maxNum).length;
 
     if (strVal.length >= maxStrLen) {
       setTimeout(() => {
         focusNextInput(inputRef.current);
-      }, 50);
+      }, 60);
     }
   };
 
@@ -91,6 +96,17 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
     }
   };
 
+  const handleFocus = (e) => {
+    // Select all text on focus so typing replaces existing text immediately
+    if (e.target && typeof e.target.select === 'function') {
+      e.target.select();
+    }
+    // Remove initial 0 for immediate clean typing
+    if (localValue === 0 || localValue === '0') {
+      setLocalValue('');
+    }
+  };
+
   const handleKeyDown = (e) => {
     // Block +, -, e, E
     if (e.key === '+' || e.key === '-' || e.key === 'e' || e.key === 'E') {
@@ -98,19 +114,13 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
       return;
     }
 
-    // Key navigation with Enter, Tab, ArrowDown, ArrowUp
+    // Keyboard navigation (Tab, Shift+Tab, Enter, Arrow Down, Arrow Up)
     if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
       e.preventDefault();
       focusNextInput(inputRef.current);
     } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
       e.preventDefault();
       focusPrevInput(inputRef.current);
-    }
-  };
-
-  const handleFocus = (e) => {
-    if (e.target && typeof e.target.select === 'function') {
-      e.target.select();
     }
   };
 
