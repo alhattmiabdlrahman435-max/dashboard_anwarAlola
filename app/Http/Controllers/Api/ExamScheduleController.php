@@ -74,11 +74,20 @@ class ExamScheduleController extends Controller implements HasMiddleware
                 ];
             });
 
+            $grade = $sch->schoolClass ? ($sch->schoolClass->grade_ar ?? $sch->schoolClass->grade_en ?? '') : '';
+            $gradeEn = $sch->schoolClass ? ($sch->schoolClass->grade_en ?? '') : '';
+            $section = $sch->schoolClass ? ($sch->schoolClass->section_ar ?? $sch->schoolClass->section_en ?? '') : '';
+            $sectionEn = $sch->schoolClass ? ($sch->schoolClass->section_en ?? '') : '';
+
             return [
                 'id' => $sch->id,
                 'title' => $sch->title,
                 'class_id' => $sch->class_id,
                 'class' => $sch->schoolClass,
+                'grade' => $grade,
+                'gradeEn' => $gradeEn,
+                'section' => $section,
+                'sectionEn' => $sectionEn,
                 'term' => $sch->term,
                 'created_by' => $sch->created_by,
                 'subjects' => $subjectsArray,

@@ -375,7 +375,12 @@ export default function ExamSchedulesTab() {
                     <div className="exam-card-title-group">
                       <h4 className="exam-card-class-name">
                         <Calendar size={18} style={{ color: 'var(--color-primary-ui)' }} />
-                        <span>{lang === 'ar' ? sched.grade : sched.gradeEn} - {lang === 'ar' ? `شعبة (${sched.section})` : `Sec ${sched.section}`}</span>
+                        <span>
+                          {sched.grade && sched.section 
+                            ? (lang === 'ar' ? `${sched.grade} - شعبة (${sched.section})` : `${sched.gradeEn || sched.grade} - Sec ${sched.sectionEn || sched.section}`)
+                            : (sched.title || (lang === 'ar' ? 'جدول اختبارات' : 'Exam Schedule'))
+                          }
+                        </span>
                       </h4>
                       <div className="exam-card-sub-info">
                         <span className="exam-term-badge">

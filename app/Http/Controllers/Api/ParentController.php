@@ -126,13 +126,36 @@ class ParentController extends Controller implements HasMiddleware
 
     public function store(Request $request)
     {
-        $request->validate([
-            'national_id' => 'required|string|unique:users,national_id',
+        $cleanNationalId = trim($request->input('national_id'));
+
+        $request->merge(['national_id' => $cleanNationalId]);
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'national_id' => 'required|string',
             'name_ar' => 'required|string',
             'name_en' => 'nullable|string',
             'phone' => 'required|string',
             'photo_url' => 'nullable|string',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
+        // Check if national ID already exists in users or parents
+        $existingUser = User::where('national_id', $cleanNationalId)
+            ->orWhere('username', $cleanNationalId)
+            ->first();
+
+        if ($existingUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'عفواً، الرقم الوطني مُسجل مسبقاً لحساب ولي أمر آخر.'
+            ], 400);
+        }
 
         $photoUrl = $request->photo_url;
         if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
@@ -152,24 +175,49 @@ class ParentController extends Controller implements HasMiddleware
             }
         }
 
-        $user = User::create([
-            'name' => $request->name_ar,
-            'username' => $request->national_id,
-            'national_id' => $request->national_id,
-            'password' => Hash::make($request->phone),
-            'role' => 'parent',
-            'name_ar' => $request->name_ar,
-            'name_en' => $request->name_en,
-            'phone' => $request->phone,
-            'photo_url' => $photoUrl ?: '🧔',
-            'is_active' => true,
-        ]);
+        try {
+            $user = \Illuminate\Support\Facades\DB::transaction(function() use ($request, $cleanNationalId, $photoUrl) {
+                $newUser = User::create([
+                    'name' => $request->name_ar,
+                    'username' => $cleanNationalId,
+                    'national_id' => $cleanNationalId,
+                    'password' => Hash::make($request->phone),
+                    'role' => 'parent',
+                    'name_ar' => $request->name_ar,
+                    'name_en' => $request->name_en,
+                    'phone' => $request->phone,
+                    'photo_url' => $photoUrl ?: '🧔',
+                    'is_active' => true,
+                ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم إضافة ولي الأمر بنجاح',
-            'parent' => $user
-        ], 201);
+                // Also ensure record exists in parents table if applicable
+                if (\Illuminate\Support\Facades\Schema::hasTable('parents')) {
+                    \App\Models\ParentModel::firstOrCreate(
+                        ['national_id' => $cleanNationalId],
+                        [
+                            'user_id' => $newUser->id,
+                            'name_ar' => $request->name_ar,
+                            'name_en' => $request->name_en,
+                            'phone' => $request->phone,
+                        ]
+                    );
+                }
+
+                return $newUser;
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إضافة وتسجيل ولي الأمر بنجاح',
+                'parent' => $user
+            ], 201);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error storing parent: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ غير متوقع أثناء إضافة ولي الأمر. يرجى التأكد من البيانات والمحاولة مرة أخرى.'
+            ], 500);
+        }
     }
 
     public function show(string $id)

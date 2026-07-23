@@ -124,7 +124,14 @@
   @media print {
     .student-report-card-page {
       margin: 0 !important;
-      min-height: 280mm !important;
+      min-height: 275mm !important;
+    }
+    .student-report-card-page:last-child,
+    .student-report-card-page:only-child {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
   }
 }
