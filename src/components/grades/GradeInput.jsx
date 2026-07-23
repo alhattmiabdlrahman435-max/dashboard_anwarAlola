@@ -44,7 +44,7 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
   const handleChange = (e) => {
     const rawVal = e.target.value;
 
-    // 1. Allow empty string so user can clear/backspace
+    // Allow empty string while editing
     if (rawVal === '') {
       setLocalValue('');
       onChange(0);
@@ -52,30 +52,29 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
     }
 
     let numVal = Number(rawVal);
-
-    // 2. Reject non-numbers or values below min
-    if (isNaN(numVal) || numVal < minNum) {
-      e.target.value = localValue !== '' ? localValue : '';
-      return;
+    if (isNaN(numVal)) {
+      numVal = minNum;
     }
 
-    // 3. STRICT NON-ALLOWANCE: Reject any input greater than max completely!
+    // Clamp value to maximum allowed limit (e.g. max 15, max 10, max 50)
     if (numVal > maxNum) {
-      e.target.value = localValue !== '' ? localValue : '';
-      return;
+      numVal = maxNum;
+    }
+    if (numVal < minNum) {
+      numVal = minNum;
     }
 
     setLocalValue(numVal);
     onChange(numVal);
 
-    // 4. Auto-tab / Auto-advance on valid 2-digit completion
+    // Auto-advance focus to next field when max digits entered (e.g. 2 digits for max 15 or 50)
     const strVal = String(numVal);
     const maxStrLen = String(maxNum).length;
 
-    if (strVal.length >= maxStrLen && numVal <= maxNum) {
+    if (strVal.length >= maxStrLen) {
       setTimeout(() => {
         focusNextInput(inputRef.current);
-      }, 60);
+      }, 50);
     }
   };
 
@@ -99,35 +98,13 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
       return;
     }
 
-    // Key navigation
+    // Key navigation with Enter, Tab, ArrowDown, ArrowUp
     if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
       e.preventDefault();
       focusNextInput(inputRef.current);
-      return;
     } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
       e.preventDefault();
       focusPrevInput(inputRef.current);
-      return;
-    }
-
-    // Keyboard-level restriction: Prevent typing any digit key that would exceed maxNum
-    if (/^[0-9]$/.test(e.key)) {
-      const input = inputRef.current;
-      if (input) {
-        const selStart = input.selectionStart ?? 0;
-        const selEnd = input.selectionEnd ?? 0;
-        const isFullSelection = selStart === 0 && selEnd === String(input.value).length;
-        
-        if (!isFullSelection) {
-          const currentStr = String(localValue ?? '');
-          const futureStr = currentStr.slice(0, selStart) + e.key + currentStr.slice(selEnd);
-          const futureNum = Number(futureStr);
-          if (!isNaN(futureNum) && futureNum > maxNum) {
-            e.preventDefault();
-            return;
-          }
-        }
-      }
     }
   };
 
