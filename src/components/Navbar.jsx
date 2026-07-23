@@ -4,6 +4,8 @@ import { useNotifications } from '../contexts/Notifications/useNotifications';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, Globe, Sun, Moon, Bell, Mail, Settings, LogOut } from 'lucide-react';
 
+import sloganLogo from '../assets/slogan.jpeg';
+
 export default function Navbar() {
   const {
     lang, setLang, t,
@@ -75,8 +77,8 @@ export default function Navbar() {
         </div>
 
         {/* School Official Badge */}
-        <div className="header-school-badge">
-          <span className="badge-dot"></span>
+        <div className="header-school-badge" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src={sloganLogo} alt="School Logo" style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)' }} />
           <span className="badge-text">{lang === 'ar' ? 'رياض و مدارس انوار العلى الدولية النموذجية' : 'Riyadh & Anwar Al-Ola International Model Schools'}</span>
         </div>
       </div>
