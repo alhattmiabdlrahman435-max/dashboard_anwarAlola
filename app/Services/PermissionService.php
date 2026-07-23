@@ -33,10 +33,10 @@ class PermissionService
 
         // Teachers permissions
         if ($user->role === 'teacher') {
-            if ($module === 'assignments' && in_array($action, ['view', 'create', 'update', 'delete'])) {
+            if (in_array($module, ['assignments', 'teacherReports', 'reports']) && in_array($action, ['view', 'create', 'update', 'delete'])) {
                 return true;
             }
-            if ($action === 'view' || $action === 'update') {
+            if ($action === 'view' || $action === 'create' || $action === 'update') {
                 return true;
             }
         }
