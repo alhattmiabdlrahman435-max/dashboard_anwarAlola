@@ -410,9 +410,10 @@ export default function AttendanceProvider({ children }) {
         return req;
       }),
     );
-    setToastMessage(
-      newStatus === "approved" ? t.approvedNoteToast : t.rejectedNoteToast,
-    );
+    const successMsg = newStatus === "approved"
+      ? (lang === "ar" ? "تم قبول طلب الغياب بنجاح" : "Absence request approved successfully")
+      : (lang === "ar" ? "تم رفض طلب الغياب بنجاح" : "Absence request rejected successfully");
+    setToastMessage(successMsg);
     setTimeout(() => setToastMessage(""), 3000);
 
     if (token) {
@@ -423,9 +424,9 @@ export default function AttendanceProvider({ children }) {
         })
         .then((data) => {
           if (data.success) {
-            fetchAbsenceRequests(token, true);
+            fetchAbsenceRequests(true);
             if (newStatus === "approved") {
-              fetchAttendance(token, true);
+              fetchAttendance(true);
             }
             return { success: true };
           } else {
@@ -440,7 +441,7 @@ export default function AttendanceProvider({ children }) {
     } else {
       return Promise.resolve({ success: true });
     }
-  }, [lang, t, setToastMessage, fetchAbsenceRequests, fetchAttendance]);
+  }, [lang, setToastMessage, fetchAbsenceRequests, fetchAttendance]);
 
   useEffect(() => {
     if (!isAuthenticated) {
