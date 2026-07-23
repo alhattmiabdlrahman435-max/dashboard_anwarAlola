@@ -12,16 +12,6 @@ class PermissionService
      */
     public static function can(User $user, string $module, string $action): bool
     {
-        if ($module === 'grades') {
-            $module = 'detailedGrades';
-        }
-        if ($module === 'reports') {
-            $module = 'teacherReports';
-        }
-        if ($module === 'notifications') {
-            $module = 'communications';
-        }
-
         // Admin always has full access
         if ($user->role === 'admin') {
             return true;
@@ -73,12 +63,15 @@ class PermissionService
             return true;
         }
 
-        // Check if module permissions exist (with key fallback alias)
+        // Check if module permissions exist (with bi-directional fallback alias)
         if (!isset($permissions[$module])) {
             $altKey = match($module) {
                 'detailedGrades' => 'grades',
+                'grades' => 'detailedGrades',
                 'teacherReports' => 'reports',
+                'reports' => 'teacherReports',
                 'communications' => 'notifications',
+                'notifications' => 'communications',
                 default => null
             };
             if (!$altKey || !isset($permissions[$altKey])) {
@@ -108,10 +101,6 @@ class PermissionService
      */
     public static function getScopedClassIds(User $user, string $module): ?array
     {
-        if ($module === 'grades') {
-            $module = 'detailedGrades';
-        }
-
         // Admin = unrestricted
         if ($user->role === 'admin') {
             return null;
@@ -145,6 +134,22 @@ class PermissionService
             $assignedClassIds = $user->supervisorClasses()->pluck('class_id')->unique()->toArray();
             if (empty($assignedClassIds) && !empty($permissions['assigned_classes']) && is_array($permissions['assigned_classes'])) {
                 $assignedClassIds = array_map('intval', $permissions['assigned_classes']);
+            }
+
+            // Fallback for module key aliases
+            if (!isset($permissions[$module])) {
+                $altKey = match($module) {
+                    'detailedGrades' => 'grades',
+                    'grades' => 'detailedGrades',
+                    'teacherReports' => 'reports',
+                    'reports' => 'teacherReports',
+                    'communications' => 'notifications',
+                    'notifications' => 'communications',
+                    default => null
+                };
+                if ($altKey && isset($permissions[$altKey])) {
+                    $module = $altKey;
+                }
             }
 
             if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
@@ -205,10 +210,6 @@ class PermissionService
      */
     public static function getAllowedActions(User $user, string $module): array
     {
-        if ($module === 'grades') {
-            $module = 'detailedGrades';
-        }
-
         if ($user->role === 'admin') {
             return ['view', 'create', 'update', 'delete', 'export', 'import', 'approve', 'reject'];
         }
@@ -224,7 +225,19 @@ class PermissionService
         }
 
         if (!isset($permissions[$module])) {
-            return [];
+            $altKey = match($module) {
+                'detailedGrades' => 'grades',
+                'grades' => 'detailedGrades',
+                'teacherReports' => 'reports',
+                'reports' => 'teacherReports',
+                'communications' => 'notifications',
+                'notifications' => 'communications',
+                default => null
+            };
+            if (!$altKey || !isset($permissions[$altKey])) {
+                return [];
+            }
+            $module = $altKey;
         }
 
         $modulePerms = $permissions[$module];
