@@ -23,7 +23,7 @@ class PermissionService
 
         // Parents permissions
         if ($user->role === 'parent') {
-            if ($module === 'absenceRequests' && in_array($action, ['view', 'create', 'delete'])) {
+            if (in_array($module, ['absenceRequests', 'contactMessages', 'reports', 'teacherReports']) && in_array($action, ['view', 'create', 'update', 'delete'])) {
                 return true;
             }
             if ($action === 'view') {
@@ -33,23 +33,20 @@ class PermissionService
 
         // Teachers permissions
         if ($user->role === 'teacher') {
-            if (in_array($module, ['assignments', 'teacherReports', 'reports']) && in_array($action, ['view', 'create', 'update', 'delete'])) {
+            if (in_array($module, ['assignments', 'teacherReports', 'reports', 'attendance', 'detailedGrades', 'grades', 'control', 'schedules', 'schedule', 'examSchedules', 'communications', 'notifications', 'students', 'classes', 'subjects']) && in_array($action, ['view', 'create', 'update', 'delete', 'mark', 'saveDetailed', 'markAllRead'])) {
                 return true;
             }
-            if ($action === 'view' || $action === 'create' || $action === 'update') {
+            if ($action === 'view' || $action === 'create' || $action === 'update' || $action === 'mark') {
                 return true;
             }
         }
 
         // Preparation Supervisors permissions
         if ($user->role === 'preparation_supervisor') {
-            if ($module === 'absenceRequests' && in_array($action, ['view', 'approve', 'reject'])) {
+            if (in_array($module, ['attendance', 'absenceRequests', 'scanner', 'teacherReports', 'reports', 'communications', 'notifications', 'students', 'classes', 'schedule', 'schedules', 'examSchedules']) && in_array($action, ['view', 'create', 'update', 'delete', 'approve', 'reject', 'mark', 'markAllRead'])) {
                 return true;
             }
-            if ($module === 'scanner' && in_array($action, ['view', 'create'])) {
-                return true;
-            }
-            if ($action === 'view') {
+            if ($action === 'view' || $action === 'create' || $action === 'update' || $action === 'approve' || $action === 'reject' || $action === 'mark') {
                 return true;
             }
         }
