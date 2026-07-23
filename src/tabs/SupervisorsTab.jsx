@@ -112,6 +112,7 @@ export default function SupervisorsTab() {
   const [formPassword, setFormPassword] = useState('');
   const [fullAccess, setFullAccess] = useState(true);
   const [modulePerms, setModulePerms] = useState({});
+  const [formClasses, setFormClasses] = useState([]);
 
   // Copy permissions
   const [showCopyDropdown, setShowCopyDropdown] = useState(false);
@@ -139,6 +140,7 @@ export default function SupervisorsTab() {
     setFormPassword('');
     setFullAccess(true);
     setModulePerms({});
+    setFormClasses([]);
     setFormError('');
     setShowModal(true);
   };
@@ -151,6 +153,9 @@ export default function SupervisorsTab() {
     setFormPassword('');
     const perms = vp.permissions || {};
     setFullAccess(!!perms.full_access);
+    const assigned = vp.classes || perms.assigned_classes || [];
+    setFormClasses(Array.isArray(assigned) ? assigned.map(Number) : []);
+    
     // Build modulePerms from permissions object
     const mp = {};
     ALL_MODULES.forEach(mod => {
@@ -207,6 +212,8 @@ export default function SupervisorsTab() {
   const copyPermissionsFrom = (sourceVP) => {
     const perms = sourceVP.permissions || {};
     setFullAccess(!!perms.full_access);
+    const assigned = sourceVP.classes || perms.assigned_classes || [];
+    setFormClasses(Array.isArray(assigned) ? assigned.map(Number) : []);
     const mp = {};
     ALL_MODULES.forEach(mod => {
       if (perms[mod.key]) {
@@ -224,8 +231,8 @@ export default function SupervisorsTab() {
   };
 
   const buildPermissionsJSON = () => {
-    if (fullAccess) return { full_access: true };
-    const perms = {};
+    if (fullAccess) return { full_access: true, assigned_classes: formClasses };
+    const perms = { assigned_classes: formClasses };
     ALL_MODULES.forEach(mod => {
       const mp = modulePerms[mod.key];
       if (mp && mp.actions && mp.actions.length > 0) {
@@ -255,6 +262,7 @@ export default function SupervisorsTab() {
       job_id: formJobId,
       phone: formPhone,
       permissions,
+      classes: formClasses,
     };
     if (formPassword) body.password = formPassword;
 
@@ -541,6 +549,78 @@ export default function SupervisorsTab() {
                   <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'كلمة المرور' : 'Password'} {!editingVP && <span style={{ color: 'var(--color-error)' }}>*</span>}</label>
                   <input type="text" className="text-field" value={formPassword} onChange={e => setFormPassword(e.target.value)} placeholder={editingVP ? (lang === 'ar' ? 'اتركه فارغاً للإبقاء كما هو' : 'Leave empty to keep current') : ''} style={{ height: '42px', borderRadius: '10px' }} />
                 </div>
+              </div>
+            </div>
+
+            {/* Assigned Classes Section */}
+            <div style={{
+              background: 'var(--color-surface, #ffffff)',
+              border: '1.5px solid var(--color-border)',
+              borderRadius: '16px',
+              padding: '18px',
+              marginBottom: '20px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.01)'
+            }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-primary-ui)', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 14px 0', borderBottom: '1px solid var(--color-border-light)', paddingBottom: '8px' }}>
+                🏫 {lang === 'ar' ? 'الفصول والشعب المسندة للوكيل' : 'Assigned Classes & Sections'}
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {(() => {
+                  const classesByGrade = {};
+                  (classes || []).forEach(c => {
+                    const gradeKey = lang === 'ar' ? c.grade : c.gradeEn;
+                    if (!classesByGrade[gradeKey]) classesByGrade[gradeKey] = [];
+                    classesByGrade[gradeKey].push(c);
+                  });
+
+                  return Object.keys(classesByGrade).map(gradeName => (
+                    <div key={gradeName} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      paddingBottom: '8px',
+                      borderBottom: '1px dashed var(--color-border-light)',
+                      flexWrap: 'wrap'
+                    }}>
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', minWidth: '140px', color: 'var(--color-text-primary)' }}>
+                        {gradeName}
+                      </span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {classesByGrade[gradeName].map(c => {
+                          const isSelected = formClasses.includes(c.id);
+                          return (
+                            <label key={c.id} style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '12px',
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              border: `1.5px solid ${isSelected ? 'var(--color-primary-light, #2563eb)' : 'var(--color-border)'}`,
+                              background: isSelected ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                              color: isSelected ? 'var(--color-primary-ui, #2563eb)' : 'var(--color-text-secondary)',
+                              cursor: 'pointer',
+                              fontWeight: isSelected ? 'bold' : 'normal',
+                              userSelect: 'none'
+                            }}>
+                              <input 
+                                type="checkbox" 
+                                checked={isSelected} 
+                                onChange={() => {
+                                  setFormClasses(prev => 
+                                    prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                  );
+                                }} 
+                                style={{ width: '14px', height: '14px', accentColor: 'var(--color-primary-ui)' }} 
+                              />
+                              <span>{lang === 'ar' ? c.section : c.sectionEn}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
 

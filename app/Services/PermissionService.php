@@ -132,60 +132,69 @@ class PermissionService
             return $user->supervisorClasses()->pluck('class_id')->unique()->toArray();
         }
 
-        $permissions = $user->permissions;
+        // Vice Principals / Supervisors
+        if ($user->role === 'supervisor' || $user->role === 'vice_principal') {
+            $permissions = $user->permissions;
 
-        // full_access = unrestricted
-        if (!empty($permissions['full_access'])) {
-            return null;
-        }
-
-        if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
-            return []; // No access
-        }
-
-        $modulePerms = $permissions[$module];
-
-        // Simple array (no scope) = unrestricted
-        if (array_is_list($modulePerms)) {
-            return null;
-        }
-
-        $scope = $modulePerms['scope'] ?? 'all';
-        $scopeIds = $modulePerms['scope_ids'] ?? [];
-
-        if ($scope === 'all') {
-            return null;
-        }
-
-        if ($scope === 'class') {
-            // scope_ids are class IDs directly
-            return array_map('intval', $scopeIds);
-        }
-
-        if ($scope === 'grade') {
-            // scope_ids are grade names like ["الصف الأول", "الصف الثاني"]
-            return SchoolClass::where(function ($q) use ($scopeIds) {
-                $q->whereIn('grade_ar', $scopeIds)
-                  ->orWhereIn('grade_en', $scopeIds);
-            })->pluck('id')->toArray();
-        }
-
-        if ($scope === 'stage') {
-            // scope_ids are stage IDs: 1 = KG (تمهيدي), 2 = Elementary (ابتدائي)
-            $grades = [];
-            foreach ($scopeIds as $stageId) {
-                $stageId = (int) $stageId;
-                if ($stageId === 1) {
-                    $grades = array_merge($grades, ['تمهيدي أول', 'تمهيدي ثاني', 'KG1', 'KG2']);
-                } elseif ($stageId === 2) {
-                    $grades = array_merge($grades, ['الصف الأول', 'الصف الثاني', 'الصف الثالث', 'الصف الرابع', 'الصف الخامس', 'الصف السادس']);
-                } elseif ($stageId === 3) {
-                    $grades = array_merge($grades, ['الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط']);
-                } elseif ($stageId === 4) {
-                    $grades = array_merge($grades, ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي']);
-                }
+            // full_access = unrestricted
+            if (!empty($permissions['full_access'])) {
+                return null;
             }
-            return SchoolClass::whereIn('grade_ar', $grades)->pluck('id')->toArray();
+
+            // Get assigned class IDs from supervisor_classes relation or permissions
+            $assignedClassIds = $user->supervisorClasses()->pluck('class_id')->unique()->toArray();
+            if (empty($assignedClassIds) && !empty($permissions['assigned_classes']) && is_array($permissions['assigned_classes'])) {
+                $assignedClassIds = array_map('intval', $permissions['assigned_classes']);
+            }
+
+            if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
+                return !empty($assignedClassIds) ? $assignedClassIds : [];
+            }
+
+            $modulePerms = $permissions[$module];
+
+            // Simple array (no scope)
+            if (array_is_list($modulePerms)) {
+                return !empty($assignedClassIds) ? $assignedClassIds : [];
+            }
+
+            $scope = $modulePerms['scope'] ?? 'all';
+            $scopeIds = $modulePerms['scope_ids'] ?? [];
+
+            if ($scope === 'class' && !empty($scopeIds)) {
+                return array_map('intval', $scopeIds);
+            }
+
+            if ($scope === 'grade' && !empty($scopeIds)) {
+                return SchoolClass::where(function ($q) use ($scopeIds) {
+                    $q->whereIn('grade_ar', $scopeIds)
+                      ->orWhereIn('grade_en', $scopeIds);
+                })->pluck('id')->toArray();
+            }
+
+            if ($scope === 'stage' && !empty($scopeIds)) {
+                $grades = [];
+                foreach ($scopeIds as $stageId) {
+                    $stageId = (int) $stageId;
+                    if ($stageId === 1) {
+                        $grades = array_merge($grades, ['تمهيدي أول', 'تمهيدي ثاني', 'KG1', 'KG2']);
+                    } elseif ($stageId === 2) {
+                        $grades = array_merge($grades, ['الصف الأول', 'الصف الثاني', 'الصف الثالث', 'الصف الرابع', 'الصف الخامس', 'الصف السادس']);
+                    } elseif ($stageId === 3) {
+                        $grades = array_merge($grades, ['الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط']);
+                    } elseif ($stageId === 4) {
+                        $grades = array_merge($grades, ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي']);
+                    }
+                }
+                return SchoolClass::whereIn('grade_ar', $grades)->pluck('id')->toArray();
+            }
+
+            // Default scope ('all' or unconfigured module scope) -> return Vice Principal's assigned classes if available!
+            if (!empty($assignedClassIds)) {
+                return $assignedClassIds;
+            }
+
+            return [];
         }
 
         return [];

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\SupervisorClass;
 use App\Services\PermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -31,7 +32,7 @@ class VicePrincipalController extends Controller implements HasMiddleware
      */
     public function index(ListRequest $request)
     {
-        $query = User::where('role', 'supervisor');
+        $query = User::where('role', 'supervisor')->with('supervisorClasses');
 
         // Apply filters
         if ($request->filled('is_active')) {
@@ -55,15 +56,14 @@ class VicePrincipalController extends Controller implements HasMiddleware
         $direction = strtolower($request->input('direction', 'desc'));
         $query->orderBy($sortBy, $direction);
 
-        // Safe Column Selection
-        $query->select([
-            'id', 'name', 'username', 'role', 'permissions', 'national_id', 'job_id', 'phone', 'name_ar', 'name_en', 'photo_url', 'address', 'is_active', 'last_login', 'created_at'
-        ]);
-
         $perPage = (int) $request->input('per_page', 20);
         $paginator = $query->paginate($perPage);
 
         $vicePrincipals = $paginator->getCollection()->map(function ($vp) {
+            $assignedClasses = $vp->supervisorClasses->pluck('class_id')->toArray();
+            if (empty($assignedClasses) && !empty($vp->permissions['assigned_classes'])) {
+                $assignedClasses = array_map('intval', (array) $vp->permissions['assigned_classes']);
+            }
             return [
                 'id' => $vp->id,
                 'name' => $vp->name_ar ?? $vp->name,
@@ -75,6 +75,7 @@ class VicePrincipalController extends Controller implements HasMiddleware
                 'photoUrl' => $vp->photo_url,
                 'isActive' => $vp->is_active,
                 'permissions' => $vp->permissions,
+                'classes' => $assignedClasses,
                 'lastLogin' => $vp->last_login,
                 'createdAt' => $vp->created_at,
             ];
@@ -101,6 +102,7 @@ class VicePrincipalController extends Controller implements HasMiddleware
             'phone' => 'required|string|max:20',
             'password' => 'required|string|min:4',
             'permissions' => 'nullable|array',
+            'classes' => 'nullable|array',
         ]);
 
         $jobId = $request->job_id;
@@ -133,6 +135,17 @@ class VicePrincipalController extends Controller implements HasMiddleware
             'photo_url' => '👨‍💼',
         ]);
 
+        // Sync assigned classes in supervisor_classes table
+        $classIds = $request->input('classes', $request->input('permissions.assigned_classes', []));
+        if (is_array($classIds)) {
+            foreach ($classIds as $cid) {
+                SupervisorClass::create([
+                    'supervisor_id' => $user->id,
+                    'class_id' => (int) $cid
+                ]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'تم إنشاء حساب الوكيل بنجاح.',
@@ -145,6 +158,7 @@ class VicePrincipalController extends Controller implements HasMiddleware
                 'nationalId' => $user->national_id,
                 'phone' => $user->phone,
                 'permissions' => $user->permissions,
+                'classes' => array_map('intval', (array) $classIds),
                 'isActive' => $user->is_active,
             ],
         ], 201);
@@ -155,10 +169,15 @@ class VicePrincipalController extends Controller implements HasMiddleware
      */
     public function show(string $id)
     {
-        $vp = User::where('id', $id)->where('role', 'supervisor')->first();
+        $vp = User::where('id', $id)->where('role', 'supervisor')->with('supervisorClasses')->first();
 
         if (!$vp) {
             return response()->json(['success' => false, 'message' => 'الوكيل غير موجود.'], 404);
+        }
+
+        $assignedClasses = $vp->supervisorClasses->pluck('class_id')->toArray();
+        if (empty($assignedClasses) && !empty($vp->permissions['assigned_classes'])) {
+            $assignedClasses = array_map('intval', (array) $vp->permissions['assigned_classes']);
         }
 
         return response()->json([
@@ -174,6 +193,7 @@ class VicePrincipalController extends Controller implements HasMiddleware
                 'photoUrl' => $vp->photo_url,
                 'isActive' => $vp->is_active,
                 'permissions' => $vp->permissions,
+                'classes' => $assignedClasses,
                 'lastLogin' => $vp->last_login,
             ],
         ]);
@@ -195,6 +215,7 @@ class VicePrincipalController extends Controller implements HasMiddleware
             'job_id' => 'sometimes|string|max:100',
             'phone' => 'sometimes|string|max:20',
             'permissions' => 'nullable|array',
+            'classes' => 'nullable|array',
         ]);
 
         if ($request->has('name_ar')) {
@@ -240,6 +261,21 @@ class VicePrincipalController extends Controller implements HasMiddleware
 
         $vp->save();
 
+        if ($request->has('classes') || isset($request->permissions['assigned_classes'])) {
+            $classIds = $request->input('classes', $request->input('permissions.assigned_classes', []));
+            if (is_array($classIds)) {
+                SupervisorClass::where('supervisor_id', $vp->id)->delete();
+                foreach ($classIds as $cid) {
+                    SupervisorClass::create([
+                        'supervisor_id' => $vp->id,
+                        'class_id' => (int) $cid
+                    ]);
+                }
+            }
+        }
+
+        $assignedClasses = $vp->supervisorClasses()->pluck('class_id')->toArray();
+
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث بيانات الوكيل بنجاح.',
@@ -252,6 +288,7 @@ class VicePrincipalController extends Controller implements HasMiddleware
                 'nationalId' => $vp->national_id,
                 'phone' => $vp->phone,
                 'permissions' => $vp->permissions,
+                'classes' => $assignedClasses,
                 'isActive' => $vp->is_active,
             ],
         ]);
