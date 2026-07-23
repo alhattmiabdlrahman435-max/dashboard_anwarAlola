@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../contexts/Auth/useAuth';
 import { useStudents } from '../contexts/Students/useStudents';
@@ -44,21 +45,23 @@ export default function ScannerTab() {
   const [attendanceMonthSection, setAttendanceMonthSection] = useState('أ');
   const [attendanceSearchQuery, setAttendanceSearchQuery] = useState('');
 
-  const activeClass = classes.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection) || (classes.length > 0 ? classes[0] : null);
+  const { allowedClasses, allowedGrades, allowedSections } = useAllowedClasses('scanner');
+
+  const activeClass = allowedClasses.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection) || (allowedClasses.length > 0 ? allowedClasses[0] : null);
 
   useEffect(() => {
     fetchClasses();
   }, [fetchClasses]);
 
   useEffect(() => {
-    if (classes.length > 0) {
-      const match = classes.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection);
+    if (allowedClasses.length > 0) {
+      const match = allowedClasses.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection);
       if (!match) {
-        setAttendanceMonthGrade(classes[0].grade);
-        setAttendanceMonthSection(classes[0].section);
+        setAttendanceMonthGrade(allowedClasses[0].grade);
+        setAttendanceMonthSection(allowedClasses[0].section);
       }
     }
-  }, [classes]);
+  }, [allowedClasses]);
 
   useEffect(() => {
     if (activeClass) {
@@ -179,7 +182,7 @@ export default function ScannerTab() {
                   className="text-field"
                   style={{ height: '36px', padding: '0 8px', fontSize: '12px', minWidth: '180px' }}
                 >
-                  {(classes || []).map(cls => (
+                  {(allowedClasses || []).map(cls => (
                     <option key={cls.id} value={cls.name}>
                       {lang === 'ar' ? cls.name : cls.nameEn}
                     </option>
@@ -230,9 +233,11 @@ export default function ScannerTab() {
                   type="button"
                   className="btn-accent"
                   onClick={() => {
-                    const initialStudents = students.filter(s => s.grade === attendanceMonthGrade && s.section === attendanceMonthSection);
-                    setQuickGrade(attendanceMonthGrade);
-                    setQuickSection(attendanceMonthSection);
+                    const defaultGrade = allowedClasses.length > 0 ? allowedClasses[0].grade : attendanceMonthGrade;
+                    const defaultSec = allowedClasses.length > 0 ? allowedClasses[0].section : attendanceMonthSection;
+                    const initialStudents = students.filter(s => s.grade === defaultGrade && s.section === defaultSec);
+                    setQuickGrade(defaultGrade);
+                    setQuickSection(defaultSec);
                     setQuickStudentId(initialStudents.length > 0 ? initialStudents[0].id : '');
                     setQuickDate(new Date().toISOString().substring(0, 10));
                     setQuickStatus('present');
@@ -466,7 +471,7 @@ export default function ScannerTab() {
                 className="text-field"
                 style={{ height: '36px', padding: '0 8px', fontSize: '12px', minWidth: '180px' }}
               >
-                {(classes || []).map(cls => (
+                {(allowedClasses || []).map(cls => (
                   <option key={cls.id} value={cls.name}>
                     {lang === 'ar' ? cls.name : cls.nameEn}
                   </option>
@@ -619,7 +624,7 @@ export default function ScannerTab() {
                       }}
                       style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
                     >
-                      {availableGrades.map(g => (
+                      {allowedGrades.map(g => (
                         <option key={g} value={g}>{g}</option>
                       ))}
                     </select>
@@ -638,7 +643,7 @@ export default function ScannerTab() {
                       }}
                       style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
                     >
-                      {availableSections.map(s => {
+                      {allowedSections.map(s => {
                         const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
                         return (
                           <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>

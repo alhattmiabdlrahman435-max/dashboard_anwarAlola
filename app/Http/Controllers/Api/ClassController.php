@@ -24,7 +24,14 @@ class ClassController extends Controller implements HasMiddleware
     public function index(Request $request)
     {
         $user = $request->user();
-        $scopedClassIds = PermissionService::getScopedClassIds($user, 'classes');
+        
+        // Scope classes only if explicitly requested via 'scoped' param or for student/parent roles
+        $scopedClassIds = null;
+        if ($request->boolean('scoped')) {
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'classes');
+        } elseif ($user && in_array($user->role, ['parent', 'student'])) {
+            $scopedClassIds = PermissionService::getScopedClassIds($user, 'classes');
+        }
 
         $query = SchoolClass::query();
         if ($scopedClassIds !== null) {

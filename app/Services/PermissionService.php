@@ -153,14 +153,14 @@ class PermissionService
             }
 
             if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
-                return !empty($assignedClassIds) ? $assignedClassIds : [];
+                return !empty($assignedClassIds) ? $assignedClassIds : null;
             }
 
             $modulePerms = $permissions[$module];
 
             // Simple array (no scope)
             if (array_is_list($modulePerms)) {
-                return !empty($assignedClassIds) ? $assignedClassIds : [];
+                return !empty($assignedClassIds) ? $assignedClassIds : null;
             }
 
             $scope = $modulePerms['scope'] ?? 'all';
@@ -194,12 +194,12 @@ class PermissionService
                 return SchoolClass::whereIn('grade_ar', $grades)->pluck('id')->toArray();
             }
 
-            // Default scope ('all' or unconfigured module scope) -> return Vice Principal's assigned classes if available!
+            // Default scope ('all' or unconfigured module scope) -> return Vice Principal's assigned classes if available, otherwise null (unrestricted)
             if (!empty($assignedClassIds)) {
                 return $assignedClassIds;
             }
 
-            return [];
+            return null;
         }
 
         return [];

@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useAttendance } from '../contexts/Attendance/useAttendance';
+import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 import { X, ArrowUp, ArrowDown, Search } from 'lucide-react';
@@ -22,6 +23,8 @@ export default function AbsenceRequestsTab() {
     availableSections,
     fetchClasses,
   } = useClasses();
+
+  const { allowedClasses, allowedGrades, allowedSections } = useAllowedClasses('absenceRequests');
 
   const {
     absenceRequests,
@@ -60,7 +63,17 @@ export default function AbsenceRequestsTab() {
   const [attendanceRosterGrade, setAttendanceRosterGrade] = useState('الصف الأول');
   const [attendanceRosterSection, setAttendanceRosterSection] = useState('أ');
 
-  const activeClass = classes.find(c => c.grade === attendanceRosterGrade && c.section === attendanceRosterSection);
+  const activeClass = allowedClasses.find(c => c.grade === attendanceRosterGrade && c.section === attendanceRosterSection) || (allowedClasses.length > 0 ? allowedClasses[0] : null);
+
+  useEffect(() => {
+    if (allowedClasses.length > 0) {
+      const match = allowedClasses.find(c => c.grade === attendanceRosterGrade && c.section === attendanceRosterSection);
+      if (!match) {
+        setAttendanceRosterGrade(allowedClasses[0].grade);
+        setAttendanceRosterSection(allowedClasses[0].section);
+      }
+    }
+  }, [allowedClasses]);
 
   // Dynamic loaders
   const qs = buildQueryString();
@@ -397,7 +410,7 @@ export default function AbsenceRequestsTab() {
                 value={attendanceRosterGrade}
                 onChange={(e) => setAttendanceRosterGrade(e.target.value)}
               >
-                {availableGrades.map(g => (
+                {allowedGrades.map(g => (
                   <option key={g} value={g}>{g}</option>
                 ))}
               </select>
@@ -411,7 +424,7 @@ export default function AbsenceRequestsTab() {
                 value={attendanceRosterSection}
                 onChange={(e) => setAttendanceRosterSection(e.target.value)}
               >
-                {availableSections.map(s => {
+                {allowedSections.map(s => {
                   const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
                   return (
                     <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>

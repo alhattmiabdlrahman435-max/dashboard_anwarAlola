@@ -94,7 +94,7 @@ const actionStyles = {
 
 export default function SupervisorsTab() {
   const { lang, vicePrincipals, setVicePrincipals, setToastMessage, triggerConfirm } = useApp();
-  const { classes } = useClasses();
+  const { classes, fetchClasses } = useClasses();
 
   const t = ACTION_LABELS[lang] || ACTION_LABELS.ar;
 
@@ -127,10 +127,11 @@ export default function SupervisorsTab() {
     }
   }, [setVicePrincipals]);
 
-  // Fetch vice principals on mount
+  // Fetch vice principals and classes on mount
   useEffect(() => {
     fetchVicePrincipals();
-  }, [fetchVicePrincipals]);
+    fetchClasses(true);
+  }, [fetchVicePrincipals, fetchClasses]);
 
   const openAddModal = () => {
     setEditingVP(null);
@@ -154,7 +155,7 @@ export default function SupervisorsTab() {
     const perms = vp.permissions || {};
     setFullAccess(!!perms.full_access);
     const assigned = vp.classes || perms.assigned_classes || [];
-    setFormClasses(Array.isArray(assigned) ? assigned.map(Number) : []);
+    setFormClasses(Array.isArray(assigned) ? assigned.map(c => Number(String(c).replace(/\D/g, ''))).filter(id => !isNaN(id) && id > 0) : []);
     
     // Build modulePerms from permissions object
     const mp = {};
@@ -200,11 +201,12 @@ export default function SupervisorsTab() {
   };
 
   const handleScopeIdsToggle = (moduleKey, id) => {
+    const cleanId = typeof id === 'string' && id.startsWith('cls-') ? Number(id.replace('cls-', '')) : id;
     setModulePerms(prev => {
       const current = prev[moduleKey] || { actions: [], scope: 'all', scope_ids: [] };
-      const ids = current.scope_ids.includes(id)
-        ? current.scope_ids.filter(i => i !== id)
-        : [...current.scope_ids, id];
+      const ids = current.scope_ids.includes(cleanId) || current.scope_ids.includes(id)
+        ? current.scope_ids.filter(i => i !== cleanId && i !== id)
+        : [...current.scope_ids, cleanId];
       return { ...prev, [moduleKey]: { ...current, scope_ids: ids } };
     });
   };
@@ -213,7 +215,7 @@ export default function SupervisorsTab() {
     const perms = sourceVP.permissions || {};
     setFullAccess(!!perms.full_access);
     const assigned = sourceVP.classes || perms.assigned_classes || [];
-    setFormClasses(Array.isArray(assigned) ? assigned.map(Number) : []);
+    setFormClasses(Array.isArray(assigned) ? assigned.map(c => Number(String(c).replace(/\D/g, ''))).filter(id => !isNaN(id) && id > 0) : []);
     const mp = {};
     ALL_MODULES.forEach(mod => {
       if (perms[mod.key]) {
@@ -587,7 +589,8 @@ export default function SupervisorsTab() {
                       </span>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {classesByGrade[gradeName].map(c => {
-                          const isSelected = formClasses.includes(c.id);
+                          const classId = c.numericId || Number(String(c.id).replace(/\D/g, ''));
+                          const isSelected = formClasses.includes(classId) || formClasses.includes(c.id);
                           return (
                             <label key={c.id} style={{
                               display: 'inline-flex',
@@ -608,7 +611,9 @@ export default function SupervisorsTab() {
                                 checked={isSelected} 
                                 onChange={() => {
                                   setFormClasses(prev => 
-                                    prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                    isSelected 
+                                      ? prev.filter(id => id !== classId && id !== c.id) 
+                                      : [...prev, classId]
                                   );
                                 }} 
                                 style={{ width: '14px', height: '14px', accentColor: 'var(--color-primary-ui)' }} 
@@ -843,7 +848,8 @@ export default function SupervisorsTab() {
                                               </span>
                                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                                 {classesByGrade[gradeName].map(c => {
-                                                  const isSelected = mp.scope_ids.includes(c.id);
+                                                  const classId = c.numericId || Number(String(c.id).replace(/\D/g, ''));
+                                                  const isSelected = mp.scope_ids.includes(classId) || mp.scope_ids.includes(c.id) || mp.scope_ids.includes(String(classId));
                                                   return (
                                                     <label key={c.id} style={{
                                                       display: 'inline-flex',
@@ -852,7 +858,7 @@ export default function SupervisorsTab() {
                                                       fontSize: '11px',
                                                       padding: '3px 8px',
                                                       borderRadius: '12px',
-                                                      border: `1px solid ${isSelected ? 'var(--color-primary-light)' : 'var(--color-border)'}`,
+                                                      border: `1.5px solid ${isSelected ? 'var(--color-primary-light)' : 'var(--color-border)'}`,
                                                       background: isSelected ? 'rgba(30, 80, 142, 0.08)' : 'transparent',
                                                       color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
                                                       cursor: 'pointer',

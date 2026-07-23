@@ -41,6 +41,7 @@ export const AuthProvider = ({ children }) => {
               photo: data.user.photo_url || "أ ع",
               email: null,
               permissions: data.user.permissions || {},
+              classes: data.user.classes || data.user.permissions?.assigned_classes || [],
             };
             setCurrentUser(mappedUser);
           } else {
@@ -83,6 +84,7 @@ export const AuthProvider = ({ children }) => {
         photo: data.user.photo_url || "أ ع",
         email: null,
         permissions: data.user.permissions || {},
+        classes: data.user.classes || data.user.permissions?.assigned_classes || [],
       };
       setCurrentUser(mappedUser);
       return mappedUser;

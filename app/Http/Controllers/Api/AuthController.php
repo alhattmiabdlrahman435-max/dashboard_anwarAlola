@@ -84,6 +84,16 @@ class AuthController extends Controller
         // إنشاء Token
         $token = $user->createToken('anwar-alola-token')->plainTextToken;
 
+        // جلب الفصول المسندة للوكيل / المشرف إن وجدت
+        $permissions = $user->permissions ?? [];
+        $assignedClasses = [];
+        if ($user->role === 'supervisor' || $user->role === 'vice_principal') {
+            $assignedClasses = $user->supervisorClasses()->pluck('class_id')->map(fn($id) => (int)$id)->toArray();
+            if (empty($permissions['assigned_classes']) && !empty($assignedClasses)) {
+                $permissions['assigned_classes'] = $assignedClasses;
+            }
+        }
+
         return response()->json([
             'success' => true,
             'token'   => $token,
@@ -100,7 +110,8 @@ class AuthController extends Controller
                 'national_id' => $user->national_id,
                 'phone'       => $user->phone,
                 'address'     => $user->address,
-                'permissions' => $user->permissions,
+                'permissions' => $permissions,
+                'classes'     => $assignedClasses,
             ],
         ]);
     }
@@ -130,9 +141,36 @@ class AuthController extends Controller
      */
     public function me(Request $request)
     {
+        $user = $request->user();
+        $permissions = $user->permissions ?? [];
+        $assignedClasses = [];
+        if ($user->role === 'supervisor' || $user->role === 'vice_principal') {
+            $assignedClasses = $user->supervisorClasses()->pluck('class_id')->map(fn($id) => (int)$id)->toArray();
+            if (empty($permissions['assigned_classes']) && !empty($assignedClasses)) {
+                $permissions['assigned_classes'] = $assignedClasses;
+            }
+        }
+
+        $userData = [
+            'id'          => $user->id,
+            'name'        => $user->name,
+            'name_ar'     => $user->name_ar,
+            'name_en'     => $user->name_en,
+            'email'       => $user->email,
+            'username'    => $user->username,
+            'role'        => $user->role,
+            'photo'       => $user->photo_url,
+            'job_id'      => $user->job_id,
+            'national_id' => $user->national_id,
+            'phone'       => $user->phone,
+            'address'     => $user->address,
+            'permissions' => $permissions,
+            'classes'     => $assignedClasses,
+        ];
+
         return response()->json([
             'success' => true,
-            'user'    => $request->user(),
+            'user'    => $userData,
         ]);
     }
 

@@ -136,12 +136,20 @@ class VicePrincipalController extends Controller implements HasMiddleware
         ]);
 
         // Sync assigned classes in supervisor_classes table
-        $classIds = $request->input('classes', $request->input('permissions.assigned_classes', []));
-        if (is_array($classIds)) {
+        $rawClassIds = $request->input('classes', $request->input('permissions.assigned_classes', []));
+        $classIds = [];
+        if (is_array($rawClassIds)) {
+            foreach ($rawClassIds as $cid) {
+                $cleanCid = (int) preg_replace('/\D/', '', (string) $cid);
+                if ($cleanCid > 0) {
+                    $classIds[] = $cleanCid;
+                }
+            }
+            $classIds = array_unique($classIds);
             foreach ($classIds as $cid) {
                 SupervisorClass::create([
                     'supervisor_id' => $user->id,
-                    'class_id' => (int) $cid
+                    'class_id'      => $cid
                 ]);
             }
         }
@@ -158,7 +166,7 @@ class VicePrincipalController extends Controller implements HasMiddleware
                 'nationalId' => $user->national_id,
                 'phone' => $user->phone,
                 'permissions' => $user->permissions,
-                'classes' => array_map('intval', (array) $classIds),
+                'classes' => array_values($classIds),
                 'isActive' => $user->is_active,
             ],
         ], 201);
@@ -262,13 +270,21 @@ class VicePrincipalController extends Controller implements HasMiddleware
         $vp->save();
 
         if ($request->has('classes') || isset($request->permissions['assigned_classes'])) {
-            $classIds = $request->input('classes', $request->input('permissions.assigned_classes', []));
-            if (is_array($classIds)) {
+            $rawClassIds = $request->input('classes', $request->input('permissions.assigned_classes', []));
+            $classIds = [];
+            if (is_array($rawClassIds)) {
+                foreach ($rawClassIds as $cid) {
+                    $cleanCid = (int) preg_replace('/\D/', '', (string) $cid);
+                    if ($cleanCid > 0) {
+                        $classIds[] = $cleanCid;
+                    }
+                }
+                $classIds = array_unique($classIds);
                 SupervisorClass::where('supervisor_id', $vp->id)->delete();
                 foreach ($classIds as $cid) {
                     SupervisorClass::create([
                         'supervisor_id' => $vp->id,
-                        'class_id' => (int) $cid
+                        'class_id'      => $cid
                     ]);
                 }
             }

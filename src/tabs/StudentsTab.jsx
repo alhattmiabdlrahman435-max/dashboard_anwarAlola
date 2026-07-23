@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../contexts/Auth/useAuth';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
+import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useParents } from '../contexts/Parents/useParents';
 import { useSettings } from '../contexts/Settings/useSettings';
 import { usePagination } from '../hooks/usePagination';
@@ -20,6 +21,7 @@ export default function StudentsTab() {
   const { controlMultiplier, controlOffset } = useSettings();
 
   const { classes, fetchClasses } = useClasses();
+  const { allowedClasses } = useAllowedClasses('students');
   const { parentUsers, fetchParents } = useParents();
   const {
     students,
@@ -513,8 +515,8 @@ export default function StudentsTab() {
                   setModalParentPhoto('');
                   setSelectedParentLinkOption('');
                   setParentSearchText('');
-                  if (classes.length > 0) {
-                    setSelectedClassId(classes[0].id);
+                  if (allowedClasses.length > 0) {
+                    setSelectedClassId(allowedClasses[0].id);
                   } else {
                     setSelectedClassId('');
                   }
@@ -559,7 +561,7 @@ export default function StudentsTab() {
               style={{ fontSize: '13px', padding: '0 12px', height: '42px', width: 'auto', minWidth: '180px', borderRadius: '10px' }}
             >
               <option value="all">{lang === 'ar' ? '🔍 كل الفصول' : '🔍 All Classes'}</option>
-              {(classes || []).map(cls => {
+              {(allowedClasses || []).map(cls => {
                 // Ensure cls.id is clean numeric ID for the backend filter
                 const numericId = typeof cls.id === 'string' && cls.id.startsWith('cls-')
                   ? cls.id.replace('cls-', '')
@@ -823,7 +825,7 @@ export default function StudentsTab() {
                     required
                   >
                     <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
-                    {classes.map(c => (
+                    {allowedClasses.map(c => (
                       <option key={c.id} value={c.id}>
                         {lang === 'ar' ? c.name : c.nameEn}
                       </option>
@@ -1117,7 +1119,7 @@ export default function StudentsTab() {
                     required
                   >
                     <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
-                    {classes.map(c => (
+                    {allowedClasses.map(c => (
                       <option key={c.id} value={c.id}>
                         {lang === 'ar' ? c.name : c.nameEn}
                       </option>
@@ -1319,7 +1321,7 @@ export default function StudentsTab() {
                       required
                     >
                       <option value="">{lang === 'ar' ? '-- اختر الفصل الدراسي --' : '-- Select Class --'}</option>
-                      {classes.map(c => (
+                      {allowedClasses.map(c => (
                         <option key={c.id} value={c.id}>
                           {lang === 'ar' ? c.name : c.nameEn}
                         </option>
@@ -1486,7 +1488,7 @@ export default function StudentsTab() {
                           style={{ height: '42px', padding: '0 12px' }}
                         >
                           <option value="">{lang === 'ar' ? '-- الصف الافتراضي (ثالث ثانوي) --' : '-- Default Class (Grade 3) --'}</option>
-                          {classes.map(c => (
+                          {allowedClasses.map(c => (
                             <option key={c.id} value={c.id}>
                               {lang === 'ar' ? c.name : c.nameEn}
                             </option>
@@ -1526,7 +1528,7 @@ export default function StudentsTab() {
                           style={{ height: '42px', padding: '0 12px' }}
                         >
                           <option value="">{lang === 'ar' ? '🔍 تصدير كل الطلاب' : '🔍 Export All Students'}</option>
-                          {classes.map(c => (
+                          {allowedClasses.map(c => (
                             <option key={c.id} value={c.id}>
                               🏫 {lang === 'ar' ? c.name : c.nameEn}
                             </option>
