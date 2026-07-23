@@ -281,7 +281,7 @@ class ExamScheduleController extends Controller implements HasMiddleware
         });
     }
 
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
         $schedule = ExamSchedule::find($id);
         if (!$schedule) {
@@ -296,7 +296,12 @@ class ExamScheduleController extends Controller implements HasMiddleware
                 'message' => 'غير مصرح لك بحذف جدول اختبارات في هذا الفصل الدراسي.',
             ], 403);
         }
-        $schedule->delete();
+
+        DB::transaction(function() use ($schedule) {
+            ExamSubject::where('exam_schedule_id', $schedule->id)->delete();
+            $schedule->delete();
+        });
+
         return response()->json([
             'success' => true,
             'message' => 'تم حذف جدول الاختبارات بنجاح'
