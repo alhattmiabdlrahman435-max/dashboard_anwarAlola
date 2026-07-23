@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../contexts/Auth/useAuth';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useAttendance } from '../contexts/Attendance/useAttendance';
@@ -13,6 +14,8 @@ export default function ScannerTab() {
     renderAvatar,
     canAction,
   } = useApp();
+
+  const { currentUser } = useAuth();
 
   const {
     classes,
