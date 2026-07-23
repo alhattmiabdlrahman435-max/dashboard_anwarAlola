@@ -226,7 +226,15 @@ export default function ControlTab() {
               className="form-input"
               style={{ padding: '8px 12px', minHeight: '44px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
               value={secretGradeInput}
-              onChange={(e) => setSecretGradeInput(e.target.value)}
+              onChange={(e) => {
+                let val = e.target.value;
+                if (val !== '') {
+                  let num = Number(val);
+                  if (num > 30) val = '30';
+                  if (num < 0) val = '0';
+                }
+                setSecretGradeInput(val);
+              }}
               min="0"
               max="30"
               placeholder="0 - 30"
