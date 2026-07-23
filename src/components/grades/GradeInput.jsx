@@ -55,11 +55,13 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
 
     // 2. Reject non-numbers or values below min
     if (isNaN(numVal) || numVal < minNum) {
+      e.target.value = localValue !== '' ? localValue : '';
       return;
     }
 
     // 3. STRICT NON-ALLOWANCE: Reject any input greater than max completely!
     if (numVal > maxNum) {
+      e.target.value = localValue !== '' ? localValue : '';
       return;
     }
 
@@ -97,12 +99,35 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
       return;
     }
 
+    // Key navigation
     if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
       e.preventDefault();
       focusNextInput(inputRef.current);
+      return;
     } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
       e.preventDefault();
       focusPrevInput(inputRef.current);
+      return;
+    }
+
+    // Keyboard-level restriction: Prevent typing any digit key that would exceed maxNum
+    if (/^[0-9]$/.test(e.key)) {
+      const input = inputRef.current;
+      if (input) {
+        const selStart = input.selectionStart ?? 0;
+        const selEnd = input.selectionEnd ?? 0;
+        const isFullSelection = selStart === 0 && selEnd === String(input.value).length;
+        
+        if (!isFullSelection) {
+          const currentStr = String(localValue ?? '');
+          const futureStr = currentStr.slice(0, selStart) + e.key + currentStr.slice(selEnd);
+          const futureNum = Number(futureStr);
+          if (!isNaN(futureNum) && futureNum > maxNum) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
     }
   };
 
