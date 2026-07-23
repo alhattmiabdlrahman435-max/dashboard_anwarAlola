@@ -507,7 +507,15 @@ export default function SupervisorsTab() {
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input type="text" className="text-field" value={formJobId} onChange={e => setFormJobId(e.target.value)} style={{ height: '42px', borderRadius: '10px' }} />
+                  <input 
+                    type="text" 
+                    className="text-field" 
+                    value={formJobId} 
+                    onChange={e => setFormJobId(e.target.value)} 
+                    disabled={!!editingVP}
+                    readOnly={!!editingVP}
+                    style={{ height: '42px', borderRadius: '10px', opacity: editingVP ? 0.75 : 1, cursor: editingVP ? 'not-allowed' : 'text', backgroundColor: editingVP ? 'var(--color-surface-variant, #f1f5f9)' : undefined }} 
+                  />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'}</label>

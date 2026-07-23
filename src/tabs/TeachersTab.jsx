@@ -808,6 +808,10 @@ export default function TeachersTab() {
                       placeholder="1011111111"
                       value={modalTeacherJobId}
                       onChange={(e) => setModalTeacherJobId(e.target.value)}
+                      disabled
+                      readOnly
+                      style={{ opacity: 0.75, cursor: 'not-allowed', backgroundColor: 'var(--color-surface-variant, #f1f5f9)' }}
+                      title={lang === 'ar' ? 'الرقم الوظيفي للقراءة فقط وغير قابل للتعديل' : 'Job ID is read-only'}
                       required
                     />
                   </div>

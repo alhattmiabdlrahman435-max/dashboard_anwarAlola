@@ -414,6 +414,9 @@ export default function PrepSupervisorsTab() {
                       placeholder="P102"
                       value={modalJobId}
                       onChange={(e) => setModalJobId(e.target.value)}
+                      disabled={!!selectedPrepSupervisorId}
+                      readOnly={!!selectedPrepSupervisorId}
+                      style={{ opacity: selectedPrepSupervisorId ? 0.75 : 1, cursor: selectedPrepSupervisorId ? 'not-allowed' : 'text', backgroundColor: selectedPrepSupervisorId ? 'var(--color-surface-variant, #f1f5f9)' : undefined }}
                       required
                       autoComplete="off"
                     />
