@@ -116,7 +116,7 @@ class AttendanceController extends Controller implements HasMiddleware
         $request->validate([
             'student_id' => 'required|integer',
             'date' => 'required|date',
-            'status' => 'required|string|in:present,absent',
+            'status' => 'required|string|in:present,absent,unmarked',
             'arrival_time' => 'nullable|string',
             'note' => 'nullable|string',
         ]);
@@ -134,6 +134,15 @@ class AttendanceController extends Controller implements HasMiddleware
         $date = $request->date;
         
         if ($request->user()->role !== 'admin') {
+            // Strict 24-Hour limit check: Cannot mark/edit past dates older than 24 hours
+            $recordDateEnd = \Carbon\Carbon::parse($date)->endOfDay();
+            if (now()->greaterThan($recordDateEnd->addHours(24))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'عفواً، لا يمكن تحضير أو تعديل الحضور والغياب بعد مرور 24 ساعة على التاريخ المحدد.'
+                ], 403);
+            }
+
             $isLocked = \Illuminate\Support\Facades\DB::table('attendance_submissions')
                 ->where('class_id', $student->class_id)
                 ->where('record_date', $date)
@@ -144,6 +153,19 @@ class AttendanceController extends Controller implements HasMiddleware
                     'message' => 'تم إرسال تقرير التحضير بالفعل لهذا اليوم ولا يمكن تعديله. التعديل متاح للمسؤولين فقط.'
                 ], 403);
             }
+        }
+
+        // Click 3: If status is unmarked, delete existing record from database
+        if ($request->status === 'unmarked') {
+            Attendance::where('student_id', $request->student_id)
+                ->where('record_date', $date)
+                ->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إلغاء تحضير الطالب وإعادة حالته للوضع الأولي بنجاح',
+                'attendance' => null
+            ], 200);
         }
 
         $attendance = Attendance::updateOrCreate(
@@ -207,7 +229,7 @@ class AttendanceController extends Controller implements HasMiddleware
         }
 
         $request->validate([
-            'status' => 'required|string|in:present,absent',
+            'status' => 'required|string|in:present,absent,unmarked',
             'arrival_time' => 'nullable|string',
             'note' => 'nullable|string',
         ]);
@@ -216,6 +238,15 @@ class AttendanceController extends Controller implements HasMiddleware
         $date = $attendance->record_date;
         
         if ($request->user()->role !== 'admin') {
+            // Strict 24-Hour limit check
+            $recordDateEnd = \Carbon\Carbon::parse($date)->endOfDay();
+            if (now()->greaterThan($recordDateEnd->addHours(24))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'عفواً، لا يمكن تحضير أو تعديل الحضور والغياب بعد مرور 24 ساعة على التاريخ المحدد.'
+                ], 403);
+            }
+
             $isLocked = \Illuminate\Support\Facades\DB::table('attendance_submissions')
                 ->where('class_id', $student->class_id)
                 ->where('record_date', $date)
@@ -226,6 +257,14 @@ class AttendanceController extends Controller implements HasMiddleware
                     'message' => 'تم إرسال تقرير التحضير بالفعل لهذا اليوم ولا يمكن تعديله. التعديل متاح للمسؤولين فقط.'
                 ], 403);
             }
+        }
+
+        if ($request->status === 'unmarked') {
+            $attendance->delete();
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إلغاء سجل التحضير وإعادته للوضع الأولي بنجاح'
+            ]);
         }
 
         $attendance->update([

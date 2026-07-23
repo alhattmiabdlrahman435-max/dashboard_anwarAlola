@@ -76,14 +76,34 @@ export default function ScannerTab() {
   const [quickDate, setQuickDate] = useState(new Date().toISOString().substring(0, 10));
   const [quickStatus, setQuickStatus] = useState('present');
 
+  // Check if date is locked (> 24 hours passed for non-admins)
+  const isDate24HoursPassed = (dateStr) => {
+    if (currentUser?.role === 'admin') return false;
+    const targetEnd = new Date(`${dateStr}T23:59:59`);
+    const now = new Date();
+    const cutoff = new Date(targetEnd.getTime() + 24 * 60 * 60 * 1000);
+    return now > cutoff;
+  };
+
   const handleToggleDayAttendance = (studentId, dayNum) => {
     const dateStr = `${selectedAttendanceMonth}-${String(dayNum).padStart(2, '0')}`;
+
+    if (isDate24HoursPassed(dateStr)) {
+      alert(lang === 'ar' 
+        ? 'عفواً، لا يمكن تحضير أو تعديل الحضور والغياب لمرور أكثر من 24 ساعة على هذا التاريخ.' 
+        : 'Attendance for this date is locked (> 24 hours passed).');
+      return;
+    }
+    
     const existingRecord = attendanceRecords.find(r => r.studentId === studentId && r.date === dateStr);
     
     let nextStatus = 'present';
     if (existingRecord) {
-      if (existingRecord.status === 'present') nextStatus = 'absent';
-      else if (existingRecord.status === 'absent') nextStatus = null; // Clear status
+      if (existingRecord.status === 'present' || existingRecord.status === 'late') {
+        nextStatus = 'absent'; // Click 2: absent
+      } else if (existingRecord.status === 'absent') {
+        nextStatus = null; // Click 3: Reset to unmarked (initial state)
+      }
     }
     
     handleCellAttendanceChange(studentId, dateStr, nextStatus);
@@ -338,6 +358,7 @@ export default function ScannerTab() {
                           {daysArray.filter(day => !checkIsWeekend(day)).map(day => {
                             const dateStr = `${selectedAttendanceMonth}-${String(day).padStart(2, '0')}`;
                             const record = attendanceRecords.find(r => r.studentId === student.id && r.date === dateStr);
+                            const isLocked = isDate24HoursPassed(dateStr);
                             
                             let statusIcon = <span style={{ color: '#cbd5e1', fontSize: '11px' }}>⚪</span>;
                             let cellTitle = lang === 'ar' ? 'غير مرصود' : 'No record';
@@ -352,14 +373,19 @@ export default function ScannerTab() {
                               }
                             }
 
+                            if (isLocked) {
+                              cellTitle += lang === 'ar' ? ' - [مغلق: مضى أكثر من 24 ساعة]' : ' - [Locked: >24h]';
+                            }
+
                             return (
                               <td 
                                 key={day} 
                                 title={`${student.name}: ${cellTitle} (${dateStr})`}
                                 style={{ 
                                   padding: '6px 2px', 
-                                  backgroundColor: 'transparent',
-                                  cursor: canAction('scanner', 'update') ? 'pointer' : 'default',
+                                  backgroundColor: isLocked ? 'rgba(0,0,0,0.02)' : 'transparent',
+                                  opacity: isLocked ? 0.65 : 1,
+                                  cursor: isLocked ? 'not-allowed' : (canAction('scanner', 'update') ? 'pointer' : 'default'),
                                   fontSize: '12px',
                                   userSelect: 'none',
                                   borderLeft: '1px solid var(--color-border)',

@@ -268,12 +268,13 @@ export default function AttendanceProvider({ children }) {
       }
     });
 
-    if (token && newStatus) {
+    if (token) {
+      const syncStatus = !newStatus || newStatus === "unmarked" ? "unmarked" : (newStatus === "late" ? "present" : newStatus);
       return attendanceService.saveAttendance({
           student_id: Number(studentId),
           date: date,
-          status: newStatus === "late" ? "present" : newStatus,
-          arrival_time: newStatus === "present" ? "07:30:00" : (newStatus === "late" ? "07:55:00" : null),
+          status: syncStatus,
+          arrival_time: syncStatus === "present" ? "07:30:00" : (syncStatus === "late" ? "07:55:00" : null),
           note: "تم التعديل يدوياً من لوحة الإدارة",
         })
         .then((data) => {
