@@ -359,7 +359,13 @@ export default function ClassesTab() {
 
           return filtered.map(cls => {
             // Calculate students count in this class
-            const studentCount = students.filter(s => s.grade === cls.grade && s.section === cls.section).length;
+            const numericClassId = cls.numericId || (cls.id ? parseInt(String(cls.id).replace(/\D/g, ''), 10) : null);
+            const studentCount = (typeof cls.studentsCount === 'number' && cls.studentsCount > 0)
+              ? cls.studentsCount
+              : students.filter(s =>
+                  (s.class_id && Number(s.class_id) === Number(numericClassId)) ||
+                  (s.grade === cls.grade && s.section === cls.section)
+                ).length;
             // Find teachers teaching in this class by name or ID
             const rawClassId = cls.id ? parseInt(String(cls.id).replace(/\D/g, ''), 10) : null;
             const classTeachers = teachers.filter(t => 
@@ -425,7 +431,7 @@ export default function ClassesTab() {
                             style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'rgba(30, 80, 142, 0.04)', borderRadius: '12px', border: '1px solid var(--color-border)' }}
                             title={lang === 'ar' ? teach.subject : teach.subjectEn}
                           >
-                            <span>{teach.photo || "👨‍🏫"}</span>
+                            {renderAvatar(teach.photo, "👨‍🏫", { width: '20px', height: '20px', fontSize: '13px', marginInlineEnd: 0 })}
                             <span style={{ fontWeight: '500' }}>{lang === 'ar' ? teach.name : (teach.nameEn || teach.name)}</span>
                           </span>
                         ))

@@ -24,8 +24,8 @@ async function request(endpoint, options = {}) {
   const isGet = method.toUpperCase() === 'GET';
   const requestKey = getRequestKey(endpoint, options);
 
-  // 1. Identical Request Deduplication (GET and non-GET duplicate submissions)
-  if (activeRequests.has(requestKey)) {
+  // 1. Identical Request Deduplication (GET requests only)
+  if (isGet && activeRequests.has(requestKey)) {
     return activeRequests.get(requestKey);
   }
 
@@ -69,8 +69,8 @@ async function request(endpoint, options = {}) {
     } catch (err) {
       if (err.name === 'AbortError' || (controller && controller.signal.aborted)) {
         // Clean up from active maps immediately
-        activeRequests.delete(requestKey);
         if (isGet) {
+          activeRequests.delete(requestKey);
           const basePath = endpoint.split('?')[0];
           if (activeControllers.get(basePath) === controller) {
             activeControllers.delete(basePath);
@@ -156,12 +156,12 @@ async function request(endpoint, options = {}) {
     return response.json();
   })();
 
-  activeRequests.set(requestKey, fetchPromise);
-
-  // Clean up when request settles
-  fetchPromise.finally(() => {
-    activeRequests.delete(requestKey);
-  }).catch(() => {});
+  if (isGet) {
+    activeRequests.set(requestKey, fetchPromise);
+    fetchPromise.finally(() => {
+      activeRequests.delete(requestKey);
+    }).catch(() => {});
+  }
 
   return fetchPromise;
 }

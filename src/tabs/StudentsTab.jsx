@@ -129,7 +129,7 @@ export default function StudentsTab() {
 
   useEffect(() => {
     if (showStudentModal || showEditStudentModal) {
-      fetchParents();
+      fetchParents('?per_page=1000');
     }
   }, [showStudentModal, showEditStudentModal, fetchParents]);
 

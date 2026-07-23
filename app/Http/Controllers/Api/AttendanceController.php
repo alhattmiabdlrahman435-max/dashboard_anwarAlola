@@ -47,9 +47,12 @@ class AttendanceController extends Controller implements HasMiddleware
             $query->where('status', $request->input('status'));
         }
         if ($request->filled('class_id')) {
-            $query->whereHas('student', function($q) use ($request) {
-                $q->where('class_id', $request->input('class_id'));
-            });
+            $cleanClassId = preg_replace('/\D/', '', $request->input('class_id'));
+            if (!empty($cleanClassId)) {
+                $query->whereHas('student', function($q) use ($cleanClassId) {
+                    $q->where('class_id', $cleanClassId);
+                });
+            }
         }
 
         // Apply search

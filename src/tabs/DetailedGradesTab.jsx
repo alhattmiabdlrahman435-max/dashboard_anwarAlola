@@ -49,15 +49,25 @@ export default function DetailedGradesTab() {
   const [viewMode, setViewMode] = useState('class'); // Default to class view for admin reviews
   const [selectedMonth, setSelectedMonth] = useState('m1'); // 'm1', 'm2', 'm3'
 
-  useEffect(() => {
-    if (viewMode !== 'class') {
-      fetchStudents('?per_page=100');
-    }
-  }, [viewMode, fetchStudents]);
-  
   // Calculate unique classes list from classes master table
   const classesList = classes.map(c => `${c.grade} - ${c.section}`).sort();
   const [selectedClass, setSelectedClass] = useState(localStorage.getItem('goto_class') || classesList[0] || '');
+
+  const selectedClassObj = (classes || []).find(c =>
+    c.name === selectedClass ||
+    `${c.grade} - ${c.section}` === selectedClass ||
+    `${c.grade_ar} - ${c.section_ar}` === selectedClass ||
+    c.id === selectedClass
+  ) || (classes || [])[0];
+
+  useEffect(() => {
+    if (selectedClassObj) {
+      const cleanClassId = selectedClassObj.numericId || String(selectedClassObj.id).replace(/\D/g, '');
+      fetchStudents(`?class_id=${cleanClassId}&per_page=500`);
+    } else {
+      fetchStudents('?per_page=500');
+    }
+  }, [selectedClassObj, fetchStudents]);
   const [classPeriod, setClassPeriod] = useState(localStorage.getItem('goto_period') || 'm1'); // 'm1', 'm2', 'm3', 'termTotal', 'yearlyTotal'
   const [classSubject, setClassSubject] = useState('all'); // 'all', 'detailed', and subjects
 

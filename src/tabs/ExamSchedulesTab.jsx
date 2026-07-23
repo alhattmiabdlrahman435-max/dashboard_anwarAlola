@@ -292,10 +292,22 @@ export default function ExamSchedulesTab() {
       return;
     }
 
+    const targetClass = (classes || []).find(c => 
+      c.id === modalExamClassId || 
+      c.numericId === modalExamClassId || 
+      (c.grade === modalExamGrade && c.section === modalExamSection)
+    ) || (classes || [])[0];
+
+    const cleanClassId = targetClass 
+      ? (targetClass.numericId || String(targetClass.id).replace(/\D/g, '')) 
+      : (modalExamClassId ? String(modalExamClassId).replace(/\D/g, '') : null);
+
     const scheduleData = {
       id: isEditing ? editingScheduleId : Date.now(),
-      grade: modalExamGrade,
-      section: modalExamSection,
+      class_id: cleanClassId ? Number(cleanClassId) : null,
+      classId: cleanClassId ? Number(cleanClassId) : null,
+      grade: targetClass ? targetClass.grade : modalExamGrade,
+      section: targetClass ? targetClass.section : modalExamSection,
       term: modalExamTerm,
       termEn: modalExamTerm === 'الفصل الأول' ? 'First Term' : 'Second Term',
       period: modalExamPeriod,
@@ -367,6 +379,9 @@ export default function ExamSchedulesTab() {
           <div className="exam-schedules-grid">
             {examSchedules.map(sched => {
               const status = getScheduleStatus(sched.subjects);
+              const gradeText = sched.grade || (sched.class && (sched.class.grade_ar || sched.class.grade));
+              const sectionText = sched.section || (sched.class && (sched.class.section_ar || sched.class.section));
+              const hasClassText = Boolean(gradeText && sectionText);
 
               return (
                 <div key={sched.id} className="exam-schedule-card printable-card">
@@ -376,9 +391,9 @@ export default function ExamSchedulesTab() {
                       <h4 className="exam-card-class-name">
                         <Calendar size={18} style={{ color: 'var(--color-primary-ui)' }} />
                         <span>
-                          {sched.grade && sched.section 
-                            ? (lang === 'ar' ? `${sched.grade} - شعبة (${sched.section})` : `${sched.gradeEn || sched.grade} - Sec ${sched.sectionEn || sched.section}`)
-                            : (sched.title || (lang === 'ar' ? 'جدول اختبارات' : 'Exam Schedule'))
+                          {hasClassText 
+                            ? (lang === 'ar' ? `${gradeText} - شعبة (${sectionText})` : `${sched.gradeEn || gradeText} - Sec ${sched.sectionEn || sectionText}`)
+                            : (sched.period || sched.title || (lang === 'ar' ? 'جدول اختبارات' : 'Exam Schedule'))
                           }
                         </span>
                       </h4>

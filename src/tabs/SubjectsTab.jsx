@@ -317,7 +317,7 @@ export default function SubjectsTab() {
                             key={tIdx} 
                             style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'rgba(30, 80, 142, 0.04)', borderRadius: '12px', border: '1px solid var(--color-border)' }}
                           >
-                            <span>{teach.photo || "👨‍🏫"}</span>
+                            {renderAvatar(teach.photo, "👨‍🏫", { width: '20px', height: '20px', fontSize: '13px', marginInlineEnd: 0 })}
                             <span style={{ fontWeight: '500' }}>{lang === 'ar' ? teach.name : (teach.nameEn || teach.name)}</span>
                           </span>
                         ))

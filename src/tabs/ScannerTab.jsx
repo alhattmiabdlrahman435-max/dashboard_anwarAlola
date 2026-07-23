@@ -41,16 +41,30 @@ export default function ScannerTab() {
   const [attendanceMonthSection, setAttendanceMonthSection] = useState('أ');
   const [attendanceSearchQuery, setAttendanceSearchQuery] = useState('');
 
-  const activeClass = classes.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection);
+  const activeClass = classes.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection) || (classes.length > 0 ? classes[0] : null);
 
   useEffect(() => {
     fetchClasses();
   }, [fetchClasses]);
 
   useEffect(() => {
+    if (classes.length > 0) {
+      const match = classes.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection);
+      if (!match) {
+        setAttendanceMonthGrade(classes[0].grade);
+        setAttendanceMonthSection(classes[0].section);
+      }
+    }
+  }, [classes]);
+
+  useEffect(() => {
     if (activeClass) {
-      fetchStudents(`?class_id=${activeClass.id}&per_page=100`);
-      fetchAttendance(`?class_id=${activeClass.id}&per_page=100`);
+      const cleanClassId = activeClass.numericId || String(activeClass.id).replace(/\D/g, '');
+      fetchStudents(`?class_id=${cleanClassId}&per_page=500`);
+      fetchAttendance(`?class_id=${cleanClassId}&per_page=1000`);
+    } else {
+      fetchStudents(`?per_page=500`);
+      fetchAttendance(`?per_page=1000`);
     }
   }, [activeClass, fetchStudents, fetchAttendance]);
   
@@ -234,11 +248,17 @@ export default function ScannerTab() {
             };
 
             const filteredStudentsForAttendance = students.filter(s => {
-              const matchesGrade = s.grade === attendanceMonthGrade;
-              const matchesSection = s.section === attendanceMonthSection;
-              const matchesSearch = s.name.toLowerCase().includes(attendanceSearchQuery.toLowerCase()) ||
-                                    s.nameEn.toLowerCase().includes(attendanceSearchQuery.toLowerCase());
-              return matchesGrade && matchesSection && matchesSearch;
+              const numericClassId = activeClass ? (activeClass.numericId || String(activeClass.id).replace(/\D/g, '')) : null;
+              const matchesClassId = numericClassId && s.class_id && (Number(s.class_id) === Number(numericClassId));
+              const matchesGradeSection = (s.grade === attendanceMonthGrade && s.section === attendanceMonthSection);
+              const matchesClassName = (s.grade + ' - ' + s.section) === (attendanceMonthGrade + ' - ' + attendanceMonthSection);
+              
+              const matchesClass = matchesClassId || matchesGradeSection || matchesClassName || !activeClass;
+
+              const matchesSearch = !attendanceSearchQuery || 
+                                    (s.name && s.name.toLowerCase().includes(attendanceSearchQuery.toLowerCase())) ||
+                                    (s.nameEn && s.nameEn.toLowerCase().includes(attendanceSearchQuery.toLowerCase()));
+              return matchesClass && matchesSearch;
             });
 
             if (students.length === 0) {

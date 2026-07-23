@@ -610,6 +610,10 @@ export default function PrepSupervisorsTab() {
                       className="text-field"
                       value={modalJobId}
                       onChange={(e) => setModalJobId(e.target.value)}
+                      disabled
+                      readOnly
+                      style={{ opacity: 0.75, cursor: 'not-allowed', backgroundColor: 'var(--color-surface-variant, #f1f5f9)' }}
+                      title={lang === 'ar' ? 'الرقم الوظيفي للقراءة فقط وغير قابل للتعديل' : 'Job ID is read-only'}
                       required
                       autoComplete="off"
                     />

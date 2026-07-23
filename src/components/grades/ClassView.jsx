@@ -27,15 +27,16 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
       c.name === selectedClass ||
       `${c.grade} - ${c.section}` === selectedClass ||
       `${c.grade_ar} - ${c.section_ar}` === selectedClass ||
-      `${c.gradeEn} - ${c.sectionEn}` === selectedClass
+      `${c.gradeEn} - ${c.sectionEn}` === selectedClass ||
+      c.id === selectedClass
     );
   }, [classes, selectedClass]);
 
   const targetClassId = useMemo(() => {
     if (!targetClassObj) return null;
-    return typeof targetClassObj.id === 'string'
-      ? targetClassObj.id.replace('cls-', '')
-      : String(targetClassObj.id);
+    return targetClassObj.numericId || (typeof targetClassObj.id === 'string'
+      ? targetClassObj.id.replace(/\D/g, '')
+      : String(targetClassObj.id));
   }, [targetClassObj]);
 
   // Dynamic list of real students associated with selectedClass
@@ -43,13 +44,16 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
     if (!selectedClass) return [];
     return students.filter(s => {
       // 1. Direct class_id match
-      if (targetClassId && (String(s.class_id) === String(targetClassId) || String(s.class_id) === String(targetClassObj?.id))) {
+      if (targetClassId && s.class_id && Number(s.class_id) === Number(targetClassId)) {
+        return true;
+      }
+      if (targetClassObj && targetClassObj.id && String(s.class_id) === String(targetClassObj.id)) {
         return true;
       }
       // 2. Grade and section string match
       const sName = `${s.grade} - ${s.section}`;
       const sNameAr = `${s.grade_ar || s.grade} - ${s.section_ar || s.section}`;
-      const sNameEn = `${s.gradeEn} - ${s.sectionEn}`;
+      const sNameEn = `${s.gradeEn || s.grade} - ${s.sectionEn || s.section}`;
       return sName === selectedClass || sNameAr === selectedClass || sNameEn === selectedClass;
     });
   }, [students, selectedClass, targetClassObj, targetClassId]);

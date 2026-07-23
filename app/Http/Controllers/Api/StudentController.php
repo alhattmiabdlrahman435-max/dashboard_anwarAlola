@@ -42,7 +42,10 @@ class StudentController extends Controller implements HasMiddleware
 
         // Apply filters
         if ($request->filled('class_id')) {
-            $query->where('class_id', $request->input('class_id'));
+            $cleanClassId = preg_replace('/\D/', '', $request->input('class_id'));
+            if (!empty($cleanClassId)) {
+                $query->where('class_id', $cleanClassId);
+            }
         }
         if ($request->filled('parent_id')) {
             $query->where('parent_id', $request->input('parent_id'));
@@ -55,7 +58,13 @@ class StudentController extends Controller implements HasMiddleware
                 $q->where('name_ar', 'LIKE', "%{$search}%")
                   ->orWhere('name_en', 'LIKE', "%{$search}%")
                   ->orWhere('student_code', 'LIKE', "%{$search}%")
-                  ->orWhere('secret_code', 'LIKE', "%{$search}%");
+                  ->orWhere('secret_code', 'LIKE', "%{$search}%")
+                  ->orWhereHas('parentUser', function($pq) use ($search) {
+                      $pq->where('national_id', 'LIKE', "%{$search}%")
+                        ->orWhere('phone', 'LIKE', "%{$search}%")
+                        ->orWhere('name_ar', 'LIKE', "%{$search}%")
+                        ->orWhere('name_en', 'LIKE', "%{$search}%");
+                  });
             });
         }
 

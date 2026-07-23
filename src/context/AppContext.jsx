@@ -440,24 +440,33 @@ export const AppProvider = ({ children }) => {
   const renderAvatar = useCallback((photo, defaultEmoji, customStyle = {}) => {
     if (photo && typeof photo === "string") {
       const resolvedPhoto = photo.trim();
-      if (
+      const isImageUrl = 
         resolvedPhoto.startsWith("data:") ||
         resolvedPhoto.startsWith("http") ||
         resolvedPhoto.startsWith("/") ||
-        resolvedPhoto.includes("/uploads/avatars/")
-      ) {
+        resolvedPhoto.includes("/uploads/") ||
+        resolvedPhoto.includes("/avatars/") ||
+        /\.(jpg|jpeg|png|gif|webp|svg)/i.test(resolvedPhoto);
+
+      if (isImageUrl) {
         let finalSrc = resolvedPhoto;
-        if (resolvedPhoto.includes("/uploads/avatars/") && !resolvedPhoto.startsWith("http")) {
-          const index = resolvedPhoto.indexOf("/uploads/avatars/");
+        if (resolvedPhoto.includes("/uploads/") && !resolvedPhoto.startsWith("http")) {
+          const index = resolvedPhoto.indexOf("/uploads/");
           finalSrc = resolvedPhoto.substring(index);
         }
+        const width = customStyle.width || "32px";
+        const height = customStyle.height || "32px";
         return (
           <img
             src={finalSrc}
             alt="Avatar"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.style.display = "none";
+            }}
             style={{
-              width: "32px",
-              height: "32px",
+              width,
+              height,
               borderRadius: "50%",
               objectFit: "cover",
               verticalAlign: "middle",
@@ -477,7 +486,7 @@ export const AppProvider = ({ children }) => {
           ...customStyle,
         }}
       >
-        {photo || defaultEmoji}
+        {(!photo || photo.includes('/')) ? defaultEmoji : photo}
       </span>
     );
   }, []);

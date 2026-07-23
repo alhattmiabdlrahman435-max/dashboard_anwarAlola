@@ -21,7 +21,7 @@ export default function CommunicationsTab() {
     setToastMessage
   } = useApp();
 
-  const { availableGrades, fetchClasses } = useClasses();
+  const { classes, availableGrades, fetchClasses } = useClasses();
 
   const {
     notifications,
@@ -78,25 +78,38 @@ export default function CommunicationsTab() {
 
   useEffect(() => {
     fetchClasses();
-    fetchStudents();
-    fetchTeachers();
+    fetchStudents('?per_page=1000');
+    fetchTeachers('?per_page=1000');
   }, [fetchClasses, fetchStudents, fetchTeachers]);
 
   // Form states inside modal
   const [modalNotificationType, setModalNotificationType] = useState('parents');
-  const [modalNotificationStudentId, setModalNotificationStudentId] = useState(
-    students.length > 0 ? students[0].id : ''
-  );
-  const [modalNotificationGrade, setModalNotificationGrade] = useState(
-    availableGrades.length > 0 ? availableGrades[0] : ''
-  );
-  const [modalNotificationTeacherId, setModalNotificationTeacherId] = useState(
-    teachers.length > 0 ? teachers[0].id : ''
-  );
+
+  // Real school classes list
+  const classesList = useMemo(() => {
+    if (classes && classes.length > 0) {
+      return classes.map(c => c.name || `${c.grade} - ${c.section}`);
+    }
+    return availableGrades || [];
+  }, [classes, availableGrades]);
+
+  const [modalNotificationStudentId, setModalNotificationStudentId] = useState('');
+  const [modalNotificationGrade, setModalNotificationGrade] = useState('');
+  const [modalNotificationTeacherId, setModalNotificationTeacherId] = useState('');
   const [modalNotificationTitle, setModalNotificationTitle] = useState('');
   const [modalNotificationContent, setModalNotificationContent] = useState('');
   const [studentSearchText, setStudentSearchText] = useState('');
   const [teacherSearchText, setTeacherSearchText] = useState('');
+
+  // Derived effective values with existence validation during render
+  const hasSelectedGrade = classesList.includes(modalNotificationGrade);
+  const selectedGrade = hasSelectedGrade ? modalNotificationGrade : (classesList.length > 0 ? classesList[0] : '');
+
+  const hasSelectedStudent = Array.isArray(students) && students.some(s => String(s.id) === String(modalNotificationStudentId));
+  const selectedStudentId = hasSelectedStudent ? modalNotificationStudentId : (students && students.length > 0 ? students[0].id : '');
+
+  const hasSelectedTeacher = Array.isArray(teachers) && teachers.some(t => String(t.id) === String(modalNotificationTeacherId));
+  const selectedTeacherId = hasSelectedTeacher ? modalNotificationTeacherId : (teachers && teachers.length > 0 ? teachers[0].id : '');
 
   // Delete handlers
   const onDeleteNotificationClick = (e, notifId) => {
@@ -158,21 +171,21 @@ export default function CommunicationsTab() {
     let extraDetails = {};
 
     if (modalNotificationType === 'student') {
-      const targetStudent = students.find(s => s.id === Number(modalNotificationStudentId));
+      const targetStudent = students.find(s => s.id === Number(selectedStudentId));
       extraDetails = {
-        studentId: Number(modalNotificationStudentId),
+        studentId: Number(selectedStudentId),
         studentName: targetStudent ? targetStudent.name : null,
         studentNameEn: targetStudent ? targetStudent.nameEn : null,
         grade: targetStudent ? targetStudent.grade : null
       };
     } else if (modalNotificationType === 'class') {
       extraDetails = {
-        grade: modalNotificationGrade
+        grade: selectedGrade
       };
     } else if (modalNotificationType === 'teacher') {
-      const targetTeacher = teachers.find(t => t.id === Number(modalNotificationTeacherId));
+      const targetTeacher = teachers.find(t => t.id === Number(selectedTeacherId));
       extraDetails = {
-        teacherId: Number(modalNotificationTeacherId),
+        teacherId: Number(selectedTeacherId),
         teacherName: targetTeacher ? targetTeacher.name : null,
         teacherNameEn: targetTeacher ? targetTeacher.nameEn : null
       };
@@ -189,7 +202,7 @@ export default function CommunicationsTab() {
 
     const extraLogs = [];
     if (modalNotificationType === 'student') {
-      const targetStudent = students.find(s => s.id === Number(modalNotificationStudentId));
+      const targetStudent = students.find(s => s.id === Number(selectedStudentId));
       if (targetStudent) {
         const smsText = lang === 'ar'
           ? `تنبيه خاص بخصوص ابنكم ${targetStudent.name}: ${modalNotificationTitle} - ${modalNotificationContent}. رياض و مدارس انوار العلى.`
@@ -300,10 +313,42 @@ export default function CommunicationsTab() {
       if (diffDays < 7) return lang === 'ar' ? `منذ ${diffDays} أيام` : `${diffDays}d ago`;
 
       return formatTime12hMakkah(dateStr);
-    } catch (e) {
+    } catch {
       return dateStr;
     }
   }, [lang, formatTime12hMakkah]);
+
+  // Smart Grade Resolver
+  const resolveGradeName = useCallback((notif) => {
+    if (!notif) return lang === 'ar' ? 'الصف الدراسي' : 'Class';
+
+    // 1. Direct grade/class_name properties on notification object
+    const directGrade = notif.grade || notif.class_name || notif.className || notif.grade_name || notif.gradeName;
+    if (directGrade && directGrade !== 'null' && directGrade !== 'NULL' && directGrade !== 'undefined') {
+      return directGrade;
+    }
+
+    // 2. Lookup from student record if studentId exists
+    if (notif.studentId) {
+      const targetStudent = students.find(s => s.id === Number(notif.studentId));
+      if (targetStudent) {
+        const studentGrade = targetStudent.grade || targetStudent.class_name || targetStudent.grade_name;
+        if (studentGrade && studentGrade !== 'null' && studentGrade !== 'NULL' && studentGrade !== 'undefined') {
+          return studentGrade;
+        }
+      }
+    }
+
+    // 3. Extract grade/class name from notification content/title if present
+    const textToSearch = `${notif.title || ''} ${notif.content || ''}`;
+    const classMatch = textToSearch.match(/(?:للفصل|فصل|الصف)\s+([^\s:,.-]+(?:\s*[-–]\s*[^\s:,.-]+)?)/);
+    if (classMatch && classMatch[1] && !classMatch[1].includes('العام') && !classMatch[1].includes('ابنكم')) {
+      return classMatch[1].trim();
+    }
+
+    // 4. Default clean fallback
+    return lang === 'ar' ? 'الصف الدراسي' : 'Class';
+  }, [lang, students]);
 
   // Accurate KPI Stats Calculation
   const statsTotal = notificationsPagination.total || notifications.length;
@@ -355,7 +400,7 @@ export default function CommunicationsTab() {
     }
 
     return lang === 'ar' ? 'عام' : 'General';
-  }, [lang, students, teachers]);
+  }, [lang, resolveGradeName, students, teachers]);
 
   // Filtered Notifications List
   const filteredNotifications = useMemo(() => {
@@ -370,69 +415,10 @@ export default function CommunicationsTab() {
     });
   }, [notifications, filterDate, activeFilter]);
 
-  // Group notifications chronologically (Today, Yesterday, Earlier)
-  const groupedNotifications = useMemo(() => {
-    const today = new Date().toISOString().substring(0, 10);
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterday = yesterdayDate.toISOString().substring(0, 10);
-
-    const groups = {
-      today: [],
-      yesterday: [],
-      earlier: []
-    };
-
-    filteredNotifications.forEach(notif => {
-      const d = notif.date ? notif.date.substring(0, 10) : '';
-      if (d === today) {
-        groups.today.push(notif);
-      } else if (d === yesterday) {
-        groups.yesterday.push(notif);
-      } else {
-        groups.earlier.push(notif);
-      }
-    });
-
-    return groups;
-  }, [filteredNotifications]);
-
   // Unread Count Stats
   const unreadCount = useMemo(() => {
     return notifications.filter(n => !n.isRead).length;
   }, [notifications]);
-
-  // Smart Grade Resolver
-  const resolveGradeName = (notif) => {
-    if (!notif) return lang === 'ar' ? 'الصف الدراسي' : 'Class';
-
-    // 1. Direct grade/class_name properties on notification object
-    const directGrade = notif.grade || notif.class_name || notif.className || notif.grade_name || notif.gradeName;
-    if (directGrade && directGrade !== 'null' && directGrade !== 'NULL' && directGrade !== 'undefined') {
-      return directGrade;
-    }
-
-    // 2. Lookup from student record if studentId exists
-    if (notif.studentId) {
-      const targetStudent = students.find(s => s.id === Number(notif.studentId));
-      if (targetStudent) {
-        const studentGrade = targetStudent.grade || targetStudent.class_name || targetStudent.grade_name;
-        if (studentGrade && studentGrade !== 'null' && studentGrade !== 'NULL' && studentGrade !== 'undefined') {
-          return studentGrade;
-        }
-      }
-    }
-
-    // 3. Extract grade/class name from notification content/title if present (e.g. "تم تحديث الجدول الدراسي الأسبوعي للفصل الصف الأول - ج")
-    const textToSearch = `${notif.title || ''} ${notif.content || ''}`;
-    const classMatch = textToSearch.match(/(?:للفصل|فصل|الصف)\s+([^\s\:\,\.\-]+(?:\s*[\-\–]\s*[^\s\:\,\.\-]+)?)/);
-    if (classMatch && classMatch[1] && !classMatch[1].includes('العام') && !classMatch[1].includes('ابنكم')) {
-      return classMatch[1].trim();
-    }
-
-    // 4. Default clean fallback
-    return lang === 'ar' ? 'الصف الدراسي' : 'Class';
-  };
 
   // Dynamic Category Details
   const getCategoryDetails = (notif, studentName, studentNameEn, teacherName, teacherNameEn) => {
@@ -502,27 +488,33 @@ export default function CommunicationsTab() {
   };
 
   // Student & Teacher Search Filters for Modal
-  const filteredStudentsList = useMemo(() => {
-    const q = studentSearchText.toLowerCase().trim();
-    if (!q) return students;
-    return students.filter(s => {
-      const nameMatch = s.name?.toLowerCase().includes(q) || s.nameEn?.toLowerCase().includes(q);
-      const idMatch = s.id?.toString().includes(q);
-      const studentNumMatch = (s.student_number || s.studentNumber || s.academic_number || s.national_id || s.code)?.toString().toLowerCase().includes(q);
-      return nameMatch || idMatch || studentNumMatch;
-    });
-  }, [students, studentSearchText]);
+  const qStudent = (studentSearchText || '').toLowerCase().trim();
+  const filteredStudentsList = Array.isArray(students)
+    ? (!qStudent
+        ? students
+        : students.filter(s => {
+            if (!s) return false;
+            const nameMatch = Boolean(s.name?.toString().toLowerCase().includes(qStudent) || s.nameEn?.toString().toLowerCase().includes(qStudent));
+            const idMatch = Boolean(s.id?.toString().includes(qStudent));
+            const studentNum = s.student_number || s.studentNumber || s.academic_number || s.national_id || s.code;
+            const studentNumMatch = Boolean(studentNum?.toString().toLowerCase().includes(qStudent));
+            return nameMatch || idMatch || studentNumMatch;
+          }))
+    : [];
 
-  const filteredTeachersList = useMemo(() => {
-    const q = teacherSearchText.toLowerCase().trim();
-    if (!q) return teachers;
-    return teachers.filter(teach => {
-      const nameMatch = teach.name?.toLowerCase().includes(q) || teach.nameEn?.toLowerCase().includes(q);
-      const idMatch = teach.id?.toString().includes(q);
-      const jobIdMatch = (teach.jobId || teach.job_number || teach.job_no)?.toString().toLowerCase().includes(q);
-      return nameMatch || idMatch || jobIdMatch;
-    });
-  }, [teachers, teacherSearchText]);
+  const qTeacher = (teacherSearchText || '').toLowerCase().trim();
+  const filteredTeachersList = Array.isArray(teachers)
+    ? (!qTeacher
+        ? teachers
+        : teachers.filter(teach => {
+            if (!teach) return false;
+            const nameMatch = Boolean(teach.name?.toString().toLowerCase().includes(qTeacher) || teach.nameEn?.toString().toLowerCase().includes(qTeacher));
+            const idMatch = Boolean(teach.id?.toString().includes(qTeacher));
+            const jobId = teach.jobId || teach.job_number || teach.job_no;
+            const jobIdMatch = Boolean(jobId?.toString().toLowerCase().includes(qTeacher));
+            return nameMatch || idMatch || jobIdMatch;
+          }))
+    : [];
 
   return (
     <div className="notif-command-center">
@@ -1037,28 +1029,29 @@ export default function CommunicationsTab() {
 
           {/* Date Picker & Action Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <input 
-                type="date"
-                className="text-field"
-                style={{ 
-                  height: '42px', 
-                  padding: '0 12px', 
-                  borderRadius: '12px', 
-                  border: '1.5px solid var(--color-border)',
-                  backgroundColor: 'var(--color-surface)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '12.5px',
-                  fontWeight: '600',
-                  outline: 'none'
-                }}
-                value={filterDate}
-                onChange={(e) => {
-                  setFilterDate(e.target.value);
-                  setPage(1);
-                }}
-                title={lang === 'ar' ? 'تصفية حسب التاريخ' : 'Filter by Date'}
-              />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: '12px', padding: '0 10px', height: '42px' }}>
+                <Filter size={15} style={{ color: 'var(--color-primary-ui)' }} />
+                <Calendar size={15} style={{ color: 'var(--color-text-secondary)' }} />
+                <input 
+                  type="date"
+                  style={{ 
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    outline: 'none',
+                    fontFamily: 'inherit'
+                  }}
+                  value={filterDate}
+                  onChange={(e) => {
+                    setFilterDate(e.target.value);
+                    setPage(1);
+                  }}
+                  title={lang === 'ar' ? 'تصفية حسب التاريخ' : 'Filter by Date'}
+                />
+              </div>
               {filterDate && (
                 <button
                   type="button"
@@ -1351,16 +1344,20 @@ export default function CommunicationsTab() {
 
                   <div className="preset-templates-container">
                     <button type="button" className="preset-template-chip" onClick={() => applyPresetTemplate('general_announcement')}>
-                      <span>📜 {lang === 'ar' ? 'تعميم إداري' : 'General Notice'}</span>
+                      <FileText size={13} style={{ color: 'var(--color-primary-ui)' }} />
+                      <span>{lang === 'ar' ? 'تعميم إداري' : 'General Notice'}</span>
                     </button>
                     <button type="button" className="preset-template-chip" onClick={() => applyPresetTemplate('exam')}>
-                      <span>📅 {lang === 'ar' ? 'جدول الاختبارات' : 'Exam Schedule'}</span>
+                      <Calendar size={13} style={{ color: '#0284c7' }} />
+                      <span>{lang === 'ar' ? 'جدول الاختبارات' : 'Exam Schedule'}</span>
                     </button>
                     <button type="button" className="preset-template-chip" onClick={() => applyPresetTemplate('parents_meeting')}>
-                      <span>👥 {lang === 'ar' ? 'اجتماع أولياء الأمور' : 'Parents Meeting'}</span>
+                      <Users size={13} style={{ color: '#8b5cf6' }} />
+                      <span>{lang === 'ar' ? 'اجتماع أولياء الأمور' : 'Parents Meeting'}</span>
                     </button>
                     <button type="button" className="preset-template-chip" onClick={() => applyPresetTemplate('absence')}>
-                      <span>⚠️ {lang === 'ar' ? 'تنبيه مواظبة' : 'Attendance Alert'}</span>
+                      <AlertCircle size={13} style={{ color: '#d97706' }} />
+                      <span>{lang === 'ar' ? 'تنبيه مواظبة' : 'Attendance Alert'}</span>
                     </button>
                   </div>
                 </div>
@@ -1504,7 +1501,7 @@ export default function CommunicationsTab() {
                       style={{ height: '36px', fontSize: '12px', padding: '0 10px' }}
                     />
                     <select
-                      value={modalNotificationStudentId}
+                      value={selectedStudentId}
                       onChange={(e) => setModalNotificationStudentId(e.target.value)}
                       className="text-field"
                       style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px', boxSizing: 'border-box', lineHeight: 'normal' }}
@@ -1522,12 +1519,12 @@ export default function CommunicationsTab() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '11.5px', fontWeight: '700' }}>🏫 {t.selectClass}</label>
                     <select 
-                      value={modalNotificationGrade} 
+                      value={selectedGrade} 
                       onChange={(e) => setModalNotificationGrade(e.target.value)}
                       className="text-field"
                       style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px', boxSizing: 'border-box', lineHeight: 'normal' }}
                     >
-                      {availableGrades.map(g => (
+                      {classesList.map(g => (
                         <option key={g} value={g}>{g}</option>
                       ))}
                     </select>
@@ -1546,7 +1543,7 @@ export default function CommunicationsTab() {
                       style={{ height: '36px', fontSize: '12px', padding: '0 10px' }}
                     />
                     <select
-                      value={modalNotificationTeacherId}
+                      value={selectedTeacherId}
                       onChange={(e) => setModalNotificationTeacherId(e.target.value)}
                       className="text-field"
                       style={{ minHeight: '45px', fontSize: '14px', padding: '0 12px', boxSizing: 'border-box', lineHeight: 'normal' }}
@@ -1689,14 +1686,19 @@ export default function CommunicationsTab() {
                   background: cat.bgGlow,
                   padding: '2px 8px',
                   borderRadius: '8px',
-                  border: `1px solid ${cat.borderColor}`
+                  border: `1px solid ${cat.borderColor}`,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
                 }}>
-                  {cat.label}
+                  <ArrowLeftRight size={11} style={{ opacity: 0.8 }} />
+                  <span>{cat.label}</span>
                 </span>
 
                 {/* 12-Hour Makkah Time Display (AM/PM - ص/م) */}
-                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
-                  🕒 {timeAgo} ({time12hFormatted})
+                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Clock size={13} style={{ color: 'var(--color-primary-ui)', opacity: 0.8 }} />
+                  <span>{timeAgo} ({time12hFormatted})</span>
                 </span>
               </div>
             </div>

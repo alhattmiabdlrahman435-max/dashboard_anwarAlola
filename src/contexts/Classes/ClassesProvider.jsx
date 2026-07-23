@@ -60,6 +60,7 @@ export default function ClassesProvider({ children }) {
               : [];
             return {
               id: `cls-${cls.id}`,
+              numericId: cls.id,
               name: `${cls.grade_ar} - ${cls.section_ar}`,
               nameEn: `${cls.grade_en} - ${cls.section_en}`,
               grade: cls.grade_ar,
@@ -67,6 +68,7 @@ export default function ClassesProvider({ children }) {
               section: cls.section_ar,
               sectionEn: cls.section_en,
               subjects: classSubjects,
+              studentsCount: cls.students_count ?? 0,
             };
           });
           setClasses(mapped);

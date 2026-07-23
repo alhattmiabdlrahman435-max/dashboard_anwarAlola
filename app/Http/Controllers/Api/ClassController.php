@@ -31,7 +31,7 @@ class ClassController extends Controller implements HasMiddleware
             $query->whereIn('id', $scopedClassIds);
         }
 
-        $classes = $query->with(['gradeLevel', 'subjects'])->get();
+        $classes = $query->with(['gradeLevel', 'subjects'])->withCount('students')->get();
         
         foreach ($classes as $class) {
             // جلب معرفات المواد المسجلة في جدول الحصص الأسبوعي لهذا الفصل

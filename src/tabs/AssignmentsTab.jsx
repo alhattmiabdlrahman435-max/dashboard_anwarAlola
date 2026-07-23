@@ -8,7 +8,7 @@ import { useNotifications } from '../contexts/Notifications/useNotifications';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 import { api } from '../services/api';
-import { X, Filter, Calendar, User, BookOpen, Trash2 } from 'lucide-react';
+import { X, Filter, Calendar, User, BookOpen, Trash2, Search } from 'lucide-react';
 
 export default function AssignmentsTab() {
   const {
@@ -41,6 +41,7 @@ export default function AssignmentsTab() {
     setPage,
     setPerPage,
     setFilters,
+    setSearch,
     buildQueryString,
     goToPrevIfEmpty,
   } = usePagination({
@@ -362,6 +363,19 @@ export default function AssignmentsTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: '700' }}>
           <Filter size={15} />
           <span>{lang === 'ar' ? 'تصفية الواجبات:' : 'Filter Assignments:'}</span>
+        </div>
+
+        {/* Search Box */}
+        <div className="search-box" style={{ width: '220px', minHeight: '38px', margin: 0 }}>
+          <Search size={15} />
+          <input
+            type="text"
+            className="text-field"
+            style={{ minHeight: '36px', fontSize: '12px' }}
+            placeholder={lang === 'ar' ? 'البحث عن واجب...' : 'Search assignments...'}
+            value={search || ''}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
 
         {/* Date Filter */}

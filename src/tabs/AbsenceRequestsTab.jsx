@@ -5,7 +5,7 @@ import { useClasses } from '../contexts/Classes/useClasses';
 import { useAttendance } from '../contexts/Attendance/useAttendance';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
-import { X, ArrowUp, ArrowDown } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Search } from 'lucide-react';
 
 export default function AbsenceRequestsTab() {
   const {
@@ -110,6 +110,13 @@ export default function AbsenceRequestsTab() {
     setDecisionModalOpen(true);
   };
 
+  const handleActionClick = (reqOrId, type) => {
+    const req = typeof reqOrId === 'object' ? reqOrId : absenceRequests.find(r => String(r.id) === String(reqOrId));
+    if (req) {
+      openDecisionModal(req, type);
+    }
+  };
+
   const handleModalSubmit = (e) => {
     e.preventDefault();
     if (decisionType === 'rejected' && !decisionNote.trim()) {
@@ -171,6 +178,19 @@ export default function AbsenceRequestsTab() {
                 >
                   🗂️ {t.filterAll} ({absenceRequestsPagination.total})
                 </button>
+
+                {/* Search Box */}
+                <div className="search-box" style={{ width: '220px', minHeight: '36px' }}>
+                  <Search size={16} />
+                  <input 
+                    type="text"
+                    className="text-field"
+                    style={{ minHeight: '34px', fontSize: '12px' }}
+                    placeholder={lang === 'ar' ? 'البحث باسم الطالب أو السبب...' : 'Search student or reason...'}
+                    value={search || ''}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
 
                 {/* Date Filter Input */}
                 <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginInlineStart: '8px' }}>
@@ -292,7 +312,7 @@ export default function AbsenceRequestsTab() {
                                       <button 
                                         className="btn-filled"
                                         style={{ background: 'var(--gradient-success)', border: 'none', color: 'white', padding: '2px 8px', fontSize: '11px', borderRadius: '6px' }}
-                                        onClick={() => handleActionClick(req.id, 'approved')}
+                                        onClick={() => handleActionClick(req, 'approved')}
                                       >
                                         ✓ {t.approveBtn || 'قبول'}
                                       </button>
@@ -301,7 +321,7 @@ export default function AbsenceRequestsTab() {
                                       <button 
                                         className="btn-filled"
                                         style={{ background: 'var(--gradient-error)', border: 'none', color: 'white', padding: '2px 8px', fontSize: '11px', borderRadius: '6px' }}
-                                        onClick={() => handleActionClick(req.id, 'rejected')}
+                                        onClick={() => handleActionClick(req, 'rejected')}
                                       >
                                         ✗ {t.rejectBtn || 'رفض'}
                                       </button>

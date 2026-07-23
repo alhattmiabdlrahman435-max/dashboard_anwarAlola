@@ -284,7 +284,10 @@ export default function ParentsTab() {
             className="text-field"
             placeholder={t.searchParentPlaceholder}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSearch(e.target.value);
+            }}
           />
         </div>
       </div>
@@ -305,7 +308,9 @@ export default function ParentsTab() {
           <tbody>
             {filteredParents.length > 0 ? (
               filteredParents.map((parent) => {
-                const children = students.filter(s => s.parentNationalId === parent.nationalId);
+                const children = (parent.children && parent.children.length > 0)
+                  ? parent.children
+                  : students.filter(s => s.parentNationalId === parent.nationalId);
                 return (
                   <tr key={parent.nationalId}>
                     <td style={{ fontFamily: 'var(--font-mono)' }}>{parent.nationalId}</td>
@@ -320,7 +325,7 @@ export default function ParentsTab() {
                         {children.map(child => (
                           <span key={child.id} className="chip" style={{ cursor: 'default', padding: '4px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             {renderAvatar(child.photo, "👨‍🎓")}
-                            <span>{lang === 'ar' ? child.name : child.nameEn} ({lang === 'ar' ? child.grade : child.gradeEn})</span>
+                            <span>{lang === 'ar' ? child.name : (child.nameEn || child.name)} ({lang === 'ar' ? (child.grade || '') : (child.gradeEn || child.grade || '')})</span>
                             <span style={{ marginInlineStart: '6px', fontSize: '9px', opacity: 0.8 }}>
                               {(child.status === 'present' || child.status === 'late') ? '🟢' : '🔴'}
                             </span>

@@ -144,9 +144,9 @@ class ExamScheduleController extends Controller implements HasMiddleware
             // Create notification for parents in the class
             if ($schedule->class_id) {
                 \App\Models\Notification::create([
-                    'title' => 'جدول اختبارات جديد',
+                    'title' => 'جدول اختبارات جديد 📋',
                     'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title,
-                    'type' => 'general',
+                    'type' => 'exam_schedule',
                     'is_read' => false,
                     'class_id' => $schedule->class_id,
                 ]);
@@ -253,9 +253,9 @@ class ExamScheduleController extends Controller implements HasMiddleware
             // Create notification for parents in the class
             if ($schedule->class_id) {
                 \App\Models\Notification::create([
-                    'title' => 'تعديل جدول اختبارات',
+                    'title' => 'تعديل جدول اختبارات 📋',
                     'content' => 'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title,
-                    'type' => 'general',
+                    'type' => 'exam_schedule',
                     'is_read' => false,
                     'class_id' => $schedule->class_id,
                 ]);

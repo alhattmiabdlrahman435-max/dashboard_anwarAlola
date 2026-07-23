@@ -49,6 +49,18 @@ export default function ParentsProvider({ children }) {
             username: p.username,
             password: 'parent_password123',
             photo: p.photo_url || '🧔',
+            children: (p.children || []).map(c => ({
+              id: c.id,
+              name: c.name_ar || c.name,
+              nameEn: c.name_en || c.nameEn || c.name_ar || c.name,
+              grade: c.grade,
+              gradeEn: c.gradeEn || c.grade,
+              section: c.section,
+              sectionEn: c.sectionEn || c.section,
+              status: c.status || 'absent',
+              photo: c.photo || '👨‍🎓',
+              parentNationalId: c.parentNationalId || p.national_id,
+            })),
           }));
           setParentUsers(mapped);
           setIsStale(false);

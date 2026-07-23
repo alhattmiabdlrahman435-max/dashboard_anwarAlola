@@ -178,9 +178,13 @@ export default function SettingsProvider({ children }) {
         : `New exam schedule published (${newSchedule.periodEn} - ${newSchedule.termEn}) for ${newSchedule.grade}. Please review it in the Parent App.`;
 
     if (token) {
+      const rawClassId = newSchedule.class_id || newSchedule.classId;
+      const cleanClassId = rawClassId ? Number(String(rawClassId).replace(/\D/g, '')) : null;
+
       return settingsService.addExamSchedule({
           title: newSchedule.period,
           term: termKey,
+          class_id: cleanClassId,
           subjects: mappedSubjects,
         })
         .then((data) => {
@@ -254,9 +258,13 @@ export default function SettingsProvider({ children }) {
     });
 
     if (token) {
+      const rawClassId = updatedSchedule.class_id || updatedSchedule.classId;
+      const cleanClassId = rawClassId ? Number(String(rawClassId).replace(/\D/g, '')) : null;
+
       return settingsService.editExamSchedule(id, {
           title: updatedSchedule.period,
           term: termKey,
+          class_id: cleanClassId,
           subjects: mappedSubjects,
         })
         .then((data) => {
@@ -627,9 +635,11 @@ export default function SettingsProvider({ children }) {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setSchedules({});
-      setExamSchedules([]);
-      setIsStale(true);
+      queueMicrotask(() => {
+        setSchedules((prev) => (Object.keys(prev).length > 0 ? {} : prev));
+        setExamSchedules((prev) => (prev.length > 0 ? [] : prev));
+        setIsStale((prev) => (!prev ? true : prev));
+      });
     }
   }, [isAuthenticated]);
 
