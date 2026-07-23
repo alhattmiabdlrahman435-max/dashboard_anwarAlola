@@ -506,15 +506,31 @@ export default function SupervisorsTab() {
                   <input type="text" className="text-field" value={formName} onChange={e => setFormName(e.target.value)} style={{ height: '42px', borderRadius: '10px' }} />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                    {lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span>
+                    {editingVP && <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '600', marginInlineStart: '4px' }}>🔒 {lang === 'ar' ? '(ثابت لا يمكن تعديله)' : '(Read-Only)'}</span>}
+                  </label>
                   <input 
                     type="text" 
                     className="text-field" 
                     value={formJobId} 
-                    onChange={e => setFormJobId(e.target.value)} 
+                    onChange={editingVP ? undefined : (e => setFormJobId(e.target.value))} 
                     disabled={!!editingVP}
                     readOnly={!!editingVP}
-                    style={{ height: '42px', borderRadius: '10px', opacity: editingVP ? 0.75 : 1, cursor: editingVP ? 'not-allowed' : 'text', backgroundColor: editingVP ? 'var(--color-surface-variant, #f1f5f9)' : undefined }} 
+                    tabIndex={editingVP ? -1 : 0}
+                    style={{ 
+                      height: '42px', 
+                      borderRadius: '10px', 
+                      opacity: editingVP ? 0.7 : 1, 
+                      cursor: editingVP ? 'not-allowed' : 'text', 
+                      backgroundColor: editingVP ? '#e2e8f0' : undefined,
+                      color: editingVP ? '#334155' : undefined,
+                      fontWeight: editingVP ? 'bold' : 'normal',
+                      pointerEvents: editingVP ? 'none' : 'auto',
+                      userSelect: editingVP ? 'none' : 'auto',
+                      border: editingVP ? '1.5px solid #cbd5e1' : undefined
+                    }} 
+                    title={editingVP ? (lang === 'ar' ? 'الرقم الوظيفي للقراءة فقط وغير قابل للتعديل' : 'Job ID is read-only') : undefined}
                   />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>

@@ -602,17 +602,29 @@ export default function PrepSupervisorsTab() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
-                    <label htmlFor="edit-prep-job-id" className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label htmlFor="edit-prep-job-id" className="form-label">
+                      {lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span>
+                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginInlineStart: '6px' }}>🔒 {lang === 'ar' ? '(ثابت لا يمكن تعديله)' : '(Read-Only)'}</span>
+                    </label>
                     <input 
                       id="edit-prep-job-id"
                       name="job_id"
                       type="text" 
                       className="text-field"
                       value={modalJobId}
-                      onChange={(e) => setModalJobId(e.target.value)}
-                      disabled
-                      readOnly
-                      style={{ opacity: 0.75, cursor: 'not-allowed', backgroundColor: 'var(--color-surface-variant, #f1f5f9)' }}
+                      readOnly={true}
+                      disabled={true}
+                      tabIndex={-1}
+                      style={{ 
+                        opacity: 0.7, 
+                        cursor: 'not-allowed', 
+                        backgroundColor: '#e2e8f0', 
+                        color: '#334155', 
+                        fontWeight: 'bold', 
+                        pointerEvents: 'none', 
+                        userSelect: 'none',
+                        border: '1.5px solid #cbd5e1'
+                      }}
                       title={lang === 'ar' ? 'الرقم الوظيفي للقراءة فقط وغير قابل للتعديل' : 'Job ID is read-only'}
                       required
                       autoComplete="off"
