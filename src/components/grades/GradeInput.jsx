@@ -44,6 +44,7 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
   const handleChange = (e) => {
     const rawVal = e.target.value;
 
+    // 1. Allow empty string so user can clear/backspace
     if (rawVal === '') {
       setLocalValue('');
       onChange(0);
@@ -51,39 +52,28 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
     }
 
     let numVal = Number(rawVal);
-    if (isNaN(numVal)) {
-      numVal = 0;
+
+    // 2. Reject non-numbers or values below min
+    if (isNaN(numVal) || numVal < minNum) {
+      return;
     }
 
-    // Clamp maximum limit
+    // 3. STRICT NON-ALLOWANCE: Reject any input greater than max completely!
     if (numVal > maxNum) {
-      numVal = maxNum;
-    }
-    // Clamp minimum limit
-    if (numVal < minNum) {
-      numVal = minNum;
+      return;
     }
 
     setLocalValue(numVal);
     onChange(numVal);
 
-    // Auto-advance logic
+    // 4. Auto-tab / Auto-advance on valid 2-digit completion
     const strVal = String(numVal);
     const maxStrLen = String(maxNum).length;
 
-    let shouldAutoAdvance = false;
-    if (strVal.length >= maxStrLen) {
-      shouldAutoAdvance = true;
-    } else if (maxNum <= 15 && numVal >= 2 && numVal <= 9) {
-      shouldAutoAdvance = true;
-    } else if (maxNum <= 50 && numVal >= 6 && numVal <= 9) {
-      shouldAutoAdvance = true;
-    }
-
-    if (shouldAutoAdvance) {
+    if (strVal.length >= maxStrLen && numVal <= maxNum) {
       setTimeout(() => {
         focusNextInput(inputRef.current);
-      }, 50);
+      }, 60);
     }
   };
 
@@ -93,15 +83,20 @@ export default function GradeInput({ value, onChange, min = 0, max = 100, classN
       onChange(0);
     } else {
       let numVal = Number(localValue);
-      if (isNaN(numVal)) numVal = 0;
+      if (isNaN(numVal) || numVal < minNum) numVal = minNum;
       if (numVal > maxNum) numVal = maxNum;
-      if (numVal < minNum) numVal = minNum;
       setLocalValue(numVal);
       onChange(numVal);
     }
   };
 
   const handleKeyDown = (e) => {
+    // Block +, -, e, E
+    if (e.key === '+' || e.key === '-' || e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      return;
+    }
+
     if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
       e.preventDefault();
       focusNextInput(inputRef.current);
