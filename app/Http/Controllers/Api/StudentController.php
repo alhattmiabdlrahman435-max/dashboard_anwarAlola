@@ -141,13 +141,13 @@ class StudentController extends Controller implements HasMiddleware
     public function store(Request $request)
     {
         $request->validate([
-            'student_code' => 'required|string|unique:students,student_code',
+            'student_code' => 'nullable|string',
             'name_ar' => 'required|string',
             'name_en' => 'nullable|string',
             'class_id' => 'required|integer',
             'parent_id' => 'required|integer',
             'photo_url' => 'nullable|string',
-            'qr_code' => 'nullable|string|unique:students,qr_code',
+            'qr_code' => 'nullable|string',
             'secret_code' => 'nullable|string',
             'tuition_fee' => 'nullable|numeric',
         ]);
@@ -170,15 +170,22 @@ class StudentController extends Controller implements HasMiddleware
             }
         }
 
-        $qrCode = $request->qr_code;
-        if (empty($qrCode)) {
+        $studentCode = $request->student_code;
+        if (empty($studentCode) || Student::where('student_code', $studentCode)->exists()) {
+            $seqCount = Student::where('class_id', $request->class_id)->count() + 1;
             do {
-                $qrCode = 'ANWAR-' . random_int(100000, 999999);
-            } while (Student::where('qr_code', $qrCode)->exists());
+                $studentCode = "2026" . $request->class_id . $seqCount;
+                $seqCount++;
+            } while (Student::where('student_code', $studentCode)->exists());
+        }
+
+        $qrCode = $request->qr_code;
+        if (empty($qrCode) || Student::where('qr_code', $qrCode)->exists()) {
+            $qrCode = $studentCode;
         }
 
         $student = Student::create([
-            'student_code' => $request->student_code,
+            'student_code' => $studentCode,
             'name_ar' => $request->name_ar,
             'name_en' => $request->name_en,
             'class_id' => $request->class_id,

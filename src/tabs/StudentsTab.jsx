@@ -192,9 +192,11 @@ export default function StudentsTab() {
     };
 
     const stageIndex = getStageIndex(classObj.grade);
-    const studentsInSameGrade = students.filter(s => s.grade === classObj.grade);
-    const studentSeq = String(studentsInSameGrade.length + 1);
-    const generatedStudentCode = `2026${stageIndex}${studentSeq}`;
+    const existingCodes = students.map(s => parseInt(s.qrCode || s.student_code || 0, 10)).filter(n => !isNaN(n));
+    const maxCode = existingCodes.length > 0 ? Math.max(...existingCodes) : 202630;
+    const baseCode = parseInt(`2026${stageIndex}1`, 10);
+    const nextCodeNum = Math.max(baseCode, maxCode + 1);
+    const generatedStudentCode = String(nextCodeNum);
     const newId = Number(generatedStudentCode);
 
     const nameEnFallback = modalStudentName.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
