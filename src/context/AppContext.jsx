@@ -89,13 +89,26 @@ export const AppProvider = ({ children }) => {
       return allowedModules.includes(module);
     }
 
-    // Supervisors access via custom JSON permissions
-    if (currentUser.role === 'supervisor') {
+    // Supervisors / Vice Principals access via custom JSON permissions
+    if (currentUser.role === 'supervisor' || currentUser.role === 'vice_principal') {
       const perms = currentUser.permissions;
       if (!perms) return false;
       if (perms.full_access) return true;
-      if (!perms[module]) return false;
-      const mp = perms[module];
+      
+      const altKey = module === 'scanner' ? 'attendance'
+        : module === 'attendance' ? 'scanner'
+        : module === 'detailedGrades' ? 'grades'
+        : module === 'grades' ? 'detailedGrades'
+        : module === 'teacherReports' ? 'reports'
+        : module === 'reports' ? 'teacherReports'
+        : module === 'communications' ? 'notifications'
+        : module === 'notifications' ? 'communications'
+        : module === 'absenceRequests' ? 'absence'
+        : module === 'absence' ? 'absenceRequests'
+        : null;
+
+      const mp = perms[module] || (altKey ? perms[altKey] : null);
+      if (!mp) return false;
       if (Array.isArray(mp) && !mp.actions) return mp.includes('view');
       if (mp.actions) return mp.actions.includes('view');
       return false;
@@ -129,13 +142,26 @@ export const AppProvider = ({ children }) => {
       return action === 'view';
     }
 
-    // Supervisor actions via permissions JSON
-    if (currentUser.role === 'supervisor') {
+    // Supervisor / Vice Principal actions via permissions JSON
+    if (currentUser.role === 'supervisor' || currentUser.role === 'vice_principal') {
       const perms = currentUser.permissions;
       if (!perms) return false;
       if (perms.full_access) return true;
-      if (!perms[module]) return false;
-      const mp = perms[module];
+
+      const altKey = module === 'scanner' ? 'attendance'
+        : module === 'attendance' ? 'scanner'
+        : module === 'detailedGrades' ? 'grades'
+        : module === 'grades' ? 'detailedGrades'
+        : module === 'teacherReports' ? 'reports'
+        : module === 'reports' ? 'teacherReports'
+        : module === 'communications' ? 'notifications'
+        : module === 'notifications' ? 'communications'
+        : module === 'absenceRequests' ? 'absence'
+        : module === 'absence' ? 'absenceRequests'
+        : null;
+
+      const mp = perms[module] || (altKey ? perms[altKey] : null);
+      if (!mp) return false;
       if (Array.isArray(mp) && !mp.actions) return mp.includes(action);
       if (mp.actions) return mp.actions.includes(action);
       return false;

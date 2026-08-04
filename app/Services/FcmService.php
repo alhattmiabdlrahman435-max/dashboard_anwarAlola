@@ -118,9 +118,14 @@ class FcmService
             return false;
         }
 
-        $tokens = \App\Models\UserFcmToken::where('user_id', $user->id)
-            ->pluck('fcm_token')
-            ->toArray();
+        $tokens = [];
+        try {
+            $tokens = \App\Models\UserFcmToken::where('user_id', $user->id)
+                ->pluck('fcm_token')
+                ->toArray();
+        } catch (\Throwable $e) {
+            Log::warning("FCM sendToUser query error: " . $e->getMessage());
+        }
 
         // Compatibility fallback
         if ($user->fcm_token && !in_array($user->fcm_token, $tokens)) {

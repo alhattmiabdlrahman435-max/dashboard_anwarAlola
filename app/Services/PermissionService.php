@@ -72,6 +72,10 @@ class PermissionService
                 'reports' => 'teacherReports',
                 'communications' => 'notifications',
                 'notifications' => 'communications',
+                'scanner' => 'attendance',
+                'attendance' => 'scanner',
+                'absenceRequests' => 'absence',
+                'absence' => 'absenceRequests',
                 default => null
             };
             if (!$altKey || !isset($permissions[$altKey])) {
@@ -133,7 +137,9 @@ class PermissionService
             // Get assigned class IDs from supervisor_classes relation or permissions
             $assignedClassIds = $user->supervisorClasses()->pluck('class_id')->unique()->toArray();
             if (empty($assignedClassIds) && !empty($permissions['assigned_classes']) && is_array($permissions['assigned_classes'])) {
-                $assignedClassIds = array_map('intval', $permissions['assigned_classes']);
+                $assignedClassIds = array_values(array_filter(array_map(function($id) {
+                    return (int) preg_replace('/\D/', '', (string) $id);
+                }, $permissions['assigned_classes']), function($v) { return $v > 0; }));
             }
 
             // Fallback for module key aliases
@@ -145,6 +151,10 @@ class PermissionService
                     'reports' => 'teacherReports',
                     'communications' => 'notifications',
                     'notifications' => 'communications',
+                    'scanner' => 'attendance',
+                    'attendance' => 'scanner',
+                    'absenceRequests' => 'absence',
+                    'absence' => 'absenceRequests',
                     default => null
                 };
                 if ($altKey && isset($permissions[$altKey])) {
@@ -167,7 +177,11 @@ class PermissionService
             $scopeIds = $modulePerms['scope_ids'] ?? [];
 
             if ($scope === 'class' && !empty($scopeIds)) {
-                return array_map('intval', $scopeIds);
+                $cleanIds = array_values(array_filter(array_map(function($id) {
+                    return (int) preg_replace('/\D/', '', (string) $id);
+                }, $scopeIds), function($v) { return $v > 0; }));
+
+                return !empty($cleanIds) ? $cleanIds : (!empty($assignedClassIds) ? $assignedClassIds : null);
             }
 
             if ($scope === 'grade' && !empty($scopeIds)) {
@@ -232,6 +246,10 @@ class PermissionService
                 'reports' => 'teacherReports',
                 'communications' => 'notifications',
                 'notifications' => 'communications',
+                'scanner' => 'attendance',
+                'attendance' => 'scanner',
+                'absenceRequests' => 'absence',
+                'absence' => 'absenceRequests',
                 default => null
             };
             if (!$altKey || !isset($permissions[$altKey])) {

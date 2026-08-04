@@ -133,7 +133,7 @@ class AttendanceController extends Controller implements HasMiddleware
         }
         $date = $request->date;
         
-        if ($request->user()->role !== 'admin') {
+        if (!$this->canBypassTimeLock($request->user())) {
             // Strict 24-Hour limit check: Cannot mark/edit past dates older than 24 hours
             $recordDateEnd = \Carbon\Carbon::parse($date)->endOfDay();
             if (now()->greaterThan($recordDateEnd->addHours(24))) {
@@ -235,9 +235,19 @@ class AttendanceController extends Controller implements HasMiddleware
         ]);
 
         $student = Student::findOrFail($attendance->student_id);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'scanner');
+        if ($scopedClassIds !== null && !in_array($student->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتعديل حضور طالب خارج فصولك المحددة.',
+            ], 403);
+        }
+
         $date = $attendance->record_date;
         
-        if ($request->user()->role !== 'admin') {
+        if (!$this->canBypassTimeLock($user)) {
             // Strict 24-Hour limit check
             $recordDateEnd = \Carbon\Carbon::parse($date)->endOfDay();
             if (now()->greaterThan($recordDateEnd->addHours(24))) {
@@ -329,5 +339,28 @@ class AttendanceController extends Controller implements HasMiddleware
             'success' => true,
             'attendance' => $records
         ]);
+    }
+
+    /**
+     * Check if user can bypass time locking (>24 hours or locked daily submission).
+     * Admin, Vice Principals, and Supervisors with attendance edit permissions bypass this.
+     */
+    private function canBypassTimeLock($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->role === 'admin') {
+            return true;
+        }
+
+        if (in_array($user->role, ['vice_principal', 'supervisor'])) {
+            return PermissionService::can($user, 'scanner', 'update') ||
+                   PermissionService::can($user, 'scanner', 'create') ||
+                   !empty($user->permissions['full_access']);
+        }
+
+        return false;
     }
 }

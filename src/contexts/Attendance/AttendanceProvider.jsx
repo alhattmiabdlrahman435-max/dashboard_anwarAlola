@@ -237,8 +237,10 @@ export default function AttendanceProvider({ children }) {
     newStatus,
   ) => {
     const token = localStorage.getItem("auth_token");
+    let previousRecords = null;
 
     setAttendanceRecords((prev) => {
+      previousRecords = prev;
       const existingIdx = prev.findIndex(
         (r) => r.studentId === studentId && r.date === date,
       );
@@ -282,17 +284,21 @@ export default function AttendanceProvider({ children }) {
             return { success: true };
           } else {
             console.error("Failed to sync attendance to backend:", data.message);
+            if (previousRecords) setAttendanceRecords(previousRecords);
+            setToastMessage({ message: data.message || (lang === 'ar' ? 'فشل حفظ سجل الحضور' : 'Failed to save attendance'), type: 'error' });
             return { success: false, message: data.message };
           }
         })
         .catch((err) => {
           console.error("Error syncing attendance:", err);
+          if (previousRecords) setAttendanceRecords(previousRecords);
+          setToastMessage({ message: err.message || (lang === 'ar' ? 'حدث خطأ أثناء الاتصال بالسيرفر' : 'Network error'), type: 'error' });
           return { success: false, message: err.message };
         });
     } else {
       return Promise.resolve({ success: true });
     }
-  }, []);
+  }, [lang, setToastMessage]);
 
   const handleToggleDayAttendance = useCallback((
     studentId,

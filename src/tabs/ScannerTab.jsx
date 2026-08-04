@@ -82,9 +82,35 @@ export default function ScannerTab() {
   const [quickDate, setQuickDate] = useState(new Date().toISOString().substring(0, 10));
   const [quickStatus, setQuickStatus] = useState('present');
 
-  // Check if date is locked (> 24 hours passed for non-admins)
+  // Auto-sync students selection for quick attendance modal when class/section changes
+  useEffect(() => {
+    if (showQuickAttendanceModal && students) {
+      const targetClass = allowedClasses.find(c => c.grade === quickGrade && c.section === quickSection);
+      const targetNumericId = targetClass ? (targetClass.numericId || String(targetClass.id).replace(/\D/g, '')) : null;
+      const filtered = students.filter(s => {
+        const matchesClassId = targetNumericId && s.class_id && Number(s.class_id) === Number(targetNumericId);
+        const matchesGradeSec = s.grade === quickGrade && s.section === quickSection;
+        return matchesClassId || matchesGradeSec;
+      });
+      const listToUse = filtered.length > 0 ? filtered : students;
+      if (listToUse.length > 0) {
+        if (!quickStudentId || !listToUse.some(s => String(s.id) === String(quickStudentId))) {
+          setQuickStudentId(listToUse[0].id);
+        }
+      } else {
+        setQuickStudentId('');
+      }
+    }
+  }, [showQuickAttendanceModal, students, quickGrade, quickSection, allowedClasses]);
+
+  // Check if date is locked (> 24 hours passed for non-admins / non-permitted supervisors)
   const isDate24HoursPassed = (dateStr) => {
     if (currentUser?.role === 'admin') return false;
+    if (currentUser?.role === 'vice_principal' || currentUser?.role === 'supervisor') {
+      if (canAction('scanner', 'update') || canAction('scanner', 'create') || currentUser?.permissions?.full_access) {
+        return false;
+      }
+    }
     const targetEnd = new Date(`${dateStr}T23:59:59`);
     const now = new Date();
     const cutoff = new Date(targetEnd.getTime() + 24 * 60 * 60 * 1000);
@@ -233,9 +259,16 @@ export default function ScannerTab() {
                   type="button"
                   className="btn-accent"
                   onClick={() => {
-                    const defaultGrade = allowedClasses.length > 0 ? allowedClasses[0].grade : attendanceMonthGrade;
-                    const defaultSec = allowedClasses.length > 0 ? allowedClasses[0].section : attendanceMonthSection;
-                    const initialStudents = students.filter(s => s.grade === defaultGrade && s.section === defaultSec);
+                    const currentAllowed = allowedClasses.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection) || (allowedClasses.length > 0 ? allowedClasses[0] : null);
+                    const defaultGrade = currentAllowed ? currentAllowed.grade : (allowedGrades.length > 0 ? allowedGrades[0] : 'الصف الأول');
+                    const defaultSec = currentAllowed ? currentAllowed.section : (allowedSections.length > 0 ? allowedSections[0] : 'أ');
+                    const targetNumericId = currentAllowed ? (currentAllowed.numericId || String(currentAllowed.id).replace(/\D/g, '')) : null;
+                    const initialStudents = students.filter(s => {
+                      const matchesClassId = targetNumericId && s.class_id && Number(s.class_id) === Number(targetNumericId);
+                      const matchesGradeSec = s.grade === defaultGrade && s.section === defaultSec;
+                      return matchesClassId || matchesGradeSec;
+                    });
+
                     setQuickGrade(defaultGrade);
                     setQuickSection(defaultSec);
                     setQuickStudentId(initialStudents.length > 0 ? initialStudents[0].id : '');
@@ -610,47 +643,32 @@ export default function ScannerTab() {
               setShowQuickAttendanceModal(false);
             }}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formGrade}</label>
-                    <select 
-                      className="text-field"
-                      value={quickGrade} 
-                      onChange={(e) => {
-                        const newGrade = e.target.value;
-                        setQuickGrade(newGrade);
-                        const filtered = students.filter(s => s.grade === newGrade && s.section === quickSection);
-                        setQuickStudentId(filtered.length > 0 ? filtered[0].id : '');
-                      }}
-                      style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
-                    >
-                      {allowedGrades.map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.formSection}</label>
-                    <select 
-                      className="text-field"
-                      value={quickSection} 
-                      onChange={(e) => {
-                        const newSec = e.target.value;
-                        setQuickSection(newSec);
-                        const filtered = students.filter(s => s.grade === quickGrade && s.section === newSec);
-                        setQuickStudentId(filtered.length > 0 ? filtered[0].id : '');
-                      }}
-                      style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
-                    >
-                      {allowedSections.map(s => {
-                        const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
-                        return (
-                          <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>
-                        );
-                      })}
-                    </select>
-                  </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>
+                    {lang === 'ar' ? 'الفصل الدراسي والشعبة المصرحة' : 'Allowed Class & Section'}
+                  </label>
+                  <select 
+                    className="text-field"
+                    value={`${quickGrade} - ${quickSection}`} 
+                    onChange={(e) => {
+                      const parts = e.target.value.split(' - ');
+                      if (parts.length >= 2) {
+                        const newG = parts[0];
+                        const newS = parts[1];
+                        setQuickGrade(newG);
+                        setQuickSection(newS);
+                        setAttendanceMonthGrade(newG);
+                        setAttendanceMonthSection(newS);
+                      }
+                    }}
+                    style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+                  >
+                    {(allowedClasses || []).map((c) => (
+                      <option key={c.id} value={`${c.grade} - ${c.section}`}>
+                        {lang === 'ar' ? `${c.grade} - شعبة (${c.section})` : `${c.grade} - Section (${c.section})`}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -663,9 +681,17 @@ export default function ScannerTab() {
                     style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
                   >
                     <option value="">{lang === 'ar' ? '-- اختر الطالب --' : '-- Select Student --'}</option>
-                    {students.filter(s => s.grade === quickGrade && s.section === quickSection).map(student => (
-                      <option key={student.id} value={student.id}>{lang === 'ar' ? student.name : student.nameEn}</option>
-                    ))}
+                    {(() => {
+                      const targetClass = allowedClasses.find(c => c.grade === quickGrade && c.section === quickSection);
+                      const targetNumericId = targetClass ? (targetClass.numericId || String(targetClass.id).replace(/\D/g, '')) : null;
+                      return students.filter(s => {
+                        const matchesClassId = targetNumericId && s.class_id && Number(s.class_id) === Number(targetNumericId);
+                        const matchesGradeSec = s.grade === quickGrade && s.section === quickSection;
+                        return matchesClassId || matchesGradeSec;
+                      }).map(student => (
+                        <option key={student.id} value={student.id}>{lang === 'ar' ? student.name : student.nameEn}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
 
