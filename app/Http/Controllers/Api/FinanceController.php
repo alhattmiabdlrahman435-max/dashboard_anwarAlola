@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -167,7 +168,7 @@ class FinanceController extends Controller implements HasMiddleware
             'amount' => $request->amount,
             'payment_date' => $request->payment_date,
             'reference_no' => $refNo,
-            'recorded_by' => auth()->id()
+            'recorded_by' => $request->user()?->id ?? Auth::id()
         ]);
 
         // Notify parent about new payment receipt
