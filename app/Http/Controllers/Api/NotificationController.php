@@ -172,8 +172,8 @@ class NotificationController extends Controller implements HasMiddleware
 
             $studentName = $notif->student ? ($notif->student->name_ar ?: $notif->student->name_en) : null;
             $studentNameEn = $notif->student ? ($notif->student->name_en ?: $notif->student->name_ar) : null;
-            $teacherName = $notif->teacher ? ($notif->teacher->name_ar ?: ($notif->teacher->name ?: $notif->teacher->name_en)) : null;
-            $teacherNameEn = $notif->teacher ? ($notif->teacher->name_en ?: ($notif->teacher->name ?: $notif->teacher->name_ar)) : null;
+            $teacherName = $notif->teacher ? $notif->teacher->name : null;
+            $teacherNameEn = $notif->teacher ? $notif->teacher->name : null;
             $className = $notif->schoolClass ? ($notif->schoolClass->name_ar ?: $notif->schoolClass->name_en) : null;
 
             return [
