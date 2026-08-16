@@ -132,7 +132,7 @@ class NotificationController extends Controller implements HasMiddleware
 
         $query->with([
             'student:id,name_ar,name_en',
-            'teacher:id,name,name_ar,name_en',
+            'teacher:id,name',
             'schoolClass:id,name_ar,name_en,grade_ar,section_ar'
         ]);
 
