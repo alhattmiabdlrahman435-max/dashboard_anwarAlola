@@ -198,6 +198,7 @@ class AuthController extends Controller
         // UUID filename — prevents enumeration & collisions
         $filename    = Str::uuid() . '.' . $ext;
         $destination = public_path('uploads/avatars');
+        File::ensureDirectoryExists($destination);
         $newPath     = $destination . DIRECTORY_SEPARATOR . $filename;
 
         // Move file to disk first

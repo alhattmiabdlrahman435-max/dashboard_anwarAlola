@@ -127,6 +127,7 @@ class ReportController extends Controller implements HasMiddleware
             $ext         = strtolower($file->getClientOriginalExtension());
             $filename    = Str::uuid() . '.' . $ext;
             $destination = public_path('uploads/reports');
+            File::ensureDirectoryExists($destination);
             $newPath     = $destination . DIRECTORY_SEPARATOR . $filename;
             $file->move($destination, $filename);
             $imageUrl = asset('uploads/reports/' . $filename);

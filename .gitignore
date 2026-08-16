@@ -59,3 +59,30 @@ clockwork.json
 .clockwork
 .clockwork.json
 /config/clockwork.php
+
+# Datasets & Data files
+/csv/
+*.csv
+*.xlsx
+*.xls
+*.tsv
+
+# Analytical files & Generated Reports
+*.pdf
+/FINAL_SUBMISSION/
+/FINAL_SUBMISSION_READY/
+full_brd.html
+master_unification.html
+report.html
+report_l*.html
+unified_master_report.html
+Anwar_AlOla_BRD_Academic_Standard.html
+react_architecture_and_performance_report.md
+
+# Python Generation Scripts
+*.py
+build_academic_brd.py
+build_full_document.py
+generate_pdf.py
+
+

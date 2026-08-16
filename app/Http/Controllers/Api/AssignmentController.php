@@ -123,6 +123,7 @@ class AssignmentController extends Controller implements HasMiddleware
             $ext         = strtolower($file->getClientOriginalExtension());
             $filename    = Str::uuid() . '.' . $ext;
             $destination = public_path('uploads/assignments');
+            File::ensureDirectoryExists($destination);
             $newPath     = $destination . DIRECTORY_SEPARATOR . $filename;
             $file->move($destination, $filename);
             $attachmentUrl = url('uploads/assignments/' . $filename);
@@ -140,46 +141,52 @@ class AssignmentController extends Controller implements HasMiddleware
                 'date_created'   => now()->toDateString(),
                 'attachment_url' => $attachmentUrl,
             ]);
+
+            // Auto-populate submissions for all students in the class
+            $students = \App\Models\Student::with('parentUser')->where('class_id', $request->input('class_id'))->get();
+            foreach ($students as $student) {
+                \App\Models\AssignmentSubmission::create([
+                    'assignment_id' => $assignment->id,
+                    'student_id'    => $student->id,
+                    'status'        => 'pending',
+                ]);
+            }
+
+            // Send notifications to parents of the class (catch non-fatal notification errors)
+            try {
+                \App\Models\Notification::create([
+                    'title'    => 'واجب مدرسي جديد',
+                    'content'  => 'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
+                    'type'     => 'general',
+                    'is_read'  => false,
+                    'class_id' => $assignment->class_id,
+                ]);
+
+                $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
+                foreach ($parentUsers as $parentUser) {
+                    \App\Services\FcmService::sendToUser(
+                        $parentUser,
+                        'واجب مدرسي جديد 📝',
+                        'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
+                        [
+                            'type'     => 'assignment',
+                            'class_id' => (string)$assignment->class_id
+                        ]
+                    );
+                }
+            } catch (\Throwable $ne) {
+                \Illuminate\Support\Facades\Log::warning("Notification failure on assignment create: " . $ne->getMessage());
+            }
+
         } catch (\Throwable $e) {
             if ($newPath && File::exists($newPath)) {
                 File::delete($newPath);
             }
+            \Illuminate\Support\Facades\Log::error("Assignment store error: " . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'فشل حفظ الواجب. يرجى المحاولة مرة أخرى.'
-            ], 500);
-        }
-
-        // Auto-populate submissions for all students in the class
-        $students = \App\Models\Student::with('parentUser')->where('class_id', $request->input('class_id'))->get();
-        foreach ($students as $student) {
-            \App\Models\AssignmentSubmission::create([
-                'assignment_id' => $assignment->id,
-                'student_id' => $student->id,
-                'status' => 'pending',
-            ]);
-        }
-
-        // Send notifications to parents of the class
-        \App\Models\Notification::create([
-            'title' => 'واجب مدرسي جديد',
-            'content' => 'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
-            'type' => 'general',
-            'is_read' => false,
-            'class_id' => $assignment->class_id,
-        ]);
-
-        $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
-        foreach ($parentUsers as $parentUser) {
-            \App\Services\FcmService::sendToUser(
-                $parentUser,
-                'واجب مدرسي جديد 📝',
-                'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
-                [
-                    'type' => 'assignment',
-                    'class_id' => (string)$assignment->class_id
-                ]
-            );
+                'message' => 'فشل حفظ الواجب: ' . $e->getMessage()
+            ], 422);
         }
 
         return response()->json([
@@ -187,6 +194,7 @@ class AssignmentController extends Controller implements HasMiddleware
             'message' => 'تم إضافة الواجب بنجاح',
             'assignment' => $assignment->load(['teacher', 'schoolClass', 'subject', 'submissions.student'])
         ], 201);
+
     }
 
     public function show(Request $request, string $id)
