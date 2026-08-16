@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Services\PermissionService;
@@ -255,8 +256,8 @@ class NotificationController extends Controller implements HasMiddleware
         }
 
         $notification = Notification::create([
-            'title' => $request->title,
-            'content' => $request->content,
+            'title' => $request->input('title'),
+            'content' => $request->input('content'),
             'type' => $type,
             'is_read' => false,
             'student_id' => $studentId,
@@ -337,8 +338,8 @@ class NotificationController extends Controller implements HasMiddleware
         foreach ($tokens as $token) {
             \App\Services\FcmService::sendNotification(
                 $token,
-                $request->title,
-                $request->content,
+                $request->input('title'),
+                $request->input('content'),
                 [
                     'type' => 'notifications',
                     'id' => (string)$notification->id,
@@ -370,9 +371,9 @@ class NotificationController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function readAll()
+    public function readAll(Request $request)
     {
-        $user = auth()->user();
+        $user = $request->user() ?? Auth::user();
         $query = Notification::where('is_read', false);
 
         if ($user->role === 'parent') {
