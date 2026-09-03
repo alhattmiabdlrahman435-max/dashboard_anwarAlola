@@ -117,14 +117,14 @@ export default function StudentsTab() {
   const [editStudentName, setEditStudentName] = useState('');
   const [editClassId, setEditClassId] = useState('');
   const [editStudentPhoto, setEditStudentPhoto] = useState('');
-  const [editTuitionFee, setEditTuitionFee] = useState('10000');
+  const [editTuitionFee, setEditTuitionFee] = useState('0');
   const [editFormError, setEditFormError] = useState('');
   const [modalParentNationalId, setModalParentNationalId] = useState('');
   const [modalParentName, setModalParentName] = useState('');
   const [modalPhone, setModalPhone] = useState('');
   const [modalStudentPhoto, setModalStudentPhoto] = useState('');
   const [modalParentPhoto, setModalParentPhoto] = useState('');
-  const [modalTuitionFee, setModalTuitionFee] = useState('10000');
+  const [modalTuitionFee, setModalTuitionFee] = useState('0');
   const [formError, setFormError] = useState('');
   const [selectedParentLinkOption, setSelectedParentLinkOption] = useState('');
   const [parentSearchText, setParentSearchText] = useState('');
@@ -218,7 +218,7 @@ export default function StudentsTab() {
       qrCode: generatedStudentCode,
       photo: modalStudentPhoto,
       parentPhoto: parentPhotoVal,
-      tuitionFee: Number(modalTuitionFee || 10000)
+      tuitionFee: Number(modalTuitionFee || 0)
     };
 
     const calculatedNumericPart = newId * Number(controlMultiplier) + Number(controlOffset);
@@ -259,7 +259,7 @@ export default function StudentsTab() {
     const studentClass = classes.find(c => c.grade === student.grade && c.section === student.section);
     setEditClassId(studentClass ? studentClass.id : '');
     setEditStudentPhoto(student.photo || '');
-    setEditTuitionFee(String(student.tuitionFee || 10000));
+    setEditTuitionFee(String(student.tuitionFee ?? student.tuition_fee ?? 0));
     setEditFormError('');
     setShowEditStudentModal(true);
   };
@@ -292,7 +292,7 @@ export default function StudentsTab() {
       section: classObj.section,
       sectionEn: classObj.sectionEn || classObj.section,
       photo: editStudentPhoto,
-      tuitionFee: Number(editTuitionFee || 10000)
+      tuitionFee: Number(editTuitionFee || 0)
     })
       .then((res) => {
         if (res && res.success) {
@@ -309,7 +309,7 @@ export default function StudentsTab() {
           setModalPhone('');
           setModalStudentPhoto('');
           setModalParentPhoto('');
-          setModalTuitionFee('10000');
+          setModalTuitionFee('0');
           setSelectedParentLinkOption('');
           setParentSearchText('');
           fetchStudents(buildQueryString());
@@ -842,7 +842,7 @@ export default function StudentsTab() {
                     name="tuition"
                     type="number" 
                     className="text-field"
-                    placeholder="10000"
+                    placeholder="0"
                     value={modalTuitionFee}
                     onChange={(e) => setModalTuitionFee(e.target.value)}
                     required

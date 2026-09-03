@@ -753,7 +753,7 @@ export default function TeachersTab() {
                   <div style={{ position: 'relative', width: '90px', height: '90px', borderRadius: '50%', border: '2px dashed var(--color-primary-ui)', padding: '4px', cursor: 'pointer', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(30, 80, 142, 0.02)', transition: 'all 0.2s ease' }}
                        onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-accent)'}
                        onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--color-primary-ui)'}
-                       onClick={() => document.getElementById('teacher-photo-input').click()}
+                       onClick={() => document.getElementById('add-teacher-photo-input').click()}
                   >
                     {modalTeacherPhoto && modalTeacherPhoto !== '👨‍🏫' ? (
                       <img src={modalTeacherPhoto.includes('/uploads/avatars/') ? modalTeacherPhoto.substring(modalTeacherPhoto.indexOf('/uploads/avatars/')) : modalTeacherPhoto} alt="Preview" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
@@ -766,7 +766,7 @@ export default function TeachersTab() {
                     <input 
                       type="file" 
                       accept="image/*"
-                      id="teacher-photo-input"
+                      id="add-teacher-photo-input"
                       onChange={(e) => {
                         const file = e.target.files[0];
                         if (file) {
@@ -784,9 +784,9 @@ export default function TeachersTab() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="edit-teacher-name" className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="add-teacher-name" className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input 
-                    id="edit-teacher-name"
+                    id="add-teacher-name"
                     name="name"
                     type="text" 
                     className="text-field"
@@ -799,38 +799,24 @@ export default function TeachersTab() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
-                    <label htmlFor="edit-teacher-job-id" className="form-label">
+                    <label htmlFor="add-teacher-job-id" className="form-label">
                       {lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span>
-                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginInlineStart: '6px' }}>🔒 {lang === 'ar' ? '(ثابت لا يمكن تعديله)' : '(Read-Only)'}</span>
                     </label>
                     <input 
-                      id="edit-teacher-job-id"
+                      id="add-teacher-job-id"
                       name="job_id"
                       type="text" 
                       className="text-field"
-                      placeholder="1011111111"
+                      placeholder={lang === 'ar' ? 'مثال: T101 أو 101111' : 'e.g. T101 or 101111'}
                       value={modalTeacherJobId}
-                      readOnly={true}
-                      disabled={true}
-                      tabIndex={-1}
-                      style={{ 
-                        opacity: 0.7, 
-                        cursor: 'not-allowed', 
-                        backgroundColor: '#e2e8f0', 
-                        color: '#334155', 
-                        fontWeight: 'bold', 
-                        pointerEvents: 'none', 
-                        userSelect: 'none',
-                        border: '1.5px solid #cbd5e1'
-                      }}
-                      title={lang === 'ar' ? 'الرقم الوظيفي للقراءة فقط وغير قابل للتعديل' : 'Job ID is read-only'}
+                      onChange={(e) => setModalTeacherJobId(e.target.value)}
                       required
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="edit-teacher-phone" className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <label htmlFor="add-teacher-phone" className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
                     <input 
-                      id="edit-teacher-phone"
+                      id="add-teacher-phone"
                       name="phone"
                       type="text" 
                       className="text-field"
@@ -843,9 +829,9 @@ export default function TeachersTab() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="edit-teacher-address" className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
+                  <label htmlFor="add-teacher-address" className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
                   <input 
-                    id="edit-teacher-address"
+                    id="add-teacher-address"
                     name="address"
                     type="text" 
                     className="text-field"
@@ -1026,20 +1012,47 @@ export default function TeachersTab() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="add-teacher-name" className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input id="add-teacher-name" name="name" type="text" className="text-field" value={modalTeacherName} onChange={(e) => setModalTeacherName(e.target.value)} required />
+                  <label htmlFor="edit-teacher-name" className="form-label">{t.formTeacherName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input id="edit-teacher-name" name="name" type="text" className="text-field" value={modalTeacherName} onChange={(e) => setModalTeacherName(e.target.value)} required />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="add-teacher-job-id" className="form-label">{lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input id="add-teacher-job-id" name="job_id" type="text" className="text-field" value={modalTeacherJobId} onChange={(e) => setModalTeacherJobId(e.target.value)} required />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                  <div className="form-group">
+                    <label htmlFor="edit-teacher-job-id" className="form-label">
+                      {lang === 'ar' ? 'الرقم الوظيفي (Job ID)' : 'Job ID'} <span style={{ color: 'var(--color-error)' }}>*</span>
+                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginInlineStart: '6px' }}>🔒 {lang === 'ar' ? '(ثابت لا يمكن تعديله)' : '(Read-Only)'}</span>
+                    </label>
+                    <input 
+                      id="edit-teacher-job-id" 
+                      name="job_id" 
+                      type="text" 
+                      className="text-field" 
+                      value={modalTeacherJobId} 
+                      readOnly={true}
+                      disabled={true}
+                      tabIndex={-1}
+                      style={{ 
+                        opacity: 0.75, 
+                        cursor: 'not-allowed', 
+                        backgroundColor: '#e2e8f0', 
+                        color: '#334155', 
+                        fontWeight: 'bold', 
+                        pointerEvents: 'none', 
+                        userSelect: 'none',
+                        border: '1.5px solid #cbd5e1'
+                      }}
+                      title={lang === 'ar' ? 'الرقم الوظيفي للقراءة فقط وغير قابل للتعديل' : 'Job ID is read-only'}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="edit-teacher-phone" className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <input id="edit-teacher-phone" name="phone" type="text" className="text-field" value={modalTeacherPhone} onChange={(e) => setModalTeacherPhone(e.target.value)} placeholder="7XXXXXXXX" required />
+                  </div>
                 </div>
+
                 <div className="form-group">
-                  <label htmlFor="add-teacher-phone" className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input id="add-teacher-phone" name="phone" type="text" className="text-field" value={modalTeacherPhone} onChange={(e) => setModalTeacherPhone(e.target.value)} placeholder="7XXXXXXXX" required />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="add-teacher-address" className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
-                  <input id="add-teacher-address" name="address" type="text" className="text-field" value={modalTeacherAddress} onChange={(e) => setModalTeacherAddress(e.target.value)} placeholder={lang === 'ar' ? 'مثال: صنعاء، شارع حدة' : 'e.g. Sanaa, Hadda St'} />
+                  <label htmlFor="edit-teacher-address" className="form-label">{lang === 'ar' ? 'عنوان السكن' : 'Home Address'}</label>
+                  <input id="edit-teacher-address" name="address" type="text" className="text-field" value={modalTeacherAddress} onChange={(e) => setModalTeacherAddress(e.target.value)} placeholder={lang === 'ar' ? 'مثال: صنعاء، شارع حدة' : 'e.g. Sanaa, Hadda St'} />
                 </div>
                 
                 <div style={{ padding: '14px', background: 'rgba(30, 80, 142, 0.03)', border: '1px solid var(--color-border)', borderRadius: '16px', marginBottom: '16px' }}>

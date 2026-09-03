@@ -123,7 +123,7 @@ class StudentController extends Controller implements HasMiddleware
                 'qrCode' => $student->qr_code,
                 'photo' => $student->photo_url ?: '👨‍🎓',
                 'secret_code' => $student->secret_code,
-                'tuition_fee' => (float)($student->tuition_fee ?? 10000.00),
+                'tuition_fee' => (float)($student->tuition_fee ?? 0.00),
                 'is_active' => $student->is_active,
             ];
         });
@@ -193,7 +193,7 @@ class StudentController extends Controller implements HasMiddleware
             'photo_url' => $photoUrl ?: '👨‍🎓',
             'qr_code' => $qrCode,
             'secret_code' => $request->secret_code,
-            'tuition_fee' => $request->tuition_fee ?? 10000.00,
+            'tuition_fee' => $request->tuition_fee ?? 0.00,
             'is_active' => true,
         ]);
 

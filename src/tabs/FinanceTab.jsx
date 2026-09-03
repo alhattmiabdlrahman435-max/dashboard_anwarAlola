@@ -202,7 +202,7 @@ export default function FinanceTab() {
   const selectedRequired = useMemo(() => {
     const feeRec = filteredStudents.find(s => s.student_id === selectedFinanceStudentId);
     if (feeRec) return feeRec.total_fees;
-    return selectedStudent ? (selectedStudent.tuition_fee ?? selectedStudent.tuitionFee ?? 10000) : 0;
+    return selectedStudent ? (selectedStudent.tuition_fee ?? selectedStudent.tuitionFee ?? 0) : 0;
   }, [filteredStudents, selectedStudent, selectedFinanceStudentId]);
   const selectedPayments = useMemo(() => {
     return selectedStudent
@@ -337,7 +337,7 @@ export default function FinanceTab() {
               <tbody>
                 {filteredStudents.length > 0 ? (
                   filteredStudents.map(s => {
-                    const required = s.tuition_fee ?? s.tuitionFee ?? 10000;
+                    const required = s.tuition_fee ?? s.tuitionFee ?? 0;
                     const paid = tuitionFees.payments.filter(p => p.studentId === s.id).reduce((sum, p) => sum + p.amount, 0);
                     const remaining = required - paid;
                     const isSelected = selectedFinanceStudentId === s.id;

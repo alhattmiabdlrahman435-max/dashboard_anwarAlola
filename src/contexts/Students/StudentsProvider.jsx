@@ -227,14 +227,14 @@ export default function StudentsProvider({ children }) {
             photo_url: newStudent.photo,
             qr_code: newStudent.qrCode,
             secret_code: newGradeRow.secretCode,
-            tuition_fee: Number(newStudent.tuitionFee || 10000),
+            tuition_fee: Number(newStudent.tuitionFee ?? 0),
           })
           .then((data) => {
             if (data.success) {
               const addedStudent = {
                 ...newStudent,
                 id: Number(data.student.id),
-                tuition_fee: Number(data.student.tuition_fee || newStudent.tuitionFee || 10000),
+                tuition_fee: Number(data.student.tuition_fee ?? newStudent.tuitionFee ?? 0),
               };
               setRawStudents((prev) => [...prev, addedStudent]);
               

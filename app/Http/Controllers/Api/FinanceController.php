@@ -68,7 +68,7 @@ class FinanceController extends Controller implements HasMiddleware
         $students = $paginator->getCollection();
 
         $records = $students->map(function($student) {
-            $totalFees = (float)($student->tuition_fee ?? 10000.00);
+            $totalFees = (float)($student->tuition_fee ?? 0.00);
             $paid = $student->payments->sum('amount');
             $remaining = $totalFees - $paid;
 
@@ -113,7 +113,7 @@ class FinanceController extends Controller implements HasMiddleware
             ], 403);
         }
 
-        $totalFees = (float)($student->tuition_fee ?? 10000.00);
+        $totalFees = (float)($student->tuition_fee ?? 0.00);
         $paid = $student->payments->sum('amount');
         $remaining = $totalFees - $paid;
 

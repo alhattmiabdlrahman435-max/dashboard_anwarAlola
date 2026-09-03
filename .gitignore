@@ -62,27 +62,42 @@ clockwork.json
 
 # Datasets & Data files
 /csv/
+/CSV_EXPANDED/
 *.csv
 *.xlsx
 *.xls
 *.tsv
+*.parquet
+*.jsonl
 
-# Analytical files & Generated Reports
+# Analytical files, BRDs, Audits & Generated Reports
 *.pdf
 /FINAL_SUBMISSION/
 /FINAL_SUBMISSION_READY/
+/*.html
+!/index.html
 full_brd.html
 master_unification.html
 report.html
 report_l*.html
 unified_master_report.html
 Anwar_AlOla_BRD_Academic_Standard.html
+Final_Graduation_Presentation.html
 react_architecture_and_performance_report.md
+*report*.html
+*analysis*.html
+*validation*.html
+*audit*.html
+*presentation*.html
+*analysis*.md
+*report*.md
+*audit*.md
+*validation*.md
+*BRD*
+*brd*
 
 # Python Generation Scripts
 *.py
 build_academic_brd.py
 build_full_document.py
 generate_pdf.py
-
-
