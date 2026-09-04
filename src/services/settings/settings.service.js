@@ -1,8 +1,9 @@
 import { api } from '../api';
 
 export const settingsService = {
-  getSchedules: () => {
-    return api.get("/api/schedules");
+  getSchedules: (params = '') => {
+    const query = typeof params === 'string' && params ? (params.startsWith('?') ? params : `?${params}`) : '?per_page=100';
+    return api.get(`/api/schedules${query}`);
   },
   
   saveSchedules: (payload) => {

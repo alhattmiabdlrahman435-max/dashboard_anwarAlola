@@ -15,6 +15,7 @@ const defaultWeekSchedule = {
   monday: ["", "", "", "", "", "", ""],
   tuesday: ["", "", "", "", "", "", ""],
   wednesday: ["", "", "", "", "", "", ""],
+  thursday: ["", "", "", "", "", "", ""],
 };
 
 export default function ScheduleTab() {
@@ -50,6 +51,7 @@ export default function ScheduleTab() {
   const [modalClassSubjects, setModalClassSubjects] = useState([]);
   const [selectedClassForEdit, setSelectedClassForEdit] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
   useEffect(() => {
     if (selectedScheduleGrade && !schedules[selectedScheduleGrade]) {
@@ -354,45 +356,64 @@ export default function ScheduleTab() {
         {canAction('schedule', 'update') && (
           <button
             className="btn-filled"
+            disabled={isSavingSchedule}
+            style={{
+              opacity: isSavingSchedule ? 0.7 : 1,
+              cursor: isSavingSchedule ? "not-allowed" : "pointer",
+              minWidth: "140px",
+            }}
             onClick={() => {
+              if (isSavingSchedule) return;
               const token = localStorage.getItem("auth_token");
-              if (token && schedules[selectedScheduleGrade]) {
-                api.post("/api/schedules", {
-                  class_name: selectedScheduleGrade,
-                  schedule: schedules[selectedScheduleGrade],
-                })
-                  .then((data) => {
-                    if (data.success) {
-                      setToastMessage(
-                        lang === "ar"
-                          ? "تم حفظ التعديلات على الجدول بنجاح!"
-                          : "Timetable changes saved successfully!",
-                      );
-                      setTimeout(() => setToastMessage(""), 3000);
-                    } else {
-                      setToastMessage(
-                        lang === "ar"
-                          ? "فشل حفظ الجدول: " + (data.message || "")
-                          : "Failed to save schedule: " + (data.message || ""),
-                        "error"
-                      );
-                      setTimeout(() => setToastMessage(""), 6000);
-                    }
-                  })
-                  .catch((err) => {
-                    console.error("Error saving schedule:", err);
+              if (!token || !selectedScheduleGrade || !schedules[selectedScheduleGrade]) return;
+
+              const currentClassObj = classes.find(
+                (c) => c.name === selectedScheduleGrade,
+              );
+              const numericClassId = currentClassObj
+                ? currentClassObj.numericId || Number(String(currentClassObj.id).replace(/\D/g, ''))
+                : null;
+
+              setIsSavingSchedule(true);
+              api.post("/api/schedules", {
+                class_id: numericClassId,
+                class_name: selectedScheduleGrade,
+                schedule: schedules[selectedScheduleGrade],
+              })
+                .then((data) => {
+                  if (data.success) {
                     setToastMessage(
                       lang === "ar"
-                        ? "فشل حفظ الجدول: " + (err.message || "حدث خطأ أثناء حفظ الجدول")
-                        : "Failed to save schedule: " + (err.message || "Error saving schedule"),
+                        ? "تم حفظ التعديلات على الجدول بنجاح!"
+                        : "Timetable changes saved successfully!",
+                    );
+                    setTimeout(() => setToastMessage(""), 4000);
+                  } else {
+                    setToastMessage(
+                      lang === "ar"
+                        ? "فشل حفظ الجدول: " + (data.message || "")
+                        : "Failed to save schedule: " + (data.message || ""),
                       "error"
                     );
                     setTimeout(() => setToastMessage(""), 6000);
-                  });
-              }
+                  }
+                })
+                .catch((err) => {
+                  console.error("Error saving schedule:", err);
+                  setToastMessage(
+                    lang === "ar"
+                      ? "فشل حفظ الجدول: " + (err.message || "حدث خطأ أثناء حفظ الجدول")
+                      : "Failed to save schedule: " + (err.message || "Error saving schedule"),
+                    "error"
+                  );
+                  setTimeout(() => setToastMessage(""), 6000);
+                })
+                .finally(() => {
+                  setIsSavingSchedule(false);
+                });
             }}
           >
-            💾 {t.saveSchedule}
+            {isSavingSchedule ? (lang === "ar" ? "جاري الحفظ..." : "Saving...") : `💾 ${t.saveSchedule}`}
           </button>
         )}
       </div>

@@ -60,7 +60,7 @@ export default function SettingsProvider({ children }) {
         if (!localStorage.getItem('auth_token')) return;
         if (reqId !== fetchWeeklySchedulesRequestRef.current) return;
         if (data.success && data.schedules && Object.keys(data.schedules).length > 0) {
-          setSchedules(data.schedules);
+          setSchedules((prev) => ({ ...prev, ...data.schedules }));
           setIsStale(false);
         }
       })
@@ -357,7 +357,7 @@ export default function SettingsProvider({ children }) {
     });
   }, [lang, setToastMessage, triggerConfirm]);
 
-  // Handle weekly schedule changes
+  // Handle weekly schedule changes locally in memory
   const handleScheduleChange = useCallback((
     dayKey,
     periodIdx,
@@ -365,42 +365,14 @@ export default function SettingsProvider({ children }) {
     selectedScheduleGrade
   ) => {
     setSchedules((prev) => {
-      const gradeSchedule = { ...prev[selectedScheduleGrade] };
+      const gradeSchedule = { ...(prev[selectedScheduleGrade] || {}) };
       const dayClasses = [...(gradeSchedule[dayKey] || [])];
       dayClasses[periodIdx] = val;
       gradeSchedule[dayKey] = dayClasses;
 
-      const token = localStorage.getItem("auth_token");
-      if (token) {
-        settingsService.saveSchedules({
-            class_name: selectedScheduleGrade,
-            schedule: gradeSchedule,
-          })
-          .then((data) => {
-            if (!data.success) {
-              console.error("Failed to save schedule to backend:", data.message);
-              setToastMessage(
-                lang === "ar"
-                  ? `فشل حفظ التعديل: ${data.message || ""}`
-                  : `Failed to save changes: ${data.message || ""}`
-              );
-              setTimeout(() => setToastMessage(""), 5000);
-            }
-          })
-          .catch((err) => {
-            console.error("Error saving schedule to backend:", err);
-            setToastMessage(
-              lang === "ar"
-                ? `فشل حفظ التعديل: ${err.message || ""}`
-                : `Failed to save changes: ${err.message || ""}`
-            );
-            setTimeout(() => setToastMessage(""), 5000);
-          });
-      }
-
       return { ...prev, [selectedScheduleGrade]: gradeSchedule };
     });
-  }, [lang, setToastMessage]);
+  }, []);
 
   // Calculate secret codes cryptography
   const handleCalculateSecretCodes = useCallback(() => {

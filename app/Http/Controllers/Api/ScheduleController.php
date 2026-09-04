@@ -40,6 +40,13 @@ class ScheduleController extends Controller implements HasMiddleware
             $classQuery->whereIn('id', $scopedClassIds);
         }
 
+        // Support direct class_id filter if provided
+        if ($request->filled('class_id')) {
+            $classId = (int) $request->input('class_id');
+            $classQuery->where('id', $classId);
+            $scheduleQuery->where('class_id', $classId);
+        }
+
         // Apply search on classes
         $search = $request->input('search');
         if (!empty($search)) {
@@ -60,7 +67,14 @@ class ScheduleController extends Controller implements HasMiddleware
             $classQuery->orderBy('id', 'asc');
         }
 
-        $perPage = (int) $request->input('per_page', 20);
+        // Fetch all classes by default (up to 100) or as requested to prevent truncating timetable
+        $perPageInput = $request->input('per_page');
+        if ($perPageInput === 'all' || $request->boolean('all')) {
+            $perPage = 1000;
+        } else {
+            $perPage = $perPageInput ? (int) $perPageInput : 100;
+        }
+
         $paginator = $classQuery->with(['teacherSubjects.teacher', 'teacherSubjects.subject'])->paginate($perPage);
         $classes = $paginator->getCollection();
 
@@ -77,13 +91,14 @@ class ScheduleController extends Controller implements HasMiddleware
         foreach ($classes as $cls) {
             $className = $cls->grade_ar . ' - ' . $cls->section_ar;
             
-            // Initialize default schedule template (Saturday to Wednesday) - 7 blank periods by default
+            // Initialize default schedule template (Saturday to Thursday) - 7 blank periods by default
             $grouped[$className] = [
                 'saturday' => array_fill(0, 7, ''),
                 'sunday' => array_fill(0, 7, ''),
                 'monday' => array_fill(0, 7, ''),
                 'tuesday' => array_fill(0, 7, ''),
                 'wednesday' => array_fill(0, 7, ''),
+                'thursday' => array_fill(0, 7, ''),
             ];
 
             // Build teachers mapping for subjects in this class
@@ -125,21 +140,29 @@ class ScheduleController extends Controller implements HasMiddleware
     public function store(Request $request)
     {
         $request->validate([
-            'class_name' => 'required|string',
+            'class_id' => 'nullable|integer',
+            'class_name' => 'required_without:class_id|string',
             'schedule' => 'required|array', // e.g. { sunday: [...], monday: [...] }
         ]);
 
-        $className = $request->class_name;
-        
-        // Find class by name_ar
-        $parts = explode(' - ', $className);
-        $grade = $parts[0] ?? '';
-        $section = $parts[1] ?? '';
-        
-        $cls = SchoolClass::where('grade_ar', $grade)->where('section_ar', $section)->first();
+        $cls = null;
+        if ($request->filled('class_id')) {
+            $cls = SchoolClass::find($request->class_id);
+        }
+
+        if (!$cls && $request->filled('class_name')) {
+            $className = trim($request->class_name);
+            $parts = explode(' - ', $className);
+            $grade = trim($parts[0] ?? '');
+            $section = trim($parts[1] ?? '');
+            $cls = SchoolClass::where('grade_ar', $grade)->where('section_ar', $section)->first();
+        }
+
         if (!$cls) {
             return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
         }
+
+        $className = $cls->grade_ar . ' - ' . $cls->section_ar;
 
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'schedule');
@@ -402,28 +425,32 @@ class ScheduleController extends Controller implements HasMiddleware
 
             // 8. Register post-commit hook to dispatch synchronous FCM requests ONLY after transaction commits successfully
             DB::afterCommit(function() use ($teacherFcmToSend, $parentsToNotify, $cls) {
-                foreach ($teacherFcmToSend as $item) {
-                    \App\Services\FcmService::sendToUser(
-                        $item['user'],
-                        $item['title'],
-                        $item['body'],
-                        [
-                            'type' => 'weekly_schedule',
-                            'class_id' => (string)$cls->id
-                        ]
-                    );
-                }
+                try {
+                    foreach ($teacherFcmToSend as $item) {
+                        \App\Services\FcmService::sendToUser(
+                            $item['user'],
+                            $item['title'],
+                            $item['body'],
+                            [
+                                'type' => 'weekly_schedule',
+                                'class_id' => (string)$cls->id
+                            ]
+                        );
+                    }
 
-                foreach ($parentsToNotify as $item) {
-                    \App\Services\FcmService::sendToUser(
-                        $item['user'],
-                        $item['title'],
-                        $item['body'],
-                        [
-                            'type' => 'weekly_schedule',
-                            'class_id' => (string)$cls->id
-                        ]
-                    );
+                    foreach ($parentsToNotify as $item) {
+                        \App\Services\FcmService::sendToUser(
+                            $item['user'],
+                            $item['title'],
+                            $item['body'],
+                            [
+                                'type' => 'weekly_schedule',
+                                'class_id' => (string)$cls->id
+                            ]
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('FCM schedule notification error: ' . $e->getMessage());
                 }
             });
 
