@@ -456,7 +456,7 @@ export default function ClassesTab() {
                   >
                     🔍 {lang === 'ar' ? 'عرض التفاصيل' : 'Details'}
                   </button>
-                  {canAction('classes', 'update') && (
+                  {canAction('classes', 'update', cls.id) && (
                     <button 
                       className="btn-elevated"
                       style={{ padding: '8px 10px', fontSize: '12px' }}
@@ -476,7 +476,7 @@ export default function ClassesTab() {
                       📝
                     </button>
                   )}
-                  {canAction('classes', 'delete') && (
+                  {canAction('classes', 'delete', cls.id) && (
                     <button 
                       className="btn-elevated danger"
                       style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--color-error)' }}

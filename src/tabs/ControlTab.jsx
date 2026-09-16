@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
+import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useSettings } from '../contexts/Settings/useSettings';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
@@ -17,7 +18,8 @@ export default function ControlTab() {
     fetchControlGrades,
   } = useApp();
 
-  const { classes, fetchClasses } = useClasses();
+  const { allowedClasses: classes } = useAllowedClasses('control');
+  const { fetchClasses } = useClasses();
   const {
     isGradesEncrypted,
     setIsGradesEncrypted,
@@ -122,7 +124,7 @@ export default function ControlTab() {
 
         <div style={{ display: 'flex', gap: '8px' }}>
           {/* Encrypted switch toggle */}
-          {canAction('control', 'generateSecretCodes') && (
+          {canAction('control', 'generateSecretCodes', filters.class_id !== 'all' ? filters.class_id : null) && (
             <button 
               className="btn-accent"
               onClick={handleToggleEncryption}

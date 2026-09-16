@@ -64,5 +64,9 @@ export const settingsService = {
   
   deleteExamSchedule: (id) => {
     return api.delete(`/api/exam-schedules/${id}`);
+  },
+
+  duplicateExamSchedule: (id, payload) => {
+    return api.post(`/api/exam-schedules/${id}/duplicate`, payload);
   }
 };

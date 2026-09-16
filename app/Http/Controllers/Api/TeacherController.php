@@ -313,10 +313,18 @@ class TeacherController extends Controller implements HasMiddleware
                         }
                     }
 
-                    // Delete old subjects assignments
-                    TeacherSubject::where('teacher_id', $teacher->id)->delete();
+                    // Delete old subjects assignments (only for scoped classes if user is scoped supervisor)
+                    $scopedClassIds = PermissionService::getScopedClassIds(auth()->user(), 'teachers');
+                    if ($scopedClassIds !== null) {
+                        TeacherSubject::where('teacher_id', $teacher->id)->whereIn('class_id', $scopedClassIds)->delete();
+                    } else {
+                        TeacherSubject::where('teacher_id', $teacher->id)->delete();
+                    }
 
                     foreach ($request->assignments as $assign) {
+                        if ($scopedClassIds !== null && !in_array((int)$assign['class_id'], $scopedClassIds)) {
+                            continue; // skip assignments outside supervisor scope
+                        }
                         TeacherSubject::create([
                             'teacher_id' => $teacher->id,
                             'subject_id' => $assign['subject_id'],
@@ -374,11 +382,24 @@ class TeacherController extends Controller implements HasMiddleware
         }
     }
 
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
-        $teacher = User::teachers()->find($id);
+        $teacher = User::teachers()->with('teacherSubjects')->find($id);
         if (!$teacher) {
             return response()->json(['success' => false, 'message' => 'المعلّم غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'teachers');
+        if ($scopedClassIds !== null) {
+            $teacherClassIds = $teacher->teacherSubjects->pluck('class_id')->unique()->filter()->toArray();
+            $outsideClasses = array_diff($teacherClassIds, $scopedClassIds);
+            if (!empty($outsideClasses)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يمكن حذف المعلم لارتباطه بفصول وتكليفات خارج نطاق إشرافك. يمكنك تعديل تكليفاته فقط.'
+                ], 403);
+            }
         }
 
         $teacher->delete();

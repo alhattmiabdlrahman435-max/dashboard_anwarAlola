@@ -112,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/contact-messages', [ContactMessageController::class, 'store']);
 
     // Exam Schedules - جداول الاختبارات
+    Route::post('/exam-schedules/{id}/duplicate', [ExamScheduleController::class, 'duplicate']);
     Route::apiResource('exam-schedules', ExamScheduleController::class);
 
     // Weekly Schedules - الجداول الدراسية الأسبوعية

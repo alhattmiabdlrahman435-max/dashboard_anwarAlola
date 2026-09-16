@@ -15,18 +15,26 @@ const ALL_MODULES = [
   { key: 'scanner', labelAr: 'سجل الحضور', labelEn: 'Attendance', actions: ['view', 'create', 'update'], hasScope: true },
   { key: 'absenceRequests', labelAr: 'طلبات الغياب', labelEn: 'Absence Requests', actions: ['view', 'approve', 'reject'], hasScope: true },
   { key: 'assignments', labelAr: 'منصة الواجبات', labelEn: 'Assignments', actions: ['view', 'create', 'update', 'delete'], hasScope: true },
-  { key: 'examSchedules', labelAr: 'جداول الاختبارات', labelEn: 'Exam Schedules', actions: ['view', 'create', 'delete'], hasScope: true },
-  { key: 'detailedGrades', labelAr: 'الدرجات', labelEn: 'Grades', actions: ['view', 'create', 'update', 'delete', 'export', 'import'], hasScope: true },
-  { key: 'finance', labelAr: 'المالية والرسوم', labelEn: 'Finance', actions: ['view', 'create', 'update', 'export'], hasScope: true },
-  { key: 'communications', labelAr: 'الإشعارات', labelEn: 'Notifications', actions: ['view', 'create'], hasScope: true },
-  { key: 'control', labelAr: 'الكنترول الرقمي', labelEn: 'Digital Control', actions: ['view', 'update'], hasScope: true },
+  { key: 'examSchedules', labelAr: 'جداول الاختبارات', labelEn: 'Exam Schedules', actions: ['view', 'create', 'update', 'delete'], hasScope: true },
+  { key: 'detailedGrades', labelAr: 'الدرجات', labelEn: 'Grades', actions: ['view', 'create', 'update', 'delete', 'publish', 'export', 'import'], hasScope: true },
+  { key: 'finance', labelAr: 'المالية والرسوم', labelEn: 'Finance', actions: ['view', 'create', 'update', 'collect', 'export'], hasScope: true },
+  { key: 'communications', labelAr: 'الإشعارات', labelEn: 'Notifications', actions: ['view', 'create', 'delete'], hasScope: true },
+  { key: 'control', labelAr: 'الكنترول الرقمي', labelEn: 'Digital Control', actions: ['view', 'update', 'generateSecretCodes'], hasScope: true },
   { key: 'reports', labelAr: 'التقارير', labelEn: 'Reports', actions: ['view', 'export'], hasScope: true },
-  { key: 'teacherReports', labelAr: 'بلاغات المعلمين', labelEn: 'Teacher Reports', actions: ['view', 'approve', 'reject'], hasScope: true },
+  { key: 'teacherReports', labelAr: 'بلاغات المعلمين', labelEn: 'Teacher Reports', actions: ['view', 'approve', 'reject', 'delete'], hasScope: true },
 ];
 
 const ACTION_LABELS = {
-  ar: { view: 'عرض', create: 'إضافة', update: 'تعديل', delete: 'حذف', export: 'تصدير', import: 'استيراد', approve: 'اعتماد', reject: 'رفض' },
-  en: { view: 'View', create: 'Create', update: 'Update', delete: 'Delete', export: 'Export', import: 'Import', approve: 'Approve', reject: 'Reject' },
+  ar: { 
+    view: 'عرض', create: 'إضافة', update: 'تعديل', delete: 'حذف', 
+    export: 'تصدير', import: 'استيراد', approve: 'اعتماد', reject: 'رفض',
+    generateSecretCodes: 'أرقام سرية', publish: 'نشر واعتماد', collect: 'تحصيل وقبض'
+  },
+  en: { 
+    view: 'View', create: 'Create', update: 'Update', delete: 'Delete', 
+    export: 'Export', import: 'Import', approve: 'Approve', reject: 'Reject',
+    generateSecretCodes: 'Secret Codes', publish: 'Publish', collect: 'Collect'
+  },
 };
 
 const SCOPE_OPTIONS = [
@@ -90,6 +98,9 @@ const actionStyles = {
   import: { bg: 'rgba(13, 148, 136, 0.08)', border: '#0d9488', text: '#0d9488' },
   approve: { bg: 'rgba(16, 185, 129, 0.08)', border: '#10b981', text: '#10b981' },
   reject: { bg: 'rgba(225, 29, 72, 0.08)', border: '#e11d48', text: '#e11d48' },
+  generateSecretCodes: { bg: 'rgba(147, 51, 234, 0.08)', border: '#9333ea', text: '#9333ea' },
+  publish: { bg: 'rgba(16, 185, 129, 0.08)', border: '#10b981', text: '#10b981' },
+  collect: { bg: 'rgba(22, 163, 74, 0.08)', border: '#16a34a', text: '#16a34a' },
 };
 
 export default function SupervisorsTab() {

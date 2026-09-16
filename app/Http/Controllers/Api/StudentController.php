@@ -152,6 +152,14 @@ class StudentController extends Controller implements HasMiddleware
             'tuition_fee' => 'nullable|numeric',
         ]);
 
+        $user = $request->user();
+        if ($user && !PermissionService::isClassAllowed($user, 'students', (int)$request->class_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بإضافة طالب في هذا الفصل الدراسي خارج نطاق صلاحياتك.',
+            ], 403);
+        }
+
         $photoUrl = $request->photo_url;
         if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
             $data = substr($photoUrl, strpos($photoUrl, ',') + 1);
@@ -252,6 +260,10 @@ class StudentController extends Controller implements HasMiddleware
         }
 
         $updateData = $request->all();
+
+        if ($request->filled('class_id') && !PermissionService::isClassAllowed($user, 'students', (int)$request->class_id)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بنقل الطالب إلى فصل خارج نطاق صلاحياتك'], 403);
+        }
 
         if ($request->has('photo_url')) {
             $photoUrl = $request->photo_url;

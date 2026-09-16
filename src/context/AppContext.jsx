@@ -118,28 +118,38 @@ export const AppProvider = ({ children }) => {
   }, [currentUser]);
 
   // Permission helper: check if user can perform a specific action on a module
-  const canAction = useCallback((module, action) => {
+  const canAction = useCallback((module, action, classId = null) => {
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
 
+    // Normalize candidate actions for backward compatibility
+    const candidateActions = [action];
+    if (action === 'approveExcuse') candidateActions.push('approve');
+    if (action === 'publish' && (module === 'detailedGrades' || module === 'grades')) candidateActions.push('update');
+    if ((action === 'generateSecretCodes' || action === 'enterGrades') && module === 'control') candidateActions.push('update');
+    if (action === 'collect' && module === 'finance') {
+      candidateActions.push('create');
+      candidateActions.push('update');
+    }
+
     // Parent actions
     if (currentUser.role === 'parent') {
-      if (module === 'absenceRequests' && ['view', 'create', 'delete'].includes(action)) return true;
-      return action === 'view';
+      if (module === 'absenceRequests' && ['view', 'create', 'delete'].some(a => candidateActions.includes(a))) return true;
+      return candidateActions.includes('view');
     }
 
     // Teacher actions
     if (currentUser.role === 'teacher') {
-      if (module === 'assignments' && ['view', 'create', 'update', 'delete'].includes(action)) return true;
-      if (module === 'teacherReports' && ['view', 'create'].includes(action)) return true;
-      return action === 'view' || action === 'update';
+      if (module === 'assignments' && ['view', 'create', 'update', 'delete'].some(a => candidateActions.includes(a))) return true;
+      if (module === 'teacherReports' && ['view', 'create'].some(a => candidateActions.includes(a))) return true;
+      return candidateActions.some(a => ['view', 'update'].includes(a));
     }
 
     // Preparation Supervisor actions
     if (currentUser.role === 'preparation_supervisor') {
-      if (module === 'absenceRequests' && ['view', 'approve', 'reject'].includes(action)) return true;
-      if (module === 'scanner' && ['view', 'create'].includes(action)) return true;
-      return action === 'view';
+      if (module === 'absenceRequests' && ['view', 'approve', 'reject'].some(a => candidateActions.includes(a))) return true;
+      if (module === 'scanner' && ['view', 'create'].some(a => candidateActions.includes(a))) return true;
+      return candidateActions.includes('view');
     }
 
     // Supervisor / Vice Principal actions via permissions JSON
@@ -162,9 +172,33 @@ export const AppProvider = ({ children }) => {
 
       const mp = perms[module] || (altKey ? perms[altKey] : null);
       if (!mp) return false;
-      if (Array.isArray(mp) && !mp.actions) return mp.includes(action);
-      if (mp.actions) return mp.actions.includes(action);
-      return false;
+
+      const assignedActions = Array.isArray(mp) && !mp.actions ? mp : (mp.actions || []);
+      const hasAction = candidateActions.some(a => assignedActions.includes(a));
+      if (!hasAction) return false;
+
+      // If classId is provided, check if it is within allowed scope
+      if (classId !== null && classId !== undefined) {
+        const numericClassId = Number(String(classId).replace(/\D/g, ''));
+        if (numericClassId > 0) {
+          const userClassesArr = Array.isArray(currentUser.classes) ? currentUser.classes : [];
+          const permClassesArr = Array.isArray(perms.assigned_classes) ? perms.assigned_classes : [];
+          const assignedClassIds = Array.from(new Set([...userClassesArr, ...permClassesArr]))
+            .map(id => Number(String(id).replace(/\D/g, '')))
+            .filter(id => !isNaN(id) && id > 0);
+
+          if (typeof mp === 'object' && !Array.isArray(mp) && mp.scope) {
+            if (mp.scope === 'class' && Array.isArray(mp.scope_ids) && mp.scope_ids.length > 0) {
+              const scopeSet = new Set(mp.scope_ids.map(id => Number(String(id).replace(/\D/g, ''))));
+              if (!scopeSet.has(numericClassId)) return false;
+            }
+          } else if (assignedClassIds.length > 0) {
+            if (!assignedClassIds.includes(numericClassId)) return false;
+          }
+        }
+      }
+
+      return true;
     }
 
     return false;

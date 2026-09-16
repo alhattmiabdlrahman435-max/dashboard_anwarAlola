@@ -11,7 +11,7 @@ import { Plus, Search, X, Trash2, Edit3, Download, Upload, FileSpreadsheet } fro
 export default function TeachersTab() {
   const {
     lang, t, renderAvatar,
-    setToastMessage, canAction
+    setToastMessage, canAction, triggerConfirm
   } = useApp();
 
   const { classes, fetchClasses } = useClasses();
@@ -23,7 +23,8 @@ export default function TeachersTab() {
     teachersPagination,
     fetchTeachers,
     handleAddTeacher,
-    handleEditTeacher
+    handleEditTeacher,
+    handleDeleteTeacher
   } = useTeachers();
 
   const {
@@ -34,11 +35,30 @@ export default function TeachersTab() {
     setPerPage,
     setSearch,
     buildQueryString,
+    goToPrevIfEmpty,
   } = usePagination({
     moduleKey: 'teachers',
   });
 
   const qs = buildQueryString();
+
+  const onDeleteTeacher = (teacher) => {
+    triggerConfirm({
+      title: lang === 'ar' ? 'حذف المعلم' : 'Delete Teacher',
+      message: lang === 'ar'
+        ? `هل أنت متأكد من حذف المعلم "${teacher.name}" نهائياً من النظام؟`
+        : `Are you sure you want to permanently delete teacher "${teacher.name}"?`,
+      type: 'danger',
+      onConfirm: () => {
+        handleDeleteTeacher(teacher.id).then((res) => {
+          if (res && res.success) {
+            const nextQs = goToPrevIfEmpty(teachers.length - 1);
+            fetchTeachers(nextQs);
+          }
+        });
+      }
+    });
+  };
 
   useEffect(() => {
     fetchTeachers(qs);
@@ -569,7 +589,7 @@ export default function TeachersTab() {
                             e.currentTarget.style.background = 'rgba(220, 38, 38, 0.08)';
                             e.currentTarget.style.borderColor = 'rgba(220, 38, 38, 0.25)';
                           }}
-                          onClick={() => handleDeleteTeacher(teacher.id)}
+                          onClick={() => onDeleteTeacher(teacher)}
                           title={lang === 'ar' ? 'حذف المعلم' : 'Delete Teacher'}
                         >
                           <Trash2 size={15} />
@@ -682,7 +702,7 @@ export default function TeachersTab() {
                     <button
                       type="button"
                       className="teacher-action-btn delete-btn"
-                      onClick={() => handleDeleteTeacher(teacher.id)}
+                      onClick={() => onDeleteTeacher(teacher)}
                     >
                       <Trash2 size={16} />
                       <span>{lang === 'ar' ? 'حذف' : 'Delete'}</span>

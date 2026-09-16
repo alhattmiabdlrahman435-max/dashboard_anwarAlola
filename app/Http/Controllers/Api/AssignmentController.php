@@ -25,8 +25,7 @@ class AssignmentController extends Controller implements HasMiddleware
             new Middleware('check.permission:assignments,view', only: ['index', 'show', 'submissions']),
             new Middleware('check.permission:assignments,create', only: ['store']),
             new Middleware('check.permission:assignments,update', only: ['update', 'updateSubmissions']),
-            new Middleware('check.permission:assignments,delete', only: ['destroy']),
-            new Middleware('check.permission:assignments,deleteAll', only: ['deleteAll']),
+            new Middleware('check.permission:assignments,delete', only: ['destroy', 'deleteAll']),
         ];
     }
 
@@ -58,7 +57,11 @@ class AssignmentController extends Controller implements HasMiddleware
             $query->where('teacher_id', $request->input('teacher_id'));
         }
         if ($request->filled('date')) {
-            $query->whereDate('date_created', $request->input('date'));
+            $date = $request->input('date');
+            $query->where(function($q) use ($date) {
+                $q->whereDate('date_created', $date)
+                  ->orWhereDate('created_at', $date);
+            });
         }
 
         // Apply search
@@ -370,22 +373,32 @@ class AssignmentController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function deleteAll()
+    public function deleteAll(Request $request)
     {
-        // Delete all assignment files from disk
-        $dir = public_path('uploads/assignments');
-        if (File::isDirectory($dir)) {
-            $files = File::files($dir);
-            foreach ($files as $file) {
-                File::delete($file->getPathname());
-            }
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
+
+        $query = Assignment::query();
+        if ($scopedClassIds !== null) {
+            $query->whereIn('class_id', $scopedClassIds);
         }
 
-        AssignmentSubmission::query()->delete();
-        Assignment::query()->delete();
+        $assignments = $query->get();
+        foreach ($assignments as $assignment) {
+            if ($assignment->attachment_url) {
+                $relative = str_replace(url('/'), '', $assignment->attachment_url);
+                $absolute = public_path(ltrim($relative, '/'));
+                if (File::exists($absolute)) {
+                    File::delete($absolute);
+                }
+            }
+            AssignmentSubmission::where('assignment_id', $assignment->id)->delete();
+            $assignment->delete();
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف جميع الواجبات بنجاح.'
+            'message' => 'تم حذف الواجبات المحددة بنجاح.'
         ]);
     }
 }

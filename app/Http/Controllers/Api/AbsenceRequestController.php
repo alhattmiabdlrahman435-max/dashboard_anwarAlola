@@ -46,12 +46,21 @@ class AbsenceRequestController extends Controller implements HasMiddleware
         }
 
         // Apply filters
-        if ($request->filled('status')) {
+        if ($request->filled('status') && $request->input('status') !== 'all') {
             $query->where('status', $request->input('status'));
         }
         if ($request->filled('class_id')) {
             $query->whereHas('student', function($q) use ($request) {
                 $q->where('class_id', $request->input('class_id'));
+            });
+        }
+        if ($request->filled('date')) {
+            $date = $request->input('date');
+            $query->where(function($q) use ($date) {
+                $q->where(function($sub) use ($date) {
+                    $sub->whereDate('start_date', '<=', $date)
+                        ->whereDate('end_date', '>=', $date);
+                })->orWhereDate('created_at', $date);
             });
         }
 
@@ -202,6 +211,10 @@ class AbsenceRequestController extends Controller implements HasMiddleware
         if (!$absenceRequest) {
             return response()->json(['success' => false, 'message' => 'الطلب غير موجود'], 404);
         }
+        $user = request()->user();
+        if ($user && !PermissionService::isStudentAllowed($user, 'absenceRequests', $absenceRequest->student_id)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بحذف طلب غياب لطالب خارج فصولك المحددة'], 403);
+        }
         $absenceRequest->delete();
         return response()->json(['success' => true, 'message' => 'تم حذف الطلب بنجاح']);
     }
@@ -214,6 +227,11 @@ class AbsenceRequestController extends Controller implements HasMiddleware
         $absenceRequest = AbsenceRequest::with(['student', 'parentUser'])->find($id);
         if (!$absenceRequest) {
             return response()->json(['success' => false, 'message' => 'الطلب غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        if ($user && !PermissionService::isStudentAllowed($user, 'absenceRequests', $absenceRequest->student)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك باعتماد طلب غياب لطالب خارج فصولك المحددة'], 403);
         }
 
         $absenceRequest->update([
@@ -282,6 +300,11 @@ class AbsenceRequestController extends Controller implements HasMiddleware
         $absenceRequest = AbsenceRequest::with(['student', 'parentUser'])->find($id);
         if (!$absenceRequest) {
             return response()->json(['success' => false, 'message' => 'الطلب غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        if ($user && !PermissionService::isStudentAllowed($user, 'absenceRequests', $absenceRequest->student)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك برفض طلب غياب لطالب خارج فصولك المحددة'], 403);
         }
 
         $absenceRequest->update([

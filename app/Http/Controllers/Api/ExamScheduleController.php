@@ -21,7 +21,7 @@ class ExamScheduleController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('check.permission:examSchedules,view', only: ['index', 'show']),
-            new Middleware('check.permission:examSchedules,create', only: ['store']),
+            new Middleware('check.permission:examSchedules,create', only: ['store', 'duplicate']),
             new Middleware('check.permission:examSchedules,update', only: ['update']),
             new Middleware('check.permission:examSchedules,delete', only: ['destroy']),
         ];
@@ -38,14 +38,39 @@ class ExamScheduleController extends Controller implements HasMiddleware
         }
 
         // Apply filters
-        if ($request->filled('class_id')) {
+        if ($request->filled('class_id') && $request->input('class_id') !== 'all') {
             $query->where('class_id', $request->input('class_id'));
+        }
+
+        if ($request->filled('grade') && $request->input('grade') !== 'all') {
+            $grade = $request->input('grade');
+            $query->whereHas('schoolClass', function($q) use ($grade) {
+                $q->where('grade_ar', $grade)->orWhere('grade_en', $grade);
+            });
+        }
+
+        if ($request->filled('term') && $request->input('term') !== 'all') {
+            $term = $request->input('term');
+            $termKey = ($term === 'الفصل الثاني' || $term === '2' || $term === 'term2') ? 'term2' : 'term1';
+            $query->where(function($q) use ($term, $termKey) {
+                $q->where('term', $term)->orWhere('term', $termKey);
+            });
         }
 
         // Apply search
         $search = $request->input('search');
         if (!empty($search)) {
-            $query->where('title', 'LIKE', "%{$search}%");
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'LIKE', "%{$search}%")
+                  ->orWhereHas('schoolClass', function($sq) use ($search) {
+                      $sq->where('grade_ar', 'LIKE', "%{$search}%")
+                         ->orWhere('section_ar', 'LIKE', "%{$search}%");
+                  })
+                  ->orWhereHas('examSubjects.subject', function($sq) use ($search) {
+                      $sq->where('name_ar', 'LIKE', "%{$search}%")
+                         ->orWhere('name_en', 'LIKE', "%{$search}%");
+                  });
+            });
         }
 
         // Apply sorting
@@ -110,64 +135,169 @@ class ExamScheduleController extends Controller implements HasMiddleware
         $request->validate([
             'title' => 'required|string',
             'class_id' => 'nullable|integer',
+            'class_ids' => 'nullable|array',
+            'class_ids.*' => 'integer',
             'term' => 'nullable|string',
             'subjects' => 'required|array',
         ]);
 
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'examSchedules');
-        if ($scopedClassIds !== null && !in_array($request->class_id, $scopedClassIds)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'غير مصرح لك بإنشاء جدول اختبارات لهذا الفصل الدراسي.',
-            ], 403);
+
+        $classIds = [];
+        if ($request->filled('class_ids') && is_array($request->class_ids) && count($request->class_ids) > 0) {
+            $classIds = array_map('intval', $request->class_ids);
+        } elseif ($request->filled('class_id')) {
+            $classIds = [(int)$request->class_id];
         }
 
-        return DB::transaction(function() use ($request) {
-            $schedule = ExamSchedule::create([
-                'title' => $request->title,
-                'class_id' => $request->class_id,
-                'term' => $request->term,
-                'created_by' => auth()->id()
-            ]);
+        if (empty($classIds)) {
+            $classIds = [null];
+        }
 
-            foreach ($request->subjects as $sub) {
-                ExamSubject::create([
-                    'exam_schedule_id' => $schedule->id,
-                    'subject_id' => $sub['subject_id'],
-                    'exam_date' => $sub['exam_date'],
-                    'exam_time' => $sub['exam_time'],
-                    'note' => $sub['note'] ?? null,
-                ]);
+        if ($scopedClassIds !== null) {
+            $unauthorized = array_diff(array_filter($classIds), $scopedClassIds);
+            if (!empty($unauthorized)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بإنشاء جدول اختبارات لبعض الفصول الدراسية المحددة.',
+                ], 403);
             }
+        }
 
-            // Create notification for parents in the class
-            if ($schedule->class_id) {
-                \App\Models\Notification::create([
-                    'title' => 'جدول اختبارات جديد 📋',
-                    'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title,
-                    'type' => 'exam_schedule',
-                    'is_read' => false,
-                    'class_id' => $schedule->class_id,
+        return DB::transaction(function() use ($request, $classIds) {
+            $createdSchedules = [];
+
+            foreach ($classIds as $cid) {
+                $schedule = ExamSchedule::create([
+                    'title' => $request->title,
+                    'class_id' => $cid,
+                    'term' => $request->term,
+                    'created_by' => auth()->id()
                 ]);
 
-                $this->notifyParentsOfClass(
-                    $schedule->class_id,
-                    'جدول اختبارات جديد 📋',
-                    'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title
-                );
+                foreach ($request->subjects as $sub) {
+                    ExamSubject::create([
+                        'exam_schedule_id' => $schedule->id,
+                        'subject_id' => $sub['subject_id'],
+                        'exam_date' => $sub['exam_date'],
+                        'exam_time' => $sub['exam_time'],
+                        'note' => $sub['note'] ?? null,
+                    ]);
+                }
 
-                $this->notifyTeachersOfClass(
-                    $schedule->class_id,
-                    'جدول اختبارات جديد 📋',
-                    'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $schedule->title
-                );
+                // Create notification for parents and teachers
+                if ($cid) {
+                    \App\Models\Notification::create([
+                        'title' => 'جدول اختبارات جديد 📋',
+                        'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title,
+                        'type' => 'exam_schedule',
+                        'is_read' => false,
+                        'class_id' => $cid,
+                    ]);
+
+                    $this->notifyParentsOfClass(
+                        $cid,
+                        'جدول اختبارات جديد 📋',
+                        'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title
+                    );
+
+                    $this->notifyTeachersOfClass(
+                        $cid,
+                        'جدول اختبارات جديد 📋',
+                        'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $schedule->title
+                    );
+                }
+
+                $createdSchedules[] = $schedule->load('examSubjects.subject');
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم إنشاء جدول الاختبارات بنجاح',
-                'exam_schedule' => $schedule->load('examSubjects.subject')
+                'message' => count($createdSchedules) > 1
+                    ? 'تم إنشاء ونشر جدول الاختبارات لـ ' . count($createdSchedules) . ' شعب بنجاح'
+                    : 'تم إنشاء جدول الاختبارات بنجاح',
+                'exam_schedule' => $createdSchedules[0] ?? null,
+                'exam_schedules' => $createdSchedules
+            ], 201);
+        });
+    }
+
+    public function duplicate(Request $request, string $id)
+    {
+        $request->validate([
+            'target_class_ids' => 'required|array|min:1',
+            'target_class_ids.*' => 'integer|exists:school_classes,id',
+        ]);
+
+        $sourceSchedule = ExamSchedule::with('examSubjects')->find($id);
+        if (!$sourceSchedule) {
+            return response()->json(['success' => false, 'message' => 'الجدول المصدر غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'examSchedules');
+        $targetIds = array_map('intval', $request->target_class_ids);
+
+        if ($scopedClassIds !== null) {
+            $unauthorized = array_diff($targetIds, $scopedClassIds);
+            if (!empty($unauthorized)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'توجد فصول دراسية محددة خارج نطاق إشرافك المسموح به.',
+                ], 403);
+            }
+        }
+
+        return DB::transaction(function() use ($sourceSchedule, $targetIds) {
+            $createdSchedules = [];
+
+            foreach ($targetIds as $classId) {
+                $newSchedule = ExamSchedule::create([
+                    'title' => $sourceSchedule->title,
+                    'class_id' => $classId,
+                    'term' => $sourceSchedule->term,
+                    'created_by' => auth()->id()
+                ]);
+
+                foreach ($sourceSchedule->examSubjects as $sub) {
+                    ExamSubject::create([
+                        'exam_schedule_id' => $newSchedule->id,
+                        'subject_id' => $sub->subject_id,
+                        'exam_date' => $sub->exam_date,
+                        'exam_time' => $sub->exam_time,
+                        'note' => $sub->note,
+                    ]);
+                }
+
+                // Notify parents & teachers
+                \App\Models\Notification::create([
+                    'title' => 'جدول اختبارات جديد 📋',
+                    'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $newSchedule->title,
+                    'type' => 'exam_schedule',
+                    'is_read' => false,
+                    'class_id' => $classId,
+                ]);
+
+                $this->notifyParentsOfClass(
+                    $classId,
+                    'جدول اختبارات جديد 📋',
+                    'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $newSchedule->title
+                );
+
+                $this->notifyTeachersOfClass(
+                    $classId,
+                    'جدول اختبارات جديد 📋',
+                    'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $newSchedule->title
+                );
+
+                $createdSchedules[] = $newSchedule->load('examSubjects.subject');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم نسخ جدول الاختبارات إلى ' . count($createdSchedules) . ' شعب بنجاح',
+                'exam_schedules' => $createdSchedules
             ], 201);
         });
     }

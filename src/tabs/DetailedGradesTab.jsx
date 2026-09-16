@@ -2,6 +2,7 @@ import { api } from "../services/api";
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
+import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { Download } from 'lucide-react';
@@ -36,7 +37,8 @@ export default function DetailedGradesTab() {
     fetchClassGrades
   } = useApp();
 
-  const { classes, fetchClasses } = useClasses();
+  const { allowedClasses: classes } = useAllowedClasses('detailedGrades');
+  const { fetchClasses } = useClasses();
   const { students, fetchStudents } = useStudents();
   const { subjects, fetchSubjects } = useSubjects();
 
@@ -59,6 +61,10 @@ export default function DetailedGradesTab() {
     `${c.grade_ar} - ${c.section_ar}` === selectedClass ||
     c.id === selectedClass
   ) || (classes || [])[0];
+
+  const selectedClassId = selectedClassObj
+    ? (selectedClassObj.numericId || String(selectedClassObj.id).replace(/\D/g, ''))
+    : null;
 
   useEffect(() => {
     if (selectedClassObj) {
@@ -227,7 +233,7 @@ export default function DetailedGradesTab() {
           )}
           {viewMode === 'class' ? (
             <div style={{ display: 'flex', gap: '8px' }}>
-              {['m1', 'm2', 'm3', 'termTotal'].includes(classPeriod) && canAction('detailedGrades', 'publish') && (
+              {['m1', 'm2', 'm3', 'termTotal'].includes(classPeriod) && canAction('detailedGrades', 'publish', selectedClassId) && (
                 <button
                   className="btn-primary"
                   onClick={handlePublishGrades}

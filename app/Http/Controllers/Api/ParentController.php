@@ -236,12 +236,22 @@ class ParentController extends Controller implements HasMiddleware
             return response()->json(['success' => false, 'message' => 'ولي الأمر غير موجود'], 404);
         }
 
-        $request->validate([
+        $rules = [
             'name_ar' => 'required|string',
             'name_en' => 'nullable|string',
             'phone' => 'required|string',
             'photo_url' => 'nullable|string',
-        ]);
+        ];
+
+        if ($request->filled('national_id')) {
+            $rules['national_id'] = [
+                'required',
+                'string',
+                \Illuminate\Validation\Rule::unique('users', 'national_id')->ignore($parent->id),
+            ];
+        }
+
+        $request->validate($rules);
 
         $photoUrl = $request->photo_url;
         if ($photoUrl && preg_match('/^data:image\/(\w+);base64,/', $photoUrl, $type)) {
@@ -261,14 +271,33 @@ class ParentController extends Controller implements HasMiddleware
             }
         }
 
-        $parent->update([
+        $updateData = [
             'name' => $request->name_ar,
             'name_ar' => $request->name_ar,
             'name_en' => $request->name_en,
             'phone' => $request->phone,
             'password' => Hash::make($request->phone),
             'photo_url' => $photoUrl,
-        ]);
+        ];
+
+        if ($request->filled('national_id')) {
+            $cleanNationalId = preg_replace('/\D/', '', $request->national_id);
+            if (!empty($cleanNationalId)) {
+                $updateData['national_id'] = $cleanNationalId;
+                $updateData['username'] = $cleanNationalId;
+            }
+        }
+
+        $parent->update($updateData);
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('parents') && isset($updateData['national_id'])) {
+            \App\Models\ParentModel::where('user_id', $parent->id)->update([
+                'national_id' => $updateData['national_id'],
+                'name_ar' => $request->name_ar,
+                'name_en' => $request->name_en,
+                'phone' => $request->phone,
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -277,11 +306,24 @@ class ParentController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
-        $parent = User::parents()->find($id);
+        $parent = User::parents()->with('children')->find($id);
         if (!$parent) {
             return response()->json(['success' => false, 'message' => 'ولي الأمر غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'parents');
+        if ($scopedClassIds !== null) {
+            $childrenClassIds = $parent->children->pluck('class_id')->unique()->filter()->toArray();
+            $outsideClasses = array_diff($childrenClassIds, $scopedClassIds);
+            if (!empty($outsideClasses)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يمكن حذف ولي الأمر لوجود أبناء مسجلين في مراحل دراسية وفصول خارج نطاق إشرافك.'
+                ], 403);
+            }
         }
 
         $parent->delete();

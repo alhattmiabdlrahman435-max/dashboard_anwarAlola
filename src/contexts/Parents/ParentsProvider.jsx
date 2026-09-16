@@ -149,6 +149,7 @@ export default function ParentsProvider({ children }) {
 
     if (token && parentId) {
       return parentsService.updateParent(parentId, {
+        national_id: updatedParent.nationalId,
         name_ar: updatedParent.name,
         name_en: updatedParent.nameEn,
         phone: updatedParent.phone,
@@ -156,12 +157,21 @@ export default function ParentsProvider({ children }) {
       })
       .then((data) => {
         if (data.success) {
-          const finalParent = {
-            ...updatedParent,
-            id: parentId,
-          };
           setParentUsers((prev) =>
-            prev.map((p) => (p.nationalId === parentNationalId ? finalParent : p)),
+            prev.map((p) => {
+              if (p.id === parentId || p.nationalId === parentNationalId) {
+                return {
+                  ...p,
+                  ...updatedParent,
+                  id: parentId,
+                  children: (p.children || []).map(c => ({
+                    ...c,
+                    parentNationalId: updatedParent.nationalId,
+                  })),
+                };
+              }
+              return p;
+            }),
           );
           setToastMessage(
             lang === "ar"

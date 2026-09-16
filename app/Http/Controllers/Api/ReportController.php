@@ -20,8 +20,7 @@ class ReportController extends Controller implements HasMiddleware
         return [
             new Middleware('check.permission:teacherReports,view', only: ['index']),
             new Middleware('check.permission:teacherReports,create', only: ['store']),
-            new Middleware('check.permission:teacherReports,delete', only: ['destroy']),
-            new Middleware('check.permission:teacherReports,deleteAll', only: ['deleteAll']),
+            new Middleware('check.permission:teacherReports,delete', only: ['destroy', 'deleteAll']),
         ];
     }
 
@@ -328,9 +327,13 @@ class ReportController extends Controller implements HasMiddleware
         ]);
      }
 
-     public function destroy($id)
+     public function destroy(Request $request, $id)
      {
-         $report = Report::findOrFail($id);
+         $report = Report::with('student')->findOrFail($id);
+         $user = $request->user();
+         if ($user && !PermissionService::isStudentAllowed($user, 'teacherReports', $report->student)) {
+             return response()->json(['success' => false, 'message' => 'غير مصرح لك بحذف بلاغ لطالب خارج فصولك المحددة.'], 403);
+         }
 
          // Delete report image from storage
          if ($report->image_url) {
@@ -348,21 +351,32 @@ class ReportController extends Controller implements HasMiddleware
          ]);
      }
 
-     public function deleteAll()
+     public function deleteAll(Request $request)
      {
-         // Delete all report files from disk
-         $dir = public_path('uploads/reports');
-         if (File::isDirectory($dir)) {
-             $files = File::files($dir);
-             foreach ($files as $file) {
-                 File::delete($file->getPathname());
-             }
+         $user = $request->user();
+         $scopedClassIds = PermissionService::getScopedClassIds($user, 'teacherReports');
+
+         $query = Report::query();
+         if ($scopedClassIds !== null) {
+             $studentIds = Student::whereIn('class_id', $scopedClassIds)->pluck('id')->toArray();
+             $query->whereIn('student_id', $studentIds);
          }
 
-         Report::query()->delete();
+         $reports = $query->get();
+         foreach ($reports as $report) {
+             if ($report->image_url) {
+                 $relative = str_replace(url('/'), '', $report->image_url);
+                 $absolute = public_path(ltrim($relative, '/'));
+                 if (File::exists($absolute)) {
+                     File::delete($absolute);
+                 }
+             }
+             $report->delete();
+         }
+
          return response()->json([
              'success' => true,
-             'message' => 'تم حذف جميع البلاغات بنجاح.'
+             'message' => 'تم حذف البلاغات المحددة بنجاح.'
          ]);
      }
 }

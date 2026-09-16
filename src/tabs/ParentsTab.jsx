@@ -547,8 +547,8 @@ export default function ParentsTab() {
                   <input id="edit-parent-name-en" name="edit_name_en" type="text" className="text-field" value={modalParentNameEn} onChange={(e) => setModalParentNameEn(e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{lang === 'ar' ? 'الرقم الوطني (لا يمكن تعديله)' : 'National ID (Cannot be modified)'}</label>
-                  <input id="edit-parent-national-id" name="edit_national_id" type="text" className="text-field" value={modalParentNationalIdVal} disabled />
+                  <label className="form-label">{lang === 'ar' ? 'الرقم المدني / الوطني' : 'Civil / National ID'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <input id="edit-parent-national-id" name="edit_national_id" type="text" className="text-field" value={modalParentNationalIdVal} onChange={(e) => setModalParentNationalIdVal(e.target.value)} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'} <span style={{ color: 'var(--color-error)' }}>*</span></label>

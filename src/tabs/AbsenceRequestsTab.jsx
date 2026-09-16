@@ -55,7 +55,7 @@ export default function AbsenceRequestsTab() {
     goToPrevIfEmpty,
   } = usePagination({
     moduleKey: 'absence_requests',
-    defaultFilters: { status: 'pending', date: '' }
+    defaultFilters: { status: 'pending', date: new Date().toISOString().split('T')[0], class_id: '' }
   });
 
   // Local tab/filters states
@@ -95,11 +95,37 @@ export default function AbsenceRequestsTab() {
   }, [fetchClasses]);
   const absenceFilter = filters.status || 'pending';
   const filterDate = filters.date || '';
+  const filterClassId = filters.class_id || 'all';
   const dateSortOrder = direction || 'desc';
 
   const toggleDateSort = () => {
     const nextDir = direction === 'desc' ? 'asc' : 'desc';
     setSort('start_date', nextDir);
+  };
+
+  const shiftDate = (days) => {
+    const base = filterDate ? new Date(filterDate) : new Date();
+    base.setDate(base.getDate() + days);
+    const yyyy = base.getFullYear();
+    const mm = String(base.getMonth() + 1).padStart(2, '0');
+    const dd = String(base.getDate()).padStart(2, '0');
+    setFilters({ ...filters, date: `${yyyy}-${mm}-${dd}` });
+  };
+
+  const setQuickDate = (type) => {
+    if (type === 'today') {
+      const today = new Date().toISOString().split('T')[0];
+      setFilters({ ...filters, date: today });
+    } else if (type === 'yesterday') {
+      const yest = new Date();
+      yest.setDate(yest.getDate() - 1);
+      const yyyy = yest.getFullYear();
+      const mm = String(yest.getMonth() + 1).padStart(2, '0');
+      const dd = String(yest.getDate()).padStart(2, '0');
+      setFilters({ ...filters, date: `${yyyy}-${mm}-${dd}` });
+    } else if (type === 'all') {
+      setFilters({ ...filters, date: '' });
+    }
   };
 
   // Decision Modal state
@@ -175,26 +201,160 @@ export default function AbsenceRequestsTab() {
             </button>
           </div>
         </div>
-      </div>      {absenceSubTab === 'requests' ?
+      </div>      {absenceSubTab === 'requests' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }} className="no-print">
+          {/* Main Date & Class Archiving Workspace Bar */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            padding: '16px',
+            backgroundColor: 'var(--color-surface)',
+            borderRadius: '16px',
+            border: '1px solid var(--color-border)',
+            marginBottom: '16px'
+          }} className="no-print">
+            {/* Row 1: Date Navigation Hub & Class Filter */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: '1px dashed var(--color-border)',
+              paddingBottom: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📅 {lang === 'ar' ? 'تاريخ طلبات الغياب:' : 'Absence Date:'}
+                </span>
+
+                {/* Shift Previous Day */}
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => shiftDate(-1)}
+                  title={lang === 'ar' ? 'اليوم السابق' : 'Previous Day'}
+                  style={{ margin: 0, padding: '6px 10px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                   ▶ {lang === 'ar' ? 'السابق' : 'Prev'}
+                </button>
+
+                {/* Date Input */}
+                <input
+                  type="date"
+                  className="text-field"
+                  value={filterDate}
+                  onChange={e => setFilters({ ...filters, date: e.target.value })}
+                  style={{
+                    minHeight: '38px',
+                    fontSize: '13px',
+                    padding: '4px 10px',
+                    borderRadius: '10px',
+                    width: '145px',
+                    fontWeight: '600',
+                    backgroundColor: filterDate ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface-alt)',
+                    borderColor: filterDate ? 'var(--color-primary)' : 'var(--color-border)'
+                  }}
+                />
+
+                {/* Shift Next Day */}
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => shiftDate(1)}
+                  title={lang === 'ar' ? 'اليوم التالي' : 'Next Day'}
+                  style={{ margin: 0, padding: '6px 10px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  {lang === 'ar' ? 'التالي' : 'Next'} ◀
+                </button>
+
+                {/* Quick Date Pills */}
+                <div style={{ display: 'flex', gap: '4px', marginInlineStart: '4px' }}>
+                  <button
+                    type="button"
+                    className={`chip ${filterDate === new Date().toISOString().split('T')[0] ? 'selected' : ''}`}
+                    onClick={() => setQuickDate('today')}
+                    style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
+                  >
+                    {lang === 'ar' ? 'اليوم' : 'Today'}
+                  </button>
+                  <button
+                    type="button"
+                    className="chip"
+                    onClick={() => setQuickDate('yesterday')}
+                    style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
+                  >
+                    {lang === 'ar' ? 'أمس' : 'Yesterday'}
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip ${!filterDate ? 'selected' : ''}`}
+                    onClick={() => setQuickDate('all')}
+                    style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
+                  >
+                    {lang === 'ar' ? 'الكل' : 'All'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Class Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                  🏫 {lang === 'ar' ? 'الفصل:' : 'Class:'}
+                </span>
+                <select
+                  className="text-field"
+                  value={filterClassId}
+                  onChange={e => setFilters({ ...filters, class_id: e.target.value === 'all' ? '' : e.target.value })}
+                  style={{
+                    minHeight: '38px',
+                    fontSize: '12px',
+                    padding: '4px 12px',
+                    borderRadius: '10px',
+                    minWidth: '160px',
+                    backgroundColor: filterClassId !== 'all' ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface-alt)',
+                    borderColor: filterClassId !== 'all' ? 'var(--color-primary)' : 'var(--color-border)'
+                  }}
+                >
+                  <option value="all">{lang === 'ar' ? '🏢 جميع الفصول' : 'All Classes'}</option>
+                  {allowedClasses.map(cls => {
+                    const cleanId = String(cls.id).replace('cls-', '');
+                    return (
+                      <option key={cls.id} value={cleanId}>
+                        {cls.grade_ar || cls.grade} - {cls.section_ar || cls.section}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Status, Search, and Sorting */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button 
                   className={`chip ${absenceFilter === 'pending' ? 'selected' : ''}`}
-                  onClick={() => setFilters({ status: 'pending' })}
+                  onClick={() => setFilters({ ...filters, status: 'pending' })}
                 >
                   ⏳ {t.pendingStatus} ({pendingRequestsCount})
                 </button>
                 <button 
                   className={`chip ${absenceFilter === 'all' ? 'selected' : ''}`}
-                  onClick={() => setFilters({ status: 'all' })}
+                  onClick={() => setFilters({ ...filters, status: 'all' })}
                 >
                   🗂️ {t.filterAll} ({absenceRequestsPagination.total})
                 </button>
 
                 {/* Search Box */}
-                <div className="search-box" style={{ width: '220px', minHeight: '36px' }}>
-                  <Search size={16} />
+                <div className="search-box" style={{ width: '220px', minHeight: '36px', margin: 0 }}>
+                  <Search size={15} />
                   <input 
                     type="text"
                     className="text-field"
@@ -204,74 +364,30 @@ export default function AbsenceRequestsTab() {
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-
-                {/* Date Filter Input */}
-                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginInlineStart: '8px' }}>
-                  <input 
-                    type="date"
-                    className="text-field"
-                    style={{ 
-                      minHeight: '36px', 
-                      fontSize: '12px', 
-                      width: '140px', 
-                      borderRadius: '8px', 
-                      paddingInline: '8px',
-                      backgroundColor: 'var(--color-surface-alt)',
-                      color: 'var(--color-text-primary)',
-                      border: '1.5px solid var(--color-border)',
-                      cursor: 'pointer'
-                    }}
-                    value={filterDate}
-                    onChange={(e) => setFilters({ date: e.target.value })}
-                    title={lang === 'ar' ? 'تصفية بالتاريخ' : 'Filter by Date'}
-                  />
-                  {filterDate && (
-                    <button
-                      type="button"
-                      onClick={() => setFilters({ date: '' })}
-                      style={{
-                        position: 'absolute',
-                        left: lang === 'ar' ? '8px' : 'auto',
-                        right: lang === 'ar' ? 'auto' : '8px',
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--color-error)',
-                        cursor: 'pointer',
-                        fontSize: '11px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 0
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
               </div>
 
-                
-                <button 
-                  className="chip"
-                  onClick={toggleDateSort}
-                  style={{ 
-                    border: '1px solid var(--color-border)', 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '6px',
-                    cursor: 'pointer',
-                    backgroundColor: 'var(--color-surface-alt)',
-                    color: 'var(--color-text-primary)',
-                    margin: 0
-                  }}
-                >
-                  📅 {lang === 'ar' ? 'فرز بالتاريخ:' : 'Sort Date:'} 
-                  <span style={{ fontWeight: 'bold', color: 'var(--color-primary-ui)' }}>
-                    {dateSortOrder === 'desc' ? (lang === 'ar' ? 'الأحدث أولاً' : 'Newest First') : (lang === 'ar' ? 'الأقدم أولاً' : 'Oldest First')}
-                  </span>
-                  {dateSortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
-                </button>
-              </div>
+              <button 
+                className="chip"
+                onClick={toggleDateSort}
+                style={{ 
+                  border: '1px solid var(--color-border)', 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--color-surface-alt)',
+                  color: 'var(--color-text-primary)',
+                  margin: 0
+                }}
+              >
+                📅 {lang === 'ar' ? 'فرز بالتاريخ:' : 'Sort Date:'} 
+                <span style={{ fontWeight: 'bold', color: 'var(--color-primary-ui)' }}>
+                  {dateSortOrder === 'desc' ? (lang === 'ar' ? 'الأحدث أولاً' : 'Newest First') : (lang === 'ar' ? 'الأقدم أولاً' : 'Oldest First')}
+                </span>
+                {dateSortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+              </button>
+            </div>
+          </div>
 
               {filteredRequests.length > 0 ? (
                 <>
@@ -321,7 +437,7 @@ export default function AbsenceRequestsTab() {
                               <td className="no-print">
                                 {req.status === 'pending' ? (
                                   <div style={{ display: 'flex', gap: '6px' }}>
-                                    {canAction('attendance', 'approveExcuse') && (
+                                    {canAction('absenceRequests', 'approve', req.student?.class_id) && (
                                       <button 
                                         className="btn-filled"
                                         style={{ background: 'var(--gradient-success)', border: 'none', color: 'white', padding: '2px 8px', fontSize: '11px', borderRadius: '6px' }}
@@ -330,7 +446,7 @@ export default function AbsenceRequestsTab() {
                                         ✓ {t.approveBtn || 'قبول'}
                                       </button>
                                     )}
-                                    {canAction('attendance', 'approveExcuse') && (
+                                    {canAction('absenceRequests', 'reject', req.student?.class_id) && (
                                       <button 
                                         className="btn-filled"
                                         style={{ background: 'var(--gradient-error)', border: 'none', color: 'white', padding: '2px 8px', fontSize: '11px', borderRadius: '6px' }}
@@ -397,7 +513,7 @@ export default function AbsenceRequestsTab() {
                 </div>
               )}
         </div>
-      :
+      ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           
           {/* Roster Filters Header */}
@@ -446,7 +562,7 @@ export default function AbsenceRequestsTab() {
           </div>
 
           {/* Roster Table Grid */}
-          {rosterStudents.length > 0 ?
+          {rosterStudents.length > 0 ? (
             <div className="students-table-container">
                   <table className="students-table">
                     <thead>
@@ -529,13 +645,13 @@ export default function AbsenceRequestsTab() {
                     </tbody>
                   </table>
             </div>
-          :
+          ) : (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-card)' }}>
               ℹ️ {lang === 'ar' ? 'لا يوجد طلاب مسجلين في هذا الصف والشعبة حالياً.' : 'No registered students in this grade and section currently.'}
             </div>
-          }
+          )}
         </div>
-      }
+      )}
 
       {/* DECISION POPUP MODAL */}
       {decisionModalOpen && activeRequest && (

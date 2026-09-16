@@ -13,6 +13,10 @@ export const teachersService = {
     return api.put(`/api/teachers/${teacherId}`, payload);
   },
 
+  deleteTeacher: (teacherId) => {
+    return api.delete(`/api/teachers/${teacherId}`);
+  },
+
   getSupervisors: (queryString = '') => {
     return api.get(`/api/supervisors${queryString}`);
   },

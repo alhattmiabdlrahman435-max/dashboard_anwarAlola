@@ -86,17 +86,73 @@ class PermissionService
 
         $modulePerms = $permissions[$module];
 
+        $candidateActions = [$action];
+        if ($module === 'finance' && $action === 'collect') {
+            $candidateActions[] = 'create';
+            $candidateActions[] = 'update';
+        } elseif ($module === 'control' && in_array($action, ['enterGrades', 'generateSecretCodes'])) {
+            $candidateActions[] = 'update';
+        } elseif (in_array($module, ['detailedGrades', 'grades']) && $action === 'publish') {
+            $candidateActions[] = 'update';
+        } elseif (in_array($module, ['absenceRequests', 'attendance', 'absence', 'scanner']) && $action === 'approveExcuse') {
+            $candidateActions[] = 'approve';
+        }
+
         // Simple array of actions: ["view", "create"]
         if (is_array($modulePerms) && array_is_list($modulePerms)) {
-            return in_array($action, $modulePerms);
+            foreach ($candidateActions as $cand) {
+                if (in_array($cand, $modulePerms)) return true;
+            }
+            return false;
         }
 
         // Structured object: {"actions": [...], "scope": "..."}
         if (is_array($modulePerms) && isset($modulePerms['actions'])) {
-            return in_array($action, $modulePerms['actions']);
+            foreach ($candidateActions as $cand) {
+                if (in_array($cand, $modulePerms['actions'])) return true;
+            }
+            return false;
         }
 
         return false;
+    }
+
+    /**
+     * Check if a specific class ID is within the user's allowed scope for a module.
+     */
+    public static function isClassAllowed(User $user, string $module, ?int $classId): bool
+    {
+        if ($user->role === 'admin') {
+            return true;
+        }
+        if ($classId === null || $classId <= 0) {
+            return false;
+        }
+        $scopedClassIds = self::getScopedClassIds($user, $module);
+        if ($scopedClassIds === null) {
+            return true; // unrestricted
+        }
+        return in_array((int)$classId, array_map('intval', $scopedClassIds), true);
+    }
+
+    /**
+     * Check if a student (or student ID) is within the user's allowed scope for a module.
+     */
+    public static function isStudentAllowed(User $user, string $module, $student): bool
+    {
+        if ($user->role === 'admin') {
+            return true;
+        }
+        if (!$student) {
+            return false;
+        }
+        if (!($student instanceof \App\Models\Student)) {
+            $student = \App\Models\Student::find($student);
+            if (!$student) {
+                return false;
+            }
+        }
+        return self::isClassAllowed($user, $module, (int)$student->class_id);
     }
 
     /**
@@ -258,16 +314,33 @@ class PermissionService
             $module = $altKey;
         }
 
-        $modulePerms = $permissions[$module];
-
+        $rawActions = [];
         if (is_array($modulePerms) && array_is_list($modulePerms)) {
-            return $modulePerms;
+            $rawActions = $modulePerms;
+        } elseif (is_array($modulePerms) && isset($modulePerms['actions'])) {
+            $rawActions = $modulePerms['actions'];
         }
 
-        if (is_array($modulePerms) && isset($modulePerms['actions'])) {
-            return $modulePerms['actions'];
+        $actions = $rawActions;
+        if (in_array('update', $rawActions)) {
+            if ($module === 'control') {
+                $actions[] = 'enterGrades';
+                $actions[] = 'generateSecretCodes';
+            }
+            if (in_array($module, ['detailedGrades', 'grades'])) {
+                $actions[] = 'publish';
+            }
+            if ($module === 'finance') {
+                $actions[] = 'collect';
+            }
+        }
+        if (in_array('create', $rawActions) && $module === 'finance') {
+            $actions[] = 'collect';
+        }
+        if (in_array('approve', $rawActions)) {
+            $actions[] = 'approveExcuse';
         }
 
-        return [];
+        return array_values(array_unique($actions));
     }
 }

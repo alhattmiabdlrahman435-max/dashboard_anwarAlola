@@ -7,7 +7,8 @@ import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 import PrintHeader from '../components/PrintHeader';
-import { X, Calendar, Clock, BookOpen, Printer, Edit3, Trash2, Plus, Wand2 } from 'lucide-react';
+import AcademicExamPrintModal from '../components/AcademicExamPrintModal';
+import { X, Calendar, Clock, BookOpen, Printer, Edit3, Trash2, Plus, Wand2, Copy, CheckSquare, Square, Layers, Check, Search, Filter } from 'lucide-react';
 
 export default function ExamSchedulesTab() {
   const {
@@ -21,6 +22,7 @@ export default function ExamSchedulesTab() {
     examSchedules,
     examSchedulesPagination,
     handlePublishExamSchedule: publishExamSchedule,
+    handleDuplicateExamSchedule,
     handleUpdateExamSchedule,
     handleDeleteExamSchedule,
     fetchExamSchedules,
@@ -34,11 +36,20 @@ export default function ExamSchedulesTab() {
   const {
     page,
     perPage,
+    search,
+    filters,
     setPage,
     setPerPage,
+    setSearch,
+    setFilters,
     buildQueryString,
   } = usePagination({
     moduleKey: 'examSchedules',
+    defaultFilters: {
+      grade: '',
+      class_id: '',
+      term: '',
+    }
   });
 
   const qs = buildQueryString();
@@ -64,6 +75,49 @@ export default function ExamSchedulesTab() {
   const [modalExamSection, setModalExamSection] = useState('أ');
   const [modalExamTerm, setModalExamTerm] = useState('الفصل الأول');
   const [modalExamPeriod, setModalExamPeriod] = useState('الشهر الأول');
+  const [selectedSectionIds, setSelectedSectionIds] = useState([]);
+
+  // Quick Copy state
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [copySourceSchedule, setCopySourceSchedule] = useState(null);
+  const [copyTargetClassIds, setCopyTargetClassIds] = useState([]);
+  const [isCopying, setIsCopying] = useState(false);
+
+  // Academic Official Print Modal state
+  const [showAcademicPrintModal, setShowAcademicPrintModal] = useState(false);
+  const [printInitialSchedule, setPrintInitialSchedule] = useState(null);
+
+  // Available unique grades across all school classes
+  const availableGrades = useMemo(() => {
+    const gradesSet = new Set();
+    (classes || []).forEach(c => {
+      if (c.grade) gradesSet.add(c.grade);
+    });
+    return Array.from(gradesSet);
+  }, [classes]);
+
+  // Keep modalExamGrade in sync with availableGrades
+  useEffect(() => {
+    if (availableGrades.length > 0 && !availableGrades.includes(modalExamGrade)) {
+      setModalExamGrade(availableGrades[0]);
+    }
+  }, [availableGrades, modalExamGrade]);
+
+  // All class sections for the currently selected grade in modal
+  const sectionsOfSelectedGrade = useMemo(() => {
+    return (classes || []).filter(c => c.grade === modalExamGrade);
+  }, [classes, modalExamGrade]);
+
+  // Auto-select all sections of the grade when grade changes (in create mode)
+  useEffect(() => {
+    if (!isEditing && sectionsOfSelectedGrade.length > 0) {
+      setSelectedSectionIds(sectionsOfSelectedGrade.map(c => c.numericId || Number(String(c.id).replace(/\D/g, ''))));
+      if (sectionsOfSelectedGrade[0]) {
+        setModalExamSection(sectionsOfSelectedGrade[0].section);
+        setModalExamClassId(sectionsOfSelectedGrade[0].id);
+      }
+    }
+  }, [modalExamGrade, sectionsOfSelectedGrade, isEditing]);
 
   // Subjects inside the exam schedule (temporary list)
   const [modalExamSubjects, setModalExamSubjects] = useState([]);
@@ -205,6 +259,44 @@ export default function ExamSchedulesTab() {
     }
   }, [selectedClassObj?.id, modalExamGrade, modalExamSection, availableSubjectsForSelectedClass]);
 
+  // Open copy modal for a schedule
+  const handleOpenCopyModal = (sched) => {
+    const schedGrade = sched.grade || (sched.class && (sched.class.grade_ar || sched.class.grade));
+    const schedClassId = Number(String(sched.class_id || sched.classId || (sched.class && sched.class.id) || '').replace(/\D/g, ''));
+    
+    // Find sibling classes of the same grade EXCEPT the source class
+    const siblingClasses = (classes || []).filter(c => {
+      const cId = c.numericId || Number(String(c.id).replace(/\D/g, ''));
+      return c.grade === schedGrade && cId !== schedClassId;
+    });
+
+    setCopySourceSchedule(sched);
+    setCopyTargetClassIds(siblingClasses.map(c => c.numericId || Number(String(c.id).replace(/\D/g, ''))));
+    setShowCopyModal(true);
+  };
+
+  // Execute copying schedule to target sections
+  const handleExecuteCopy = () => {
+    if (!copySourceSchedule || copyTargetClassIds.length === 0) {
+      setToastMessage(lang === 'ar' ? 'الرجاء تحديد شعبة واحدة على الأقل لنسخ الجدول إليها' : 'Please select at least one section');
+      setTimeout(() => setToastMessage(''), 3000);
+      return;
+    }
+
+    setIsCopying(true);
+    handleDuplicateExamSchedule(copySourceSchedule.id, copyTargetClassIds)
+      .then((res) => {
+        if (res && res.success) {
+          setShowCopyModal(false);
+          setCopySourceSchedule(null);
+          setCopyTargetClassIds([]);
+        }
+      })
+      .finally(() => {
+        setIsCopying(false);
+      });
+  };
+
   // Status & Date Format Helpers
   const getScheduleStatus = (subjects) => {
     if (!subjects || subjects.length === 0) return null;
@@ -302,10 +394,20 @@ export default function ExamSchedulesTab() {
       ? (targetClass.numericId || String(targetClass.id).replace(/\D/g, '')) 
       : (modalExamClassId ? String(modalExamClassId).replace(/\D/g, '') : null);
 
+    const cleanSectionIds = !isEditing && selectedSectionIds.length > 0
+      ? selectedSectionIds.map(id => Number(String(id).replace(/\D/g, ''))).filter(Boolean)
+      : (cleanClassId ? [Number(cleanClassId)] : []);
+
+    if (cleanSectionIds.length === 0) {
+      setToastMessage(lang === 'ar' ? 'الرجاء تحديد شعبة واحدة على الأقل لنشر الجدول' : 'Please select at least one section');
+      setTimeout(() => setToastMessage(''), 3000);
+      return;
+    }
+
     const scheduleData = {
       id: isEditing ? editingScheduleId : Date.now(),
-      class_id: cleanClassId ? Number(cleanClassId) : null,
-      classId: cleanClassId ? Number(cleanClassId) : null,
+      class_id: cleanSectionIds[0] || null,
+      class_ids: cleanSectionIds,
       grade: targetClass ? targetClass.grade : modalExamGrade,
       section: targetClass ? targetClass.section : modalExamSection,
       term: modalExamTerm,
@@ -338,6 +440,11 @@ export default function ExamSchedulesTab() {
       });
   };
 
+  const filterGradeSections = useMemo(() => {
+    if (!filters.grade || filters.grade === 'all') return classes || [];
+    return (classes || []).filter(c => c.grade === filters.grade);
+  }, [classes, filters.grade]);
+
   return (
     <div className="section-card">
       <PrintHeader
@@ -351,21 +458,204 @@ export default function ExamSchedulesTab() {
           <span>{t.examSchedulesTitle}</span>
         </h3>
         
-        {canAction('examSchedules', 'create') && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button 
-            className="btn-accent"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 16px', fontWeight: '700' }}
-            onClick={() => {
-              setIsEditing(false);
-              setEditingScheduleId(null);
-              setModalExamSubjects([]);
-              setShowExamScheduleModal(true);
+            type="button"
+            className="btn-outlined"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              minHeight: '40px', 
+              padding: '0 16px', 
+              fontWeight: '700',
+              borderColor: 'var(--color-primary-ui)',
+              color: 'var(--color-primary-ui)',
+              background: 'rgba(30, 80, 142, 0.05)'
             }}
+            onClick={() => {
+              setPrintInitialSchedule(null);
+              setShowAcademicPrintModal(true);
+            }}
+            title={lang === 'ar' ? 'طباعة رسمية أكاديمية للجداول المعتمدة' : 'Print Academic Schedules'}
           >
-            <Plus size={18} strokeWidth={2.5} />
-            <span>{t.addExamScheduleBtn}</span>
+            <Printer size={17} />
+            <span>{lang === 'ar' ? 'طباعة الجداول الأكاديمية' : 'Print Academic Schedules'}</span>
           </button>
-        )}
+
+          {canAction('examSchedules', 'create') && (
+            <button 
+              className="btn-accent"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 16px', fontWeight: '700' }}
+              onClick={() => {
+                setIsEditing(false);
+                setEditingScheduleId(null);
+                setModalExamSubjects([]);
+                setShowExamScheduleModal(true);
+              }}
+            >
+              <Plus size={18} strokeWidth={2.5} />
+              <span>{t.addExamScheduleBtn}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* FILTER & SEARCH HUB */}
+      <div className="no-print" style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-card)',
+        padding: '12px 16px',
+        marginBottom: 'var(--space-md)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '12px',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        {/* Filters Group */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', flex: '1 1 500px' }}>
+          {/* Grade Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Filter size={14} style={{ color: 'var(--color-primary-ui)' }} />
+              {lang === 'ar' ? 'الصف:' : 'Grade:'}
+            </span>
+            <select
+              className="text-field"
+              value={filters.grade || 'all'}
+              onChange={(e) => {
+                const newGrade = e.target.value;
+                setFilters({
+                  grade: newGrade === 'all' ? '' : newGrade,
+                  class_id: ''
+                });
+              }}
+              style={{
+                height: '36px',
+                fontSize: '12px',
+                fontWeight: '600',
+                padding: '0 10px',
+                borderRadius: '8px',
+                backgroundColor: filters.grade ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface-alt)',
+                borderColor: filters.grade ? 'var(--color-primary-ui)' : 'var(--color-border)',
+                minWidth: '130px'
+              }}
+            >
+              <option value="all">{lang === 'ar' ? '🏢 جميع الصفوف' : 'All Grades'}</option>
+              {availableGrades.map(grade => (
+                <option key={grade} value={grade}>{grade}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Section / Class Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+              {lang === 'ar' ? 'الشعبة:' : 'Section:'}
+            </span>
+            <select
+              className="text-field"
+              value={filters.class_id || 'all'}
+              onChange={(e) => setFilters({ class_id: e.target.value === 'all' ? '' : e.target.value })}
+              style={{
+                height: '36px',
+                fontSize: '12px',
+                fontWeight: '600',
+                padding: '0 10px',
+                borderRadius: '8px',
+                backgroundColor: filters.class_id ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface-alt)',
+                borderColor: filters.class_id ? 'var(--color-primary-ui)' : 'var(--color-border)',
+                minWidth: '130px'
+              }}
+            >
+              <option value="all">{lang === 'ar' ? '👥 جميع الشعب' : 'All Sections'}</option>
+              {filterGradeSections.map(cls => {
+                const cleanId = String(cls.id).replace('cls-', '');
+                return (
+                  <option key={cls.id} value={cleanId}>
+                    {cls.name || `${cls.grade} - ${cls.section}`}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Term Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+              {lang === 'ar' ? 'الفصل:' : 'Term:'}
+            </span>
+            <select
+              className="text-field"
+              value={filters.term || 'all'}
+              onChange={(e) => setFilters({ term: e.target.value === 'all' ? '' : e.target.value })}
+              style={{
+                height: '36px',
+                fontSize: '12px',
+                fontWeight: '600',
+                padding: '0 10px',
+                borderRadius: '8px',
+                backgroundColor: filters.term ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface-alt)',
+                borderColor: filters.term ? 'var(--color-primary-ui)' : 'var(--color-border)',
+                minWidth: '120px'
+              }}
+            >
+              <option value="all">{lang === 'ar' ? '📅 جميع الفصول' : 'All Terms'}</option>
+              <option value="term1">{lang === 'ar' ? 'الفصل الأول' : 'Term 1'}</option>
+              <option value="term2">{lang === 'ar' ? 'الفصل الثاني' : 'Term 2'}</option>
+            </select>
+          </div>
+
+          {/* Reset Filters Button */}
+          {(filters.grade || filters.class_id || filters.term || search) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilters({ grade: '', class_id: '', term: '' });
+                setSearch('');
+              }}
+              style={{
+                background: 'rgba(220, 38, 38, 0.08)',
+                color: '#dc2626',
+                border: '1px solid rgba(220, 38, 38, 0.2)',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                fontSize: '11px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                height: '36px'
+              }}
+            >
+              <X size={14} />
+              <span>{lang === 'ar' ? 'إلغاء الفلاتر' : 'Reset'}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Search Input */}
+        <div style={{ position: 'relative', minWidth: '220px', flex: '0 1 280px' }}>
+          <Search size={15} style={{ position: 'absolute', [lang === 'ar' ? 'right' : 'left']: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            className="text-field"
+            value={search || ''}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={lang === 'ar' ? 'بحث باسم المادة أو الجدول...' : 'Search subjects, schedules...'}
+            style={{
+              height: '36px',
+              fontSize: '12px',
+              paddingRight: lang === 'ar' ? '32px' : '10px',
+              paddingLeft: lang === 'ar' ? '10px' : '32px',
+              borderRadius: '8px',
+              width: '100%'
+            }}
+          />
+        </div>
       </div>
 
       {/* Schedules Grid List */}
@@ -416,11 +706,26 @@ export default function ExamSchedulesTab() {
                       <button
                         type="button"
                         className="exam-card-action-icon"
-                        onClick={() => window.print()}
-                        title={lang === 'ar' ? 'طباعة الجدول' : 'Print Schedule'}
+                        onClick={() => {
+                          setPrintInitialSchedule(sched);
+                          setShowAcademicPrintModal(true);
+                        }}
+                        title={lang === 'ar' ? 'طباعة رسمية أكاديمية' : 'Academic Official Print'}
+                        style={{ color: 'var(--color-primary-ui)' }}
                       >
                         <Printer size={16} />
                       </button>
+                      {canAction('examSchedules', 'create') && (
+                        <button
+                          type="button"
+                          className="exam-card-action-icon"
+                          onClick={() => handleOpenCopyModal(sched)}
+                          title={lang === 'ar' ? 'نسخ الجدول لشعب أخرى' : 'Copy to other sections'}
+                          style={{ color: 'var(--color-primary-ui)' }}
+                        >
+                          <Copy size={16} />
+                        </button>
+                      )}
                       {canAction('examSchedules', 'create') && (
                         <button
                           type="button"
@@ -532,40 +837,66 @@ export default function ExamSchedulesTab() {
               
               {/* Header Info */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--space-md)' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', gridColumn: 'span 2' }}>
-                  <label htmlFor="modal-exam-class" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
-                    {lang === 'ar' ? 'الفصل الدراسي' : 'Class'}
-                  </label>
-                  <select 
-                    id="modal-exam-class"
-                    name="class"
-                    value={selectedClassObj ? selectedClassObj.name : `${modalExamGrade} - ${modalExamSection}`} 
-                    onChange={(e) => {
-                      const selectedVal = e.target.value;
-                      const foundCls = (classes || []).find(c => c.name === selectedVal || c.id === selectedVal);
-                      if (foundCls) {
-                        setModalExamClassId(foundCls.id);
-                        setModalExamGrade(foundCls.grade);
-                        setModalExamSection(foundCls.section);
-                      } else {
-                        setModalExamClassId(null);
-                        const parts = selectedVal.split(' - ');
-                        if (parts.length >= 2) {
-                          setModalExamGrade(parts[0].trim());
-                          setModalExamSection(parts[1].trim());
+                {isEditing ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', gridColumn: 'span 2' }}>
+                    <label htmlFor="modal-exam-class" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                      {lang === 'ar' ? 'الفصل الدراسي' : 'Class'}
+                    </label>
+                    <select 
+                      id="modal-exam-class"
+                      name="class"
+                      value={selectedClassObj ? selectedClassObj.name : `${modalExamGrade} - ${modalExamSection}`} 
+                      onChange={(e) => {
+                        const selectedVal = e.target.value;
+                        const foundCls = (classes || []).find(c => c.name === selectedVal || c.id === selectedVal);
+                        if (foundCls) {
+                          setModalExamClassId(foundCls.id);
+                          setModalExamGrade(foundCls.grade);
+                          setModalExamSection(foundCls.section);
+                        } else {
+                          setModalExamClassId(null);
+                          const parts = selectedVal.split(' - ');
+                          if (parts.length >= 2) {
+                            setModalExamGrade(parts[0].trim());
+                            setModalExamSection(parts[1].trim());
+                          }
                         }
-                      }
-                    }} 
-                    className="text-field" 
-                    style={{ height: '36px', padding: '0 8px', fontSize: '12px', fontWeight: 'bold' }}
-                  >
-                    {(classes || []).map(cls => (
-                      <option key={cls.id} value={cls.name}>
-                        {lang === 'ar' ? cls.name : cls.nameEn}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                      }} 
+                      className="text-field" 
+                      style={{ height: '36px', padding: '0 8px', fontSize: '12px', fontWeight: 'bold' }}
+                    >
+                      {(classes || []).map(cls => (
+                        <option key={cls.id} value={cls.name}>
+                          {lang === 'ar' ? cls.name : cls.nameEn}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', gridColumn: 'span 2' }}>
+                    <label htmlFor="modal-exam-grade" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                      {lang === 'ar' ? 'الصف الدراسي' : 'Grade Level'}
+                    </label>
+                    <select 
+                      id="modal-exam-grade"
+                      name="grade"
+                      value={modalExamGrade} 
+                      onChange={(e) => {
+                        const selectedGrade = e.target.value;
+                        setModalExamGrade(selectedGrade);
+                      }} 
+                      className="text-field" 
+                      style={{ height: '36px', padding: '0 8px', fontSize: '12px', fontWeight: 'bold' }}
+                    >
+                      {availableGrades.map(grade => (
+                        <option key={grade} value={grade}>
+                          {grade}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <label htmlFor="modal-exam-term" style={{ fontSize: '11px', fontWeight: 'bold' }}>{t.selectTerm}</label>
                   <select id="modal-exam-term" name="term" value={modalExamTerm} onChange={(e) => setModalExamTerm(e.target.value)} className="text-field" style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}>
@@ -583,6 +914,97 @@ export default function ExamSchedulesTab() {
                   </select>
                 </div>
               </div>
+
+              {/* Multi-Section Selector (Create Mode Only) */}
+              {!isEditing && (
+                <div style={{
+                  padding: '12px 14px',
+                  background: 'rgba(30, 80, 142, 0.04)',
+                  borderRadius: 'var(--radius-card)',
+                  border: '1px solid rgba(30, 80, 142, 0.15)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Layers size={15} style={{ color: 'var(--color-primary-ui)' }} />
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-text-primary)' }}>
+                        {lang === 'ar' ? 'الشعب المشمولة بالجدول:' : 'Sections included in schedule:'}
+                      </span>
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'var(--color-primary-ui)', color: '#fff', fontWeight: '600' }}>
+                        {selectedSectionIds.length} {lang === 'ar' ? 'شعب مختارة' : 'selected'}
+                      </span>
+                    </div>
+
+                    {sectionsOfSelectedGrade.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedSectionIds.length === sectionsOfSelectedGrade.length) {
+                            setSelectedSectionIds([sectionsOfSelectedGrade[0].numericId || Number(String(sectionsOfSelectedGrade[0].id).replace(/\D/g, ''))]);
+                          } else {
+                            setSelectedSectionIds(sectionsOfSelectedGrade.map(c => c.numericId || Number(String(c.id).replace(/\D/g, ''))));
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-primary-ui)',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        {selectedSectionIds.length === sectionsOfSelectedGrade.length 
+                          ? (lang === 'ar' ? 'إلغاء التحديد الجماعي' : 'Deselect all')
+                          : (lang === 'ar' ? 'تحديد كافة شعب الصف' : 'Select all sections')}
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '2px' }}>
+                    {sectionsOfSelectedGrade.map(cls => {
+                      const clsNumId = cls.numericId || Number(String(cls.id).replace(/\D/g, ''));
+                      const isSelected = selectedSectionIds.includes(clsNumId);
+
+                      return (
+                        <button
+                          key={cls.id}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              if (selectedSectionIds.length > 1) {
+                                setSelectedSectionIds(prev => prev.filter(id => id !== clsNumId));
+                              }
+                            } else {
+                              setSelectedSectionIds(prev => [...prev, clsNumId]);
+                            }
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: isSelected ? '700' : '500',
+                            border: isSelected ? '1.5px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                            background: isSelected ? 'rgba(30, 80, 142, 0.1)' : 'var(--color-surface)',
+                            color: isSelected ? 'var(--color-primary-ui)' : 'var(--color-text-secondary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                          <span>{lang === 'ar' ? `شعبة (${cls.section})` : `Sec (${cls.sectionEn || cls.section})`}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Add Exam Subject Sub-Form */}
               <div style={{
@@ -909,6 +1331,197 @@ export default function ExamSchedulesTab() {
           </div>
         </div>
       )}
+
+      {/* QUICK COPY EXAM SCHEDULE MODAL */}
+      {showCopyModal && copySourceSchedule && (
+        <div className="modal-overlay no-print">
+          <div className="modal-container" style={{ maxWidth: '520px' }}>
+            <header className="modal-header">
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Copy size={20} style={{ color: 'var(--color-primary-ui)' }} />
+                <span>{lang === 'ar' ? 'نسخ جدول الاختبارات للشعب' : 'Copy Exam Schedule'}</span>
+              </h3>
+              <button 
+                className="modal-close-btn" 
+                onClick={() => {
+                  setShowCopyModal(false);
+                  setCopySourceSchedule(null);
+                  setCopyTargetClassIds([]);
+                }}
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </header>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+              {/* Source Info Banner */}
+              <div style={{
+                padding: '12px 14px',
+                background: 'rgba(30, 80, 142, 0.05)',
+                borderRadius: '10px',
+                border: '1px solid rgba(30, 80, 142, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                  {lang === 'ar' ? 'الجدول المصدر المراد نسخه:' : 'Source Schedule:'}
+                </span>
+                <strong style={{ fontSize: '13px', color: 'var(--color-primary-ui)' }}>
+                  {copySourceSchedule.grade || copySourceSchedule.class?.grade_ar} - شعبة ({copySourceSchedule.section || copySourceSchedule.class?.section_ar})
+                  {' • '}
+                  {copySourceSchedule.period} ({copySourceSchedule.term})
+                </strong>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                  {lang === 'ar' ? `عدد المواد المجدولة: ${copySourceSchedule.subjects?.length || 0} مادة` : `${copySourceSchedule.subjects?.length || 0} subjects scheduled`}
+                </span>
+              </div>
+
+              {/* Target Sections Selector */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-text-primary)' }}>
+                    {lang === 'ar' ? 'اختر الشعب المستهدفة لنفس الصف:' : 'Select Target Sections:'}
+                  </label>
+
+                  {/* Sibling classes computation */}
+                  {(() => {
+                    const schedGrade = copySourceSchedule.grade || copySourceSchedule.class?.grade_ar || copySourceSchedule.class?.grade;
+                    const schedClassId = Number(String(copySourceSchedule.class_id || copySourceSchedule.classId || (copySourceSchedule.class && copySourceSchedule.class.id) || '').replace(/\D/g, ''));
+                    const siblings = (classes || []).filter(c => {
+                      const cId = c.numericId || Number(String(c.id).replace(/\D/g, ''));
+                      return c.grade === schedGrade && cId !== schedClassId;
+                    });
+
+                    if (siblings.length <= 1) return null;
+
+                    const allSelected = copyTargetClassIds.length === siblings.length;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (allSelected) {
+                            setCopyTargetClassIds([]);
+                          } else {
+                            setCopyTargetClassIds(siblings.map(c => c.numericId || Number(String(c.id).replace(/\D/g, ''))));
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-primary-ui)',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        {allSelected ? (lang === 'ar' ? 'إلغاء التحديد' : 'Deselect all') : (lang === 'ar' ? 'تحديد كل الشعب' : 'Select all')}
+                      </button>
+                    );
+                  })()}
+                </div>
+
+                {(() => {
+                  const schedGrade = copySourceSchedule.grade || copySourceSchedule.class?.grade_ar || copySourceSchedule.class?.grade;
+                  const schedClassId = Number(String(copySourceSchedule.class_id || copySourceSchedule.classId || (copySourceSchedule.class && copySourceSchedule.class.id) || '').replace(/\D/g, ''));
+                  const siblings = (classes || []).filter(c => {
+                    const cId = c.numericId || Number(String(c.id).replace(/\D/g, ''));
+                    return c.grade === schedGrade && cId !== schedClassId;
+                  });
+
+                  if (siblings.length === 0) {
+                    return (
+                      <div style={{ padding: '24px 16px', textAlign: 'center', background: 'var(--color-surface)', borderRadius: '8px', border: '1px dashed var(--color-border)' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                          {lang === 'ar' ? 'لا توجد شعب أخرى مسجلة لهذا الصف الدراسي.' : 'No other sections registered for this grade.'}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
+                      {siblings.map(cls => {
+                        const clsNumId = cls.numericId || Number(String(cls.id).replace(/\D/g, ''));
+                        const isSelected = copyTargetClassIds.includes(clsNumId);
+
+                        return (
+                          <button
+                            key={cls.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setCopyTargetClassIds(prev => prev.filter(id => id !== clsNumId));
+                              } else {
+                                setCopyTargetClassIds(prev => [...prev, clsNumId]);
+                              }
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: isSelected ? '700' : '500',
+                              border: isSelected ? '1.5px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                              background: isSelected ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface)',
+                              color: isSelected ? 'var(--color-primary-ui)' : 'var(--color-text-primary)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                            <span>{lang === 'ar' ? `شعبة (${cls.section})` : `Sec (${cls.sectionEn || cls.section})`}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <footer className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: 'var(--space-md) var(--space-xl)', borderTop: '1px solid var(--color-border)' }}>
+              <button 
+                type="button" 
+                className="btn-elevated"
+                onClick={() => {
+                  setShowCopyModal(false);
+                  setCopySourceSchedule(null);
+                  setCopyTargetClassIds([]);
+                }}
+                disabled={isCopying}
+              >
+                {t.cancel}
+              </button>
+              <button 
+                type="button" 
+                className="btn-filled"
+                onClick={handleExecuteCopy}
+                disabled={isCopying || copyTargetClassIds.length === 0}
+                style={{ opacity: isCopying || copyTargetClassIds.length === 0 ? 0.7 : 1 }}
+              >
+                {isCopying ? (lang === 'ar' ? 'جاري النسخ والنشر...' : 'Copying...') : (lang === 'ar' ? '📑 نسخ ونشر للشعب المحددة' : 'Copy Schedule')}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* Academic Exam Print Modal */}
+      <AcademicExamPrintModal
+        isOpen={showAcademicPrintModal}
+        onClose={() => {
+          setShowAcademicPrintModal(false);
+          setPrintInitialSchedule(null);
+        }}
+        initialSchedule={printInitialSchedule}
+        allSchedules={examSchedules}
+        classes={classes}
+        lang={lang}
+      />
     </div>
   );
 }

@@ -180,11 +180,14 @@ export default function SettingsProvider({ children }) {
     if (token) {
       const rawClassId = newSchedule.class_id || newSchedule.classId;
       const cleanClassId = rawClassId ? Number(String(rawClassId).replace(/\D/g, '')) : null;
+      const rawClassIds = newSchedule.class_ids || (cleanClassId ? [cleanClassId] : []);
+      const cleanClassIds = rawClassIds.map(id => Number(String(id).replace(/\D/g, ''))).filter(Boolean);
 
       return settingsService.addExamSchedule({
           title: newSchedule.period,
           term: termKey,
           class_id: cleanClassId,
+          class_ids: cleanClassIds.length > 0 ? cleanClassIds : undefined,
           subjects: mappedSubjects,
         })
         .then((data) => {
@@ -192,7 +195,7 @@ export default function SettingsProvider({ children }) {
             fetchExamSchedules(token, true);
             setToastMessage(
               lang === "ar"
-                ? "تم نشر جدول الاختبارات بنجاح!"
+                ? data.message || "تم نشر جدول الاختبارات بنجاح!"
                 : "Exam schedule published successfully!",
             );
             setTimeout(() => setToastMessage(""), 4000);
@@ -236,6 +239,44 @@ export default function SettingsProvider({ children }) {
       return Promise.resolve({ success: true });
     }
   }, [subjects, lang, setToastMessage, fetchExamSchedules]);
+
+  // Duplicate exam schedule to other sections
+  const handleDuplicateExamSchedule = useCallback((scheduleId, targetClassIds) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return Promise.resolve({ success: false });
+
+    const cleanIds = (targetClassIds || []).map(id => Number(String(id).replace(/\D/g, ''))).filter(Boolean);
+    if (cleanIds.length === 0) {
+      const msg = lang === "ar" ? "الرجاء تحديد شعبة واحدة على الأقل" : "Please select at least one section";
+      setToastMessage(msg);
+      setTimeout(() => setToastMessage(""), 3000);
+      return Promise.resolve({ success: false, message: msg });
+    }
+
+    return settingsService.duplicateExamSchedule(scheduleId, {
+      target_class_ids: cleanIds
+    })
+    .then(data => {
+      if (data.success) {
+        fetchExamSchedules(token, true);
+        setToastMessage(lang === "ar" ? data.message || "تم نسخ جدول الاختبارات للشعب المحددة بنجاح!" : "Exam schedule copied successfully!");
+        setTimeout(() => setToastMessage(""), 4000);
+        return { success: true };
+      } else {
+        const msg = lang === "ar" ? `فشل النسخ: ${data.message}` : `Failed to copy: ${data.message}`;
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(""), 6000);
+        return { success: false, message: msg };
+      }
+    })
+    .catch(err => {
+      console.error("Error duplicating exam schedule:", err);
+      const msg = lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+      setToastMessage(msg);
+      setTimeout(() => setToastMessage(""), 6000);
+      return { success: false, message: msg };
+    });
+  }, [lang, setToastMessage, fetchExamSchedules]);
 
   // Update exam schedule
   const handleUpdateExamSchedule = useCallback((id, updatedSchedule) => {
@@ -635,6 +676,7 @@ export default function SettingsProvider({ children }) {
     fetchWeeklySchedules,
     fetchExamSchedules,
     handlePublishExamSchedule,
+    handleDuplicateExamSchedule,
     handleUpdateExamSchedule,
     handleDeleteExamSchedule,
     handleScheduleChange,
@@ -653,6 +695,7 @@ export default function SettingsProvider({ children }) {
     fetchWeeklySchedules,
     fetchExamSchedules,
     handlePublishExamSchedule,
+    handleDuplicateExamSchedule,
     handleUpdateExamSchedule,
     handleDeleteExamSchedule,
     handleScheduleChange,

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
+import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { useTeachers } from '../contexts/Teachers/useTeachers';
 import { useStudents } from '../contexts/Students/useStudents';
@@ -27,7 +28,8 @@ export default function AssignmentsTab() {
     loading
   } = useApp();
 
-  const { availableGrades, availableSections, fetchClasses } = useClasses();
+  const { allowedClasses, allowedGrades: availableGrades, allowedSections: availableSections } = useAllowedClasses('assignments');
+  const { fetchClasses } = useClasses();
   const { subjects, fetchSubjects } = useSubjects();
   const { teachers, setTeachers, fetchTeachers } = useTeachers();
   const { students, fetchStudents } = useStudents();
@@ -70,6 +72,7 @@ export default function AssignmentsTab() {
 
   // ── Filter dropdowns — drive usePagination directly (no local mirror) ────
   // Derive display values from usePagination filters (single source of truth)
+  const filterClassId   = filters.class_id || 'all';
   const filterTeacherId = filters.teacher_id || 'all';
   const filterSubject   = (() => {
     if (!filters.subject_id) return 'all';
@@ -78,20 +81,48 @@ export default function AssignmentsTab() {
   })();
   const filterDate = filters.date || '';
 
+  const handleFilterClass = (val) => {
+    setFilters({ ...filters, class_id: val === 'all' ? '' : val });
+  };
   const handleFilterTeacher = (val) => {
-    setFilters({ teacher_id: val === 'all' ? '' : val, subject_id: filters.subject_id || '', date: filters.date || '' });
+    setFilters({ ...filters, teacher_id: val === 'all' ? '' : val });
   };
   const handleFilterSubject = (val) => {
     if (val === 'all') {
-      setFilters({ teacher_id: filters.teacher_id || '', subject_id: '', date: filters.date || '' });
+      setFilters({ ...filters, subject_id: '' });
     } else {
       const matched = subjects.find(s => s.name === val || s.nameEn === val);
       const subjectId = matched ? String(matched.id).replace('sub-', '') : '';
-      setFilters({ teacher_id: filters.teacher_id || '', subject_id: subjectId, date: filters.date || '' });
+      setFilters({ ...filters, subject_id: subjectId });
     }
   };
   const handleFilterDate = (val) => {
-    setFilters({ teacher_id: filters.teacher_id || '', subject_id: filters.subject_id || '', date: val });
+    setFilters({ ...filters, date: val });
+  };
+
+  const shiftDate = (days) => {
+    const base = filterDate ? new Date(filterDate) : new Date();
+    base.setDate(base.getDate() + days);
+    const yyyy = base.getFullYear();
+    const mm = String(base.getMonth() + 1).padStart(2, '0');
+    const dd = String(base.getDate()).padStart(2, '0');
+    handleFilterDate(`${yyyy}-${mm}-${dd}`);
+  };
+
+  const setQuickDate = (type) => {
+    if (type === 'today') {
+      const today = new Date().toISOString().split('T')[0];
+      handleFilterDate(today);
+    } else if (type === 'yesterday') {
+      const yest = new Date();
+      yest.setDate(yest.getDate() - 1);
+      const yyyy = yest.getFullYear();
+      const mm = String(yest.getMonth() + 1).padStart(2, '0');
+      const dd = String(yest.getDate()).padStart(2, '0');
+      handleFilterDate(`${yyyy}-${mm}-${dd}`);
+    } else if (type === 'all') {
+      handleFilterDate('');
+    }
   };
 
   // Modal visibility
@@ -348,99 +379,202 @@ export default function AssignmentsTab() {
         </div>
       </div>
 
-      {/* Filter Toolbar */}
+      {/* Main Workspace Bar: Class & Date Navigation */}
       <div style={{
         display: 'flex',
-        gap: 'var(--space-md)',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        padding: '12px 16px',
+        flexDirection: 'column',
+        gap: '12px',
+        padding: '16px',
         backgroundColor: 'var(--color-surface)',
         borderRadius: '16px',
         border: '1px solid var(--color-border)',
         marginBottom: '20px'
       }} className="no-print">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: '700' }}>
-          <Filter size={15} />
-          <span>{lang === 'ar' ? 'تصفية الواجبات:' : 'Filter Assignments:'}</span>
-        </div>
-
-        {/* Search Box */}
-        <div className="search-box" style={{ width: '220px', minHeight: '38px', margin: 0 }}>
-          <Search size={15} />
-          <input
-            type="text"
-            className="text-field"
-            style={{ minHeight: '36px', fontSize: '12px' }}
-            placeholder={lang === 'ar' ? 'البحث عن واجب...' : 'Search assignments...'}
-            value={search || ''}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-
-        {/* Date Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Calendar size={14} style={{ color: 'var(--color-text-secondary)' }} />
-          <input
-            type="date"
-            className="text-field"
-            value={filterDate}
-            onChange={e => handleFilterDate(e.target.value)}
-            style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: '130px' }}
-          />
-          {filterDate && (
-            <button 
-              onClick={() => handleFilterDate('')} 
-              style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '12px', padding: 0 }}
+        
+        {/* Row 1: Primary Dimensions (Class & Date Hub) */}
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px dashed var(--color-border)',
+          paddingBottom: '12px'
+        }}>
+          {/* Class & Section Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🏫 {lang === 'ar' ? 'الفصل والشعبة:' : 'Class & Section:'}
+            </span>
+            <select
+              className="text-field"
+              value={filterClassId}
+              onChange={e => handleFilterClass(e.target.value)}
+              style={{
+                minHeight: '38px',
+                fontSize: '13px',
+                fontWeight: '600',
+                padding: '6px 14px',
+                borderRadius: '10px',
+                backgroundColor: filterClassId !== 'all' ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface-alt)',
+                borderColor: filterClassId !== 'all' ? 'var(--color-primary)' : 'var(--color-border)',
+                minWidth: '180px'
+              }}
             >
-              ✕
+              <option value="all">{lang === 'ar' ? '🏢 جميع الفصول والمراحل' : 'All Classes'}</option>
+              {allowedClasses.map(cls => {
+                const cleanId = String(cls.id).replace('cls-', '');
+                return (
+                  <option key={cls.id} value={cleanId}>
+                    {cls.grade_ar || cls.grade} - {cls.section_ar || cls.section}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Date Navigator Hub */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Calendar size={15} />
+              {lang === 'ar' ? 'تاريخ الواجب:' : 'Assignment Date:'}
+            </span>
+
+            {/* Shift Previous Day */}
+            <button
+              type="button"
+              className="chip"
+              onClick={() => shiftDate(-1)}
+              title={lang === 'ar' ? 'اليوم السابق' : 'Previous Day'}
+              style={{ margin: 0, padding: '6px 10px', fontSize: '12px', cursor: 'pointer' }}
+            >
+              ▶ {lang === 'ar' ? 'السابق' : 'Prev'}
             </button>
-          )}
+
+            {/* Date Input */}
+            <input
+              type="date"
+              className="text-field"
+              value={filterDate}
+              onChange={e => handleFilterDate(e.target.value)}
+              style={{
+                minHeight: '38px',
+                fontSize: '13px',
+                padding: '4px 10px',
+                borderRadius: '10px',
+                width: '145px',
+                fontWeight: '600',
+                backgroundColor: filterDate ? 'rgba(30, 80, 142, 0.08)' : 'var(--color-surface-alt)',
+                borderColor: filterDate ? 'var(--color-primary)' : 'var(--color-border)'
+              }}
+            />
+
+            {/* Shift Next Day */}
+            <button
+              type="button"
+              className="chip"
+              onClick={() => shiftDate(1)}
+              title={lang === 'ar' ? 'اليوم التالي' : 'Next Day'}
+              style={{ margin: 0, padding: '6px 10px', fontSize: '12px', cursor: 'pointer' }}
+            >
+              {lang === 'ar' ? 'التالي' : 'Next'} ◀
+            </button>
+
+            {/* Quick Pills */}
+            <div style={{ display: 'flex', gap: '4px', marginInlineStart: '4px' }}>
+              <button
+                type="button"
+                className={`chip ${filterDate === new Date().toISOString().split('T')[0] ? 'selected' : ''}`}
+                onClick={() => setQuickDate('today')}
+                style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
+              >
+                {lang === 'ar' ? 'اليوم' : 'Today'}
+              </button>
+              <button
+                type="button"
+                className="chip"
+                onClick={() => setQuickDate('yesterday')}
+                style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
+              >
+                {lang === 'ar' ? 'أمس' : 'Yesterday'}
+              </button>
+              <button
+                type="button"
+                className={`chip ${!filterDate ? 'selected' : ''}`}
+                onClick={() => setQuickDate('all')}
+                style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
+              >
+                {lang === 'ar' ? 'الكل' : 'All'}
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Teacher Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <User size={14} style={{ color: 'var(--color-text-secondary)' }} />
-          <select
-            className="text-field"
-            value={filterTeacherId}
-            onChange={e => handleFilterTeacher(e.target.value)}
-            style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: 'auto' }}
-          >
-            <option value="all">{lang === 'ar' ? 'جميع المعلمين' : 'All Teachers'}</option>
-            {teachers.map(t => (
-              <option key={t.id} value={t.id}>{lang === 'ar' ? t.name : t.nameEn}</option>
-            ))}
-          </select>
-        </div>
+        {/* Row 2: Secondary Filters (Teacher, Subject, Search) */}
+        <div style={{
+          display: 'flex',
+          gap: 'var(--space-md)',
+          flexWrap: 'wrap',
+          alignItems: 'center'
+        }}>
+          {/* Search Box */}
+          <div className="search-box" style={{ width: '220px', minHeight: '36px', margin: 0 }}>
+            <Search size={15} />
+            <input
+              type="text"
+              className="text-field"
+              style={{ minHeight: '34px', fontSize: '12px' }}
+              placeholder={lang === 'ar' ? 'البحث في عنوان أو محتوى الواجب...' : 'Search assignment title or content...'}
+              value={search || ''}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
 
-        {/* Subject Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <BookOpen size={14} style={{ color: 'var(--color-text-secondary)' }} />
-          <select
-            className="text-field"
-            value={filterSubject}
-            onChange={e => handleFilterSubject(e.target.value)}
-            style={{ minHeight: '38px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: 'auto' }}
-          >
-            <option value="all">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
-            {subjects && subjects.length > 0 ? (
-              subjects.map(s => (
-                <option key={s.id} value={s.name}>{lang === 'ar' ? s.name : s.nameEn}</option>
-              ))
-            ) : (
-              <>
-                <option value="الرياضيات">{t.math}</option>
-                <option value="العلوم">{t.science}</option>
-                <option value="اللغة العربية">{t.arabic}</option>
-                <option value="اللغة الإنجليزية">{t.english}</option>
-              </>
-            )}
-          </select>
-        </div>
+          {/* Teacher Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <User size={14} style={{ color: 'var(--color-text-secondary)' }} />
+            <select
+              className="text-field"
+              value={filterTeacherId}
+              onChange={e => handleFilterTeacher(e.target.value)}
+              style={{ minHeight: '36px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: 'auto' }}
+            >
+              <option value="all">{lang === 'ar' ? 'جميع المعلمين' : 'All Teachers'}</option>
+              {teachers.map(t => (
+                <option key={t.id} value={t.id}>{lang === 'ar' ? t.name : t.nameEn}</option>
+              ))}
+            </select>
+          </div>
 
-        <div style={{ marginInlineStart: 'auto', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
-          {lang === 'ar' ? `النتائج: ${filteredAssignments.length}` : `Results: ${filteredAssignments.length}`}
+          {/* Subject Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <BookOpen size={14} style={{ color: 'var(--color-text-secondary)' }} />
+            <select
+              className="text-field"
+              value={filterSubject}
+              onChange={e => handleFilterSubject(e.target.value)}
+              style={{ minHeight: '36px', fontSize: '12px', padding: '4px 10px', borderRadius: '10px', width: 'auto' }}
+            >
+              <option value="all">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
+              {subjects && subjects.length > 0 ? (
+                subjects.map(s => (
+                  <option key={s.id} value={s.name}>{lang === 'ar' ? s.name : s.nameEn}</option>
+                ))
+              ) : (
+                <>
+                  <option value="الرياضيات">{t.math}</option>
+                  <option value="العلوم">{t.science}</option>
+                  <option value="اللغة العربية">{t.arabic}</option>
+                  <option value="اللغة الإنجليزية">{t.english}</option>
+                </>
+              )}
+            </select>
+          </div>
+
+          {/* Results Summary Counter */}
+          <div style={{ marginInlineStart: 'auto', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+            {lang === 'ar' ? `الواجبات المطابقة: ${filteredAssignments.length}` : `Matching Assignments: ${filteredAssignments.length}`}
+          </div>
         </div>
       </div>
 
@@ -516,7 +650,7 @@ export default function AssignmentsTab() {
                     <span>⌛ {t.dueDateLabel}: {assign.dueDate}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-                    {canAction('assignments', 'delete') && (
+                    {canAction('assignments', 'delete', assign.class_id || assign.classId) && (
                       <button
                         onClick={(e) => onDeleteAssignmentClick(e, assign.id)}
                         style={{

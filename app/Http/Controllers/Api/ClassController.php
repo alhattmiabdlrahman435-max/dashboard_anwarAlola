@@ -25,11 +25,11 @@ class ClassController extends Controller implements HasMiddleware
     {
         $user = $request->user();
         
-        // Scope classes only if explicitly requested via 'scoped' param or for student/parent roles
+        // Scope classes automatically for non-admin scoped roles or when explicitly requested
         $scopedClassIds = null;
-        if ($request->boolean('scoped')) {
+        if ($user && $user->role !== 'admin') {
             $scopedClassIds = PermissionService::getScopedClassIds($user, 'classes');
-        } elseif ($user && in_array($user->role, ['parent', 'student'])) {
+        } elseif ($request->boolean('scoped')) {
             $scopedClassIds = PermissionService::getScopedClassIds($user, 'classes');
         }
 
@@ -108,6 +108,11 @@ class ClassController extends Controller implements HasMiddleware
             return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
         }
 
+        $user = $request->user();
+        if ($user && !PermissionService::isClassAllowed($user, 'classes', (int)$id)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بتعديل فصل خارج نطاق إشرافك'], 403);
+        }
+
         $request->validate([
             'grade_ar' => 'nullable|string',
             'grade_en' => 'nullable|string',
@@ -129,12 +134,18 @@ class ClassController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
         $class = SchoolClass::find($id);
         if (!$class) {
             return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
         }
+
+        $user = $request->user();
+        if ($user && !PermissionService::isClassAllowed($user, 'classes', (int)$id)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بحذف فصل خارج نطاق إشرافك'], 403);
+        }
+
         $class->delete();
         return response()->json(['success' => true, 'message' => 'تم حذف الفصل بنجاح']);
     }
@@ -144,6 +155,11 @@ class ClassController extends Controller implements HasMiddleware
         $class = SchoolClass::find($id);
         if (!$class) {
             return response()->json(['success' => false, 'message' => 'الفصل غير موجود'], 404);
+        }
+
+        $user = $request->user();
+        if ($user && !PermissionService::isClassAllowed($user, 'classes', (int)$id)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بإدارة مواد فصل خارج نطاق إشرافك'], 403);
         }
 
         $request->validate([

@@ -1,0 +1,216 @@
+/* ==========================================================================
+   Academic Exam Timetable Print Stylesheet (Official School Standards)
+   ========================================================================== */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 10mm 10mm;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box !important;
+  }
+
+  body[data-print-mode="exam-schedule"] {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-family: 'Amiri', 'Traditional Arabic', 'Simplified Arabic', system-ui, -apple-system, sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 1. Hide the entire main app workspace when printing exam schedule */
+  body[data-print-mode="exam-schedule"] #root,
+  body[data-print-mode="exam-schedule"] .app-container,
+  body[data-print-mode="exam-schedule"] .sidebar,
+  body[data-print-mode="exam-schedule"] .top-header,
+  body[data-print-mode="exam-schedule"] .navbar,
+  body[data-print-mode="exam-schedule"] .hamburger-btn,
+  body[data-print-mode="exam-schedule"] .section-card-header,
+  body[data-print-mode="exam-schedule"] .exam-schedules-grid,
+  body[data-print-mode="exam-schedule"] .pagination-container,
+  body[data-print-mode="exam-schedule"] .pagination-bar-container,
+  body[data-print-mode="exam-schedule"] .printable-only-header,
+  body[data-print-mode="exam-schedule"] .no-print,
+  body[data-print-mode="exam-schedule"] .modal-header,
+  body[data-print-mode="exam-schedule"] .modal-footer,
+  body[data-print-mode="exam-schedule"] .print-modal-controls,
+  body[data-print-mode="exam-schedule"] .modal-overlay:not(#academic-print-modal-overlay) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 2. Unhide and elevate the Academic Print Modal Overlay to standard flow */
+  body[data-print-mode="exam-schedule"] #academic-print-modal-overlay,
+  body[data-print-mode="exam-schedule"] .modal-overlay#academic-print-modal-overlay,
+  body[data-print-mode="exam-schedule"] .academic-print-modal-overlay {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    z-index: 9999999 !important;
+  }
+
+  /* 3. Modal container behaves as clean full-width print container */
+  body[data-print-mode="exam-schedule"] .academic-print-modal-container {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* 4. Remove dark preview background and scrolling restrictions */
+  body[data-print-mode="exam-schedule"] .academic-preview-scroll {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* 5. Print Area and its children are explicitly visible */
+  body[data-print-mode="exam-schedule"] #academic-exam-print-area {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body[data-print-mode="exam-schedule"] #academic-exam-print-area * {
+    visibility: visible !important;
+  }
+
+  /* 6. A4 Exam Sheet: True classical academic paper - No forced gap */
+  body[data-print-mode="exam-schedule"] .academic-exam-sheet {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1.5px solid #0f172a !important;
+    padding: 8mm 10mm 10mm 10mm !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body[data-print-mode="exam-schedule"] .academic-exam-sheet.page-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /* 7. Classical Examination Table: Fixed layout prevents overflowing */
+  body[data-print-mode="exam-schedule"] .academic-classical-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    margin: 10px 0 !important;
+    direction: rtl !important;
+    box-sizing: border-box !important;
+  }
+
+  body[data-print-mode="exam-schedule"] .academic-classical-table th,
+  body[data-print-mode="exam-schedule"] .academic-classical-table td {
+    border: 1px solid #0f172a !important;
+    padding: 5px 4px !important;
+    text-align: center !important;
+    font-size: 9.5pt !important;
+    color: #0f172a !important;
+    box-sizing: border-box !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  body[data-print-mode="exam-schedule"] .academic-classical-table th {
+    background-color: #f1f5f9 !important;
+    font-weight: 800 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Specific styling for the notes cell: small font, minimal padding, smooth wrap */
+  body[data-print-mode="exam-schedule"] .academic-classical-table td.exam-note-cell {
+    padding: 2px 3px !important;
+    font-size: 8pt !important;
+    line-height: 1.25 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    vertical-align: middle !important;
+    color: #0f172a !important;
+  }
+
+  body[data-print-mode="exam-schedule"] .academic-classical-table th.exam-note-th {
+    padding: 4px 3px !important;
+    font-size: 9pt !important;
+    text-align: right !important;
+  }
+
+  /* 8. Instructions Box */
+  body[data-print-mode="exam-schedule"] .academic-instructions-box {
+    border: 1px solid #1e293b !important;
+    padding: 8px 12px !important;
+    margin-top: 14px !important;
+    background-color: #f8fafc !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 9. Signatures Grid */
+  body[data-print-mode="exam-schedule"] .academic-signatures-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 16px !important;
+    margin-top: 22px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-sizing: border-box !important;
+  }
+}

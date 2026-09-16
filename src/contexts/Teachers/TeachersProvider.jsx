@@ -294,6 +294,39 @@ export default function TeachersProvider({ children }) {
     }
   }, [subjects, classes, lang, setToastMessage, fetchTeachers]);
 
+  const handleDeleteTeacher = useCallback((teacherId) => {
+    const token = localStorage.getItem("auth_token");
+
+    if (token) {
+      return teachersService.deleteTeacher(teacherId)
+      .then(data => {
+        if (data.success) {
+          setTeachers(prev => prev.filter(t => t.id !== teacherId));
+          setToastMessage(lang === 'ar' ? 'تم حذف المعلم بنجاح!' : 'Teacher deleted successfully!');
+          setTimeout(() => setToastMessage(''), 4000);
+          return { success: true };
+        } else {
+          const msg = lang === 'ar' ? `فشل حذف المعلم: ${data.message || ''}` : `Failed to delete teacher: ${data.message || ''}`;
+          setToastMessage(msg);
+          setTimeout(() => setToastMessage(''), 6000);
+          return { success: false, message: msg };
+        }
+      })
+      .catch(err => {
+        console.error("Error deleting teacher:", err);
+        const msg = lang === 'ar' ? `خطأ: ${err.message}` : `Error: ${err.message}`;
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(''), 6000);
+        return { success: false, message: msg };
+      });
+    } else {
+      setTeachers(prev => prev.filter(t => t.id !== teacherId));
+      setToastMessage(lang === 'ar' ? 'تم حذف المعلم بنجاح!' : 'Teacher deleted successfully!');
+      setTimeout(() => setToastMessage(''), 4000);
+      return Promise.resolve({ success: true });
+    }
+  }, [lang, setToastMessage]);
+
   // ─── Supervisor CRUD ───────────────────────────────────────────────
   const handleAddSupervisor = useCallback((newSupervisor) => {
     const token = localStorage.getItem("auth_token");
@@ -417,6 +450,7 @@ export default function TeachersProvider({ children }) {
     teachersPagination,
     handleAddTeacher,
     handleEditTeacher,
+    handleDeleteTeacher,
     // Supervisors
     supervisors,
     setSupervisors,
@@ -433,6 +467,7 @@ export default function TeachersProvider({ children }) {
     teachersPagination,
     handleAddTeacher,
     handleEditTeacher,
+    handleDeleteTeacher,
     supervisors,
     fetchSupervisors,
     supervisorsPagination,

@@ -22,8 +22,7 @@ class NotificationController extends Controller implements HasMiddleware
         return [
             new Middleware('check.permission:communications,view', only: ['index', 'markAllRead']),
             new Middleware('check.permission:communications,create', only: ['send']),
-            new Middleware('check.permission:communications,delete', only: ['destroy']),
-            new Middleware('check.permission:communications,deleteAll', only: ['deleteAll']),
+            new Middleware('check.permission:communications,delete', only: ['destroy', 'deleteAll']),
         ];
     }
 
@@ -438,12 +437,24 @@ class NotificationController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function deleteAll()
+    public function deleteAll(Request $request)
     {
-        Notification::query()->delete();
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'communications');
+
+        $query = Notification::query();
+        if ($scopedClassIds !== null) {
+            $studentIds = Student::whereIn('class_id', $scopedClassIds)->pluck('id')->toArray();
+            $query->where(function($q) use ($scopedClassIds, $studentIds) {
+                $q->whereIn('class_id', $scopedClassIds)
+                  ->orWhereIn('student_id', $studentIds);
+            });
+        }
+
+        $query->delete();
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف جميع الإشعارات بنجاح.'
+            'message' => 'تم حذف الإشعارات المحددة بنجاح.'
         ]);
     }
 }

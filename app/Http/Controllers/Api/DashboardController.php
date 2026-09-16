@@ -15,25 +15,50 @@ class DashboardController extends Controller
     public function stats(Request $request)
     {
         $today = now()->format('Y-m-d');
+        $user = $request->user();
+        $scopedClassIds = $user ? \App\Services\PermissionService::getScopedClassIds($user, 'students') : null;
+
+        $studentQuery = Student::query();
+        $classQuery = SchoolClass::query();
+        if ($scopedClassIds !== null) {
+            $studentQuery->whereIn('class_id', $scopedClassIds);
+            $classQuery->whereIn('id', $scopedClassIds);
+        }
 
         // Basic Aggregates
-        $totalStudents = Student::count();
-        $totalTeachers = User::teachers()->count();
-        $totalClasses = SchoolClass::count();
+        $totalStudents = (clone $studentQuery)->count();
+        $totalClasses = (clone $classQuery)->count();
+        $totalTeachers = $scopedClassIds !== null
+            ? User::teachers()->whereHas('teacherSubjects', fn($q) => $q->whereIn('class_id', $scopedClassIds))->count()
+            : User::teachers()->count();
+
+        $scopedStudentIds = $scopedClassIds !== null ? (clone $studentQuery)->pluck('id')->toArray() : null;
 
         // Attendance stats
-        $presentToday = Attendance::where('record_date', $today)->where('status', 'present')->count();
-        $absentToday = Attendance::where('record_date', $today)->where('status', 'absent')->count();
-        $lateToday = Attendance::where('record_date', $today)->where('status', 'late')->count();
+        $attendanceQuery = Attendance::where('record_date', $today);
+        if ($scopedStudentIds !== null) {
+            $attendanceQuery->whereIn('student_id', $scopedStudentIds);
+        }
+        $presentToday = (clone $attendanceQuery)->where('status', 'present')->count();
+        $absentToday = (clone $attendanceQuery)->where('status', 'absent')->count();
+        $lateToday = (clone $attendanceQuery)->where('status', 'late')->count();
 
         // Pending absences
-        $pendingAbsences = AbsenceRequest::where('status', 'pending')->count();
+        $absencesQuery = AbsenceRequest::where('status', 'pending');
+        if ($scopedStudentIds !== null) {
+            $absencesQuery->whereIn('student_id', $scopedStudentIds);
+        }
+        $pendingAbsences = $absencesQuery->count();
 
         // Finance stats
-        $totalRequired = (float)Student::sum('tuition_fee');
-        $totalPaid = (float)\App\Models\Payment::sum('amount');
+        $totalRequired = (float)(clone $studentQuery)->sum('tuition_fee');
+        $paymentsQuery = \App\Models\Payment::query();
+        if ($scopedStudentIds !== null) {
+            $paymentsQuery->whereIn('student_id', $scopedStudentIds);
+        }
+        $totalPaid = (float)(clone $paymentsQuery)->sum('amount');
         $collectionRate = $totalRequired > 0 ? round(($totalPaid / $totalRequired) * 100) : 0;
-        $paidStudentsCount = \App\Models\Payment::distinct()->count('student_id');
+        $paidStudentsCount = (clone $paymentsQuery)->distinct()->count('student_id');
 
         // Subject averages (from control grades: month = 0, is_control = true)
         $subjectAverages = [];
@@ -44,17 +69,24 @@ class DashboardController extends Controller
             'english' => 4,
         ];
         foreach ($subjects as $name => $id) {
-            $avg = \App\Models\Grade::where('is_control', true)
+            $gradesQ = \App\Models\Grade::where('is_control', true)
                 ->where('month', 0)
-                ->where('subject_id', $id)
-                ->avg('final_exam') ?? 0;
+                ->where('subject_id', $id);
+            if ($scopedStudentIds !== null) {
+                $gradesQ->whereIn('student_id', $scopedStudentIds);
+            }
+            $avg = $gradesQ->avg('final_exam') ?? 0;
             $subjectAverages[$name] = round($avg);
         }
 
         // Top 3 performing students in control grades
-        $topStudentsRaw = Student::with(['schoolClass', 'grades' => function($q) {
+        $topStudentsQuery = Student::with(['schoolClass', 'grades' => function($q) {
             $q->where('is_control', true)->where('month', 0);
-        }])->get();
+        }]);
+        if ($scopedClassIds !== null) {
+            $topStudentsQuery->whereIn('class_id', $scopedClassIds);
+        }
+        $topStudentsRaw = $topStudentsQuery->get();
 
         $topStudents = $topStudentsRaw->map(function($student) {
             $grades = $student->grades;
