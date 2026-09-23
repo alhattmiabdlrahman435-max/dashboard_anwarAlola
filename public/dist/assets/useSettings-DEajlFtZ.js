@@ -1,0 +1,1 @@
+import{d as e,l as t}from"./AppContext-CIjXNxNk.js";import{N as n}from"./index-D-vXaJRO.js";var r=e(t(),1);function i(){let e=(0,r.useContext)(n);if(!e)throw Error(`useSettings must be used within a SettingsProvider`);return e}export{i as t};

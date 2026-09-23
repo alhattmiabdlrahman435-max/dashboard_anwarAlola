@@ -1067,34 +1067,69 @@ export default function ExamSchedulesTab() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label htmlFor="modal-exam-sub-name" style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.subjectLabel}</label>
-                      <button
-                        type="button"
-                        onClick={() => setIsCustomSubject(prev => !prev)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--color-primary-ui)',
-                          fontSize: '10px',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          padding: '0 2px',
-                          textDecoration: 'underline'
-                        }}
-                      >
-                        {isCustomSubject ? (lang === 'ar' ? '⬅️ اختيار من القائمة' : '⬅️ Select from list') : (lang === 'ar' ? '✏️ كتابة مادة يدوياً' : '✏️ Custom subject')}
-                      </button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '4px' }}>
+                      <label htmlFor="modal-exam-sub-name" style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.subjectLabel}</label>
+                      <div style={{
+                        display: 'inline-flex',
+                        background: 'rgba(0, 0, 0, 0.05)',
+                        padding: '2px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border)',
+                        gap: '2px'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomSubject(false)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: !isCustomSubject ? '700' : '500',
+                            border: 'none',
+                            background: !isCustomSubject ? '#ffffff' : 'transparent',
+                            color: !isCustomSubject ? 'var(--color-primary-ui)' : 'var(--color-text-secondary)',
+                            boxShadow: !isCustomSubject ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <span>📋 {lang === 'ar' ? 'من القائمة' : 'From List'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomSubject(true)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: isCustomSubject ? '700' : '500',
+                            border: 'none',
+                            background: isCustomSubject ? '#ffffff' : 'transparent',
+                            color: isCustomSubject ? 'var(--color-primary-ui)' : 'var(--color-text-secondary)',
+                            boxShadow: isCustomSubject ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <span>✏️ {lang === 'ar' ? 'كتابة يدوية' : 'Custom'}</span>
+                        </button>
+                      </div>
                     </div>
 
                     {isCustomSubject ? (
                       <input
                         type="text"
-                        placeholder={lang === 'ar' ? 'اكتب اسم المادة (مثال: تلاوة، جبر وهندسة)...' : 'Type subject name...'}
+                        placeholder={lang === 'ar' ? 'اكتب اسم المادة هنا (مثال: تلاوة، جبر وهندسة)...' : 'Type subject name...'}
                         value={modalCustomSubName}
                         onChange={(e) => setModalCustomSubName(e.target.value)}
                         className="text-field"
-                        style={{ height: '34px', padding: '0 8px', fontSize: '11px', fontWeight: '600' }}
+                        style={{ height: '36px', padding: '0 10px', fontSize: '11px', fontWeight: '600' }}
                         autoFocus
                       />
                     ) : (
@@ -1110,7 +1145,7 @@ export default function ExamSchedulesTab() {
                           }
                         }} 
                         className="text-field" 
-                        style={{ height: '34px', padding: '0 8px', fontSize: '11px', fontWeight: '600' }}
+                        style={{ height: '36px', padding: '0 10px', fontSize: '11px', fontWeight: '600' }}
                       >
                         {availableSubjectsForSelectedClass.map((subName, sIdx) => (
                           <option key={sIdx} value={subName}>
