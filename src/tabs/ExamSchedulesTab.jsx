@@ -124,6 +124,8 @@ export default function ExamSchedulesTab() {
 
   // Sub-form for adding a subject to the temporary list
   const [modalExamSubName, setModalExamSubName] = useState('الرياضيات');
+  const [modalCustomSubName, setModalCustomSubName] = useState('');
+  const [isCustomSubject, setIsCustomSubject] = useState(false);
   const [modalExamSubDate, setModalExamSubDate] = useState('');
   const [modalExamSubTime, setModalExamSubTime] = useState('08:00 - 09:30 ص');
   const [modalExamSubNote, setModalExamSubNote] = useState('');
@@ -225,9 +227,13 @@ export default function ExamSchedulesTab() {
 
   // Compute available subjects assigned specifically to the selected class with database precision
   const availableSubjectsForSelectedClass = useMemo(() => {
+    const list = [];
+
     // 1. Direct class pivot subjects from DB
     if (selectedClassObj && Array.isArray(selectedClassObj.subjects) && selectedClassObj.subjects.length > 0) {
-      return selectedClassObj.subjects;
+      selectedClassObj.subjects.forEach(s => {
+        if (s && !list.includes(s)) list.push(s);
+      });
     }
 
     // 2. Grade-level subjects from DB (inherit from another section of the same grade level)
@@ -238,16 +244,42 @@ export default function ExamSchedulesTab() {
         c.subjects.length > 0
       );
       if (sameGradeCls) {
-        return sameGradeCls.subjects;
+        sameGradeCls.subjects.forEach(s => {
+          if (s && !list.includes(s)) list.push(s);
+        });
       }
     }
 
     // 3. All database registered subjects from subjects table
     if (Array.isArray(subjects) && subjects.length > 0) {
-      return subjects.map(s => (lang === 'ar' ? s.name : (s.nameEn || s.name)));
+      subjects.forEach(s => {
+        const name = lang === 'ar' ? (s.name || s.name_ar) : (s.nameEn || s.name_en || s.name);
+        if (name && !list.includes(name)) list.push(name);
+      });
     }
 
-    return [];
+    // 4. Special and standard exam subjects requested by school administration
+    const defaultExamSpecialSubjects = [
+      'اللغة الإنجليزية',
+      'التلاوة',
+      'القرآن الكريم',
+      'التربية الإسلامية',
+      'الرياضيات',
+      'جبر وهندسة',
+      'التفاضل والتكامل',
+      'العلوم',
+      'اللغة العربية',
+      'الاجتماعيات',
+      'الكيمياء',
+      'الفيزياء',
+      'الأحياء'
+    ];
+
+    defaultExamSpecialSubjects.forEach(s => {
+      if (!list.includes(s)) list.push(s);
+    });
+
+    return list;
   }, [selectedClassObj, classes, subjects, lang]);
 
   // Whenever the selected class changes, reset the selected subject field to that class's first subject
@@ -337,6 +369,12 @@ export default function ExamSchedulesTab() {
   };
 
   const handleAddExamSubject = () => {
+    const finalSubjectName = (isCustomSubject ? modalCustomSubName : modalExamSubName || '').trim();
+    if (!finalSubjectName) {
+      setToastMessage(lang === 'ar' ? 'الرجاء تحديد أو كتابة اسم المادة' : 'Please select or enter subject name');
+      setTimeout(() => setToastMessage(''), 3000);
+      return;
+    }
     if (!modalExamSubDate) {
       setToastMessage(lang === 'ar' ? 'الرجاء تحديد تاريخ الاختبار' : 'Please select exam date');
       setTimeout(() => setToastMessage(''), 3000);
@@ -344,7 +382,7 @@ export default function ExamSchedulesTab() {
     }
     const newSubject = {
       id: Date.now() + Math.random(),
-      subjectName: modalExamSubName,
+      subjectName: finalSubjectName,
       date: modalExamSubDate,
       time: modalExamSubTime,
       note: modalExamSubNote
@@ -352,6 +390,10 @@ export default function ExamSchedulesTab() {
     setModalExamSubjects(prev => [...prev, newSubject]);
     setModalExamSubDate('');
     setModalExamSubNote('');
+    if (isCustomSubject) {
+      setModalCustomSubName('');
+      setIsCustomSubject(false);
+    }
   };
 
   const handleStartEdit = (sched) => {
@@ -1025,28 +1067,61 @@ export default function ExamSchedulesTab() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <label htmlFor="modal-exam-sub-name" style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.subjectLabel}</label>
-                    <select 
-                      id="modal-exam-sub-name" 
-                      name="subjectName" 
-                      value={modalExamSubName} 
-                      onChange={(e) => setModalExamSubName(e.target.value)} 
-                      className="text-field" 
-                      disabled={availableSubjectsForSelectedClass.length === 0}
-                      style={{ height: '34px', padding: '0 8px', fontSize: '11px', fontWeight: '600' }}
-                    >
-                      {availableSubjectsForSelectedClass.length > 0 ? (
-                        availableSubjectsForSelectedClass.map((subName, sIdx) => (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label htmlFor="modal-exam-sub-name" style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.subjectLabel}</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomSubject(prev => !prev)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-primary-ui)',
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          padding: '0 2px',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        {isCustomSubject ? (lang === 'ar' ? '⬅️ اختيار من القائمة' : '⬅️ Select from list') : (lang === 'ar' ? '✏️ كتابة مادة يدوياً' : '✏️ Custom subject')}
+                      </button>
+                    </div>
+
+                    {isCustomSubject ? (
+                      <input
+                        type="text"
+                        placeholder={lang === 'ar' ? 'اكتب اسم المادة (مثال: تلاوة، جبر وهندسة)...' : 'Type subject name...'}
+                        value={modalCustomSubName}
+                        onChange={(e) => setModalCustomSubName(e.target.value)}
+                        className="text-field"
+                        style={{ height: '34px', padding: '0 8px', fontSize: '11px', fontWeight: '600' }}
+                        autoFocus
+                      />
+                    ) : (
+                      <select 
+                        id="modal-exam-sub-name" 
+                        name="subjectName" 
+                        value={modalExamSubName} 
+                        onChange={(e) => {
+                          if (e.target.value === '__custom__') {
+                            setIsCustomSubject(true);
+                          } else {
+                            setModalExamSubName(e.target.value);
+                          }
+                        }} 
+                        className="text-field" 
+                        style={{ height: '34px', padding: '0 8px', fontSize: '11px', fontWeight: '600' }}
+                      >
+                        {availableSubjectsForSelectedClass.map((subName, sIdx) => (
                           <option key={sIdx} value={subName}>
                             {subName}
                           </option>
-                        ))
-                      ) : (
-                        <option value="">
-                          {lang === 'ar' ? 'لا توجد مواد مسجلة لهذا الفصل' : 'No subjects registered for this class'}
+                        ))}
+                        <option value="__custom__" style={{ color: 'var(--color-primary-ui)', fontWeight: 'bold' }}>
+                          {lang === 'ar' ? '✏️ + كتابة مادة أخرى يدوياً...' : '✏️ + Type other subject...'}
                         </option>
-                      )}
-                    </select>
+                      </select>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>

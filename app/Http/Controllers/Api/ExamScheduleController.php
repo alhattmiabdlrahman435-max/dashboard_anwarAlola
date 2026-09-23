@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ExamSchedule;
 use App\Models\ExamSubject;
+use App\Models\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -177,9 +178,10 @@ class ExamScheduleController extends Controller implements HasMiddleware
                 ]);
 
                 foreach ($request->subjects as $sub) {
+                    $resolvedSubId = $this->resolveSubjectId($sub);
                     ExamSubject::create([
                         'exam_schedule_id' => $schedule->id,
-                        'subject_id' => $sub['subject_id'],
+                        'subject_id' => $resolvedSubId,
                         'exam_date' => $sub['exam_date'],
                         'exam_time' => $sub['exam_time'],
                         'note' => $sub['note'] ?? null,
@@ -188,25 +190,29 @@ class ExamScheduleController extends Controller implements HasMiddleware
 
                 // Create notification for parents and teachers
                 if ($cid) {
-                    \App\Models\Notification::create([
-                        'title' => 'جدول اختبارات جديد 📋',
-                        'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title,
-                        'type' => 'exam_schedule',
-                        'is_read' => false,
-                        'class_id' => $cid,
-                    ]);
+                    try {
+                        \App\Models\Notification::create([
+                            'title' => 'جدول اختبارات جديد 📋',
+                            'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title,
+                            'type' => 'exam_schedule',
+                            'is_read' => false,
+                            'class_id' => $cid,
+                        ]);
 
-                    $this->notifyParentsOfClass(
-                        $cid,
-                        'جدول اختبارات جديد 📋',
-                        'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title
-                    );
+                        $this->notifyParentsOfClass(
+                            $cid,
+                            'جدول اختبارات جديد 📋',
+                            'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $schedule->title
+                        );
 
-                    $this->notifyTeachersOfClass(
-                        $cid,
-                        'جدول اختبارات جديد 📋',
-                        'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $schedule->title
-                    );
+                        $this->notifyTeachersOfClass(
+                            $cid,
+                            'جدول اختبارات جديد 📋',
+                            'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $schedule->title
+                        );
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning("Exam schedule notification warning: " . $e->getMessage());
+                    }
                 }
 
                 $createdSchedules[] = $schedule->load('examSubjects.subject');
@@ -227,7 +233,7 @@ class ExamScheduleController extends Controller implements HasMiddleware
     {
         $request->validate([
             'target_class_ids' => 'required|array|min:1',
-            'target_class_ids.*' => 'integer|exists:school_classes,id',
+            'target_class_ids.*' => 'integer|exists:classes,id',
         ]);
 
         $sourceSchedule = ExamSchedule::with('examSubjects')->find($id);
@@ -271,25 +277,29 @@ class ExamScheduleController extends Controller implements HasMiddleware
                 }
 
                 // Notify parents & teachers
-                \App\Models\Notification::create([
-                    'title' => 'جدول اختبارات جديد 📋',
-                    'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $newSchedule->title,
-                    'type' => 'exam_schedule',
-                    'is_read' => false,
-                    'class_id' => $classId,
-                ]);
+                try {
+                    \App\Models\Notification::create([
+                        'title' => 'جدول اختبارات جديد 📋',
+                        'content' => 'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $newSchedule->title,
+                        'type' => 'exam_schedule',
+                        'is_read' => false,
+                        'class_id' => $classId,
+                    ]);
 
-                $this->notifyParentsOfClass(
-                    $classId,
-                    'جدول اختبارات جديد 📋',
-                    'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $newSchedule->title
-                );
+                    $this->notifyParentsOfClass(
+                        $classId,
+                        'جدول اختبارات جديد 📋',
+                        'تم إضافة جدول اختبارات جديد لصف ابنكم: ' . $newSchedule->title
+                    );
 
-                $this->notifyTeachersOfClass(
-                    $classId,
-                    'جدول اختبارات جديد 📋',
-                    'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $newSchedule->title
-                );
+                    $this->notifyTeachersOfClass(
+                        $classId,
+                        'جدول اختبارات جديد 📋',
+                        'تم إضافة جدول اختبارات جديد لفصل تدرسه: ' . $newSchedule->title
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Duplicate schedule notification warning: " . $e->getMessage());
+                }
 
                 $createdSchedules[] = $newSchedule->load('examSubjects.subject');
             }
@@ -371,9 +381,10 @@ class ExamScheduleController extends Controller implements HasMiddleware
             ExamSubject::where('exam_schedule_id', $schedule->id)->delete();
 
             foreach ($request->subjects as $sub) {
+                $resolvedSubId = $this->resolveSubjectId($sub);
                 ExamSubject::create([
                     'exam_schedule_id' => $schedule->id,
-                    'subject_id' => $sub['subject_id'],
+                    'subject_id' => $resolvedSubId,
                     'exam_date' => $sub['exam_date'],
                     'exam_time' => $sub['exam_time'],
                     'note' => $sub['note'] ?? null,
@@ -382,25 +393,29 @@ class ExamScheduleController extends Controller implements HasMiddleware
 
             // Create notification for parents in the class
             if ($schedule->class_id) {
-                \App\Models\Notification::create([
-                    'title' => 'تعديل جدول اختبارات 📋',
-                    'content' => 'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title,
-                    'type' => 'exam_schedule',
-                    'is_read' => false,
-                    'class_id' => $schedule->class_id,
-                ]);
+                try {
+                    \App\Models\Notification::create([
+                        'title' => 'تعديل جدول اختبارات 📋',
+                        'content' => 'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title,
+                        'type' => 'exam_schedule',
+                        'is_read' => false,
+                        'class_id' => $schedule->class_id,
+                    ]);
 
-                $this->notifyParentsOfClass(
-                    $schedule->class_id,
-                    'تعديل جدول اختبارات 📋',
-                    'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title
-                );
+                    $this->notifyParentsOfClass(
+                        $schedule->class_id,
+                        'تعديل جدول اختبارات 📋',
+                        'تم تعديل جدول اختبارات صف ابنكم: ' . $schedule->title
+                    );
 
-                $this->notifyTeachersOfClass(
-                    $schedule->class_id,
-                    'تعديل جدول اختبارات 📋',
-                    'تم تعديل جدول اختبارات لفصل تدرسه: ' . $schedule->title
-                );
+                    $this->notifyTeachersOfClass(
+                        $schedule->class_id,
+                        'تعديل جدول اختبارات 📋',
+                        'تم تعديل جدول اختبارات لفصل تدرسه: ' . $schedule->title
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Update schedule notification warning: " . $e->getMessage());
+                }
             }
 
             return response()->json([
@@ -445,19 +460,23 @@ class ExamScheduleController extends Controller implements HasMiddleware
     {
         if (!$classId) return;
 
-        $students = \App\Models\Student::with('parentUser')->where('class_id', $classId)->get();
-        $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
+        try {
+            $students = \App\Models\Student::with('parentUser')->where('class_id', $classId)->get();
+            $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
 
-        foreach ($parentUsers as $parentUser) {
-            \App\Services\FcmService::sendToUser(
-                $parentUser,
-                $title,
-                $content,
-                [
-                    'type' => 'exam_schedule',
-                    'class_id' => (string)$classId
-                ]
-            );
+            foreach ($parentUsers as $parentUser) {
+                \App\Services\FcmService::sendToUser(
+                    $parentUser,
+                    $title,
+                    $content,
+                    [
+                        'type' => 'exam_schedule',
+                        'class_id' => (string)$classId
+                    ]
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("notifyParentsOfClass error: " . $e->getMessage());
         }
     }
 
@@ -468,28 +487,86 @@ class ExamScheduleController extends Controller implements HasMiddleware
     {
         if (!$classId) return;
 
-        $teacherIds = \App\Models\TeacherSubject::where('class_id', $classId)->pluck('teacher_id')->filter()->unique();
-        foreach ($teacherIds as $teacherId) {
-            $teacherUser = \App\Models\User::find($teacherId);
-            if ($teacherUser) {
-                \App\Models\Notification::create([
-                    'title' => $title,
-                    'content' => $content,
-                    'type' => 'general',
-                    'is_read' => false,
-                    'teacher_id' => $teacherId,
-                ]);
+        try {
+            $teacherIds = \App\Models\TeacherSubject::where('class_id', $classId)->pluck('teacher_id')->filter()->unique();
+            foreach ($teacherIds as $teacherId) {
+                $teacherUser = \App\Models\User::find($teacherId);
+                if ($teacherUser) {
+                    \App\Models\Notification::create([
+                        'title' => $title,
+                        'content' => $content,
+                        'type' => 'general',
+                        'is_read' => false,
+                        'teacher_id' => $teacherId,
+                    ]);
 
-                \App\Services\FcmService::sendToUser(
-                    $teacherUser,
-                    $title,
-                    $content,
-                    [
-                        'type' => 'exam_schedule',
-                        'class_id' => (string)$classId
-                    ]
-                );
+                    \App\Services\FcmService::sendToUser(
+                        $teacherUser,
+                        $title,
+                        $content,
+                        [
+                            'type' => 'exam_schedule',
+                            'class_id' => (string)$classId
+                        ]
+                    );
+                }
             }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("notifyTeachersOfClass error: " . $e->getMessage());
         }
+    }
+
+    /**
+     * البحث عن المادة أو إنشاؤها ديناميكياً لضمان عدم حدوث أي خطأ في قاعدة البيانات
+     */
+    private function resolveSubjectId(array $sub): int
+    {
+        $subjectId = isset($sub['subject_id']) && !empty($sub['subject_id']) ? (int)$sub['subject_id'] : null;
+        if ($subjectId && Subject::where('id', $subjectId)->exists()) {
+            return $subjectId;
+        }
+
+        $subjectName = trim($sub['subject_name'] ?? ($sub['name_ar'] ?? ($sub['name'] ?? '')));
+        if (!empty($subjectName)) {
+            // 1. بحث مباشر بالاسم العربي أو الإنجليزي
+            $found = Subject::where('name_ar', $subjectName)
+                ->orWhere('name_en', $subjectName)
+                ->first();
+            if ($found) {
+                return $found->id;
+            }
+
+            // 2. بحث مرن لمعالجة الفروق اللغوية (الهمزات، التاء المربوطة، الياء/الألف المقصورة)
+            $normalize = function ($str) {
+                $s = preg_replace('/[أإآ]/u', 'ا', $str);
+                $s = preg_replace('/ة/u', 'ه', $s);
+                $s = preg_replace('/ى/u', 'ي', $s);
+                return trim(preg_replace('/\s+/u', ' ', $s));
+            };
+
+            $normInput = $normalize($subjectName);
+            $allSubs = Subject::all();
+            foreach ($allSubs as $s) {
+                if ($normalize($s->name_ar) === $normInput || $normalize($s->name_en) === $normInput) {
+                    return $s->id;
+                }
+            }
+
+            // 3. إنشاء المادة فورياً في جدول المواد لتكتسب id نظامي
+            $created = Subject::create([
+                'name_ar' => $subjectName,
+                'name_en' => $sub['name_en'] ?? $subjectName,
+            ]);
+            return $created->id;
+        }
+
+        // 4. خيار احتياطي آمن
+        $first = Subject::first();
+        if ($first) {
+            return $first->id;
+        }
+
+        $default = Subject::create(['name_ar' => 'مادة عامة', 'name_en' => 'General Subject']);
+        return $default->id;
     }
 }

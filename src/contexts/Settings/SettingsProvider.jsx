@@ -105,7 +105,7 @@ export default function SettingsProvider({ children }) {
             const classObj = sch.class || {};
             const subs = (sch.subjects || []).map((sub) => ({
               id: sub.id,
-              subjectName: sub.name_ar,
+              subjectName: sub.name_ar || sub.subject_name || sub.name || "",
               date: sub.exam_date,
               time: sub.exam_time,
               note: sub.note || "",
@@ -158,11 +158,20 @@ export default function SettingsProvider({ children }) {
 
     // Mapped subjects array
     const mappedSubjects = newSchedule.subjects.map((sub) => {
-      const foundSub = subjects.find(s => s.name === sub.subjectName || s.id === sub.subjectName);
-      const subjectId = foundSub ? Number(String(foundSub.id).replace("sub-", "")) : null;
+      const rawName = (sub.subjectName || sub.name_ar || sub.name || '').trim();
+      const foundSub = subjects.find(s => 
+        s.name === rawName || 
+        s.name_ar === rawName ||
+        s.id === rawName ||
+        (s.name && s.name.trim() === rawName) ||
+        (s.name_ar && s.name_ar.trim() === rawName)
+      );
+      const subjectId = foundSub ? Number(String(foundSub.id).replace(/\D/g, '')) : null;
       
       return {
-        subject_id: subjectId || 1,
+        subject_id: subjectId,
+        subject_name: rawName,
+        name_ar: rawName,
         exam_date: sub.date,
         exam_time: sub.time,
         note: sub.note || "",
@@ -287,11 +296,20 @@ export default function SettingsProvider({ children }) {
 
     // Mapped subjects array
     const mappedSubjects = updatedSchedule.subjects.map((sub) => {
-      const foundSub = subjects.find(s => s.name === sub.subjectName || s.id === sub.subjectName);
-      const subjectId = foundSub ? Number(String(foundSub.id).replace("sub-", "")) : null;
+      const rawName = (sub.subjectName || sub.name_ar || sub.name || '').trim();
+      const foundSub = subjects.find(s => 
+        s.name === rawName || 
+        s.name_ar === rawName ||
+        s.id === rawName ||
+        (s.name && s.name.trim() === rawName) ||
+        (s.name_ar && s.name_ar.trim() === rawName)
+      );
+      const subjectId = foundSub ? Number(String(foundSub.id).replace(/\D/g, '')) : null;
       
       return {
-        subject_id: subjectId || 1,
+        subject_id: subjectId,
+        subject_name: rawName,
+        name_ar: rawName,
         exam_date: sub.date,
         exam_time: sub.time,
         note: sub.note || "",
