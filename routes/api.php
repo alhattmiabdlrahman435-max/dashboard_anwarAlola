@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\ExportImportController;
 
 // ===== Public Routes - مسارات عامة (بدون مصادقة) =====
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/forgot-password-reset', [AuthController::class, 'forgotPasswordReset'])->middleware('throttle:10,1');
 
 // ===== Protected Routes - مسارات محمية (تحتاج Token) =====
 Route::middleware('auth:sanctum')->group(function () {
@@ -67,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Parents - أولياء الأمور
     Route::apiResource('parents', ParentController::class);
+    Route::post('/parents/{id}/reset-password', [ParentController::class, 'resetPassword']); // إعادة تعيين كلمة المرور
     Route::get('/parents/{id}/students', [ParentController::class, 'children']); // أبناء ولي الأمر
 
     // Classes - الفصول الدراسية

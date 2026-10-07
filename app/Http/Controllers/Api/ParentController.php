@@ -24,7 +24,7 @@ class ParentController extends Controller implements HasMiddleware
         return [
             new Middleware('check.permission:parents,view', only: ['index', 'show']),
             new Middleware('check.permission:parents,create', only: ['store']),
-            new Middleware('check.permission:parents,update', only: ['update']),
+            new Middleware('check.permission:parents,update', only: ['update', 'resetPassword']),
             new Middleware('check.permission:parents,delete', only: ['destroy']),
         ];
     }
@@ -347,4 +347,38 @@ class ParentController extends Controller implements HasMiddleware
             'students' => $students
         ]);
     }
+
+    /**
+     * إعادة تعيين / تصفير كلمة مرور ولي الأمر (خاص بالإدارة)
+     */
+    public function resetPassword(Request $request, string $id)
+    {
+        $parent = User::parents()->findOrFail($id);
+        $type = $request->input('type', 'default'); // 'default' (12345678) or 'phone'
+
+        if ($type === 'phone') {
+            if (empty($parent->phone)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يوجد رقم جوال مسجل لهذا الحساب لاستخدامه ككلمة مرور'
+                ], 400);
+            }
+            $cleanPhone = preg_replace('/\s+/', '', $parent->phone);
+            $newPassword = $cleanPhone;
+        } else {
+            $newPassword = '12345678';
+        }
+
+        $parent->update([
+            'password' => Hash::make($newPassword)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تصفير كلمة المرور بنجاح إلى: ' . $newPassword,
+            'new_password' => $newPassword,
+            'type' => $type,
+        ]);
+    }
 }
+

@@ -27,5 +27,10 @@ export const parentsService = {
   
   downloadTemplate: () => {
     return api.get("/api/parents/template");
+  },
+
+  resetPassword: (parentId, type = 'default') => {
+    return api.post(`/api/parents/${parentId}/reset-password`, { type });
   }
 };
+

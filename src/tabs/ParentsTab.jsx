@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/Auth/useAuth';
 import { useParents } from '../contexts/Parents/useParents';
 import { useStudents } from '../contexts/Students/useStudents';
 import { parentsService } from '../services/parents/parents.service';
-import { Search, X, Download, Upload, FileSpreadsheet, Edit3, Trash2 } from 'lucide-react';
+import { Search, X, Download, Upload, FileSpreadsheet, Edit3, Trash2, KeyRound } from 'lucide-react';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 
@@ -59,6 +59,26 @@ export default function ParentsTab() {
   const [modalParentPhoneNum, setModalParentPhoneNum] = useState('');
   const [modalParentNationalIdVal, setModalParentNationalIdVal] = useState('');
   const [formError, setFormError] = useState('');
+  const [resetPasswordModalParent, setResetPasswordModalParent] = useState(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+
+  const handleResetPassword = async (type) => {
+    if (!resetPasswordModalParent) return;
+    setIsResettingPassword(true);
+    try {
+      const res = await parentsService.resetPassword(resetPasswordModalParent.id, type);
+      if (res.data?.success) {
+        setToastMessage(res.data.message || (lang === 'ar' ? 'تم تصفير كلمة المرور بنجاح' : 'Password reset successfully'));
+        setResetPasswordModalParent(null);
+      } else {
+        setToastMessage(res.data?.message || (lang === 'ar' ? 'فشل تصفير كلمة المرور' : 'Failed to reset password'));
+      }
+    } catch (err) {
+      setToastMessage(err.response?.data?.message || err.message || (lang === 'ar' ? 'حدث خطأ أثناء تصفير كلمة المرور' : 'Error resetting password'));
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
 
   const onAddSubmit = (e) => {
     e.preventDefault();
@@ -381,6 +401,36 @@ export default function ParentsTab() {
                             </button>
                           )}
 
+                          {canAction('parents', 'update') && (
+                            <button
+                              onClick={() => setResetPasswordModalParent(parent)}
+                              title={lang === 'ar' ? 'إعادة تعيين كلمة المرور' : 'Reset Password'}
+                              style={{
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                border: '1px solid rgba(245, 158, 11, 0.2)',
+                                background: 'rgba(245, 158, 11, 0.08)',
+                                color: '#d97706',
+                                width: '32px',
+                                height: '32px',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseOver={e => {
+                                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.18)';
+                                e.currentTarget.style.borderColor = '#d97706';
+                              }}
+                              onMouseOut={e => {
+                                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)';
+                                e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.2)';
+                              }}
+                            >
+                              <KeyRound size={15} />
+                            </button>
+                          )}
+
                           {canAction('parents', 'delete') && (
                             <button 
                               onClick={() => {
@@ -562,6 +612,110 @@ export default function ParentsTab() {
                 </button>
               </footer>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DIALOG: RESET PARENT PASSWORD */}
+      {resetPasswordModalParent && (
+        <div className="modal-overlay no-print">
+          <div className="modal-container" style={{ maxWidth: '480px' }}>
+            <header className="modal-header">
+              <h3 className="modal-title">🔑 {lang === 'ar' ? 'إعادة تعيين كلمة مرور ولي الأمر' : 'Reset Parent Password'}</h3>
+              <button 
+                className="modal-close-btn" 
+                onClick={() => setResetPasswordModalParent(null)}
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </header>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'var(--color-bg-secondary, #f8fafc)', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
+                <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--color-text-primary)' }}>
+                  {resetPasswordModalParent.name}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '6px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <span>🆔 {resetPasswordModalParent.nationalId}</span>
+                  <span>📱 {resetPasswordModalParent.phone || 'غير مسجل'}</span>
+                </div>
+              </div>
+
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.6' }}>
+                {lang === 'ar' 
+                  ? 'اختر خيار إعادة تعيين كلمة المرور المطلوب لحساب ولي الأمر ليتمكن من الدخول إلى التطبيق:' 
+                  : 'Select the reset option for this parent account to enable mobile app login:'}
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button 
+                  type="button" 
+                  className="btn-filled" 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    padding: '14px 18px',
+                    borderRadius: '12px',
+                    backgroundColor: '#062A5A',
+                    color: '#ffffff',
+                    cursor: isResettingPassword ? 'wait' : 'pointer'
+                  }}
+                  disabled={isResettingPassword}
+                  onClick={() => handleResetPassword('default')}
+                >
+                  <div style={{ textAlign: 'start' }}>
+                    <div style={{ fontWeight: '700', fontSize: '14px' }}>
+                      {lang === 'ar' ? 'تصفير إلى الرمز الافتراضي (12345678)' : 'Reset to Default (12345678)'}
+                    </div>
+                    <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>
+                      {lang === 'ar' ? 'الرمز الموحد الأساسي لجميع أولياء الأمور' : 'Standard default code for all parents'}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '18px' }}>⚡</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  className="btn-elevated" 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    padding: '14px 18px',
+                    borderRadius: '12px',
+                    border: '1px solid #2563eb',
+                    color: '#2563eb',
+                    background: 'rgba(37, 99, 235, 0.05)',
+                    cursor: isResettingPassword ? 'wait' : 'pointer',
+                    opacity: !resetPasswordModalParent.phone ? 0.5 : 1
+                  }}
+                  disabled={isResettingPassword || !resetPasswordModalParent.phone}
+                  onClick={() => handleResetPassword('phone')}
+                >
+                  <div style={{ textAlign: 'start' }}>
+                    <div style={{ fontWeight: '700', fontSize: '14px' }}>
+                      {lang === 'ar' 
+                        ? `تصفير إلى رقم الجوال (${resetPasswordModalParent.phone || 'غير متوفر'})` 
+                        : `Reset to Phone (${resetPasswordModalParent.phone || 'N/A'})`}
+                    </div>
+                    <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>
+                      {lang === 'ar' ? 'يجعل كلمة المرور مطابقة لرقم هاتف ولي الأمر' : 'Sets password to match parent phone number'}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '18px' }}>📱</span>
+                </button>
+              </div>
+            </div>
+            <footer className="modal-footer">
+              <button 
+                type="button" 
+                className="btn-elevated" 
+                onClick={() => setResetPasswordModalParent(null)}
+                disabled={isResettingPassword}
+              >
+                {t.cancel}
+              </button>
+            </footer>
           </div>
         </div>
       )}

@@ -327,4 +327,59 @@ class AuthController extends Controller
             'message' => 'تم حذف رمز FCM بنجاح'
         ]);
     }
+
+    /**
+     * استعادة كلمة المرور الافتراضية لولي الأمر عبر الرقم المدني/الوطني
+     */
+    public function forgotPasswordReset(Request $request)
+    {
+        $request->validate([
+            'national_id' => 'required|string',
+        ]);
+
+        $rawInput = trim($request->national_id);
+        
+        // تحويل الأرقام العربية إلى إنجليزية وإزالة المسافات
+        $arabicNums = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+        $englishNums = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        $cleanId = str_replace($arabicNums, $englishNums, $rawInput);
+        $cleanId = preg_replace('/\s+/', '', $cleanId);
+
+        // البحث عن ولي الأمر بالرقم الوطني أو اسم المستخدم أو الهاتف
+        $user = User::where(function ($query) use ($cleanId) {
+                    $query->where('national_id', $cleanId)
+                          ->orWhere('username', $cleanId)
+                          ->orWhere('phone', $cleanId);
+                })
+                ->where('role', 'parent')
+                ->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لم يتم العثور على حساب ولي أمر مطابق للرقم المدني المدخل',
+            ], 404);
+        }
+
+        if (!$user->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'هذا الحساب معطل، يرجى التواصل مع إدارة المدرسة',
+            ], 403);
+        }
+
+        $defaultPassword = '12345678';
+        $user->update([
+            'password' => Hash::make($defaultPassword),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تمت استعادة كلمة المرور الافتراضية بنجاح',
+            'default_password' => $defaultPassword,
+            'parent_name' => $user->name_ar ?? $user->name,
+            'national_id' => $user->national_id ?? $user->username,
+        ]);
+    }
 }
+
