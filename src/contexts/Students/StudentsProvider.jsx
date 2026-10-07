@@ -83,6 +83,8 @@ export default function StudentsProvider({ children }) {
         if (data.success) {
           const mapped = (data.students || []).map((st) => ({
             id: Number(st.id),
+            class_id: st.class_id,
+            parentId: st.parent_id,
             name: st.name_ar,
             nameEn: st.name_en,
             grade: st.grade,
@@ -98,6 +100,8 @@ export default function StudentsProvider({ children }) {
             qrCode: st.qrCode,
             photo: st.photo,
             parentPhoto: '🧔',
+            tuitionFee: st.tuition_fee,
+            isActive: st.is_active,
           }));
           setRawStudents(mapped);
           setIsStale(false);
@@ -326,18 +330,38 @@ export default function StudentsProvider({ children }) {
     const classId = foundClass ? Number(String(foundClass.id).replace("cls-", "")) : null;
 
     if (token) {
-      return studentsService.updateStudent(studentId, {
+      const payload = {
         name_ar: updatedData.name,
         name_en: updatedData.nameEn,
         class_id: classId,
         tuition_fee: Number(updatedData.tuitionFee),
         photo_url: updatedData.photo,
         is_active: updatedData.isActive !== undefined ? updatedData.isActive : true
-      })
+      };
+      if (updatedData.parentId) {
+        payload.parent_id = updatedData.parentId;
+      }
+      if (updatedData.parentNationalId) {
+        payload.parent_national_id = updatedData.parentNationalId;
+      }
+
+      return studentsService.updateStudent(studentId, payload)
       .then((data) => {
         if (data.success) {
           setRawStudents((prev) =>
-            prev.map((s) => (s.id === studentId ? { ...s, ...updatedData } : s))
+            prev.map((s) => {
+              if (s.id === studentId) {
+                return {
+                  ...s,
+                  ...updatedData,
+                  parentId: updatedData.parentId !== undefined ? updatedData.parentId : s.parentId,
+                  parentName: updatedData.parentName !== undefined ? updatedData.parentName : s.parentName,
+                  parentNationalId: updatedData.parentNationalId !== undefined ? updatedData.parentNationalId : s.parentNationalId,
+                  phone: updatedData.phone !== undefined ? updatedData.phone : s.phone,
+                };
+              }
+              return s;
+            })
           );
           setToastMessage(
             lang === "ar"

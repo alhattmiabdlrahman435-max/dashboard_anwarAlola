@@ -103,6 +103,7 @@ export default function StudentsTab() {
   const [importProgress, setImportProgress] = useState(0);
   const [importStatus, setImportStatus] = useState('');
   const [importErrors, setImportErrors] = useState([]);
+  const [importWarnings, setImportWarnings] = useState([]);
   const [importSuccess, setImportSuccess] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -119,6 +120,8 @@ export default function StudentsTab() {
   const [editStudentPhoto, setEditStudentPhoto] = useState('');
   const [editTuitionFee, setEditTuitionFee] = useState('0');
   const [editFormError, setEditFormError] = useState('');
+  const [editParentNationalId, setEditParentNationalId] = useState('');
+  const [editParentSearchText, setEditParentSearchText] = useState('');
   const [modalParentNationalId, setModalParentNationalId] = useState('');
   const [modalParentName, setModalParentName] = useState('');
   const [modalPhone, setModalPhone] = useState('');
@@ -260,6 +263,8 @@ export default function StudentsTab() {
     setEditClassId(studentClass ? studentClass.id : '');
     setEditStudentPhoto(student.photo || '');
     setEditTuitionFee(String(student.tuitionFee ?? student.tuition_fee ?? 0));
+    setEditParentNationalId(student.parentNationalId || '');
+    setEditParentSearchText('');
     setEditFormError('');
     setShowEditStudentModal(true);
   };
@@ -284,6 +289,8 @@ export default function StudentsTab() {
       return;
     }
 
+    const selectedParent = parentUsers.find(p => p.nationalId === editParentNationalId);
+
     setIsSaving(true);
     handleEditStudent(editingStudentId, {
       name: editStudentName,
@@ -292,7 +299,11 @@ export default function StudentsTab() {
       section: classObj.section,
       sectionEn: classObj.sectionEn || classObj.section,
       photo: editStudentPhoto,
-      tuitionFee: Number(editTuitionFee || 0)
+      tuitionFee: Number(editTuitionFee || 0),
+      parentId: selectedParent ? selectedParent.id : null,
+      parentNationalId: editParentNationalId || null,
+      parentName: selectedParent ? selectedParent.name : undefined,
+      phone: selectedParent ? selectedParent.phone : undefined
     })
       .then((res) => {
         if (res && res.success) {
@@ -386,6 +397,7 @@ export default function StudentsTab() {
     setImportProgress(10);
     setImportStatus(lang === 'ar' ? 'جاري رفع الملف...' : 'Uploading file...');
     setImportErrors([]);
+    setImportWarnings([]);
     setImportSuccess(false);
 
     const formData = new FormData();
@@ -426,6 +438,9 @@ export default function StudentsTab() {
         setImportStatus(data.message);
         if (data.errors && data.errors.length > 0) {
           setImportErrors(data.errors);
+        }
+        if (data.warnings && data.warnings.length > 0) {
+          setImportWarnings(data.warnings);
         }
         setToastMessage(data.message);
         fetchStudents(localStorage.getItem('auth_token'));
@@ -470,6 +485,84 @@ export default function StudentsTab() {
       return p.name.toLowerCase().includes(term) || p.nationalId.includes(term);
     });
   }, [parentUsers, parentSearchText]);
+
+  const filteredEditParentUsers = useMemo(() => {
+    return parentUsers.filter(p => {
+      const term = editParentSearchText.trim().toLowerCase();
+      if (!term) return true;
+      return p.name.toLowerCase().includes(term) || (p.nationalId && p.nationalId.includes(term));
+    });
+  }, [parentUsers, editParentSearchText]);
+
+  const selectedEditParentObj = useMemo(() => {
+    return parentUsers.find(p => p.nationalId === editParentNationalId);
+  }, [parentUsers, editParentNationalId]);
+
+  const editParentNameMismatchInfo = useMemo(() => {
+    if (!editStudentName.trim() || !selectedEditParentObj?.name) return null;
+    const studentParts = editStudentName.trim().split(/\s+/);
+    if (studentParts.length < 2) return null;
+    const fatherName = studentParts[1];
+    const parentParts = selectedEditParentObj.name.trim().split(/\s+/);
+    const parentFirstName = parentParts[0];
+    const isCompound = ['عبد', 'ابو', 'أبو', 'زين', 'شمس', 'مجيب', 'عماد', 'امير', 'آية', 'تالين', 'نوره'].some(p => fatherName.startsWith(p));
+    if (fatherName !== parentFirstName && !isCompound) {
+      return {
+        fatherName,
+        parentFirstName,
+        parentFullName: selectedEditParentObj.name,
+      };
+    }
+    return null;
+  }, [editStudentName, selectedEditParentObj]);
+
+  const suggestedEditParent = useMemo(() => {
+    if (!editStudentName.trim() || !parentUsers.length) return null;
+    const parts = editStudentName.trim().split(/\s+/);
+    if (parts.length < 3) return null;
+    const fatherFullName = parts.slice(1).join(' ');
+    const match = parentUsers.find(p => {
+      if (p.nationalId === editParentNationalId) return false;
+      const pName = p.name.trim();
+      return pName.includes(fatherFullName) || fatherFullName.includes(pName);
+    });
+    return match || null;
+  }, [editStudentName, parentUsers, editParentNationalId]);
+
+  const selectedAddParentObj = useMemo(() => {
+    return parentUsers.find(p => p.nationalId === selectedParentLinkOption);
+  }, [parentUsers, selectedParentLinkOption]);
+
+  const addParentNameMismatchInfo = useMemo(() => {
+    if (!modalStudentName.trim() || !selectedAddParentObj?.name) return null;
+    const studentParts = modalStudentName.trim().split(/\s+/);
+    if (studentParts.length < 2) return null;
+    const fatherName = studentParts[1];
+    const parentParts = selectedAddParentObj.name.trim().split(/\s+/);
+    const parentFirstName = parentParts[0];
+    const isCompound = ['عبد', 'ابو', 'أبو', 'زين', 'شمس', 'مجيب', 'عماد', 'امير', 'آية', 'تالين', 'نوره'].some(p => fatherName.startsWith(p));
+    if (fatherName !== parentFirstName && !isCompound) {
+      return {
+        fatherName,
+        parentFirstName,
+        parentFullName: selectedAddParentObj.name,
+      };
+    }
+    return null;
+  }, [modalStudentName, selectedAddParentObj]);
+
+  const suggestedAddParent = useMemo(() => {
+    if (!modalStudentName.trim() || !parentUsers.length) return null;
+    const parts = modalStudentName.trim().split(/\s+/);
+    if (parts.length < 3) return null;
+    const fatherFullName = parts.slice(1).join(' ');
+    const match = parentUsers.find(p => {
+      if (p.nationalId === selectedParentLinkOption) return false;
+      const pName = p.name.trim();
+      return pName.includes(fatherFullName) || fatherFullName.includes(pName);
+    });
+    return match || null;
+  }, [modalStudentName, parentUsers, selectedParentLinkOption]);
 
   return (
     <>
@@ -920,6 +1013,84 @@ export default function StudentsTab() {
                     <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       📞 {lang === 'ar' ? 'رقم الجوال: ' : 'Phone Number: '} {modalPhone}
                     </div>
+
+                    {/* Real-time Mismatch Advisory Note */}
+                    {addParentNameMismatchInfo && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        backgroundColor: 'rgba(234, 179, 8, 0.08)',
+                        border: '1px solid rgba(234, 179, 8, 0.3)',
+                        color: '#854d0e',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '8px',
+                        lineHeight: '1.5'
+                      }}>
+                        <span style={{ fontSize: '14px', marginTop: '1px' }}>ℹ️</span>
+                        <div>
+                          {lang === 'ar' ? (
+                            <>
+                              <strong>ملاحظة للتأكيد:</strong> اسم ولي الأمر المختار (<strong>{addParentNameMismatchInfo.parentFirstName}</strong>) يختلف عن اسم والد الطالب (<strong>{addParentNameMismatchInfo.fatherName}</strong>).
+                              <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.9 }}>
+                                إذا كان ولي الأمر عمه أو خاله أو كفيله فهذا طبيعي؛ يرجى فقط التأكد قبل الحفظ.
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <strong>Note:</strong> Selected parent ({addParentNameMismatchInfo.parentFirstName}) differs from student father's name ({addParentNameMismatchInfo.fatherName}).
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sibling / Father Suggestion Helper for Add Student */}
+                {suggestedAddParent && (
+                  <div style={{
+                    marginBottom: '16px',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    color: '#15803d',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    flexWrap: 'wrap'
+                  }}>
+                    <div>
+                      💡 {lang === 'ar' ? 'تم العثور على ولي أمر يطابق اسم والد الطالب:' : 'Found parent matching student father:'}{' '}
+                      <strong>{suggestedAddParent.name}</strong> ({suggestedAddParent.nationalId})
+                    </div>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        backgroundColor: '#16a34a',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        setSelectedParentLinkOption(suggestedAddParent.nationalId);
+                        setModalParentNationalId(suggestedAddParent.nationalId);
+                        setModalParentName(suggestedAddParent.name);
+                        setModalPhone(suggestedAddParent.phone);
+                        setModalParentPhoto(suggestedAddParent.photo || '🧔');
+                      }}
+                    >
+                      {lang === 'ar' ? 'ربط بهذا الولي' : 'Link to this parent'}
+                    </button>
                   </div>
                 )}
 
@@ -1141,6 +1312,147 @@ export default function StudentsTab() {
                     required
                   />
                 </div>
+
+                {/* Parent Selection for Edit Student */}
+                <div className="form-group">
+                  <label htmlFor="edit-student-parent-search" className="form-label">
+                    {lang === 'ar' ? 'بحث عن ولي أمر الطالب' : 'Search for Parent'}
+                  </label>
+                  <div style={{ position: 'relative', marginBottom: '8px' }}>
+                    <Search size={16} style={{ position: 'absolute', top: '14px', [lang === 'ar' ? 'right' : 'left']: '12px', color: 'var(--color-text-secondary)', pointerEvents: 'none' }} />
+                    <input
+                      id="edit-student-parent-search"
+                      type="text"
+                      className="text-field"
+                      style={{ paddingInlineStart: '36px' }}
+                      placeholder={lang === 'ar' ? 'ابحث بالاسم أو رقم الهوية الوطنية...' : 'Search by name or National ID...'}
+                      value={editParentSearchText}
+                      onChange={(e) => setEditParentSearchText(e.target.value)}
+                    />
+                  </div>
+
+                  <label htmlFor="edit-student-parent-select" className="form-label">
+                    {lang === 'ar' ? 'ولي الأمر المرتبط' : 'Linked Parent'} <span style={{ color: 'var(--color-error)' }}>*</span>
+                  </label>
+                  <select
+                    id="edit-student-parent-select"
+                    name="edit_parent_national_id"
+                    className="text-field"
+                    value={editParentNationalId}
+                    onChange={(e) => setEditParentNationalId(e.target.value)}
+                    required
+                  >
+                    <option value="">{lang === 'ar' ? '-- اختر ولي الأمر --' : '-- Select Parent --'}</option>
+                    {filteredEditParentUsers.map(p => (
+                      <option key={p.nationalId} value={p.nationalId}>
+                        {p.name} ({p.nationalId})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedEditParentObj && (
+                  <div style={{ 
+                    padding: '14px', 
+                    background: 'rgba(30, 80, 142, 0.03)', 
+                    border: '1px solid var(--color-border)', 
+                    borderRadius: '16px', 
+                    marginBottom: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {renderAvatar(selectedEditParentObj.photo, "🧔")}
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{selectedEditParentObj.name}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                          {lang === 'ar' ? 'الرقم الوطني لولي الأمر: ' : 'National ID: '}{selectedEditParentObj.nationalId}
+                        </div>
+                      </div>
+                    </div>
+                    {selectedEditParentObj.phone && (
+                      <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        📞 {lang === 'ar' ? 'رقم الجوال: ' : 'Phone Number: '} {selectedEditParentObj.phone}
+                      </div>
+                    )}
+
+                    {/* Real-time Mismatch Advisory Note */}
+                    {editParentNameMismatchInfo && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        backgroundColor: 'rgba(234, 179, 8, 0.08)',
+                        border: '1px solid rgba(234, 179, 8, 0.3)',
+                        color: '#854d0e',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '8px',
+                        lineHeight: '1.5'
+                      }}>
+                        <span style={{ fontSize: '14px', marginTop: '1px' }}>ℹ️</span>
+                        <div>
+                          {lang === 'ar' ? (
+                            <>
+                              <strong>ملاحظة للتأكيد:</strong> اسم ولي الأمر المختار (<strong>{editParentNameMismatchInfo.parentFirstName}</strong>) يختلف عن اسم والد الطالب (<strong>{editParentNameMismatchInfo.fatherName}</strong>).
+                              <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.9 }}>
+                                إذا كان ولي الأمر عمه أو خاله أو كفيله فهذا طبيعي؛ يرجى فقط التأكد قبل الحفظ.
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <strong>Note:</strong> Selected parent ({editParentNameMismatchInfo.parentFirstName}) differs from student father's name ({editParentNameMismatchInfo.fatherName}).
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sibling / Father Suggestion Helper for Edit Student */}
+                {suggestedEditParent && (
+                  <div style={{
+                    marginBottom: '16px',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    color: '#15803d',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    flexWrap: 'wrap'
+                  }}>
+                    <div>
+                      💡 {lang === 'ar' ? 'تم العثور على ولي أمر يطابق اسم والد الطالب:' : 'Found parent matching student father:'}{' '}
+                      <strong>{suggestedEditParent.name}</strong> ({suggestedEditParent.nationalId})
+                    </div>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        backgroundColor: '#16a34a',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        setEditParentNationalId(suggestedEditParent.nationalId);
+                      }}
+                    >
+                      {lang === 'ar' ? 'ربط بهذا الولي' : 'Link to this parent'}
+                    </button>
+                  </div>
+                )}
+
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
@@ -1437,6 +1749,33 @@ export default function StudentsTab() {
                           }}>
                             {importErrors.map((err, i) => (
                               <li key={i} style={{ direction: 'rtl', textAlign: 'right' }}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Warnings list (Yellow/Advisory) */}
+                      {importWarnings.length > 0 && (
+                        <div style={{ marginTop: '14px', borderTop: '1px dashed var(--color-border)', paddingTop: '12px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
+                            <span>💡 {lang === 'ar' ? 'تنبيهات تدقيق أولياء الأمور (يرجى مراجعتها):' : 'Parent Audit Advisories (Please review):'}</span>
+                          </div>
+                          <ul style={{ 
+                            maxHeight: '140px', 
+                            overflowY: 'auto', 
+                            paddingInlineStart: '16px', 
+                            margin: 0, 
+                            fontSize: '12px', 
+                            color: '#92400e',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            backgroundColor: 'rgba(234, 179, 8, 0.05)',
+                            padding: '8px 12px',
+                            borderRadius: '8px'
+                          }}>
+                            {importWarnings.map((warn, i) => (
+                              <li key={i} style={{ direction: 'rtl', textAlign: 'right' }}>{warn}</li>
                             ))}
                           </ul>
                         </div>

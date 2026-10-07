@@ -110,13 +110,14 @@ class StudentController extends Controller implements HasMiddleware
                 'name' => $student->name_ar,
                 'name_ar' => $student->name_ar,
                 'name_en' => $student->name_en,
+                'parent_id' => $student->parent_id,
                 'grade' => $student->schoolClass ? $student->schoolClass->grade_ar : '',
                 'gradeEn' => $student->schoolClass ? $student->schoolClass->grade_en : '',
                 'section' => $student->schoolClass ? $student->schoolClass->section_ar : '',
                 'sectionEn' => $student->schoolClass ? $student->schoolClass->section_en : '',
                 'parentName' => $student->parentUser ? $student->parentUser->name_ar : '',
                 'parentNameEn' => $student->parentUser ? $student->parentUser->name_en : '',
-                'parentNationalId' => $student->parentUser ? $student->parentUser->national_id : '',
+                'parentNationalId' => $student->parentUser ? ($student->parentUser->national_id ?: $student->parentUser->username) : '',
                 'phone' => $student->parentUser ? $student->parentUser->phone : '',
                 'status' => $attendance ? $attendance->status : 'absent',
                 'time' => $attendance ? ($attendance->arrival_time ? substr($attendance->arrival_time, 0, 5) : '--:--') : '--:--',
@@ -259,10 +260,36 @@ class StudentController extends Controller implements HasMiddleware
             return response()->json(['success' => false, 'message' => 'غير مصرح لك بتحديث بيانات طالب خارج فصولك المحددة'], 403);
         }
 
-        $updateData = $request->all();
+        $allowedFields = [
+            'student_code',
+            'name_ar',
+            'name_en',
+            'class_id',
+            'parent_id',
+            'photo_url',
+            'qr_code',
+            'secret_code',
+            'tuition_fee',
+            'is_active',
+        ];
+        $updateData = $request->only($allowedFields);
 
         if ($request->filled('class_id') && !PermissionService::isClassAllowed($user, 'students', (int)$request->class_id)) {
             return response()->json(['success' => false, 'message' => 'غير مصرح لك بنقل الطالب إلى فصل خارج نطاق صلاحياتك'], 403);
+        }
+
+        // Handle parent assignment by parent_id or parent_national_id
+        if ($request->filled('parent_id')) {
+            $updateData['parent_id'] = (int) $request->parent_id;
+        } elseif ($request->filled('parent_national_id')) {
+            $parentUser = User::where('role', 'parent')
+                ->where(function ($q) use ($request) {
+                    $q->where('national_id', $request->parent_national_id)
+                      ->orWhere('username', $request->parent_national_id);
+                })->first();
+            if ($parentUser) {
+                $updateData['parent_id'] = $parentUser->id;
+            }
         }
 
         if ($request->has('photo_url')) {
@@ -300,6 +327,8 @@ class StudentController extends Controller implements HasMiddleware
                 ]);
             }
         }
+
+        $student->load(['schoolClass', 'parentUser']);
 
         return response()->json([
             'success' => true,

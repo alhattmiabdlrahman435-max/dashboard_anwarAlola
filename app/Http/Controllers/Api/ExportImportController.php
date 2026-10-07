@@ -448,6 +448,7 @@ class ExportImportController extends Controller
 
         $imported = 0;
         $errors = [];
+        $warnings = [];
 
         $getStageIndex = function ($grade) {
             if (str_contains($grade, "تمهيدي") || str_contains($grade, "KG") || str_contains($grade, "الروضة")) return 1;
@@ -522,6 +523,50 @@ class ExportImportController extends Controller
                 }
             }
 
+            // Check if there is another parent with the same name but different national ID (detect typo like 1010 vs 1012)
+            if (!empty($parentName)) {
+                $duplicateNameParent = User::where('role', 'parent')
+                    ->where('id', '!=', $parent->id)
+                    ->where(function($q) use ($parentNationalId) {
+                        $q->where('national_id', '!=', $parentNationalId)
+                          ->where('username', '!=', $parentNationalId);
+                    })
+                    ->where(function($q) use ($parentName) {
+                        $q->where('name_ar', $parentName)
+                          ->orWhere('name', $parentName);
+                    })
+                    ->first();
+                if ($duplicateNameParent) {
+                    $existingNatId = $duplicateNameParent->national_id ?: $duplicateNameParent->username;
+                    $warnings[] = "سطر {$lineNum}: تم تسجيل الطالب {$studentName} برقم هوية ({$parentNationalId})، ولكن يوجد مسبقاً ولي أمر بنفس الاسم ({$parentName}) برقم هوية ({$existingNatId}). يرجى التحقق من رقم الهوية تفادياً للأخطاء المطبعية.";
+                }
+            }
+
+            // Check if student's father name doesn't match the entered parent, but exists elsewhere
+            $studentParts = preg_split('/\s+/', trim($studentName));
+            if (count($studentParts) >= 3) {
+                $fatherFullName = implode(' ', array_slice($studentParts, 1));
+                $fatherFirstName = $studentParts[1];
+                $parentParts = preg_split('/\s+/', trim($parentName ?: $parent->name_ar));
+                $parentFirstName = $parentParts[0] ?? '';
+
+                $isCompound = in_array($fatherFirstName, ['عبد', 'ابو', 'أبو', 'زين', 'شمس', 'مجيب', 'عماد', 'امير']);
+                if ($parentFirstName !== '' && $fatherFirstName !== $parentFirstName && !$isCompound) {
+                    // Check if an existing parent matches the student's father full name
+                    $existingFather = User::where('role', 'parent')
+                        ->where('id', '!=', $parent->id)
+                        ->where(function($q) use ($fatherFullName) {
+                            $q->where('name_ar', 'LIKE', "%{$fatherFullName}%")
+                              ->orWhere('name', 'LIKE', "%{$fatherFullName}%");
+                        })
+                        ->first();
+                    if ($existingFather) {
+                        $fNatId = $existingFather->national_id ?: $existingFather->username;
+                        $warnings[] = "سطر {$lineNum}: اسم والد الطالب ({$studentName}) يختلف عن ولي الأمر المدخل ({$parent->name_ar}). تم العثور على ولي أمر مسجل يطابق اسم الأب: {$existingFather->name_ar} (هوية: {$fNatId}).";
+                    }
+                }
+            }
+
             // Check if student with same name is already linked to this parent
             $studentExists = Student::where('name_ar', $studentName)
                 ->where('parent_id', $parent->id)
@@ -564,6 +609,7 @@ class ExportImportController extends Controller
             'message' => $msg,
             'imported' => $imported,
             'errors' => $errors,
+            'warnings' => $warnings,
         ]);
     }
 
