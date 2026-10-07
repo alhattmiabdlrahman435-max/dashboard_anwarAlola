@@ -6,6 +6,17 @@ import { useClasses } from '../../contexts/Classes/useClasses';
 import { calculateMonthTotal, getSubjectPeriodGrade, calculateStudentClassRowTotal } from '../../utils/gradesHelper';
 import GradeInput from './GradeInput';
 
+// Helper for Arabic grade estimate
+const getGradeEstimate = (total, max = 100) => {
+  if (total === null || total === undefined || total === 0) return '-';
+  const ratio = (total / max) * 100;
+  if (ratio >= 90) return 'ممتاز';
+  if (ratio >= 80) return 'جيد جداً';
+  if (ratio >= 65) return 'جيد';
+  if (ratio >= 50) return 'مقبول';
+  return 'ضعيف';
+};
+
 const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSubject }) {
   const {
     lang,
@@ -60,11 +71,14 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
   // Dynamic list of real subjects associated with selectedClass
   const classSubjectsList = useMemo(() => {
-    if (targetClassObj && Array.isArray(targetClassObj.subjects)) {
+    if (targetClassObj && Array.isArray(targetClassObj.subjects) && targetClassObj.subjects.length > 0) {
       return targetClassObj.subjects;
     }
+    if (Array.isArray(subjects) && subjects.length > 0) {
+      return subjects.map(s => s.name || s.name_ar).filter(Boolean);
+    }
     return [];
-  }, [targetClassObj]);
+  }, [targetClassObj, subjects]);
 
   const handleDetailedGradeChange = useCallback((studentId, subject, term, monthKey, field, val) => {
     handleDetailedGradeChangeContext(studentId, subject, term, monthKey, field, val, students, subjects);
@@ -120,7 +134,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 {classSubjectsList.map((subj, idx) => (
                   <th key={idx}>{subj}</th>
                 ))}
-                <th>{lang === 'ar' ? 'المعدل / المجموع' : 'Avg / Total'}</th>
+                <th>{lang === 'ar' ? 'المجموع' : 'Total'}</th>
+                <th>{lang === 'ar' ? 'المعدل %' : 'Rate %'}</th>
               </tr>
             </thead>
             <tbody>
@@ -146,7 +161,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 if (classStudents.length === 0) {
                   return (
                     <tr>
-                      <td colSpan={classSubjectsList.length + 3} style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
+                      <td colSpan={classSubjectsList.length + 4} style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '24px' }}>📂</span>
                           <span style={{ fontWeight: '600' }}>
@@ -159,58 +174,107 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 }
 
                 const subjectSums = {};
-                classSubjectsList.forEach(s => { subjectSums[s] = 0; });
+                const subjectPassCounts = {};
+                classSubjectsList.forEach(s => { 
+                  subjectSums[s] = 0; 
+                  subjectPassCounts[s] = 0;
+                });
+                let overallTotalSum = 0;
                 let overallPercentageSum = 0;
+                let overallPassCount = 0;
+
+                const maxPerSubj = (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' || classPeriod === 'yearlyTotal') ? 100 : 50;
+                const maxTotal = classSubjectsList.length * maxPerSubj;
+                const passThreshold = maxPerSubj * 0.5;
 
                 const rows = classStudents.map((s, index) => {
                   const subjectVals = classSubjectsList.map(subj => {
                     const val = getSubjectPeriodGradeLocal(s.id, subj, selectedGradeTerm, classPeriod);
                     subjectSums[subj] = (subjectSums[subj] || 0) + val;
+                    if (val >= passThreshold) {
+                      subjectPassCounts[subj] = (subjectPassCounts[subj] || 0) + 1;
+                    }
                     return val;
                   });
 
                   const rowSum = subjectVals.reduce((acc, v) => acc + v, 0);
-                  const maxPerSubj = (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' || classPeriod === 'yearlyTotal') ? 100 : 50;
-                  const maxTotal = classSubjectsList.length * maxPerSubj;
                   const percentVal = maxTotal > 0 ? parseFloat(((rowSum / maxTotal) * 100).toFixed(1)) : 0;
+                  
+                  overallTotalSum += rowSum;
                   overallPercentageSum += percentVal;
-
-                  const totalText = (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' || classPeriod === 'yearlyTotal')
-                    ? `${percentVal}%`
-                    : `${rowSum} / ${maxTotal}`;
+                  if (percentVal >= 50) overallPassCount++;
 
                   return (
                     <tr key={s.id}>
                       <td>{index + 1}</td>
                       <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                       {subjectVals.map((val, vIdx) => (
-                        <td key={vIdx}>{val}</td>
+                        <td key={vIdx} style={{ color: val < passThreshold ? '#b91c1c' : 'inherit' }}>{val}</td>
                       ))}
-                      <td style={{ fontWeight: 'bold' }}>{totalText}</td>
+                      <td style={{ fontWeight: 'bold', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>
+                        {rowSum}
+                      </td>
+                      <td style={{ fontWeight: 'bold', color: percentVal >= 50 ? 'var(--color-success)' : '#b91c1c' }}>
+                        {percentVal}%
+                      </td>
                     </tr>
                   );
                 });
 
-                const count = classStudents.length;
-                const classOverallAvg = parseFloat((overallPercentageSum / count).toFixed(1));
-                const maxPossible = (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' || classPeriod === 'yearlyTotal') ? 100 : 50;
+                const count = classStudents.length || 1;
+                const classOverallAvgPercent = parseFloat((overallPercentageSum / count).toFixed(1));
+                const classOverallAvgTotal = parseFloat((overallTotalSum / count).toFixed(1));
+                const overallPassRate = parseFloat(((overallPassCount / count) * 100).toFixed(0));
 
                 return (
                   <>
                     {rows}
-                    <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
+                    {/* Row 1: مجموع درجات الفصل */}
+                    <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold', borderTop: '2px solid var(--color-border)' }}>
                       <td colSpan="2" style={{ textAlign: 'right' }}>
-                        {lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}
+                        {lang === 'ar' ? 'مجموع درجات الفصل:' : 'Class Total Sum:'}
+                      </td>
+                      {classSubjectsList.map((subj, idx) => (
+                        <td key={idx} style={{ color: 'var(--color-primary)' }}>
+                          {subjectSums[subj] || 0}
+                        </td>
+                      ))}
+                      <td style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{overallTotalSum}</td>
+                      <td>-</td>
+                    </tr>
+
+                    {/* Row 2: متوسط درجات الفصل */}
+                    <tr style={{ backgroundColor: 'var(--color-surface, #ffffff)', fontWeight: 'bold' }}>
+                      <td colSpan="2" style={{ textAlign: 'right' }}>
+                        {lang === 'ar' ? `متوسط درجات الفصل (من ${maxPerSubj}):` : 'Class Average:'}
                       </td>
                       {classSubjectsList.map((subj, idx) => {
                         const avg = parseFloat(((subjectSums[subj] || 0) / count).toFixed(1));
                         return (
                           <td key={idx} style={{ color: 'var(--color-primary)' }}>
-                            {avg} / {maxPossible}
+                            {avg}
                           </td>
                         );
                       })}
-                      <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{classOverallAvg}%</td>
+                      <td style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{classOverallAvgTotal}</td>
+                      <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{classOverallAvgPercent}%</td>
+                    </tr>
+
+                    {/* Row 3: نسبة النجاح بالمادة */}
+                    <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
+                      <td colSpan="2" style={{ textAlign: 'right' }}>
+                        {lang === 'ar' ? 'نسبة النجاح بالمادة (≥ ٥٠%):' : 'Subject Pass Rate %:'}
+                      </td>
+                      {classSubjectsList.map((subj, idx) => {
+                        const pRate = parseFloat((((subjectPassCounts[subj] || 0) / count) * 100).toFixed(0));
+                        return (
+                          <td key={idx} style={{ color: pRate >= 70 ? 'var(--color-success)' : pRate >= 50 ? '#d97706' : '#b91c1c' }}>
+                            {pRate}%
+                          </td>
+                        );
+                      })}
+                      <td>-</td>
+                      <td style={{ color: overallPassRate >= 70 ? 'var(--color-success)' : '#d97706', fontWeight: 'bold' }}>{overallPassRate}%</td>
                     </tr>
                   </>
                 );
@@ -482,203 +546,321 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
             </tbody>
           </table>
         ) : (
-          <table className="control-grade-table">
-            <thead>
-              {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
-                <tr>
-                  <th>#</th>
-                  <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
-                  <th>{t.hwLabel}</th>
-                  <th>{t.attLabel}</th>
-                  <th>{t.behLabel}</th>
-                  <th>{t.oralLabel}</th>
-                  <th>{t.wrtLabel}</th>
-                  <th>{t.monthTotalLabel}</th>
-                </tr>
-              ) : classPeriod === 'termTotal' ? (
-                <tr>
-                  <th>#</th>
-                  <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
-                  <th>{t.termAverageLabel}</th>
-                  <th>{t.finalExamLabel}</th>
-                  <th>{t.termTotalLabel}</th>
-                </tr>
-              ) : (
-                <tr>
-                  <th>#</th>
-                  <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
-                  <th>{lang === 'ar' ? 'الفصل الدراسي الأول (٥٠)' : 'Term 1 (50)'}</th>
-                  <th>{lang === 'ar' ? 'الفصل الدراسي الثاني (٥٠)' : 'Term 2 (50)'}</th>
-                  <th>{t.yearlyTotalLabel}</th>
-                </tr>
-              )}
-            </thead>
-            <tbody>
-              {(() => {
-                if (classStudents.length === 0) {
-                  return (
-                    <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
-                        {lang === 'ar' ? `لا يوجد طلاب مسجلين في ${selectedClass}` : `No students registered in ${selectedClass}`}
-                      </td>
-                    </tr>
-                  );
-                }
+          <div>
+            {/* Quick Stats Header for Subject Teacher View */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '12px 16px',
+              backgroundColor: 'var(--color-bg-container, #f8fafc)',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border)',
+              marginBottom: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                  📖 {lang === 'ar' ? 'كشف رصد مادة:' : 'Subject Grading Sheet:'} {classSubject}
+                </span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>|</span>
+                <span style={{ fontSize: '13px' }}>
+                  🏫 {selectedClass}
+                </span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>|</span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0f766e' }}>
+                  🎯 {classPeriod === 'm1' ? 'المحصلة الأولى (١٠٠)' : classPeriod === 'm2' ? 'المحصلة الثانية (١٠٠)' : classPeriod === 'm3' ? 'المحصلة الثالثة (١٠٠)' : classPeriod === 'termTotal' ? 'مجموع الترم (٥٠)' : 'المجموع السنوي (١٠٠)'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  fontSize: '12px',
+                  backgroundColor: '#dcfce7',
+                  color: '#15803d',
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  fontWeight: 'bold',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  🟢 {lang === 'ar' ? 'الرصد والحفظ التلقائي نشط' : 'Auto-save active'}
+                </span>
+              </div>
+            </div>
 
-                let hwSum = 0, attSum = 0, behSum = 0, oralSum = 0, wrtSum = 0, monthTotSum = 0;
-                let avgSum = 0, finalSum = 0, termTotSum = 0;
-                let t1Sum = 0, t2Sum = 0, yearlySum = 0;
-
-                const rows = classStudents.map((s, index) => {
-                  const sData = getStudentDetailedGrades(s.id, classSubject, selectedGradeTerm);
-
-                  if (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3') {
-                    const mData = sData[classPeriod] || {};
-                    const total = (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
-                    
-                    hwSum += mData.homework || 0;
-                    attSum += mData.attendance || 0;
-                    behSum += mData.behavior || 0;
-                    oralSum += mData.oral || 0;
-                    wrtSum += mData.written || 0;
-                    monthTotSum += total;
-
+            <table className="control-grade-table">
+              <thead>
+                {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
+                  <tr>
+                    <th>#</th>
+                    <th>{lang === 'ar' ? 'رقم القيد' : 'Code'}</th>
+                    <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
+                    <th>{t.hwLabel}</th>
+                    <th>{t.attLabel}</th>
+                    <th>{t.behLabel}</th>
+                    <th>{t.oralLabel}</th>
+                    <th>{t.wrtLabel}</th>
+                    <th style={{ backgroundColor: 'var(--color-bg-container, #f1f5f9)' }}>{t.monthTotalLabel}</th>
+                    <th>التقدير</th>
+                  </tr>
+                ) : classPeriod === 'termTotal' ? (
+                  <tr>
+                    <th>#</th>
+                    <th>{lang === 'ar' ? 'رقم القيد' : 'Code'}</th>
+                    <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
+                    <th>{t.termAverageLabel}</th>
+                    <th>{t.finalExamLabel}</th>
+                    <th style={{ backgroundColor: 'var(--color-bg-container, #f1f5f9)' }}>{t.termTotalLabel}</th>
+                    <th>التقدير</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th>#</th>
+                    <th>{lang === 'ar' ? 'رقم القيد' : 'Code'}</th>
+                    <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
+                    <th>{lang === 'ar' ? 'الفصل الدراسي الأول (٥٠)' : 'Term 1 (50)'}</th>
+                    <th>{lang === 'ar' ? 'الفصل الدراسي الثاني (٥٠)' : 'Term 2 (50)'}</th>
+                    <th style={{ backgroundColor: 'var(--color-bg-container, #f1f5f9)' }}>{t.yearlyTotalLabel}</th>
+                    <th>التقدير</th>
+                  </tr>
+                )}
+              </thead>
+              <tbody>
+                {(() => {
+                  if (classStudents.length === 0) {
                     return (
-                      <tr key={s.id}>
-                        <td>{index + 1}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
-                        <td>
-                          <GradeInput 
-                            min="0" max="15" 
-                            value={mData.homework ?? 0}
-                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'homework', val)}
-                            disabled={!canAction('detailedGrades', 'update')}
-                          />
-                        </td>
-                        <td>
-                          <GradeInput 
-                            min="0" max="15" 
-                            value={mData.attendance ?? 0}
-                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'attendance', val)}
-                            disabled={!canAction('detailedGrades', 'update')}
-                          />
-                        </td>
-                        <td>
-                          <GradeInput 
-                            min="0" max="10" 
-                            value={mData.behavior ?? 0}
-                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'behavior', val)}
-                            disabled={!canAction('detailedGrades', 'update')}
-                          />
-                        </td>
-                        <td>
-                          <GradeInput 
-                            min="0" max="10" 
-                            value={mData.oral ?? 0}
-                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'oral', val)}
-                            disabled={!canAction('detailedGrades', 'update')}
-                          />
-                        </td>
-                        <td>
-                          <GradeInput 
-                            min="0" max="50" 
-                            value={mData.written ?? 0}
-                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'written', val)}
-                            disabled={!canAction('detailedGrades', 'update')}
-                          />
-                        </td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>
-                          {total} / 100
-                        </td>
-                      </tr>
-                    );
-                  } else if (classPeriod === 'termTotal') {
-                    const tm1 = calculateMonthTotal(sData.m1);
-                    const tm2 = calculateMonthTotal(sData.m2);
-                    const tm3 = calculateMonthTotal(sData.m3);
-                    const avg = parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
-                    const total = parseFloat((avg + (sData.finalExam || 0)).toFixed(2));
-                    avgSum += avg;
-                    finalSum += sData.finalExam || 0;
-                    termTotSum += total;
-
-                    return (
-                      <tr key={s.id}>
-                        <td>{index + 1}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
-                        <td style={{ fontWeight: 'bold' }}>{avg} / 20</td>
-                        <td>
-                          <GradeInput 
-                            min="0" max="30" 
-                            value={sData.finalExam ?? 0}
-                            onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, 'finalExam', 'finalExam', val)}
-                            disabled={!canAction('detailedGrades', 'update')}
-                          />
-                        </td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>
-                          {total} / 50
-                        </td>
-                      </tr>
-                    );
-                  } else {
-                    const t1Val = getSubjectPeriodGradeLocal(s.id, classSubject, 'term1', 'termTotal');
-                    const t2Val = getSubjectPeriodGradeLocal(s.id, classSubject, 'term2', 'termTotal');
-                    const yearlyTotal = Math.round(t1Val + t2Val);
-                    t1Sum += t1Val;
-                    t2Sum += t2Val;
-                    yearlySum += yearlyTotal;
-
-                    return (
-                      <tr key={s.id}>
-                        <td>{index + 1}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
-                        <td style={{ fontWeight: 'bold' }}>{t1Val} / 50</td>
-                        <td style={{ fontWeight: 'bold' }}>{t2Val} / 50</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)', fontSize: '15px' }}>
-                          {yearlyTotal} / 100
+                      <tr>
+                        <td colSpan="10" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
+                          {lang === 'ar' ? `لا يوجد طلاب مسجلين في ${selectedClass}` : `No students registered in ${selectedClass}`}
                         </td>
                       </tr>
                     );
                   }
-                });
 
-                const count = classStudents.length;
+                  let hwSum = 0, attSum = 0, behSum = 0, oralSum = 0, wrtSum = 0, monthTotSum = 0;
+                  let avgSum = 0, finalSum = 0, termTotSum = 0;
+                  let t1Sum = 0, t2Sum = 0, yearlySum = 0;
+                  let passCount = 0;
 
-                return (
-                  <>
-                    {rows}
-                    <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                      <td colSpan="2" style={{ textAlign: 'right' }}>
-                        {lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}
-                      </td>
-                      {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
-                        <>
-                          <td>{parseFloat((hwSum / count).toFixed(2))}</td>
-                          <td>{parseFloat((attSum / count).toFixed(2))}</td>
-                          <td>{parseFloat((behSum / count).toFixed(2))}</td>
-                          <td>{parseFloat((oralSum / count).toFixed(2))}</td>
-                          <td>{parseFloat((wrtSum / count).toFixed(2))}</td>
-                          <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((monthTotSum / count).toFixed(2))} / 100</td>
-                        </>
-                      ) : classPeriod === 'termTotal' ? (
-                        <>
-                          <td>{parseFloat((avgSum / count).toFixed(2))}</td>
-                          <td>{parseFloat((finalSum / count).toFixed(2))}</td>
-                          <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((termTotSum / count).toFixed(2))} / 50</td>
-                        </>
-                      ) : (
-                        <>
-                          <td>{parseFloat((t1Sum / count).toFixed(2))}</td>
-                          <td>{parseFloat((t2Sum / count).toFixed(2))}</td>
-                          <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((yearlySum / count).toFixed(2))} / 100</td>
-                        </>
-                      )}
-                    </tr>
-                  </>
-                );
-              })()}
-            </tbody>
-          </table>
+                  const rows = classStudents.map((s, index) => {
+                    const sData = getStudentDetailedGrades(s.id, classSubject, selectedGradeTerm);
+
+                    if (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3') {
+                      const mData = sData[classPeriod] || {};
+                      const total = (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
+                      
+                      hwSum += mData.homework || 0;
+                      attSum += mData.attendance || 0;
+                      behSum += mData.behavior || 0;
+                      oralSum += mData.oral || 0;
+                      wrtSum += mData.written || 0;
+                      monthTotSum += total;
+
+                      if (total >= 50) passCount++;
+
+                      return (
+                        <tr key={s.id}>
+                          <td>{index + 1}</td>
+                          <td style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{s.student_code || s.id}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                          <td>
+                            <GradeInput 
+                              min="0" max="15" 
+                              value={mData.homework ?? 0}
+                              onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'homework', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
+                            />
+                          </td>
+                          <td>
+                            <GradeInput 
+                              min="0" max="15" 
+                              value={mData.attendance ?? 0}
+                              onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'attendance', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
+                            />
+                          </td>
+                          <td>
+                            <GradeInput 
+                              min="0" max="10" 
+                              value={mData.behavior ?? 0}
+                              onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'behavior', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
+                            />
+                          </td>
+                          <td>
+                            <GradeInput 
+                              min="0" max="10" 
+                              value={mData.oral ?? 0}
+                              onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'oral', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
+                            />
+                          </td>
+                          <td>
+                            <GradeInput 
+                              min="0" max="50" 
+                              value={mData.written ?? 0}
+                              onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, classPeriod, 'written', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
+                            />
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: total >= 50 ? 'var(--color-primary)' : '#b91c1c', backgroundColor: 'var(--color-bg-container, #f8fafc)', fontSize: '14px' }}>
+                            {total} / 100
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: total >= 80 ? 'var(--color-success)' : total >= 50 ? '#d97706' : '#b91c1c' }}>
+                            {getGradeEstimate(total, 100)}
+                          </td>
+                        </tr>
+                      );
+                    } else if (classPeriod === 'termTotal') {
+                      const tm1 = calculateMonthTotal(sData.m1);
+                      const tm2 = calculateMonthTotal(sData.m2);
+                      const tm3 = calculateMonthTotal(sData.m3);
+                      const avg = parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
+                      const total = parseFloat((avg + (sData.finalExam || 0)).toFixed(2));
+                      avgSum += avg;
+                      finalSum += sData.finalExam || 0;
+                      termTotSum += total;
+
+                      if (total >= 25) passCount++;
+
+                      return (
+                        <tr key={s.id}>
+                          <td>{index + 1}</td>
+                          <td style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{s.student_code || s.id}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                          <td style={{ fontWeight: 'bold' }}>{avg} / 20</td>
+                          <td>
+                            <GradeInput 
+                              min="0" max="30" 
+                              value={sData.finalExam ?? 0}
+                              onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, 'finalExam', 'finalExam', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
+                            />
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>
+                            {total} / 50
+                          </td>
+                          <td style={{ fontWeight: 'bold' }}>
+                            {getGradeEstimate(total, 50)}
+                          </td>
+                        </tr>
+                      );
+                    } else {
+                      const t1Val = getSubjectPeriodGradeLocal(s.id, classSubject, 'term1', 'termTotal');
+                      const t2Val = getSubjectPeriodGradeLocal(s.id, classSubject, 'term2', 'termTotal');
+                      const yearlyTotal = Math.round(t1Val + t2Val);
+                      t1Sum += t1Val;
+                      t2Sum += t2Val;
+                      yearlySum += yearlyTotal;
+
+                      if (yearlyTotal >= 50) passCount++;
+
+                      return (
+                        <tr key={s.id}>
+                          <td>{index + 1}</td>
+                          <td style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{s.student_code || s.id}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                          <td style={{ fontWeight: 'bold' }}>{t1Val} / 50</td>
+                          <td style={{ fontWeight: 'bold' }}>{t2Val} / 50</td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)', fontSize: '15px' }}>
+                            {yearlyTotal} / 100
+                          </td>
+                          <td style={{ fontWeight: 'bold' }}>
+                            {getGradeEstimate(yearlyTotal, 100)}
+                          </td>
+                        </tr>
+                      );
+                    }
+                  });
+
+                  const count = classStudents.length || 1;
+                  const passRate = parseFloat(((passCount / count) * 100).toFixed(0));
+
+                  return (
+                    <>
+                      {rows}
+                      {/* Row 1: مجموع درجات الفصل */}
+                      <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold', borderTop: '2px solid var(--color-border)' }}>
+                        <td colSpan="3" style={{ textAlign: 'right' }}>
+                          {lang === 'ar' ? 'مجموع درجات الفصل:' : 'Class Total Sum:'}
+                        </td>
+                        {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
+                          <>
+                            <td>{parseFloat(hwSum.toFixed(1))}</td>
+                            <td>{parseFloat(attSum.toFixed(1))}</td>
+                            <td>{parseFloat(behSum.toFixed(1))}</td>
+                            <td>{parseFloat(oralSum.toFixed(1))}</td>
+                            <td>{parseFloat(wrtSum.toFixed(1))}</td>
+                            <td style={{ color: 'var(--color-primary)', fontSize: '15px' }}>{parseFloat(monthTotSum.toFixed(1))}</td>
+                            <td>-</td>
+                          </>
+                        ) : classPeriod === 'termTotal' ? (
+                          <>
+                            <td>{parseFloat(avgSum.toFixed(1))}</td>
+                            <td>{parseFloat(finalSum.toFixed(1))}</td>
+                            <td style={{ color: 'var(--color-primary)', fontSize: '15px' }}>{parseFloat(termTotSum.toFixed(1))}</td>
+                            <td>-</td>
+                          </>
+                        ) : (
+                          <>
+                            <td>{parseFloat(t1Sum.toFixed(1))}</td>
+                            <td>{parseFloat(t2Sum.toFixed(1))}</td>
+                            <td style={{ color: 'var(--color-primary)', fontSize: '15px' }}>{parseFloat(yearlySum.toFixed(1))}</td>
+                            <td>-</td>
+                          </>
+                        )}
+                      </tr>
+
+                      {/* Row 2: متوسط درجات الفصل */}
+                      <tr style={{ backgroundColor: 'var(--color-surface, #ffffff)', fontWeight: 'bold' }}>
+                        <td colSpan="3" style={{ textAlign: 'right' }}>
+                          {lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}
+                        </td>
+                        {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
+                          <>
+                            <td>{parseFloat((hwSum / count).toFixed(2))}</td>
+                            <td>{parseFloat((attSum / count).toFixed(2))}</td>
+                            <td>{parseFloat((behSum / count).toFixed(2))}</td>
+                            <td>{parseFloat((oralSum / count).toFixed(2))}</td>
+                            <td>{parseFloat((wrtSum / count).toFixed(2))}</td>
+                            <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((monthTotSum / count).toFixed(2))} / 100</td>
+                            <td style={{ color: 'var(--color-success)' }}>{getGradeEstimate(parseFloat((monthTotSum / count).toFixed(2)), 100)}</td>
+                          </>
+                        ) : classPeriod === 'termTotal' ? (
+                          <>
+                            <td>{parseFloat((avgSum / count).toFixed(2))}</td>
+                            <td>{parseFloat((finalSum / count).toFixed(2))}</td>
+                            <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((termTotSum / count).toFixed(2))} / 50</td>
+                            <td style={{ color: 'var(--color-success)' }}>{getGradeEstimate(parseFloat((termTotSum / count).toFixed(2)), 50)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td>{parseFloat((t1Sum / count).toFixed(2))}</td>
+                            <td>{parseFloat((t2Sum / count).toFixed(2))}</td>
+                            <td style={{ color: 'var(--color-success)', fontSize: '15px' }}>{parseFloat((yearlySum / count).toFixed(2))} / 100</td>
+                            <td style={{ color: 'var(--color-success)' }}>{getGradeEstimate(parseFloat((yearlySum / count).toFixed(2)), 100)}</td>
+                          </>
+                        )}
+                      </tr>
+
+                      {/* Row 3: نسبة النجاح في المادة */}
+                      <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
+                        <td colSpan="3" style={{ textAlign: 'right' }}>
+                          {lang === 'ar' ? 'نسبة النجاح في المادة (≥ ٥٠%):' : 'Pass Rate %:'}
+                        </td>
+                        <td colSpan={classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? 6 : 3} style={{ textAlign: 'center', color: passRate >= 70 ? 'var(--color-success)' : passRate >= 50 ? '#d97706' : '#b91c1c', fontSize: '14px' }}>
+                          {passRate}% ({passCount} من {count} طلاب)
+                        </td>
+                        <td>-</td>
+                      </tr>
+                    </>
+                  );
+                })()}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>

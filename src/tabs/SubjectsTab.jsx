@@ -23,8 +23,8 @@ export default function SubjectsTab() {
   const { teachers, fetchTeachers } = useTeachers();
 
   useEffect(() => {
-    fetchSubjects();
-    fetchClasses();
+    fetchSubjects(true);
+    fetchClasses(true);
     fetchTeachers('?per_page=1000');
   }, [fetchSubjects, fetchClasses, fetchTeachers]);
 

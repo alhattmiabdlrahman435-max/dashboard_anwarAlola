@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
+import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useSettings } from '../contexts/Settings/useSettings';
 import { usePagination } from '../hooks/usePagination';
@@ -20,6 +21,7 @@ export default function ControlTab() {
 
   const { allowedClasses: classes } = useAllowedClasses('control');
   const { fetchClasses } = useClasses();
+  const { subjects, fetchSubjects } = useSubjects();
   const {
     isGradesEncrypted,
     setIsGradesEncrypted,
@@ -62,8 +64,9 @@ export default function ControlTab() {
   }, [fetchControlGrades, qs]);
 
   useEffect(() => {
-    fetchClasses();
-  }, [fetchClasses]);
+    fetchClasses(true);
+    fetchSubjects(true);
+  }, [fetchClasses, fetchSubjects]);
 
   const [secretTermInput, setSecretTermInput] = useState('term1');
   const [secretSubjectInput, setSecretSubjectInput] = useState('الرياضيات');
@@ -194,10 +197,18 @@ export default function ControlTab() {
               value={secretSubjectInput}
               onChange={(e) => setSecretSubjectInput(e.target.value)}
             >
-              <option value="الرياضيات">{t.math}</option>
-              <option value="العلوم">{t.science}</option>
-              <option value="اللغة العربية">{t.arabic}</option>
-              <option value="اللغة الإنجليزية">{t.english}</option>
+              {subjects && subjects.length > 0 ? (
+                subjects.map(s => (
+                  <option key={s.id} value={s.name}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</option>
+                ))
+              ) : (
+                <>
+                  <option value="الرياضيات">{t.math}</option>
+                  <option value="العلوم">{t.science}</option>
+                  <option value="لغتي">{t.arabic}</option>
+                  <option value="اللغة الإنجليزية">{t.english}</option>
+                </>
+              )}
             </select>
           </div>
 

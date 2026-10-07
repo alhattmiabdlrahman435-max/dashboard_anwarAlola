@@ -726,14 +726,16 @@ export const AppProvider = ({ children }) => {
       return prev.map((r) => {
         if (r.studentId === studentId) {
           const updatedGrades = { ...r.grades };
-          const termGrades = { ...updatedGrades[term] };
-          const subjectGrades = { ...termGrades[subject] };
+          const termGrades = { ...(updatedGrades[term] || {}) };
+          const subjectGrades = termGrades[subject] 
+            ? { ...termGrades[subject] } 
+            : defaultDetailedGradeObj(0, 0, 0, 0, 0, 0);
 
           if (monthKey === "finalExam") {
             subjectGrades.finalExam = num;
           } else {
             subjectGrades[monthKey] = {
-              ...subjectGrades[monthKey],
+              ...(subjectGrades[monthKey] || { homework: 0, attendance: 0, behavior: 0, oral: 0, written: 0 }),
               [field]: num,
             };
           }
@@ -747,7 +749,14 @@ export const AppProvider = ({ children }) => {
     });
 
     if (token && subjects) {
-      const foundSub = subjects.find((s) => s.name === subject || s.id === subject);
+      const foundSub = subjects.find((s) => 
+        s.name === subject || 
+        s.name_ar === subject || 
+        s.nameEn === subject || 
+        s.name_en === subject || 
+        s.id === subject || 
+        String(s.id).replace("sub-", "") === String(subject).replace("sub-", "")
+      );
       const subjectId = foundSub ? Number(String(foundSub.id).replace("sub-", "")) : null;
 
       if (subjectId) {
@@ -766,12 +775,12 @@ export const AppProvider = ({ children }) => {
             if (monthKey === "finalExam") {
               reqBody.final_exam = subjGrades.finalExam;
             } else {
-              const mObj = subjGrades[monthKey];
-              reqBody.hw_grade = mObj.homework;
-              reqBody.att_grade = mObj.attendance;
-              reqBody.beh_grade = mObj.behavior;
-              reqBody.oral_grade = mObj.oral;
-              reqBody.wrt_grade = mObj.written;
+              const mObj = subjGrades[monthKey] || {};
+              reqBody.hw_grade = mObj.homework ?? 0;
+              reqBody.att_grade = mObj.attendance ?? 0;
+              reqBody.beh_grade = mObj.behavior ?? 0;
+              reqBody.oral_grade = mObj.oral ?? 0;
+              reqBody.wrt_grade = mObj.written ?? 0;
             }
 
             settingsService.saveDetailedGrade(reqBody)

@@ -1,5 +1,6 @@
 import { useApp } from '../../context/AppContext';
 import { useStudents } from '../../contexts/Students/useStudents';
+import { useSubjects } from '../../contexts/Subjects/useSubjects';
 import PrintHeader from '../PrintHeader';
 
 export default function PrintTermView() {
@@ -12,6 +13,7 @@ export default function PrintTermView() {
   } = useApp();
 
   const { students } = useStudents();
+  const { subjects } = useSubjects();
 
   const student = students.find(s => s.id === selectedGradeStudentId);
 
@@ -69,14 +71,14 @@ export default function PrintTermView() {
         </thead>
         <tbody>
           {(() => {
-            const subjectsList = ['الرياضيات', 'العلوم', 'اللغة العربية', 'اللغة الإنجليزية'];
+            const subjectsList = (subjects && subjects.length > 0)
+              ? subjects.map(s => s.name || s.name_ar).filter(Boolean)
+              : ['القرآن الكريم', 'التربية الإسلامية', 'لغتي', 'اللغة الإنجليزية', 'الرياضيات', 'العلوم'];
             let totalTermSum = 0;
 
             const rows = subjectsList.map((subj) => {
-              const subjectLabel = subj === 'الرياضيات' ? t.math 
-                : subj === 'العلوم' ? t.science 
-                : subj === 'اللغة العربية' ? t.arabic 
-                : t.english;
+              const subjectObj = (subjects || []).find(s => (s.name || s.name_ar) === subj);
+              const subjectLabel = lang === 'ar' ? subj : (subjectObj?.nameEn || subj);
               const sData = getStudentDetailedGrades(selectedGradeStudentId, subj, selectedGradeTerm);
               const calcTotal = (m) => (m.homework||0) + (m.attendance||0) + (m.behavior||0) + (m.oral||0) + (m.written||0);
               const tm1 = calcTotal(sData.m1);

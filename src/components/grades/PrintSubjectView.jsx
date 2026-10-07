@@ -24,8 +24,9 @@ export default function PrintSubjectView() {
 
   const { students } = useStudents();
 
-  const student = students.find(s => s.id === selectedGradeStudentId);
-  const gradesData = getStudentDetailedGrades(selectedGradeStudentId, selectedGradeSubject, selectedGradeTerm);
+  const student = students.find(s => s.id === selectedGradeStudentId) || (students && students.length > 0 ? students[0] : null);
+  const currentStudentId = student ? student.id : selectedGradeStudentId;
+  const gradesData = getStudentDetailedGrades(currentStudentId, selectedGradeSubject, selectedGradeTerm);
 
   const m1_total = calculateMonthTotal(gradesData.m1);
   const m2_total = calculateMonthTotal(gradesData.m2);

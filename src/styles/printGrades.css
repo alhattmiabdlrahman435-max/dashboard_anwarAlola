@@ -1,47 +1,175 @@
 @media print {
   @page {
     size: A4 portrait;
-    margin: 0.8cm;
+    margin: 0.6cm;
   }
+  
   body {
     background: #ffffff !important;
     color: #000000 !important;
   }
+  
   body[data-print-mode] .printable-area {
     margin: 0 !important;
-    padding: 16px !important;
+    padding: 12px !important;
     border: 2px double #0f766e !important;
     border-radius: 6px !important;
     width: 100% !important;
     box-sizing: border-box !important;
   }
+
+  /* Specific Landscape Orientation for Class General Sheet */
+  body[data-print-orientation="landscape"] {
+    width: 100% !important;
+  }
+
+  body[data-print-orientation="landscape"] .printable-area {
+    padding: 8px !important;
+    border: 2px double #0f766e !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
   .section-card {
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
     background: transparent !important;
   }
+
   .control-grade-table th {
     background-color: #f8fafc !important;
     color: #0f172a !important;
     border-bottom: 2px solid #0f172a !important;
     font-weight: bold !important;
   }
+
   .control-grade-table td, .control-grade-table th {
     border-color: #cbd5e1 !important;
-    padding: 10px !important;
+    padding: 8px !important;
     font-size: 11px !important;
   }
+
+  /* Compact general class sheet table to guarantee 100% fit on A4 Landscape */
+  .class-general-print-table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    font-size: 9.5px !important;
+    direction: rtl !important;
+  }
+
+  .class-general-print-table th,
+  .class-general-print-table td {
+    padding: 4px 2px !important;
+    border: 1px solid #64748b !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    word-break: break-word !important;
+  }
+
+  .class-general-print-table th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+  }
+
+  .class-general-print-table td.student-name-cell {
+    text-align: right !important;
+    padding-right: 6px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .class-general-print-table td.total-cell {
+    font-weight: bold !important;
+    background-color: #f8fafc !important;
+  }
+
+  .class-general-print-table td.percentage-cell {
+    font-weight: bold !important;
+    background-color: #f1f5f9 !important;
+    color: #0f766e !important;
+  }
+
+  /* Single subject teacher sheet table styling */
+  .subject-teacher-print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 11px !important;
+    direction: rtl !important;
+  }
+
+  .subject-teacher-print-table th,
+  .subject-teacher-print-table td {
+    padding: 6px 4px !important;
+    border: 1px solid #64748b !important;
+    text-align: center !important;
+  }
+
+  .subject-teacher-print-table th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+  }
+
+  .subject-teacher-print-table td.student-name-cell {
+    text-align: right !important;
+    padding-right: 8px !important;
+    font-weight: 600 !important;
+  }
+
+  /* Statistics badge box */
+  .print-stats-box {
+    display: flex !important;
+    justify-content: space-between !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    background-color: #f8fafc !important;
+    padding: 6px 12px !important;
+    margin: 12px 0 !important;
+    font-size: 11px !important;
+    direction: rtl !important;
+  }
+
+  .print-signatures-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-top: 24px !important;
+    padding-top: 14px !important;
+    border-top: 1px solid #cbd5e1 !important;
+    direction: rtl !important;
+    font-size: 11px !important;
+    font-weight: bold !important;
+    page-break-inside: avoid !important;
+  }
+
   .print-only-grade-value {
     display: inline !important;
     font-weight: bold !important;
   }
+
   .printable-only-header,
   .printable-only-metadata,
   .printable-only-signatures {
     display: flex !important;
   }
   
+  /* Universal rule: Hide screen navigation, chrome & buttons during ANY print mode */
+  body[data-print-mode] .no-print,
+  body[data-print-mode] .section-card-header,
+  body[data-print-mode] .app-header,
+  body[data-print-mode] .sidebar,
+  body[data-print-mode] .navbar,
+  body[data-print-mode] .top-header,
+  body[data-print-mode] .students-controls {
+    display: none !important;
+  }
+
   /* Dynamic controls based on data-print-mode */
   body[data-print-mode="subject"] .print-subject-only-content {
     display: block !important;
@@ -109,7 +237,7 @@
 
   .student-report-card-page {
     border: 3px double #0f766e !important;
-    padding: 28px !important;
+    padding: 24px !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
     border-radius: 8px !important;
@@ -121,17 +249,11 @@
     margin: 0 0 20px 0 !important;
   }
 
-  @media print {
-    .student-report-card-page {
-      margin: 0 !important;
-      min-height: 275mm !important;
-    }
-    .student-report-card-page:last-child,
-    .student-report-card-page:only-child {
-      page-break-after: avoid !important;
-      break-after: avoid !important;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
+  .student-report-card-page:last-child,
+  .student-report-card-page:only-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

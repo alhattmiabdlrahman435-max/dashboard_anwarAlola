@@ -43,8 +43,8 @@ export default function DetailedGradesTab() {
   const { subjects, fetchSubjects } = useSubjects();
 
   useEffect(() => {
-    fetchClasses();
-    fetchSubjects();
+    fetchClasses(true);
+    fetchSubjects(true);
   }, [fetchClasses, fetchSubjects]);
 
   // State for view controls
@@ -110,10 +110,16 @@ export default function DetailedGradesTab() {
   // Synchronize default class selector when students list changes
   useEffect(() => {
     if (classesList.length > 0 && !selectedClass) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedClass(classesList[0]);
     }
   }, [classesList, selectedClass]);
+
+  // Synchronize default student selector when students list loads
+  useEffect(() => {
+    if (students && students.length > 0 && !selectedGradeStudentId) {
+      setSelectedGradeStudentId(students[0].id);
+    }
+  }, [students, selectedGradeStudentId, setSelectedGradeStudentId]);
 
   // Auto-load grades from database when selected class changes (class view mode)
   useEffect(() => {
@@ -201,13 +207,31 @@ export default function DetailedGradesTab() {
     }
   };
 
-  // Handler for class report print
-  const handlePrintClass = () => {
-    document.body.setAttribute('data-print-mode', 'class');
+  // Dynamic Print Handler supporting Class (landscape/portrait), Subject sheet, and Monthly sheet
+  const handlePrint = (mode = viewMode) => {
+    const printMode = mode === 'class' ? 'class' : (mode === 'month' ? 'month' : 'subject');
+    document.body.setAttribute('data-print-mode', printMode);
+    const isLandscape = (printMode === 'class' && (classSubject === 'all' || classSubject === 'detailed'));
+    document.body.setAttribute('data-print-orientation', isLandscape ? 'landscape' : 'portrait');
+
+    // Dynamically inject @page orientation style for browser print preview engine
+    const oldStyle = document.getElementById('dynamic-print-page-style');
+    if (oldStyle) oldStyle.remove();
+
+    const styleEl = document.createElement('style');
+    styleEl.id = 'dynamic-print-page-style';
+    styleEl.innerHTML = isLandscape 
+      ? `@page { size: A4 landscape !important; margin: 0.5cm !important; }`
+      : `@page { size: A4 portrait !important; margin: 0.6cm !important; }`;
+    document.head.appendChild(styleEl);
+
     setTimeout(() => {
       window.print();
       const afterPrintCleanup = () => {
         document.body.removeAttribute('data-print-mode');
+        document.body.removeAttribute('data-print-orientation');
+        const s = document.getElementById('dynamic-print-page-style');
+        if (s) s.remove();
       };
       window.addEventListener('afterprint', afterPrintCleanup, { once: true });
     }, 150);
@@ -231,6 +255,7 @@ export default function DetailedGradesTab() {
               {lang === 'ar' ? 'تصدير الدرجات' : 'Export Grades'}
             </button>
           )}
+
           {viewMode === 'class' ? (
             <div style={{ display: 'flex', gap: '8px' }}>
               {['m1', 'm2', 'm3', 'termTotal'].includes(classPeriod) && canAction('detailedGrades', 'publish', selectedClassId) && (
@@ -244,19 +269,23 @@ export default function DetailedGradesTab() {
               )}
               <button 
                 className="btn-elevated"
-                onClick={handlePrintClass}
+                onClick={() => handlePrint('class')}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                🖨️ {lang === 'ar' ? 'طباعة كشف درجات الفصل' : 'Print Class Grades'}
+                {classSubject === 'all' 
+                  ? (lang === 'ar' ? '🖨️ طباعة كشف المحصلة العام (A4 بالعرض)' : '🖨️ Print General Class Sheet (Landscape)')
+                  : (lang === 'ar' ? `🖨️ طباعة كشف رصد مادة (${classSubject}) للمعلم` : `🖨️ Print Teacher Sheet (${classSubject})`)}
               </button>
             </div>
           ) : (
             <button 
               className="btn-elevated"
-              onClick={() => setShowPrintModal(true)}
+              onClick={() => handlePrint(viewMode)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              🖨️ {lang === 'ar' ? 'طباعة كشف الدرجات' : 'Print Report Card'}
+              {viewMode === 'subject'
+                ? (lang === 'ar' ? `🖨️ طباعة كشف درجات (${selectedGradeSubject || 'المادة'})` : '🖨️ Print Subject Sheet')
+                : (lang === 'ar' ? '🖨️ طباعة كشف درجات الشهر' : '🖨️ Print Monthly Sheet')}
             </button>
           )}
         </div>
@@ -403,12 +432,18 @@ export default function DetailedGradesTab() {
             <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.subjectLabel}</label>
             <div style={{ position: 'relative', zIndex: 8 }}>
               <SearchableSelect
-                options={[
-                  { value: 'الرياضيات', label: t.math },
-                  { value: 'العلوم', label: t.science },
-                  { value: 'اللغة العربية', label: t.arabic },
-                  { value: 'اللغة الإنجليزية', label: t.english }
-                ]}
+                options={subjects && subjects.length > 0 
+                  ? subjects.map(s => ({
+                      value: s.name,
+                      label: lang === 'ar' ? s.name : (s.nameEn || s.name)
+                    }))
+                  : [
+                      { value: 'الرياضيات', label: t.math },
+                      { value: 'العلوم', label: t.science },
+                      { value: 'لغتي', label: t.arabic },
+                      { value: 'اللغة الإنجليزية', label: t.english }
+                    ]
+                }
                 value={selectedGradeSubject}
                 onChange={(val) => setSelectedGradeSubject(val)}
                 placeholder={t.subjectLabel}
@@ -441,7 +476,7 @@ export default function DetailedGradesTab() {
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
-                {lang === 'ar' ? 'الفترة التقييمية للفصل' : 'Class Evaluation Period'}
+                {lang === 'ar' ? 'المحصلة / الفترة التقييمية' : 'Assessment Period'}
               </label>
               <div style={{ position: 'relative', zIndex: 8 }}>
                 <SearchableSelect
@@ -454,14 +489,14 @@ export default function DetailedGradesTab() {
                   ]}
                   value={classPeriod}
                   onChange={(val) => setClassPeriod(val)}
-                  placeholder={lang === 'ar' ? 'الفترة التقييمية للفصل' : 'Class Evaluation Period'}
+                  placeholder={lang === 'ar' ? 'اختر المحصلة' : 'Select Period'}
                 />
               </div>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
-                {lang === 'ar' ? 'عرض المادة' : 'View Subject'}
+                {lang === 'ar' ? 'نوع الكشف / المادة' : 'Sheet Type / Subject'}
               </label>
               <div style={{ position: 'relative', zIndex: 7 }}>
                 {(() => {
@@ -471,11 +506,11 @@ export default function DetailedGradesTab() {
                     : [];
 
                   const classSubjectOptions = [
-                    { value: 'all', label: lang === 'ar' ? 'جميع المواد (إجمالي)' : 'All Subjects (Summary)' },
-                    { value: 'detailed', label: lang === 'ar' ? 'جميع المواد (تفصيلي)' : 'All Subjects (Detailed)' },
+                    { value: 'all', label: lang === 'ar' ? '📊 كشف المحصلة العام للفصل (جميع المواد)' : '📊 General Class Assessment (All Subjects)' },
+                    { value: 'detailed', label: lang === 'ar' ? '📋 جميع المواد (رصد تفصيلي مجمع)' : '📋 All Subjects (Detailed Grid)' },
                     ...realClassSubjects.map(subj => ({
                       value: subj,
-                      label: subj
+                      label: lang === 'ar' ? `📝 كشف رصد مادة: ${subj} (للمعلم)` : `📝 Teacher Sheet: ${subj}`
                     }))
                   ];
 
@@ -484,7 +519,7 @@ export default function DetailedGradesTab() {
                       options={classSubjectOptions}
                       value={classSubject}
                       onChange={(val) => setClassSubject(val)}
-                      placeholder={lang === 'ar' ? 'عرض المادة' : 'View Subject'}
+                      placeholder={lang === 'ar' ? 'اختر نوع الكشف أو المادة' : 'Select Sheet or Subject'}
                     />
                   );
                 })()}
@@ -514,7 +549,7 @@ export default function DetailedGradesTab() {
           {/* ==================== PRINT UI ORCHESTRATION ==================== */}
           <PrintSubjectView />
           <PrintTermView />
-          <PrintMonthView />
+          <PrintMonthView selectedMonth={selectedMonth} />
           <PrintClassView 
             selectedClass={selectedClass} 
             classPeriod={classPeriod} 

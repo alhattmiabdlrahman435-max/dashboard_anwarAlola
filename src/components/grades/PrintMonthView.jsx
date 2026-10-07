@@ -1,8 +1,9 @@
 import { useApp } from '../../context/AppContext';
 import { useStudents } from '../../contexts/Students/useStudents';
+import { useSubjects } from '../../contexts/Subjects/useSubjects';
 import PrintHeader from '../PrintHeader';
 
-export default function PrintMonthView() {
+export default function PrintMonthView({ selectedMonth }) {
   const {
     lang,
     t,
@@ -13,16 +14,25 @@ export default function PrintMonthView() {
   } = useApp();
 
   const { students } = useStudents();
+  const { subjects } = useSubjects();
 
-  const student = students.find(s => s.id === selectedGradeStudentId);
+  const activeMonth = selectedMonth || printSelectedMonth || 'm1';
+  const student = students.find(s => s.id === selectedGradeStudentId) || (students && students.length > 0 ? students[0] : null);
+  const currentStudentId = student ? student.id : selectedGradeStudentId;
+
+  const monthLabel = activeMonth === 'm1' 
+    ? (t.m1Label || 'المحصلة الأولى') 
+    : activeMonth === 'm2' 
+      ? (t.m2Label || 'المحصلة الثانية') 
+      : (t.m3Label || 'المحصلة الثالثة');
 
   return (
     <div style={{ display: 'none' }} className="print-month-full-report printable-area">
       <PrintHeader 
-        title="كشف درجات التقييم الشهري"
+        title={lang === 'ar' ? 'كشف درجات التقييم الشهري' : 'Monthly Academic Assessment Report'}
         subtitle={lang === 'ar' 
-          ? `العام الدراسي: ١٤٤٧ هـ | الفصل الدراسي: ${selectedGradeTerm === 'term1' ? t.term1Label : t.term2Label} | الفترة: ${printSelectedMonth === 'm1' ? t.m1Label : printSelectedMonth === 'm2' ? t.m2Label : t.m3Label}`
-          : `Academic Year: 2026 | Term: ${selectedGradeTerm === 'term1' ? t.term1Label : t.term2Label} | Period: ${printSelectedMonth === 'm1' ? t.m1Label : printSelectedMonth === 'm2' ? t.m2Label : t.m3Label}`
+          ? `العام الدراسي: ١٤٤٧ هـ | الفصل الدراسي: ${selectedGradeTerm === 'term1' ? t.term1Label : t.term2Label} | الفترة: ${monthLabel}`
+          : `Academic Year: 2026 | Term: ${selectedGradeTerm === 'term1' ? t.term1Label : t.term2Label} | Period: ${monthLabel}`
         }
       />
 
@@ -50,11 +60,11 @@ export default function PrintMonthView() {
         </div>
         <div>
           <span>الفترة التقييمية: </span>
-          <span style={{ fontWeight: 'normal' }}>{printSelectedMonth === 'm1' ? t.m1Label : printSelectedMonth === 'm2' ? t.m2Label : t.m3Label}</span>
+          <span style={{ fontWeight: 'normal' }}>{monthLabel}</span>
         </div>
       </div>
 
-      <table style={{ 
+      <table className="print-month-table" style={{ 
         width: '100%', borderCollapse: 'collapse', fontSize: '11px',
         border: '1px solid #cbd5e1',
         direction: 'rtl'
@@ -71,27 +81,31 @@ export default function PrintMonthView() {
           </tr>
         </thead>
         <tbody>
-          {['الرياضيات', 'العلوم', 'اللغة العربية', 'اللغة الإنجليزية'].map((subj) => {
-            const subjectLabel = subj === 'الرياضيات' ? t.math 
-              : subj === 'العلوم' ? t.science 
-              : subj === 'اللغة العربية' ? t.arabic 
-              : t.english;
-            const sData = getStudentDetailedGrades(selectedGradeStudentId, subj, selectedGradeTerm);
-            const mData = sData[printSelectedMonth] || {};
-            const total = (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
+          {(() => {
+            const subjectsList = (subjects && subjects.length > 0)
+              ? subjects.map(s => s.name || s.name_ar).filter(Boolean)
+              : ['القرآن الكريم', 'التربية الإسلامية', 'لغتي', 'اللغة الإنجليزية', 'الرياضيات', 'العلوم'];
 
-            return (
-              <tr key={subj}>
-                <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', fontWeight: '600', color: '#1e293b' }}>{subjectLabel}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.homework ?? 0}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.attendance ?? 0}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.behavior ?? 0}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.oral ?? 0}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.written ?? 0}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '800', color: '#0f172a' }}>{total}</td>
-              </tr>
-            );
-          })}
+            return subjectsList.map((subj) => {
+              const subjectObj = (subjects || []).find(s => (s.name || s.name_ar) === subj);
+              const subjectLabel = lang === 'ar' ? subj : (subjectObj?.nameEn || subj);
+              const sData = getStudentDetailedGrades(currentStudentId, subj, selectedGradeTerm);
+              const mData = (sData && sData[activeMonth]) ? sData[activeMonth] : {};
+              const total = (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
+
+              return (
+                <tr key={subj}>
+                  <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', fontWeight: '600', color: '#1e293b' }}>{subjectLabel}</td>
+                  <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.homework ?? 0}</td>
+                  <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.attendance ?? 0}</td>
+                  <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.behavior ?? 0}</td>
+                  <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.oral ?? 0}</td>
+                  <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center' }}>{mData.written ?? 0}</td>
+                  <td style={{ border: '1px solid #cbd5e1', padding: '8px 10px', textAlign: 'center', fontWeight: '800', color: '#0f172a' }}>{total}</td>
+                </tr>
+              );
+            });
+          })()}
         </tbody>
       </table>
 

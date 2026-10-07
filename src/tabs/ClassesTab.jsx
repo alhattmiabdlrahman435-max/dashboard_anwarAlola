@@ -31,10 +31,10 @@ export default function ClassesTab() {
   const { students, fetchStudents } = useStudents();
 
   useEffect(() => {
-    fetchClasses();
+    fetchClasses(true);
     fetchTeachers('?per_page=1000');
     fetchStudents();
-    fetchSubjects();
+    fetchSubjects(true);
   }, [fetchClasses, fetchTeachers, fetchStudents, fetchSubjects]);
 
 

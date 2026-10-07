@@ -55,18 +55,21 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
             </tr>
           </thead>
           <tbody>
-            {['الرياضيات', 'العلوم', 'اللغة العربية', 'اللغة الإنجليزية'].map((subj) => {
-              const subjectLabel = subj === 'الرياضيات' ? t.math 
-                : subj === 'العلوم' ? t.science 
-                : subj === 'اللغة العربية' ? t.arabic 
-                : t.english;
-              const sData = getStudentDetailedGrades(selectedGradeStudentId, subj, selectedGradeTerm);
-              const mData = sData[selectedMonth] || {};
-              const total = (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
+            {(() => {
+              const subjectsList = (subjects && subjects.length > 0)
+                ? subjects.map(s => s.name || s.name_ar).filter(Boolean)
+                : ['القرآن الكريم', 'التربية الإسلامية', 'لغتي', 'اللغة الإنجليزية', 'الرياضيات', 'العلوم'];
 
-              return (
-                <tr key={subj}>
-                  <td style={{ fontWeight: 'bold' }}>{subjectLabel}</td>
+              return subjectsList.map((subj) => {
+                const subjectObj = (subjects || []).find(s => (s.name || s.name_ar) === subj);
+                const subjectLabel = lang === 'ar' ? subj : (subjectObj?.nameEn || subj);
+                const sData = getStudentDetailedGrades(selectedGradeStudentId, subj, selectedGradeTerm);
+                const mData = sData[selectedMonth] || {};
+                const total = (mData.homework||0) + (mData.attendance||0) + (mData.behavior||0) + (mData.oral||0) + (mData.written||0);
+
+                return (
+                  <tr key={subj}>
+                    <td style={{ fontWeight: 'bold' }}>{subjectLabel}</td>
                   <td>
                     <GradeInput 
                       min="0" max="15" 
@@ -110,7 +113,8 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
                   <td style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>{total}</td>
                 </tr>
               );
-            })}
+            });
+          })()}
           </tbody>
         </table>
       </div>

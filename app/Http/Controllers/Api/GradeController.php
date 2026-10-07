@@ -198,12 +198,12 @@ class GradeController extends Controller implements HasMiddleware
             if ($gradesCount >= ($totalStudentsInClass * $totalSubjectsInClass)) {
                 $className = $student->schoolClass ? ($student->schoolClass->grade_ar . ' - ' . $student->schoolClass->section_ar) : 'غير معروف';
                 $monthNames = [
-                    'm1' => 'للشهر الأول',
-                    'm2' => 'للشهر الثاني',
-                    'm3' => 'للشهر الثالث',
-                    '1' => 'للشهر الأول',
-                    '2' => 'للشهر الثاني',
-                    '3' => 'للشهر الثالث',
+                    'm1' => 'للمحصلة الأولى',
+                    'm2' => 'للمحصلة الثانية',
+                    'm3' => 'للمحصلة الثالثة',
+                    '1' => 'للمحصلة الأولى',
+                    '2' => 'للمحصلة الثانية',
+                    '3' => 'للمحصلة الثالثة',
                     'final' => 'للاختبار النهائي',
                     '0' => 'للاختبار النهائي',
                 ];
@@ -274,12 +274,12 @@ class GradeController extends Controller implements HasMiddleware
         $students = Student::with('parentUser')->where('class_id', $request->class_id)->get();
         
         $monthNamesMap = [
-            'm1' => 'للشهر الأول',
-            'm2' => 'للشهر الثاني',
-            'm3' => 'للشهر الثالث',
+            'm1' => 'للمحصلة الأولى',
+            'm2' => 'للمحصلة الثانية',
+            'm3' => 'للمحصلة الثالثة',
             'final' => 'النهائية',
         ];
-        $monthName = $monthNamesMap[$monthNorm] ?? ('للشهر ' . $monthNorm);
+        $monthName = $monthNamesMap[$monthNorm] ?? ('للمحصلة ' . $monthNorm);
 
         $sentCount = 0;
 
