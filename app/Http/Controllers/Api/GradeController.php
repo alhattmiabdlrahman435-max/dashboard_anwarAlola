@@ -60,7 +60,7 @@ class GradeController extends Controller implements HasMiddleware
             }
         }
 
-        $gradesQuery = Grade::with('subject')->where('student_id', $studentId);
+        $gradesQuery = Grade::with('subject')->where('student_id', $studentId)->where('is_control', false);
         $grades = $gradesQuery->get();
 
         if ($user && $user->role === 'parent') {
@@ -115,16 +115,16 @@ class GradeController extends Controller implements HasMiddleware
     public function saveDetailed(Request $request)
     {
         $request->validate([
-            'student_id' => 'required|integer',
-            'subject_id' => 'required|integer',
-            'term' => 'required|string',
-            'month' => 'required|string',
-            'hw_grade' => 'numeric',
-            'att_grade' => 'numeric',
-            'beh_grade' => 'numeric',
-            'oral_grade' => 'numeric',
-            'wrt_grade' => 'numeric',
-            'final_exam' => 'nullable|numeric',
+            'student_id' => 'required|integer|exists:students,id',
+            'subject_id' => 'required|integer|exists:subjects,id',
+            'term' => 'required|string|in:term1,term2,1,2',
+            'month' => 'required|string|in:m1,m2,m3,final,1,2,3,0',
+            'hw_grade' => 'numeric|between:0,15',
+            'att_grade' => 'numeric|between:0,15',
+            'beh_grade' => 'numeric|between:0,10',
+            'oral_grade' => 'numeric|between:0,10',
+            'wrt_grade' => 'numeric|between:0,50',
+            'final_exam' => 'nullable|numeric|between:0,30',
         ]);
 
         $student = Student::findOrFail($request->student_id);

@@ -36,6 +36,8 @@ Route::post('/forgot-password-reset', [AuthController::class, 'forgotPasswordRes
 // ===== Protected Routes - مسارات محمية (تحتاج Token) =====
 Route::middleware('auth:sanctum')->group(function () {
 
+    require __DIR__ . '/school-reports.php';
+
     // Export / Import - استيراد وتصدير البيانات (MUST BE BEFORE RESOURCES)
     Route::get('/{module}/export', [ExportImportController::class, 'export'])
         ->where('module', 'students|teachers|parents|grades');

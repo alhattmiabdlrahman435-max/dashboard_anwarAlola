@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;600;700;800&family=Tajawal:wght@400;500;600;700;800&family=Cairo:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
   /* Premium Brand HSL Colors (Light Mode) */
@@ -49,9 +50,9 @@
   --space-xxl: 32px;
   --space-xxxl: 48px;
 
-  /* Font Families */
-  --font-arabic: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-english: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Font Families — Clear, Solid, Classical Standard Arabic */
+  --font-arabic: 'Tajawal', 'Almarai', 'Segoe UI', Tahoma, Arial, system-ui, -apple-system, sans-serif;
+  --font-english: 'Outfit', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   
   /* Border Radii */
   --radius-button: 16px;

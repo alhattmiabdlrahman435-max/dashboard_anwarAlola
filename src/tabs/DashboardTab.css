@@ -1,0 +1,818 @@
+/* ==========================================================================
+   Executive School Dashboard Styles — Modern Bento 2.0 System
+   ========================================================================== */
+
+.db-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl, 24px);
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  animation: dbFadeIn 0.35s ease-out;
+}
+
+@keyframes dbFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   1. Welcome & Operational Header Banner
+   -------------------------------------------------------------------------- */
+.db-welcome-banner {
+  background: linear-gradient(135deg, hsl(224, 64%, 15%) 0%, hsl(218, 80%, 28%) 100%);
+  border-radius: var(--radius-card, 24px);
+  padding: 24px 28px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 14px 34px -8px rgba(15, 34, 64, 0.28);
+  position: relative;
+  overflow: hidden;
+}
+
+.db-welcome-banner::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  inset-inline-end: -10%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.db-welcome-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 1;
+}
+
+.db-welcome-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.db-welcome-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.db-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.22);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #a7f3d0;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.db-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+  animation: dbPulse 2s infinite;
+}
+
+@keyframes dbPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.db-welcome-subtitle {
+  margin: 0;
+  font-size: 13.5px;
+  color: #cbd5e1;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.db-welcome-subtitle span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.db-welcome-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1;
+}
+
+.db-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: var(--radius-button, 14px);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.db-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.db-refresh-btn:active {
+  transform: scale(0.97);
+}
+
+.db-spin-icon {
+  animation: dbSpin 0.9s linear infinite;
+}
+
+@keyframes dbSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --------------------------------------------------------------------------
+   2. Alert / Urgent Operational Notice Bar
+   -------------------------------------------------------------------------- */
+.db-alert-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 18px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--radius-chip, 14px);
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+:root.dark .db-alert-bar {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fde68a;
+}
+
+.db-alert-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.db-alert-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f59e0b;
+  color: #ffffff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.db-alert-action-btn:hover {
+  background: #d97706;
+}
+
+/* --------------------------------------------------------------------------
+   3. Top KPIs Metric Bento Cards
+   -------------------------------------------------------------------------- */
+.db-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-lg, 16px);
+}
+
+.db-kpi-card {
+  background: var(--color-surface-alt, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 22px);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 18px rgba(15, 34, 64, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.db-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -4px rgba(15, 34, 64, 0.08);
+  border-color: color-mix(in srgb, var(--kpi-accent, var(--color-primary-ui)) 40%, transparent);
+}
+
+.db-kpi-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.db-kpi-icon-wrap {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--kpi-accent) 12%, transparent);
+  color: var(--kpi-accent);
+}
+
+.db-kpi-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--color-surface, #f8fafc);
+  color: var(--color-text-secondary, #64748b);
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.db-kpi-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.db-kpi-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-text-primary, #0f172a);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.db-kpi-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.db-kpi-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border, #f1f5f9);
+  font-size: 11.5px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.db-kpi-submetric {
+  font-weight: 700;
+  color: var(--color-text-primary, #0f172a);
+}
+
+/* --------------------------------------------------------------------------
+   4. Quick Actions Launcher Strip
+   -------------------------------------------------------------------------- */
+.db-quick-actions-bar {
+  background: var(--color-surface-alt, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 20px);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow-x: auto;
+  box-shadow: 0 4px 14px rgba(15, 34, 64, 0.02);
+}
+
+.db-quick-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--color-text-primary, #0f172a);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline-end: 10px;
+  border-inline-end: 1px solid var(--color-border, #e2e8f0);
+}
+
+.db-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--color-surface, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary, #1e293b);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.db-quick-btn:hover {
+  background: color-mix(in srgb, var(--color-primary-ui) 8%, var(--color-surface, #f8fafc));
+  border-color: color-mix(in srgb, var(--color-primary-ui) 35%, transparent);
+  color: var(--color-primary-ui);
+  transform: translateY(-1px);
+}
+
+.db-quick-btn:active {
+  transform: scale(0.97);
+}
+
+.db-quick-btn svg {
+  color: var(--color-primary-ui);
+}
+
+/* --------------------------------------------------------------------------
+   5. Interactive Operational Bento Grid
+   -------------------------------------------------------------------------- */
+.db-bento-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: var(--space-xl, 24px);
+}
+
+@media (max-width: 1100px) {
+  .db-bento-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.db-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl, 24px);
+}
+
+.db-panel-card {
+  background: var(--color-surface-alt, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 24px);
+  padding: 22px 24px;
+  box-shadow: 0 4px 20px rgba(15, 34, 64, 0.025);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: box-shadow 0.2s ease;
+}
+
+.db-panel-card:hover {
+  box-shadow: 0 10px 30px rgba(15, 34, 64, 0.05);
+}
+
+.db-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+}
+
+.db-panel-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text-primary, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-panel-title svg {
+  color: var(--color-primary-ui);
+}
+
+.db-panel-link {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary-ui);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.2s;
+}
+
+.db-panel-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   6. Attendance Radial Dial & Live Metrics
+   -------------------------------------------------------------------------- */
+.db-attendance-widget {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 6px 0;
+}
+
+@media (max-width: 600px) {
+  .db-attendance-widget {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+}
+
+.db-radial-box {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.db-radial-svg {
+  transform: rotate(-90deg);
+  width: 128px;
+  height: 128px;
+}
+
+.db-radial-bg {
+  stroke: var(--color-border, #e2e8f0);
+}
+
+.db-radial-progress {
+  stroke: var(--color-success, #16a34a);
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.db-radial-center {
+  position: absolute;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.db-radial-number {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--color-text-primary, #0f172a);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.db-radial-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.db-attendance-chips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.db-attendance-chip-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--color-surface, #f8fafc);
+  border: 1px solid var(--color-border, #f1f5f9);
+  transition: all 0.2s ease;
+}
+
+.db-attendance-chip-item:hover {
+  background: color-mix(in srgb, var(--chip-color, #0f172a) 6%, transparent);
+  border-color: color-mix(in srgb, var(--chip-color, #0f172a) 25%, transparent);
+}
+
+.db-chip-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-primary, #1e293b);
+}
+
+.db-chip-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--chip-color);
+}
+
+.db-chip-val {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--chip-color);
+}
+
+/* --------------------------------------------------------------------------
+   7. Control Subject Academic Averages
+   -------------------------------------------------------------------------- */
+.db-subjects-bars {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  align-items: flex-end;
+  min-height: 170px;
+  padding-top: 10px;
+}
+
+.db-subject-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.db-bar-track {
+  width: 100%;
+  max-width: 52px;
+  height: 120px;
+  background: var(--color-surface, #f1f5f9);
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.db-bar-fill {
+  width: 100%;
+  border-radius: 10px 10px 0 0;
+  background: var(--bar-color, var(--color-primary-ui));
+  transition: height 1s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.db-bar-value-pill {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.db-subject-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary, #475569);
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   8. Top Students Honor Roll (NO EMOJIS — Pure SVG Badges)
+   -------------------------------------------------------------------------- */
+.db-honor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.db-honor-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--color-surface, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  transition: all 0.2s ease;
+}
+
+.db-honor-card:hover {
+  transform: translateX(-3px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+[dir="ltr"] .db-honor-card:hover {
+  transform: translateX(3px);
+}
+
+.db-honor-student-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.db-rank-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.db-rank-1 {
+  background: linear-gradient(135deg, #fef08a 0%, #facc15 100%);
+  color: #854d0e;
+  border: 1px solid #eab308;
+  box-shadow: 0 4px 12px rgba(234, 179, 8, 0.25);
+}
+
+.db-rank-2 {
+  background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
+  color: #334155;
+  border: 1px solid #94a3b8;
+  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.2);
+}
+
+.db-rank-3 {
+  background: linear-gradient(135deg, #fed7aa 0%, #fb923c 100%);
+  color: #9a3412;
+  border: 1px solid #f97316;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+}
+
+.db-student-names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.db-student-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.db-student-class {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.db-honor-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.db-score-num {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--color-primary-ui);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-english), monospace;
+}
+
+.db-score-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-secondary, #64748b);
+}
+
+/* --------------------------------------------------------------------------
+   9. Financial Collection Stream
+   -------------------------------------------------------------------------- */
+.db-finance-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.db-finance-radial-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 0;
+}
+
+.db-finance-dial {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.db-finance-dial svg {
+  transform: rotate(-90deg);
+  width: 86px;
+  height: 86px;
+}
+
+.db-finance-pct {
+  position: absolute;
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--color-text-primary, #0f172a);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-english), monospace;
+}
+
+.db-finance-stats-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.db-fin-stat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.db-fin-stat-item.collected {
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  color: #15803d;
+}
+
+.db-fin-stat-item.outstanding {
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  color: #b91c1c;
+}
+
+:root.dark .db-fin-stat-item.collected {
+  background: rgba(16, 185, 129, 0.12);
+  color: #86efac;
+}
+
+:root.dark .db-fin-stat-item.outstanding {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.db-fin-stat-item strong {
+  font-size: 13.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-english), monospace;
+}
+
+/* --------------------------------------------------------------------------
+   10. Dark Mode Fine-Tuning
+   -------------------------------------------------------------------------- */
+:root.dark .db-panel-card,
+:root.dark .db-kpi-card,
+:root.dark .db-quick-actions-bar {
+  background: var(--color-surface, #0f172a);
+  border-color: var(--color-border, #1e293b);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+:root.dark .db-attendance-chip-item,
+:root.dark .db-honor-card,
+:root.dark .db-quick-btn {
+  background: var(--color-surface-alt, #1e293b);
+  border-color: var(--color-border, #334155);
+}

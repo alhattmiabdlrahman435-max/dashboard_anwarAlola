@@ -1,5 +1,5 @@
-import ReportsTab from '../tabs/ReportsTab';
+import ReportsCenter from '../features/school-reports/ReportsCenter';
 
 export default function ReportsPage() {
-  return <ReportsTab />;
+  return <ReportsCenter />;
 }

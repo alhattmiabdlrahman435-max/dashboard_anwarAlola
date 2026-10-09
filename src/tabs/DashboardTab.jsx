@@ -1,30 +1,72 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../contexts/Auth/useAuth';
 import { useReports } from '../contexts/Reports/useReports';
-import { Users, User, ClipboardCheck, DollarSign } from 'lucide-react';
+import {
+  Users,
+  GraduationCap,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Wallet,
+  TrendingUp,
+  Award,
+  BookOpen,
+  FileText,
+  Bell,
+  RefreshCw,
+  ArrowUpRight,
+  Layers,
+  Calendar,
+  Sparkles,
+  ShieldCheck,
+} from 'lucide-react';
+import './DashboardTab.css';
 
 export default function DashboardTab() {
   const { lang } = useApp();
   const { dashboardStats, fetchDashboardStats } = useReports();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const isAr = lang === 'ar';
+  const text = (ar, en) => (isAr ? ar : en);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchDashboardStats();
+    } finally {
+      setTimeout(() => setRefreshing(false), 500);
+    }
+  }, [fetchDashboardStats]);
 
   useEffect(() => {
     fetchDashboardStats();
   }, [fetchDashboardStats]);
 
-  // Calculate school aggregates dynamically from API stats
-  const totalStudents = dashboardStats ? dashboardStats.total_students : 0;
-  const activeTeachers = dashboardStats ? dashboardStats.total_teachers : 0;
+  // Aggregated KPIs
+  const totalStudents = dashboardStats?.total_students ?? 0;
+  const activeTeachers = dashboardStats?.total_teachers ?? 0;
+  const totalClasses = dashboardStats?.total_classes ?? 0;
 
-  const presentCount = dashboardStats ? dashboardStats.present_today : 0;
-  const attendanceRate = dashboardStats 
-    ? (dashboardStats.total_students > 0 ? Math.round((dashboardStats.present_today / dashboardStats.total_students) * 100) : 100)
+  const presentCount = dashboardStats?.present_today ?? 0;
+  const absentCount = dashboardStats?.absent_today ?? Math.max(0, totalStudents - presentCount);
+  const lateCount = dashboardStats?.late_today ?? 0;
+
+  const attendanceRate = totalStudents > 0
+    ? Math.min(100, Math.round((presentCount / totalStudents) * 100))
     : 100;
 
-  const totalTuitionRequired = dashboardStats ? dashboardStats.total_required_fees : 0;
-  const totalTuitionPaid = dashboardStats ? dashboardStats.total_paid_fees : 0;
-  const collectionRate = dashboardStats ? dashboardStats.collection_rate : 0;
+  const pendingAbsences = dashboardStats?.pending_absences ?? 0;
+
+  const totalTuitionRequired = dashboardStats?.total_required_fees ?? 0;
+  const totalTuitionPaid = dashboardStats?.total_paid_fees ?? 0;
+  const collectionRate = dashboardStats?.collection_rate ?? 0;
+  const paidStudentsCount = dashboardStats?.paid_students_count ?? 0;
+  const outstandingFees = Math.max(0, totalTuitionRequired - totalTuitionPaid);
 
   const mathAvg = dashboardStats?.subject_averages?.math ?? 0;
   const scienceAvg = dashboardStats?.subject_averages?.science ?? 0;
@@ -33,371 +75,463 @@ export default function DashboardTab() {
 
   const studentAverages = dashboardStats?.top_students ?? [];
 
+  const formattedDate = new Date().toLocaleDateString(isAr ? 'ar-YE' : 'en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
-    <>
-      {/* Stat Metric Cards */}
-      <div className="stats-grid no-print animate-slide-up">
-        <div className="stat-card glass-panel" style={{ boxShadow: '0 8px 30px rgba(30, 80, 142, 0.06)' }}>
-          <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(30, 80, 142, 0.1)', color: 'var(--color-primary-ui)' }}>
-            <Users size={24} />
+    <div className="db-container" dir={isAr ? 'rtl' : 'ltr'}>
+      {/* 1. Welcome & Operational Status Banner */}
+      <section className="db-welcome-banner">
+        <div className="db-welcome-info">
+          <div className="db-welcome-title-row">
+            <h1 className="db-welcome-title">
+              {text('لوحة القيادة الميدانية للمدرسة', 'School Executive Dashboard')}
+            </h1>
+            <span className="db-status-badge">
+              <span className="db-pulse-dot" />
+              <span>{text('النظام نشط ومحدث', 'System Live & Active')}</span>
+            </span>
           </div>
-          <div className="stat-info">
-            <div className="stat-value">{totalStudents}</div>
-            <div className="stat-label">{lang === 'ar' ? 'إجمالي الطلاب المسجلين' : 'Total Enrolled Students'}</div>
-          </div>
-          <div className="sparkline-wrapper">
-            <svg viewBox="0 0 100 30" width="100%" height="100%" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sparkline-grad-1" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-primary-ui)" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="var(--color-primary-ui)" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <path d="M 0 25 Q 20 10, 40 18 T 80 5 T 100 12 L 100 30 L 0 30 Z" fill="url(#sparkline-grad-1)" />
-              <path d="M 0 25 Q 20 10, 40 18 T 80 5 T 100 12" fill="none" stroke="var(--color-primary-ui)" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-        </div>
-
-        <div className="stat-card glass-panel" style={{ boxShadow: '0 8px 30px rgba(16, 185, 129, 0.06)' }}>
-          <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)' }}>
-            <User size={24} />
-          </div>
-          <div className="stat-info">
-            <div className="stat-value">{activeTeachers}</div>
-            <div className="stat-label">{lang === 'ar' ? 'أعضاء هيئة التدريس' : 'Active Teachers'}</div>
-          </div>
-          <div className="sparkline-wrapper">
-            <svg viewBox="0 0 100 30" width="100%" height="100%" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sparkline-grad-2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-success)" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="var(--color-success)" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <path d="M 0 15 Q 30 25, 50 10 T 80 18 T 100 5 L 100 30 L 0 30 Z" fill="url(#sparkline-grad-2)" />
-              <path d="M 0 15 Q 30 25, 50 10 T 80 18 T 100 5" fill="none" stroke="var(--color-success)" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+          <div className="db-welcome-subtitle">
+            <span>
+              <Calendar size={15} />
+              {formattedDate}
+            </span>
+            <span>
+              <ShieldCheck size={15} />
+              {text('مدارس أنوار العلا الأهلية النموذجية', 'Anwar Al-Ola International Model Schools')}
+            </span>
           </div>
         </div>
 
-        <div className="stat-card glass-panel" style={{ boxShadow: '0 8px 30px rgba(245, 158, 11, 0.06)' }}>
-          <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--color-warning)' }}>
-            <ClipboardCheck size={24} />
+        <div className="db-welcome-actions">
+          <button
+            type="button"
+            className="db-refresh-btn"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title={text('تحديث المؤشرات الحية', 'Refresh live metrics')}
+          >
+            <RefreshCw size={15} className={refreshing ? 'db-spin-icon' : ''} />
+            <span>{refreshing ? text('جارٍ التحديث…', 'Syncing…') : text('تحديث فوري', 'Live Sync')}</span>
+          </button>
+        </div>
+      </section>
+
+      {/* 2. Urgent Operations Alert Bar (If pending requests exist) */}
+      {pendingAbsences > 0 && (
+        <section className="db-alert-bar" role="alert">
+          <div className="db-alert-content">
+            <Bell size={18} />
+            <span>
+              {text(
+                `تنبيه إداري: يوجد ${pendingAbsences} طلبات استئذان وغياب معلقة بانتظار اعتماد الإدارة`,
+                `Administrative Notice: ${pendingAbsences} pending absence requests awaiting review`
+              )}
+            </span>
           </div>
-          <div className="stat-info">
-            <div className="stat-value">{attendanceRate}%</div>
-            <div className="stat-label">{lang === 'ar' ? 'نسبة حضور اليوم' : "Today's Attendance Rate"}</div>
+          <button
+            type="button"
+            className="db-alert-action-btn"
+            onClick={() => navigate('/absence-requests')}
+          >
+            <span>{text('مراجعة الطلبات', 'Review Requests')}</span>
+            <ArrowUpRight size={14} />
+          </button>
+        </section>
+      )}
+
+      {/* 3. Top Key Performance Indicators (Bento KPIs) */}
+      <section className="db-kpis-grid">
+        {/* KPI 1: Students */}
+        <div className="db-kpi-card" style={{ '--kpi-accent': 'var(--color-primary-ui, #2563eb)' }}>
+          <div className="db-kpi-card-top">
+            <div className="db-kpi-icon-wrap">
+              <Users size={22} />
+            </div>
+            <span className="db-kpi-tag">{text('القيد الإجمالي', 'Total Roster')}</span>
           </div>
-          <div className="sparkline-wrapper">
-            <svg viewBox="0 0 100 30" width="100%" height="100%" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sparkline-grad-3" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-warning)" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="var(--color-warning)" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <path d="M 0 20 Q 25 15, 50 25 T 75 10 T 100 8 L 100 30 L 0 30 Z" fill="url(#sparkline-grad-3)" />
-              <path d="M 0 20 Q 25 15, 50 25 T 75 10 T 100 8" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+          <div className="db-kpi-card-body">
+            <span className="db-kpi-value">{totalStudents.toLocaleString()}</span>
+            <span className="db-kpi-label">{text('إجمالي الطلاب المقيدين', 'Enrolled Students')}</span>
+          </div>
+          <div className="db-kpi-card-foot">
+            <span>{text('الشعب الدراسية النشطة:', 'Active Classes:')}</span>
+            <strong className="db-kpi-submetric">{totalClasses} {text('شعبة', 'classes')}</strong>
           </div>
         </div>
 
-        <div className="stat-card glass-panel" style={{ boxShadow: '0 8px 30px rgba(239, 68, 68, 0.06)' }}>
-          <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
-            <DollarSign size={24} />
+        {/* KPI 2: Teaching Staff */}
+        <div className="db-kpi-card" style={{ '--kpi-accent': '#0d9488' }}>
+          <div className="db-kpi-card-top">
+            <div className="db-kpi-icon-wrap">
+              <GraduationCap size={22} />
+            </div>
+            <span className="db-kpi-tag">{text('الهيئة التعليمية', 'Faculty')}</span>
           </div>
-          <div className="stat-info">
-            <div className="stat-value">{collectionRate}%</div>
-            <div className="stat-label">{lang === 'ar' ? 'تحصيل الرسوم الدراسية' : 'Tuition Fees Collection'}</div>
+          <div className="db-kpi-card-body">
+            <span className="db-kpi-value">{activeTeachers.toLocaleString()}</span>
+            <span className="db-kpi-label">{text('أعضاء هيئة التدريس', 'Active Teachers')}</span>
           </div>
-          <div className="sparkline-wrapper">
-            <svg viewBox="0 0 100 30" width="100%" height="100%" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sparkline-grad-4" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-error)" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="var(--color-error)" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <path d="M 0 28 Q 20 22, 40 15 T 75 8 T 100 20 L 100 30 L 0 30 Z" fill="url(#sparkline-grad-4)" />
-              <path d="M 0 28 Q 20 22, 40 15 T 75 8 T 100 20" fill="none" stroke="var(--color-error)" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+          <div className="db-kpi-card-foot">
+            <span>{text('حالة الكادر:', 'Staff Status:')}</span>
+            <strong className="db-kpi-submetric" style={{ color: '#0d9488' }}>{text('مكتمل النصاب', 'Full Roster')}</strong>
           </div>
         </div>
-      </div>
 
-      {/* Main Dashboard Layout */}
-      <div className="dashboard-main-grid">
-        {currentUser?.role === 'admin' || currentUser?.role === 'supervisor' ? (
-          <>
-            {/* Left Side: Important School Statistics */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-              {/* Attendance Statistics card */}
-              <div className="section-card glass-panel">
-                <div className="section-card-header">
-                  <h2 className="section-card-title headline-small" style={{ fontSize: '16px', fontWeight: '800' }}>
-                    📊 {lang === 'ar' ? 'تحليلات الحضور اليومي والغياب' : 'Daily Attendance Analytics'}
-                  </h2>
-                </div>
-                
-                {/* Radial Donut Chart instead of progress bar */}
-                <div className="donut-chart-container">
-                  <div className="donut-graphic">
-                    <svg width="120" height="120" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="42" fill="none" stroke="var(--color-border)" strokeWidth="8" />
-                      <circle 
-                        cx="50" 
-                        cy="50" 
-                        r="42" 
-                        fill="none" 
-                        stroke="var(--color-success)" 
-                        strokeWidth="8" 
-                        strokeDasharray={2 * Math.PI * 42} 
-                        strokeDashoffset={2 * Math.PI * 42 * (1 - attendanceRate / 100)} 
-                        strokeLinecap="round" 
-                        transform="rotate(-90 50 50)"
-                        style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
-                      />
-                    </svg>
-                    <div className="donut-text">
-                      <div className="donut-percentage">{attendanceRate}%</div>
-                      <div className="donut-label">{lang === 'ar' ? 'نسبة الحضور' : 'Attendance'}</div>
-                    </div>
-                  </div>
-                  <div className="attendance-legend">
-                    <div className="attendance-legend-item">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="legend-dot" style={{ backgroundColor: 'var(--color-success)' }}></span>
-                        <span>{lang === 'ar' ? 'الطلاب الحاضرين' : 'Present'}</span>
-                      </div>
-                      <span style={{ color: 'var(--color-success)' }}>{presentCount}</span>
-                    </div>
-                    <div className="attendance-legend-item">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="legend-dot" style={{ backgroundColor: 'var(--color-error)' }}></span>
-                        <span>{lang === 'ar' ? 'الطلاب الغائبين' : 'Absent'}</span>
-                      </div>
-                      <span style={{ color: 'var(--color-error)' }}>{totalStudents - presentCount}</span>
-                    </div>
-                  </div>
-                </div>
+        {/* KPI 3: Today's Attendance */}
+        <div className="db-kpi-card" style={{ '--kpi-accent': '#16a34a' }}>
+          <div className="db-kpi-card-top">
+            <div className="db-kpi-icon-wrap">
+              <CheckCircle2 size={22} />
+            </div>
+            <span className="db-kpi-tag" style={{ color: '#16a34a' }}>{text('حضور اليوم', 'Today')}</span>
+          </div>
+          <div className="db-kpi-card-body">
+            <span className="db-kpi-value">{attendanceRate}%</span>
+            <span className="db-kpi-label">{text('نسبة الحضور الميداني', 'Attendance Rate')}</span>
+          </div>
+          <div className="db-kpi-card-foot">
+            <span>{text('الحاضرون:', 'Present:')} <strong className="db-kpi-submetric" style={{ color: '#16a34a' }}>{presentCount}</strong></span>
+            <span>{text('الغياب:', 'Absent:')} <strong className="db-kpi-submetric" style={{ color: '#dc2626' }}>{absentCount}</strong></span>
+          </div>
+        </div>
 
-                {/* Weekly Trend sparkline */}
-                <div className="attendance-history-card">
-                  <h4 style={{ fontSize: '13px', fontWeight: '800', marginBottom: '12px', color: 'var(--color-text)' }}>
-                    📈 {lang === 'ar' ? 'معدل الحضور الأسبوعي (5 أيام الماضية)' : 'Weekly Attendance Trend (Last 5 Days)'}
-                  </h4>
-                  <div style={{ height: '90px', width: '100%', position: 'relative' }}>
-                    <svg viewBox="0 0 400 100" width="100%" height="100%" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--color-success)" stopOpacity="0.2" />
-                          <stop offset="100%" stopColor="var(--color-success)" stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
-                      <line x1="0" y1="20" x2="400" y2="20" stroke="var(--color-border)" strokeWidth="0.5" strokeDasharray="4 4" />
-                      <line x1="0" y1="50" x2="400" y2="50" stroke="var(--color-border)" strokeWidth="0.5" strokeDasharray="4 4" />
-                      <line x1="0" y1="80" x2="400" y2="80" stroke="var(--color-border)" strokeWidth="0.5" strokeDasharray="4 4" />
-                      <path d="M 0 90 Q 50 15, 100 25 T 200 15 T 300 45 T 400 20 L 400 100 L 0 100 Z" fill="url(#area-grad)" />
-                      <path d="M 0 90 Q 50 15, 100 25 T 200 15 T 300 45 T 400 20" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" />
-                      <circle cx="100" cy="25" r="4.5" fill="var(--color-success)" stroke="#fff" strokeWidth="1.5" />
-                      <circle cx="200" cy="15" r="4.5" fill="var(--color-success)" stroke="#fff" strokeWidth="1.5" />
-                      <circle cx="300" cy="45" r="4.5" fill="var(--color-success)" stroke="#fff" strokeWidth="1.5" />
-                      <circle cx="400" cy="20" r="4.5" fill="var(--color-success)" stroke="#fff" strokeWidth="1.5" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--color-text-secondary)', fontWeight: 'bold', marginTop: '8px' }}>
-                    <span>{lang === 'ar' ? 'الأحد (90%)' : 'Sun (90%)'}</span>
-                    <span>{lang === 'ar' ? 'الإثنين (95%)' : 'Mon (95%)'}</span>
-                    <span>{lang === 'ar' ? 'الثلاثاء (97%)' : 'Tue (97%)'}</span>
-                    <span>{lang === 'ar' ? 'الأربعاء (83%)' : 'Wed (83%)'}</span>
-                    <span>{lang === 'ar' ? 'الخميس (حالي)' : 'Thu (Today)'}</span>
-                  </div>
+        {/* KPI 4: Financial Collection */}
+        <div className="db-kpi-card" style={{ '--kpi-accent': '#d97706' }}>
+          <div className="db-kpi-card-top">
+            <div className="db-kpi-icon-wrap">
+              <Wallet size={22} />
+            </div>
+            <span className="db-kpi-tag">{text('المحصلة المالية', 'Collection')}</span>
+          </div>
+          <div className="db-kpi-card-body">
+            <span className="db-kpi-value">{collectionRate}%</span>
+            <span className="db-kpi-label">{text('نسبة تحصيل الرسوم', 'Fees Collection')}</span>
+          </div>
+          <div className="db-kpi-card-foot">
+            <span>{text('الطلاب المسددين:', 'Paid Students:')}</span>
+            <strong className="db-kpi-submetric">{paidStudentsCount} / {totalStudents}</strong>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Quick Actions Launcher Strip */}
+      <section className="db-quick-actions-bar" aria-label={text('روابط الوصول السريع', 'Quick links')}>
+        <div className="db-quick-title">
+          <Sparkles size={16} />
+          <span>{text('إجراءات سريعة:', 'Quick Actions:')}</span>
+        </div>
+        <button type="button" className="db-quick-btn" onClick={() => navigate('/attendance')}>
+          <CheckCircle2 size={15} />
+          <span>{text('رصد الحضور اليومي', 'Take Attendance')}</span>
+        </button>
+        <button type="button" className="db-quick-btn" onClick={() => navigate('/reports')}>
+          <FileText size={15} />
+          <span>{text('مركز التقارير المدرسية', 'Reports Center')}</span>
+        </button>
+        <button type="button" className="db-quick-btn" onClick={() => navigate('/students')}>
+          <Users size={15} />
+          <span>{text('شؤون وقيد الطلاب', 'Students Roster')}</span>
+        </button>
+        <button type="button" className="db-quick-btn" onClick={() => navigate('/control')}>
+          <BookOpen size={15} />
+          <span>{text('كنترول الاختبارات', 'Control Grades')}</span>
+        </button>
+        <button type="button" className="db-quick-btn" onClick={() => navigate('/finance')}>
+          <Wallet size={15} />
+          <span>{text('التحصيل المالي والرسوم', 'Tuition Finance')}</span>
+        </button>
+        <button type="button" className="db-quick-btn" onClick={() => navigate('/absence-requests')}>
+          <Bell size={15} />
+          <span>{text('طلبات الاستئذان', 'Absence Requests')}</span>
+        </button>
+      </section>
+
+      {/* 5. Main Operational Bento Grid */}
+      <div className="db-bento-grid">
+        {/* Column 1: Academic & Operational Analytics */}
+        <div className="db-column">
+          {/* Card A: Attendance Breakdown */}
+          <div className="db-panel-card">
+            <div className="db-panel-head">
+              <h2 className="db-panel-title">
+                <CheckCircle2 size={18} />
+                <span>{text('تحليلات الحضور والانضباط المدرسي اليوم', 'Daily Attendance & Discipline Analytics')}</span>
+              </h2>
+              <button
+                type="button"
+                className="db-panel-link"
+                onClick={() => navigate('/attendance')}
+              >
+                <span>{text('فتح سجل الحضور', 'Open Attendance')}</span>
+                <ArrowUpRight size={13} />
+              </button>
+            </div>
+
+            <div className="db-attendance-widget">
+              {/* Radial Dial */}
+              <div className="db-radial-box">
+                <svg className="db-radial-svg" viewBox="0 0 100 100">
+                  <circle
+                    className="db-radial-bg"
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    strokeWidth="9"
+                  />
+                  <circle
+                    className="db-radial-progress"
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    strokeWidth="9"
+                    strokeDasharray={2 * Math.PI * 40}
+                    strokeDashoffset={2 * Math.PI * 40 * (1 - attendanceRate / 100)}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="db-radial-center">
+                  <span className="db-radial-number">{attendanceRate}%</span>
+                  <span className="db-radial-sub">{text('نسبة الحضور', 'Rate')}</span>
                 </div>
               </div>
 
-              {/* Academic Performance Averages card (Vertical Bar Chart) */}
-              <div className="section-card glass-panel">
-                <div className="section-card-header">
-                  <h2 className="section-card-title headline-small" style={{ fontSize: '16px', fontWeight: '800' }}>
-                    🎯 {lang === 'ar' ? 'متوسط درجات المواد في الكنترول' : 'Control Subject Performance Averages'}
-                  </h2>
+              {/* Status Breakdown Chips */}
+              <div className="db-attendance-chips-list">
+                <div className="db-attendance-chip-item" style={{ '--chip-color': '#16a34a' }}>
+                  <div className="db-chip-title-wrap">
+                    <span className="db-chip-dot" />
+                    <span>{text('الطلاب الحاضرون في الفصول', 'Present Students')}</span>
+                  </div>
+                  <strong className="db-chip-val">{presentCount} {text('طالب', 'students')}</strong>
                 </div>
 
-                <div className="academic-bars-grid">
-                  <div className="academic-grid-lines">
-                    <div className="academic-grid-line" data-value="100%"></div>
-                    <div className="academic-grid-line" data-value="80%"></div>
-                    <div className="academic-grid-line" data-value="60%"></div>
-                    <div className="academic-grid-line" data-value="40%"></div>
-                    <div className="academic-grid-line" data-value="20%"></div>
+                <div className="db-attendance-chip-item" style={{ '--chip-color': '#dc2626' }}>
+                  <div className="db-chip-title-wrap">
+                    <span className="db-chip-dot" />
+                    <span>{text('الطلاب الغائبون المسجلون', 'Absent Students')}</span>
                   </div>
-                  
-                  {/* Arabic */}
-                  <div className="academic-bar-col">
-                    <div className="academic-bar" style={{ height: `${arabicAvg}%`, backgroundColor: 'var(--color-primary-ui)' }}>
-                      <div className="academic-bar-tooltip">{arabicAvg}%</div>
-                    </div>
-                    <div className="academic-bar-label">{lang === 'ar' ? 'العربية' : 'Arabic'}</div>
-                  </div>
+                  <strong className="db-chip-val">{absentCount} {text('طالب', 'students')}</strong>
+                </div>
 
-                  {/* Math */}
-                  <div className="academic-bar-col">
-                    <div className="academic-bar" style={{ height: `${mathAvg}%`, backgroundColor: '#2563eb' }}>
-                      <div className="academic-bar-tooltip">{mathAvg}%</div>
-                    </div>
-                    <div className="academic-bar-label">{lang === 'ar' ? 'الرياضيات' : 'Math'}</div>
+                <div className="db-attendance-chip-item" style={{ '--chip-color': '#d97706' }}>
+                  <div className="db-chip-title-wrap">
+                    <span className="db-chip-dot" />
+                    <span>{text('حالات التأخر الصباحي', 'Late Arrivals')}</span>
                   </div>
-
-                  {/* Science */}
-                  <div className="academic-bar-col">
-                    <div className="academic-bar" style={{ height: `${scienceAvg}%`, backgroundColor: '#059669' }}>
-                      <div className="academic-bar-tooltip">{scienceAvg}%</div>
-                    </div>
-                    <div className="academic-bar-label">{lang === 'ar' ? 'العلوم' : 'Science'}</div>
-                  </div>
-
-                  {/* English */}
-                  <div className="academic-bar-col">
-                    <div className="academic-bar" style={{ height: `${englishAvg}%`, backgroundColor: '#7c3aed' }}>
-                      <div className="academic-bar-tooltip">{englishAvg}%</div>
-                    </div>
-                    <div className="academic-bar-label">{lang === 'ar' ? 'الانجليزية' : 'English'}</div>
-                  </div>
+                  <strong className="db-chip-val">{lateCount} {text('طالب', 'students')}</strong>
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Top Students Honor Roll card */}
-              <div className="section-card glass-panel">
-                <div className="section-card-header">
-                  <h2 className="section-card-title headline-small" style={{ fontSize: '16px', fontWeight: '800' }}>
-                    🏆 {lang === 'ar' ? 'لوحة الشرف لأوائل الطلاب المتفوقين' : 'Top Performing Students Honor Roll'}
-                  </h2>
+          {/* Card B: Control Subject Academic Averages */}
+          <div className="db-panel-card">
+            <div className="db-panel-head">
+              <h2 className="db-panel-title">
+                <TrendingUp size={18} />
+                <span>{text('مؤشرات أداء المواد في الكنترول', 'Control Subject Performance Averages')}</span>
+              </h2>
+              <button
+                type="button"
+                className="db-panel-link"
+                onClick={() => navigate('/control')}
+              >
+                <span>{text('معاينة الكنترول', 'View Control')}</span>
+                <ArrowUpRight size={13} />
+              </button>
+            </div>
+
+            <div className="db-subjects-bars">
+              {/* Arabic */}
+              <div className="db-subject-bar-item">
+                <div className="db-bar-track">
+                  <div
+                    className="db-bar-fill"
+                    style={{ height: `${arabicAvg}%`, '--bar-color': 'var(--color-primary-ui, #2563eb)' }}
+                  >
+                    <span className="db-bar-value-pill">{arabicAvg}%</span>
+                  </div>
                 </div>
+                <span className="db-subject-name">{text('اللغة العربية', 'Arabic')}</span>
+              </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-                  {studentAverages.slice(0, 3).map((st, index) => {
-                    const medals = ["🥇", "🥈", "🥉"];
-                    const borderColors = ["#eab308", "#94a3b8", "#b45309"];
-                    const bgColors = ["rgba(234, 179, 8, 0.05)", "rgba(148, 163, 184, 0.05)", "rgba(180, 83, 9, 0.05)"];
-                    // Simple avatar initials generator
-                    const nameParts = st.name.trim().split(' ');
-                    const initials = nameParts.length > 1 
-                      ? `${nameParts[0][0] || ''}${nameParts[1][0] || ''}`
-                      : `${nameParts[0][0] || ''}${nameParts[0][1] || ''}`;
+              {/* Math */}
+              <div className="db-subject-bar-item">
+                <div className="db-bar-track">
+                  <div
+                    className="db-bar-fill"
+                    style={{ height: `${mathAvg}%`, '--bar-color': '#0284c7' }}
+                  >
+                    <span className="db-bar-value-pill">{mathAvg}%</span>
+                  </div>
+                </div>
+                <span className="db-subject-name">{text('الرياضيات', 'Math')}</span>
+              </div>
 
-                    return (
-                      <div 
-                        key={st.studentId} 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between', 
-                          padding: '12px 16px', 
-                          backgroundColor: bgColors[index], 
-                          border: `1px solid ${borderColors[index]}22`, 
-                          borderRadius: '16px',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.01)'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            backgroundColor: borderColors[index],
-                            color: '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 'bold',
-                            fontSize: '12px',
-                            border: '2px solid #ffffff',
-                            boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                            flexShrink: 0
-                          }}>
-                            {initials}
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: '800', fontSize: '13px', color: 'var(--color-text)' }}>
-                              {lang === 'ar' ? st.name : st.nameEn}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px', fontWeight: '600' }}>
-                              {lang === 'ar' ? st.grade : st.gradeEn} - {lang === 'ar' ? st.section : st.sectionEn}
-                            </div>
-                          </div>
+              {/* Science */}
+              <div className="db-subject-bar-item">
+                <div className="db-bar-track">
+                  <div
+                    className="db-bar-fill"
+                    style={{ height: `${scienceAvg}%`, '--bar-color': '#059669' }}
+                  >
+                    <span className="db-bar-value-pill">{scienceAvg}%</span>
+                  </div>
+                </div>
+                <span className="db-subject-name">{text('العلوم', 'Science')}</span>
+              </div>
+
+              {/* English */}
+              <div className="db-subject-bar-item">
+                <div className="db-bar-track">
+                  <div
+                    className="db-bar-fill"
+                    style={{ height: `${englishAvg}%`, '--bar-color': '#7c3aed' }}
+                  >
+                    <span className="db-bar-value-pill">{englishAvg}%</span>
+                  </div>
+                </div>
+                <span className="db-subject-name">{text('اللغة الإنجليزية', 'English')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Column 2: Honor Roll & Financial Health */}
+        <div className="db-column">
+          {/* Card C: Top Students Honor Roll */}
+          <div className="db-panel-card">
+            <div className="db-panel-head">
+              <h2 className="db-panel-title">
+                <Award size={18} />
+                <span>{text('لوحة الشرف لأوائل الطلاب', 'Top Students Honor Roll')}</span>
+              </h2>
+              <button
+                type="button"
+                className="db-panel-link"
+                onClick={() => navigate('/reports')}
+              >
+                <span>{text('كشوف الأوائل', 'Full Rank List')}</span>
+                <ArrowUpRight size={13} />
+              </button>
+            </div>
+
+            <div className="db-honor-list">
+              {studentAverages.length > 0 ? (
+                studentAverages.slice(0, 3).map((st, idx) => {
+                  const rankClass = idx === 0 ? 'db-rank-1' : idx === 1 ? 'db-rank-2' : 'db-rank-3';
+                  const rankText = idx === 0 ? '1' : idx === 1 ? '2' : '3';
+
+                  return (
+                    <div key={st.student_id || idx} className="db-honor-card">
+                      <div className="db-honor-student-info">
+                        <div className={`db-rank-badge ${rankClass}`}>
+                          {rankText}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ color: borderColors[index], fontWeight: '900', fontSize: '15px', fontFamily: 'var(--font-mono)' }}>
-                            {st.average}%
+                        <div className="db-student-names">
+                          <span className="db-student-name">
+                            {isAr ? st.name_ar || st.name : st.name_en || st.nameEn || st.name}
                           </span>
-                          <span style={{ fontSize: '20px' }}>{medals[index]}</span>
+                          <span className="db-student-class">
+                            {isAr ? `${st.grade} — ${st.section}` : `${st.gradeEn || st.grade} — ${st.sectionEn || st.section}`}
+                          </span>
                         </div>
                       </div>
-                    );
-                  })}
+                      <div className="db-honor-score">
+                        <span className="db-score-num">{st.average}%</span>
+                        <span className="db-score-label">{text('المعدل العام', 'Average')}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                  {text('لا توجد درجات مرصودة حالياً لعرض لوحة الشرف', 'No control grades available for honor roll')}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Card D: Tuition Fees Collection Summary */}
+          <div className="db-panel-card">
+            <div className="db-panel-head">
+              <h2 className="db-panel-title">
+                <Wallet size={18} />
+                <span>{text('متابعة التحصيل المالي للرسوم', 'Tuition Fees Collection')}</span>
+              </h2>
+              <button
+                type="button"
+                className="db-panel-link"
+                onClick={() => navigate('/finance')}
+              >
+                <span>{text('إدارة المالية', 'Finance Management')}</span>
+                <ArrowUpRight size={13} />
+              </button>
+            </div>
+
+            <div className="db-finance-overview">
+              <div className="db-finance-radial-row">
+                <div className="db-finance-dial">
+                  <svg viewBox="0 0 80 80">
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="32"
+                      fill="none"
+                      stroke="var(--color-border, #e2e8f0)"
+                      strokeWidth="7"
+                    />
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="32"
+                      fill="none"
+                      stroke="var(--color-success, #16a34a)"
+                      strokeWidth="7"
+                      strokeDasharray={2 * Math.PI * 32}
+                      strokeDashoffset={2 * Math.PI * 32 * (1 - collectionRate / 100)}
+                      strokeLinecap="round"
+                      style={{ transition: 'stroke-dashoffset 1.2s ease-in-out' }}
+                    />
+                  </svg>
+                  <span className="db-finance-pct">{collectionRate}%</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)' }}>
+                    {text('نسبة إجمالي التحصيل', 'Overall Collection Rate')}
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                    {text('الطلاب المسددين:', 'Paid Students:')}{' '}
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {paidStudentsCount} / {totalStudents}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+
+              <div className="db-finance-stats-cards">
+                <div className="db-fin-stat-item collected">
+                  <span>{text('المبالغ المحصلة:', 'Collected Amount:')}</span>
+                  <strong>{totalTuitionPaid.toLocaleString()} {text('ر.ي', 'YER')}</strong>
+                </div>
+                <div className="db-fin-stat-item outstanding">
+                  <span>{text('المتبقي المستحق:', 'Outstanding Balance:')}</span>
+                  <strong>{outstandingFees.toLocaleString()} {text('ر.ي', 'YER')}</strong>
                 </div>
               </div>
             </div>
-
-            {/* Right Side: Financial collection progress */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-              {/* Financial Collection card */}
-              <div className="section-card glass-panel">
-                <div className="section-card-header">
-                  <h2 className="section-card-title headline-small" style={{ fontSize: '16px', fontWeight: '800' }}>
-                    💳 {lang === 'ar' ? 'سجل تحصيل الرسوم الدراسية' : 'Tuition Fees Collection Summary'}
-                  </h2>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '10px 0' }}>
-                  <div style={{ position: 'relative', width: '80px', height: '80px', flexShrink: 0 }}>
-                    <svg width="80" height="80" viewBox="0 0 80 80">
-                      <circle cx="40" cy="40" r="32" fill="none" stroke="var(--color-border)" strokeWidth="6" />
-                      <circle 
-                        cx="40" 
-                        cy="40" 
-                        r="32" 
-                        fill="none" 
-                        stroke="var(--color-success)" 
-                        strokeWidth="6" 
-                        strokeDasharray={2 * Math.PI * 32} 
-                        strokeDashoffset={2 * Math.PI * 32 * (1 - collectionRate / 100)} 
-                        strokeLinecap="round" 
-                        transform="rotate(-90 40 40)"
-                        style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
-                      />
-                    </svg>
-                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontWeight: '900', fontSize: '14px', color: 'var(--color-text)', fontFamily: 'var(--font-mono)' }}>
-                      {collectionRate}%
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexGrow: 1 }}>
-                    <div style={{ fontSize: '12px', color: 'var(--color-text)', fontWeight: '800' }}>
-                      {lang === 'ar' ? 'نسبة التحصيل الإجمالية للرسوم' : 'Overall Collection Progress'}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
-                      <span>{lang === 'ar' ? 'الطلاب المسددين:' : 'Paid Students:'}</span>
-                      <span style={{ color: 'var(--color-text)', fontWeight: 'bold' }}>{dashboardStats?.paid_students_count || 0}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px dashed var(--color-border)', paddingTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', backgroundColor: 'rgba(16, 185, 129, 0.04)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.08)' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>{lang === 'ar' ? 'المبالغ المحصلة' : 'Collected'}</span>
-                    <strong style={{ fontSize: '13px', color: 'var(--color-success)' }}>{totalTuitionPaid.toLocaleString()} {lang === 'ar' ? 'ر.ي' : 'R.Y'}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', backgroundColor: 'rgba(239, 68, 68, 0.04)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.08)' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>{lang === 'ar' ? 'المتبقي المستحق' : 'Outstanding'}</span>
-                    <strong style={{ fontSize: '13px', color: 'var(--color-error)' }}>{(totalTuitionRequired - totalTuitionPaid).toLocaleString()} {lang === 'ar' ? 'ر.ي' : 'R.Y'}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        ) : null}
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
