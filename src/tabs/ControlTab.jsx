@@ -7,6 +7,7 @@ import { useSettings } from '../contexts/Settings/useSettings';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 import PrintHeader from '../components/PrintHeader';
+import MidtermControlSheet from '../components/grades/MidtermControlSheet';
 
 export default function ControlTab() {
   const {
@@ -49,6 +50,7 @@ export default function ControlTab() {
     defaultFilters: { class_id: 'all' },
   });
 
+  const [activeControlView, setActiveControlView] = useState('masterSheet'); // 'masterSheet' | 'secretCodes'
   const [isSaving, setIsSaving] = useState(false);
 
   // Local UI state for search to keep typing responsive (debounced backend sync)
@@ -145,6 +147,66 @@ export default function ControlTab() {
         </div>
       </div>
 
+      {/* شريط التبديل بين شيت الكنترول النصفي العام وكشف الأرقام السرية */}
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        borderBottom: '1px solid var(--color-border)',
+        paddingBottom: '12px',
+        marginBottom: '16px'
+      }} className="no-print">
+        <button
+          type="button"
+          onClick={() => setActiveControlView('masterSheet')}
+          style={{
+            padding: '10px 22px',
+            borderRadius: '8px',
+            border: activeControlView === 'masterSheet' ? 'none' : '1px solid var(--color-border)',
+            backgroundColor: activeControlView === 'masterSheet' ? 'var(--color-primary-ui)' : 'var(--color-surface)',
+            color: activeControlView === 'masterSheet' ? '#ffffff' : 'var(--color-text-secondary)',
+            fontWeight: 'bold',
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: activeControlView === 'masterSheet' ? 'var(--shadow-sm)' : 'none'
+          }}
+        >
+          <span>📊</span>
+          <span>{lang === 'ar' ? 'شيت الكنترول النصفي العام (الرسمي)' : 'Master Midterm Control Sheet'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveControlView('secretCodes')}
+          style={{
+            padding: '10px 22px',
+            borderRadius: '8px',
+            border: activeControlView === 'secretCodes' ? 'none' : '1px solid var(--color-border)',
+            backgroundColor: activeControlView === 'secretCodes' ? 'var(--color-primary-ui)' : 'var(--color-surface)',
+            color: activeControlView === 'secretCodes' ? '#ffffff' : 'var(--color-text-secondary)',
+            fontWeight: 'bold',
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: activeControlView === 'secretCodes' ? 'var(--shadow-sm)' : 'none'
+          }}
+        >
+          <span>🔐</span>
+          <span>{lang === 'ar' ? 'كشف مطابقة الأرقام السرية والرصد الفردي' : 'Secret Codes & Quick Entry'}</span>
+        </button>
+      </div>
+
+      {activeControlView === 'masterSheet' ? (
+        <MidtermControlSheet
+          classes={classes}
+          canEdit={canAction('control', 'enterGrades', filters.class_id !== 'all' ? filters.class_id : null)}
+        />
+      ) : (
+        <>
       {/* Secret Code Final Grade Entry Form */}
       <div className="no-print" style={{
         marginBottom: 'var(--space-lg)',
@@ -402,6 +464,8 @@ export default function ControlTab() {
         loading={settingsLoading}
         lang={lang}
       />
+        </>
+      )}
     </div>
   );
 }

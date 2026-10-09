@@ -264,6 +264,13 @@ class NotificationController extends Controller implements HasMiddleware
             'teacher_id' => $teacherId,
         ]);
 
+        // Dispatch Realtime WebSocket event
+        try {
+            event(new \App\Events\BroadcastNotificationCreated($notification));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Reverb broadcast warning: " . $e->getMessage());
+        }
+
         // Collect target FCM tokens
         $tokens = [];
         if ($request->target_type === 'all_users') {

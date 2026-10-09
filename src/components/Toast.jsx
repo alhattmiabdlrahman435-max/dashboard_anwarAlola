@@ -1,8 +1,19 @@
+import { useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { AlertTriangle, CheckCircle, X } from 'lucide-react';
 
 export default function Toast() {
   const { toastMessage, toastType, setToastMessage } = useApp();
+
+  useEffect(() => {
+    if (!toastMessage) return;
+
+    const timer = setTimeout(() => {
+      setToastMessage('');
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [toastMessage, setToastMessage]);
 
   if (!toastMessage) return null;
 

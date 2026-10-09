@@ -40,6 +40,7 @@ export default function SettingsProvider({ children }) {
   const fetchWeeklySchedulesRequestRef = useRef(0);
   const fetchExamSchedulesRequestRef = useRef(0);
   const examSchedulesAbortRef = useRef(null);
+  const lastExamSchedulesQueryRef = useRef('?page=1&per_page=20');
 
   // Fetch weekly schedules
   const fetchWeeklySchedules = useCallback((...args) => {
@@ -77,15 +78,18 @@ export default function SettingsProvider({ children }) {
   }, [isStale, schedules]);
 
   // Fetch exam schedules
-  const fetchExamSchedules = useCallback((arg) => {
-    const isForce = arg === true;
-    const isQueryString = typeof arg === 'string';
-    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+  const fetchExamSchedules = useCallback((...args) => {
+    const isForce = args.find(a => typeof a === 'boolean') || false;
+    const queryArg = args.find(a => typeof a === 'string' && (a.startsWith('?') || a.startsWith('&')));
+    if (queryArg) {
+      lastExamSchedulesQueryRef.current = queryArg;
+    }
+    const queryString = queryArg || lastExamSchedulesQueryRef.current || '?page=1&per_page=20';
 
     const token = localStorage.getItem("auth_token");
     if (!token) return;
 
-    if (!isForce && !isQueryString && !isStale && examSchedules.length > 0) {
+    if (!isForce && !queryArg && !isStale && examSchedules.length > 0) {
       return;
     }
 
@@ -201,7 +205,7 @@ export default function SettingsProvider({ children }) {
         })
         .then((data) => {
           if (data.success) {
-            fetchExamSchedules(token, true);
+            fetchExamSchedules(true);
             setToastMessage(
               lang === "ar"
                 ? data.message || "تم نشر جدول الاختبارات بنجاح!"
@@ -267,7 +271,7 @@ export default function SettingsProvider({ children }) {
     })
     .then(data => {
       if (data.success) {
-        fetchExamSchedules(token, true);
+        fetchExamSchedules(true);
         setToastMessage(lang === "ar" ? data.message || "تم نسخ جدول الاختبارات للشعب المحددة بنجاح!" : "Exam schedule copied successfully!");
         setTimeout(() => setToastMessage(""), 4000);
         return { success: true };
@@ -328,7 +332,31 @@ export default function SettingsProvider({ children }) {
         })
         .then((data) => {
           if (data.success) {
-            fetchExamSchedules(token, true);
+            if (data.exam_schedule) {
+              const classObj = data.exam_schedule.school_class || data.exam_schedule.class || {};
+              const grade = classObj.grade_ar || classObj.grade || '';
+              const section = classObj.section_ar || classObj.section || '';
+              const subs = (data.exam_schedule.exam_subjects || data.exam_schedule.examSubjects || []).map(item => ({
+                id: item.id,
+                subjectName: item.subject ? (item.subject.name_ar || item.subject.name) : (item.name_ar || item.subject_name || ''),
+                date: item.exam_date,
+                time: item.exam_time,
+                note: item.note || '',
+              }));
+              setExamSchedules(prev => prev.map(sch => {
+                if (sch.id === id) {
+                  return {
+                    ...sch,
+                    grade: grade || sch.grade,
+                    section: section || sch.section,
+                    period: data.exam_schedule.title || sch.period,
+                    subjects: subs.length > 0 ? subs : sch.subjects
+                  };
+                }
+                return sch;
+              }));
+            }
+            fetchExamSchedules(true);
             setToastMessage(
               lang === "ar"
                 ? "تم تحديث جدول الاختبارات بنجاح!"

@@ -137,23 +137,44 @@ export default function DetailedGradesTab() {
     fetchClassGrades(numericId);
   }, [selectedClass, viewMode, classes, fetchClassGrades]);
 
-  const handlePublishGrades = () => {
-    if (!selectedClass) return;
+  const handlePublishGrades = (targetStudentId = null) => {
+    if (!selectedClass && !targetStudentId) return;
     
+    const isSingleStudent = Boolean(targetStudentId);
+    const targetStudent = isSingleStudent ? (students || []).find(s => String(s.id) === String(targetStudentId)) : null;
+    const studentName = targetStudent ? (targetStudent.name || targetStudent.name_ar) : '';
+
     triggerConfirm({
       title: lang === 'ar' ? 'اعتماد الدرجات' : 'Publish Grades',
-      message: lang === 'ar' 
-        ? `هل أنت متأكد من اعتماد درجات ${classPeriod === 'termTotal' ? 'الترم' : 'الشهر'} لجميع طلاب ${selectedClass} وإرسال إشعار لأولياء الأمور؟` 
-        : `Are you sure you want to publish grades for this period?`,
+      message: isSingleStudent
+        ? (lang === 'ar' ? `هل أنت متأكد من اعتماد وإرسال درجات الطالب (${studentName}) لولي أمره فقط؟` : `Publish grades for ${studentName}?`)
+        : (lang === 'ar' ? `هل أنت متأكد من اعتماد درجات ${classPeriod === 'termTotal' ? 'الترم' : 'الشهر'} لجميع طلاب ${selectedClass} وإرسال إشعار لأولياء الأمور؟` : `Are you sure you want to publish grades for this period?`),
       type: 'info',
       onConfirm: async () => {
         try {
-          // Find classId
-          const [grade, section] = selectedClass.split(' - ');
-          const classObj = classes.find(c => (c.grade === grade || c.gradeEn === grade) && (c.section === section || c.sectionEn === section));
-          
-          if (!classObj) {
-            setToastMessage(lang === 'ar' ? 'لم يتم العثور على الفصل' : 'Class not found');
+          // Robust class object matching
+          const selectedClassObj = (classes || []).find(c =>
+            c.name === selectedClass ||
+            `${c.grade} - ${c.section}` === selectedClass ||
+            `${c.grade_ar || c.grade} - ${c.section_ar || c.section}` === selectedClass ||
+            `${c.gradeEn || c.grade} - ${c.sectionEn || c.section}` === selectedClass ||
+            String(c.id) === String(selectedClass)
+          ) || (classes || [])[0];
+
+          let numericClassId = null;
+          if (selectedClassObj) {
+            const rawClassId = selectedClassObj.numericId || (typeof selectedClassObj.id === 'string'
+              ? selectedClassObj.id.replace(/\D/g, '')
+              : String(selectedClassObj.id));
+            numericClassId = parseInt(rawClassId, 10);
+          }
+
+          if ((!numericClassId || isNaN(numericClassId)) && targetStudent && targetStudent.class_id) {
+            numericClassId = parseInt(String(targetStudent.class_id), 10);
+          }
+
+          if (!numericClassId || isNaN(numericClassId)) {
+            setToastMessage(lang === 'ar' ? 'معرف الفصل غير صالح' : 'Invalid class ID');
             return;
           }
 
@@ -164,15 +185,17 @@ export default function DetailedGradesTab() {
           if (classPeriod === 'm3') monthVal = '3';
           if (classPeriod === 'termTotal') monthVal = 'final';
 
-          const numericClassId = typeof classObj.id === 'string' && classObj.id.startsWith('cls-')
-            ? parseInt(classObj.id.replace('cls-', ''), 10)
-            : classObj.id;
-
-          const data = await api.post('/api/grades/publish-month', {
+          const payload = {
             class_id: numericClassId,
             term: term,
             month: monthVal
-          });
+          };
+
+          if (targetStudentId) {
+            payload.student_id = parseInt(String(targetStudentId), 10);
+          }
+
+          const data = await api.post('/api/grades/publish-month', payload);
 
           if (data.success) {
             setToastMessage(data.message || (lang === 'ar' ? 'تم الاعتماد بنجاح وإرسال الإشعارات لأولياء الأمور' : 'Published successfully'));
@@ -181,7 +204,8 @@ export default function DetailedGradesTab() {
           }
         } catch (error) {
           console.error(error);
-          setToastMessage(lang === 'ar' ? 'حدث خطأ في الاتصال بالسيرفر' : 'Server connection error');
+          const errorMsg = error?.message || (lang === 'ar' ? 'حدث خطأ في الاتصال بالسيرفر' : 'Server connection error');
+          setToastMessage(errorMsg);
         }
       }
     });
@@ -542,6 +566,7 @@ export default function DetailedGradesTab() {
                 selectedClass={selectedClass} 
                 classPeriod={classPeriod} 
                 classSubject={classSubject} 
+                onPublishStudentGrades={handlePublishGrades}
               />
             )}
           </div>

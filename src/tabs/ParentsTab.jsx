@@ -194,7 +194,7 @@ export default function ParentsTab() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'parents_export.csv';
+      a.download = 'parents_export.xlsx';
       document.body.appendChild(a);
       a.click();
       a.remove();

@@ -17,7 +17,7 @@ const getGradeEstimate = (total, max = 100) => {
   return 'ضعيف';
 };
 
-const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSubject }) {
+const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSubject, onPublishStudentGrades }) {
   const {
     lang,
     t,
@@ -136,6 +136,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 ))}
                 <th>{lang === 'ar' ? 'المجموع' : 'Total'}</th>
                 <th>{lang === 'ar' ? 'المعدل %' : 'Rate %'}</th>
+                <th>{lang === 'ar' ? 'الإجراءات' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody>
@@ -143,7 +144,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 if (classSubjectsList.length === 0) {
                   return (
                     <tr>
-                      <td colSpan="5" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '24px' }}>📚</span>
                           <span style={{ fontWeight: '600' }}>
@@ -161,7 +162,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 if (classStudents.length === 0) {
                   return (
                     <tr>
-                      <td colSpan={classSubjectsList.length + 4} style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
+                      <td colSpan={classSubjectsList.length + 5} style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--color-text-secondary)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '24px' }}>📂</span>
                           <span style={{ fontWeight: '600' }}>
@@ -216,6 +217,28 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                       </td>
                       <td style={{ fontWeight: 'bold', color: percentVal >= 50 ? 'var(--color-success)' : '#b91c1c' }}>
                         {percentVal}%
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          title={lang === 'ar' ? 'اعتماد وإرسال درجات هذا الطالب لولي أمره' : 'Publish for this student'}
+                          onClick={() => onPublishStudentGrades && onPublishStudentGrades(s.id)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--color-primary, #1e3a8a)',
+                            backgroundColor: 'rgba(30, 58, 138, 0.08)',
+                            color: 'var(--color-primary, #1e3a8a)',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          📤 {lang === 'ar' ? 'إرسال للطالب' : 'Send'}
+                        </button>
                       </td>
                     </tr>
                   );
@@ -342,7 +365,31 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                           {subIdx === 0 && (
                             <>
                               <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                                  <span>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</span>
+                                  <button
+                                    type="button"
+                                    title={lang === 'ar' ? 'اعتماد وإرسال درجات هذا الطالب لولي أمره' : 'Publish for this student'}
+                                    onClick={() => onPublishStudentGrades && onPublishStudentGrades(s.id)}
+                                    style={{
+                                      padding: '3px 8px',
+                                      fontSize: '11px',
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--color-primary, #1e3a8a)',
+                                      backgroundColor: 'rgba(30, 58, 138, 0.08)',
+                                      color: 'var(--color-primary, #1e3a8a)',
+                                      cursor: 'pointer',
+                                      fontWeight: 'bold',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    📤 {lang === 'ar' ? 'إرسال للطالب' : 'Send'}
+                                  </button>
+                                </div>
+                              </td>
                             </>
                           )}
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
@@ -396,18 +443,52 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                       const tm2 = calculateMonthTotal(sData.m2);
                       const tm3 = calculateMonthTotal(sData.m3);
                       const avg = parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
-                      const total = parseFloat((avg + (sData.finalExam || 0)).toFixed(2));
+                      const courseworkVal = (sData.coursework !== undefined && sData.coursework !== null && sData.coursework !== '')
+                        ? parseFloat(sData.coursework)
+                        : avg;
+                      const total = parseFloat((courseworkVal + (sData.finalExam || 0)).toFixed(2));
 
                       return (
                         <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === classSubjectsList.length - 1 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
                           {subIdx === 0 && (
                             <>
                               <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                                  <span>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</span>
+                                  <button
+                                    type="button"
+                                    title={lang === 'ar' ? 'اعتماد وإرسال درجات هذا الطالب لولي أمره' : 'Publish for this student'}
+                                    onClick={() => onPublishStudentGrades && onPublishStudentGrades(s.id)}
+                                    style={{
+                                      padding: '3px 8px',
+                                      fontSize: '11px',
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--color-primary, #1e3a8a)',
+                                      backgroundColor: 'rgba(30, 58, 138, 0.08)',
+                                      color: 'var(--color-primary, #1e3a8a)',
+                                      cursor: 'pointer',
+                                      fontWeight: 'bold',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    📤 {lang === 'ar' ? 'إرسال للطالب' : 'Send'}
+                                  </button>
+                                </div>
+                              </td>
                             </>
                           )}
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
-                          <td style={{ fontWeight: 'bold' }}>{avg} / 20</td>
+                          <td>
+                            <GradeInput 
+                              min="0" max="20" step="0.1"
+                              value={sData.coursework ?? avg}
+                              onChange={(val) => handleDetailedGradeChange(s.id, subj, selectedGradeTerm, 'coursework', 'coursework', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
+                            />
+                          </td>
                           <td>
                             <GradeInput 
                               min="0" max="30" 
@@ -431,7 +512,31 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                           {subIdx === 0 && (
                             <>
                               <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                                  <span>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</span>
+                                  <button
+                                    type="button"
+                                    title={lang === 'ar' ? 'اعتماد وإرسال درجات هذا الطالب لولي أمره' : 'Publish for this student'}
+                                    onClick={() => onPublishStudentGrades && onPublishStudentGrades(s.id)}
+                                    style={{
+                                      padding: '3px 8px',
+                                      fontSize: '11px',
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--color-primary, #1e3a8a)',
+                                      backgroundColor: 'rgba(30, 58, 138, 0.08)',
+                                      color: 'var(--color-primary, #1e3a8a)',
+                                      cursor: 'pointer',
+                                      fontWeight: 'bold',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    📤 {lang === 'ar' ? 'إرسال للطالب' : 'Send'}
+                                  </button>
+                                </div>
+                              </td>
                             </>
                           )}
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
@@ -718,8 +823,11 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                       const tm2 = calculateMonthTotal(sData.m2);
                       const tm3 = calculateMonthTotal(sData.m3);
                       const avg = parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
-                      const total = parseFloat((avg + (sData.finalExam || 0)).toFixed(2));
-                      avgSum += avg;
+                      const courseworkVal = (sData.coursework !== undefined && sData.coursework !== null && sData.coursework !== '')
+                        ? parseFloat(sData.coursework)
+                        : avg;
+                      const total = parseFloat((courseworkVal + (sData.finalExam || 0)).toFixed(2));
+                      avgSum += courseworkVal;
                       finalSum += sData.finalExam || 0;
                       termTotSum += total;
 
@@ -730,7 +838,14 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                           <td>{index + 1}</td>
                           <td style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{s.student_code || s.id}</td>
                           <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
-                          <td style={{ fontWeight: 'bold' }}>{avg} / 20</td>
+                          <td>
+                            <GradeInput 
+                              min="0" max="20" step="0.1"
+                              value={sData.coursework ?? avg}
+                              onChange={(val) => handleDetailedGradeChange(s.id, classSubject, selectedGradeTerm, 'coursework', 'coursework', val)}
+                              disabled={!canAction('detailedGrades', 'update')}
+                            />
+                          </td>
                           <td>
                             <GradeInput 
                               min="0" max="30" 

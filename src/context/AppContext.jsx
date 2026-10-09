@@ -733,6 +733,8 @@ export const AppProvider = ({ children }) => {
 
           if (monthKey === "finalExam") {
             subjectGrades.finalExam = num;
+          } else if (monthKey === "coursework") {
+            subjectGrades.coursework = num;
           } else {
             subjectGrades[monthKey] = {
               ...(subjectGrades[monthKey] || { homework: 0, attendance: 0, behavior: 0, oral: 0, written: 0 }),
@@ -774,6 +776,8 @@ export const AppProvider = ({ children }) => {
 
             if (monthKey === "finalExam") {
               reqBody.final_exam = subjGrades.finalExam;
+            } else if (monthKey === "coursework") {
+              reqBody.coursework = subjGrades.coursework;
             } else {
               const mObj = subjGrades[monthKey] || {};
               reqBody.hw_grade = mObj.homework ?? 0;

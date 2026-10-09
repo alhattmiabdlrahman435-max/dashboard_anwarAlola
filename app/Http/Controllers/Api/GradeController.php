@@ -22,9 +22,9 @@ class GradeController extends Controller implements HasMiddleware
         return [
             new Middleware('check.permission:detailedGrades,view', only: ['detailed', 'getByClassAndSubject', 'getByClass']),
             new Middleware('check.permission:detailedGrades,update', only: ['saveDetailed', 'publishMonthGrades']),
-            new Middleware('check.permission:control,view', only: ['control']),
+            new Middleware('check.permission:control,view', only: ['control', 'getMidtermControlSheet']),
             new Middleware('check.permission:control,generateSecretCodes', only: ['generateSecretCodes']),
-            new Middleware('check.permission:control,enterGrades', only: ['updateControl']),
+            new Middleware('check.permission:control,enterGrades', only: ['updateControl', 'saveMidtermExamGrade', 'bulkSaveMidtermExamGrades']),
         ];
     }
     /**
@@ -119,12 +119,13 @@ class GradeController extends Controller implements HasMiddleware
             'subject_id' => 'required|integer',
             'term' => 'required|string',
             'month' => 'required|string',
-            'hw_grade' => 'numeric',
-            'att_grade' => 'numeric',
-            'beh_grade' => 'numeric',
-            'oral_grade' => 'numeric',
-            'wrt_grade' => 'numeric',
+            'hw_grade' => 'nullable|numeric',
+            'att_grade' => 'nullable|numeric',
+            'beh_grade' => 'nullable|numeric',
+            'oral_grade' => 'nullable|numeric',
+            'wrt_grade' => 'nullable|numeric',
             'final_exam' => 'nullable|numeric',
+            'coursework' => 'nullable|numeric',
         ]);
 
         $student = Student::findOrFail($request->student_id);
@@ -141,32 +142,51 @@ class GradeController extends Controller implements HasMiddleware
         // Mapping from string format (term1/term2) to integer (1/2)
         $termVal = ($request->term === 'term2' || $request->term === '2') ? 2 : 1;
 
-        // Mapping from month string (m1/m2/m3/final) to integer (1/2/3/0)
-        $monthVal = match ($request->month) {
-            'm1', '1' => 1,
-            'm2', '2' => 2,
-            'm3', '3' => 3,
-            'final', '0', 0 => 0,
-            default => 1,
-        };
+        if ($request->month === 'coursework') {
+            $grade = Grade::updateOrCreate(
+                [
+                    'student_id' => $request->student_id,
+                    'subject_id' => $request->subject_id,
+                    'term' => $termVal,
+                    'month' => 0,
+                    'is_control' => true,
+                ],
+                [
+                    'written' => $request->coursework,
+                ]
+            );
+        } else {
+            // Mapping from month string (m1/m2/m3/final) to integer (1/2/3/0)
+            $monthVal = match ($request->month) {
+                'm1', '1' => 1,
+                'm2', '2' => 2,
+                'm3', '3' => 3,
+                'final', '0', 0 => 0,
+                default => 1,
+            };
 
-        $grade = Grade::updateOrCreate(
-            [
-                'student_id' => $request->student_id,
-                'subject_id' => $request->subject_id,
-                'term' => $termVal,
-                'month' => $monthVal,
-                'is_control' => false,
-            ],
-            [
+            $gradeData = [
                 'homework' => $request->hw_grade ?: 0,
                 'attendance' => $request->att_grade ?: 0,
                 'behavior' => $request->beh_grade ?: 0,
                 'oral' => $request->oral_grade ?: 0,
                 'written' => $request->wrt_grade ?: 0,
-                'final_exam' => $request->final_exam,
-            ]
-        );
+            ];
+            if ($request->has('final_exam')) {
+                $gradeData['final_exam'] = $request->final_exam;
+            }
+
+            $grade = Grade::updateOrCreate(
+                [
+                    'student_id' => $request->student_id,
+                    'subject_id' => $request->subject_id,
+                    'term' => $termVal,
+                    'month' => $monthVal,
+                    'is_control' => false,
+                ],
+                $gradeData
+            );
+        }
 
         $grade->load(['student.schoolClass', 'subject']);
         $student = $grade->student;
@@ -246,6 +266,9 @@ class GradeController extends Controller implements HasMiddleware
             'class_id' => 'required|integer',
             'term' => 'required|string',
             'month' => 'required|string',
+            'student_id' => 'nullable|integer',
+            'student_ids' => 'nullable|array',
+            'student_ids.*' => 'integer',
         ]);
 
         $user = $request->user();
@@ -271,7 +294,16 @@ class GradeController extends Controller implements HasMiddleware
             $monthNorm = 'm3';
         }
 
-        $students = Student::with('parentUser')->where('class_id', $request->class_id)->get();
+        $query = Student::with('parentUser')->where('class_id', $request->class_id);
+
+        // Targeted publishing: filter by student_id or student_ids if provided
+        if ($request->filled('student_id')) {
+            $query->where('id', $request->student_id);
+        } elseif ($request->filled('student_ids') && is_array($request->student_ids) && count($request->student_ids) > 0) {
+            $query->whereIn('id', $request->student_ids);
+        }
+
+        $students = $query->get();
         
         $monthNamesMap = [
             'm1' => 'للمحصلة الأولى',
@@ -286,13 +318,20 @@ class GradeController extends Controller implements HasMiddleware
         foreach ($students as $student) {
             if ($student->parentUser) {
                 // Create database notification with specific type for publication tracking
-                \App\Models\Notification::create([
+                $notifRecord = \App\Models\Notification::create([
                     'title' => 'اعتماد درجات جديدة',
                     'content' => 'تم اعتماد درجات ابنكم ' . ($student->name_ar ?? '') . ' ' . $monthName . '. يمكنكم الاطلاع عليها الآن.',
                     'type' => "grade_published:{$termNorm}:{$monthNorm}",
                     'is_read' => false,
                     'student_id' => $student->id,
                 ]);
+
+                // Broadcast Realtime event over Reverb WebSocket
+                try {
+                    event(new \App\Events\BroadcastNotificationCreated($notifRecord));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Reverb broadcast warning: " . $e->getMessage());
+                }
 
                 \App\Services\FcmService::sendToUser(
                     $student->parentUser,
@@ -679,6 +718,286 @@ class GradeController extends Controller implements HasMiddleware
             'classId' => (string) $classId,
             'subjectId' => (string) $subjectId,
             'grades' => $grades,
+        ]);
+    }
+
+    /**
+     * جلب كشف الكنترول النصفي الشامل لفصل دراسي (مطابق لكشف المدرسة الرسمي)
+     */
+    public function getMidtermControlSheet(Request $request, string $classId)
+    {
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'control');
+
+        if ($scopedClassIds !== null && !in_array((int)$classId, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بالوصول لكنترول هذا الفصل.'
+            ], 403);
+        }
+
+        $schoolClass = \App\Models\SchoolClass::with(['gradeLevel', 'subjects'])->find($classId);
+        if (!$schoolClass) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الفصل الدراسي غير موجود.'
+            ], 404);
+        }
+
+        // 1. تحديد المواد المعتمدة للفصل
+        $scheduleSubjectIds = \App\Models\Schedule::where('class_id', $classId)->pluck('subject_id')->toArray();
+        $scheduleSubjects = \App\Models\Subject::whereIn('id', $scheduleSubjectIds)->get();
+        $classSubjects = $schoolClass->subjects->concat($scheduleSubjects)->unique('id')->values();
+
+        // إذا لم تكن هناك مواد مسندة في الجدول، نجلب جميع المواد أو المواد التي لها درجات
+        if ($classSubjects->isEmpty()) {
+            $classSubjects = \App\Models\Subject::all();
+        }
+
+        // ترتيب المواد المعتمد باليمن: (قرآن، إسلامية، لغة عربية، لغة إنجليزي، رياضيات، علوم، اجتماعيات، حاسوب)
+        $preferredOrder = ['قرآن', 'إسلامية', 'لغة عربية', 'لغتي', 'لغة إنجليزي', 'إنجليزية', 'رياضيات', 'علوم', 'اجتماعيات', 'حاسوب'];
+        $classSubjects = $classSubjects->sortBy(function($sub) use ($preferredOrder) {
+            foreach ($preferredOrder as $index => $name) {
+                if (str_contains($sub->name_ar, $name)) {
+                    return $index;
+                }
+            }
+            return 99;
+        })->values();
+
+        // 2. جلب جميع طلاب الفصل
+        $students = Student::where('class_id', $classId)
+            ->orderBy('name_ar', 'asc')
+            ->get(['id', 'student_code', 'secret_code', 'name_ar', 'name_en', 'class_id']);
+
+        $studentIds = $students->pluck('id')->toArray();
+
+        // 3. جلب جميع درجات الفصل للترم الأول
+        $allGrades = Grade::whereIn('student_id', $studentIds)
+            ->where('term', 1)
+            ->get();
+
+        // 4. بناء هيكل الشيت وحساب القيم
+        $studentsData = [];
+
+        foreach ($students as $student) {
+            $studentGrades = $allGrades->where('student_id', $student->id);
+            $subjectsMap = [];
+            $studentTotal = 0;
+            $presentSubjectsCount = 0;
+
+            foreach ($classSubjects as $subject) {
+                $subGrades = $studentGrades->where('subject_id', $subject->id);
+
+                // درجات الأشهر الثلاثة
+                $m1Rec = $subGrades->firstWhere('month', 1);
+                $m2Rec = $subGrades->firstWhere('month', 2);
+                $m3Rec = $subGrades->firstWhere('month', 3);
+
+                $m1Tot = $m1Rec ? ($m1Rec->homework + $m1Rec->attendance + $m1Rec->behavior + $m1Rec->oral + $m1Rec->written) : 0;
+                $m2Tot = $m2Rec ? ($m2Rec->homework + $m2Rec->attendance + $m2Rec->behavior + $m2Rec->oral + $m2Rec->written) : 0;
+                $m3Tot = $m3Rec ? ($m3Rec->homework + $m3Rec->attendance + $m3Rec->behavior + $m3Rec->oral + $m3Rec->written) : 0;
+
+                // م1: أعمال الفصل محولة إلى 20 درجة: (م1+م2+م3)/15
+                $m1Coursework = round(($m1Tot + $m2Tot + $m3Tot) / 15, 2);
+
+                // ن1: درجة الاختبار النصفي من 30 (الأولوية لـ is_control=true)
+                $examRec = $subGrades->where('month', 0)->sortByDesc('is_control')->first();
+                $n1Exam = ($examRec && $examRec->final_exam !== null) ? (float)$examRec->final_exam : null;
+
+                if ($n1Exam !== null || $m1Coursework > 0) {
+                    $presentSubjectsCount++;
+                }
+
+                // مج1: مجموع المادة للترم الأول (من 50)
+                $maj1Total = round($m1Coursework + ($n1Exam ?? 0), 2);
+
+                $studentTotal += $maj1Total;
+
+                $subjectsMap[$subject->id] = [
+                    'subject_id' => $subject->id,
+                    'subject_name' => $subject->name_ar,
+                    'm1' => $m1Coursework, // أعمال الفصل (من 20)
+                    'n1' => $n1Exam,       // اختبار النصفي (من 30)
+                    'maj1' => $maj1Total,  // المجموع (من 50)
+                    'm1_raw' => $m1Tot,
+                    'm2_raw' => $m2Tot,
+                    'm3_raw' => $m3Tot,
+                ];
+            }
+
+            $maxTotal = count($classSubjects) * 50;
+            $percentage = $maxTotal > 0 ? round(($studentTotal / $maxTotal) * 100, 2) : 0;
+
+            $studentsData[] = [
+                'id' => $student->id,
+                'student_code' => $student->student_code ?: (string)$student->id,
+                'secret_code' => $student->secret_code ?: '—',
+                'name_ar' => $student->name_ar,
+                'name_en' => $student->name_en,
+                'subjects' => $subjectsMap,
+                'total' => $studentTotal,
+                'max_total' => $maxTotal,
+                'percentage' => $percentage,
+                'is_present' => $presentSubjectsCount > 0,
+            ];
+        }
+
+        // 5. حساب الترتيب (Ranking with tie handling)
+        usort($studentsData, function($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
+
+        $currentRank = 1;
+        for ($i = 0; $i < count($studentsData); $i++) {
+            if ($i > 0 && $studentsData[$i]['total'] < $studentsData[$i - 1]['total']) {
+                $currentRank = $i + 1;
+            }
+            $studentsData[$i]['rank'] = $currentRank;
+        }
+
+        // 6. الإحصائيات العامة
+        $totalStudents = count($studentsData);
+        $attendedCount = count(array_filter($studentsData, fn($s) => $s['is_present']));
+        $absentCount = $totalStudents - $attendedCount;
+        $highestTotal = $totalStudents > 0 ? max(array_column($studentsData, 'total')) : 0;
+        $lowestTotal = $totalStudents > 0 ? min(array_column($studentsData, 'total')) : 0;
+        $averageTotal = $totalStudents > 0 ? round(array_sum(array_column($studentsData, 'total')) / $totalStudents, 2) : 0;
+
+        return response()->json([
+            'success' => true,
+            'class' => [
+                'id' => $schoolClass->id,
+                'name_ar' => $schoolClass->name_ar,
+                'name_en' => $schoolClass->name_en,
+                'grade_ar' => $schoolClass->grade_ar,
+                'section_ar' => $schoolClass->section_ar,
+            ],
+            'subjects' => $classSubjects->map(fn($s) => [
+                'id' => $s->id,
+                'name_ar' => $s->name_ar,
+                'name_en' => $s->name_en
+            ]),
+            'students' => $studentsData,
+            'statistics' => [
+                'total_students' => $totalStudents,
+                'attended' => $attendedCount,
+                'absent' => $absentCount,
+                'highest_total' => $highestTotal,
+                'lowest_total' => $lowestTotal,
+                'average_total' => $averageTotal,
+            ]
+        ]);
+    }
+
+    /**
+     * رصد أو تعديل درجة الاختبار النصفي ن1 (من 30) لطالب في مادة
+     */
+    public function saveMidtermExamGrade(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required|integer',
+            'subject_id' => 'required|integer',
+            'final_exam' => 'required|numeric|min:0|max:30',
+            'term'       => 'nullable|integer',
+        ]);
+
+        $student = Student::findOrFail($request->student_id);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'control');
+        if ($scopedClassIds !== null && !in_array((int)$student->class_id, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك برصد درجات لطالب في هذا الفصل.'
+            ], 403);
+        }
+
+        $term = $request->input('term', 1);
+        $gradeVal = (float)$request->final_exam;
+
+        // الحفظ المزدوج لضمان التوافق مع الكنترول والرصد التفصيلي والتطبيقات
+        foreach ([true, false] as $isControl) {
+            Grade::updateOrCreate(
+                [
+                    'student_id' => $student->id,
+                    'subject_id' => $request->subject_id,
+                    'term'       => $term,
+                    'month'      => 0, // 0 يعني اختبار نهاية الفصل
+                    'is_control' => $isControl,
+                ],
+                [
+                    'homework'   => 0,
+                    'attendance' => 0,
+                    'behavior'   => 0,
+                    'oral'       => 0,
+                    'written'    => 0,
+                    'final_exam' => $gradeVal,
+                ]
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم رصد وحفظ درجة الاختبار بنجاح.',
+            'grade' => $gradeVal
+        ]);
+    }
+
+    /**
+     * رصد جماعي لدرجات الاختبار ن1
+     */
+    public function bulkSaveMidtermExamGrades(Request $request)
+    {
+        $request->validate([
+            'grades' => 'required|array',
+            'grades.*.student_id' => 'required|integer',
+            'grades.*.subject_id' => 'required|integer',
+            'grades.*.final_exam' => 'required|numeric|min:0|max:30',
+        ]);
+
+        $user = $request->user();
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'control');
+
+        $gradesList = $request->input('grades', []);
+        $savedCount = 0;
+
+        foreach ($gradesList as $item) {
+            $student = Student::find($item['student_id']);
+            if (!$student) continue;
+
+            if ($scopedClassIds !== null && !in_array((int)$student->class_id, $scopedClassIds)) {
+                continue;
+            }
+
+            $gradeVal = (float)$item['final_exam'];
+
+            foreach ([true, false] as $isControl) {
+                Grade::updateOrCreate(
+                    [
+                        'student_id' => $student->id,
+                        'subject_id' => $item['subject_id'],
+                        'term'       => 1,
+                        'month'      => 0,
+                        'is_control' => $isControl,
+                    ],
+                    [
+                        'homework'   => 0,
+                        'attendance' => 0,
+                        'behavior'   => 0,
+                        'oral'       => 0,
+                        'written'    => 0,
+                        'final_exam' => $gradeVal,
+                    ]
+                );
+            }
+            $savedCount++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "تم حفظ درجات {$savedCount} طالب بنجاح.",
+            'saved_count' => $savedCount
         ]);
     }
 }

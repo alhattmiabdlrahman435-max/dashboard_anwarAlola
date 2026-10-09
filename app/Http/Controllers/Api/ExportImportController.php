@@ -198,49 +198,140 @@ class ExportImportController extends Controller
 
     private function exportParents(User $user): StreamedResponse
     {
-        $parents = User::where('role', 'parent')->with('children.schoolClass')->get();
+        $parents = User::where('role', 'parent')
+            ->with(['children.schoolClass'])
+            ->orderBy('name_ar')
+            ->get();
 
-        // Calculate max children count for any parent to define headers dynamically
-        $maxChildren = 0;
-        foreach ($parents as $p) {
-            $maxChildren = max($maxChildren, $p->children->count());
-        }
-        $maxChildren = max($maxChildren, 2); // Default to at least 2 slots
+        return new StreamedResponse(function () use ($parents) {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setRightToLeft(true);
+            $sheet->setShowGridlines(true);
 
-        $headers = ['رقم الهوية', 'الاسم (عربي)', 'رقم الجوال'];
-        for ($i = 1; $i <= $maxChildren; $i++) {
-            $headers[] = "اسم الابن {$i}";
-            $headers[] = "صف الابن {$i}";
-        }
+            // Title Banner
+            $titleText = "كشف بأسماء أولياء الأمور وأرقام هواتفهم وبيانات أبنائهم للعام 2026 - 2027م";
+            $sheet->mergeCells("A1:F1");
+            $sheet->setCellValue('A1', $titleText);
 
-        $rows = [];
-        foreach ($parents as $p) {
-            $row = [
-                $p->national_id,
-                $p->name_ar ?? $p->name,
-                $p->phone,
+            $sheet->getRowDimension(1)->setRowHeight(40);
+            $sheet->getStyle('A1')->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['argb' => 'FFFFFFFF'],
+                    'size' => 14,
+                    'name' => 'Segoe UI'
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'color' => ['argb' => 'FF1E3A8A'] // Premium navy blue banner
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER
+                ]
+            ]);
+
+            // Table Headers (Fixed 6 columns Best Practice)
+            $headers = [
+                'م',
+                'رقم هوية ولي الأمر',
+                'اسم ولي الأمر',
+                'رقم الجوال',
+                'اسم الطالب (الابن)',
+                'الصف الدراسي'
             ];
 
-            foreach ($p->children as $child) {
-                $row[] = $child->name_ar;
-                $row[] = $child->schoolClass ? "{$child->schoolClass->grade_ar} - {$child->schoolClass->section_ar}" : '';
+            $sheet->fromArray([$headers], null, 'A2');
+            $sheet->getRowDimension(2)->setRowHeight(30);
+
+            $sheet->getStyle("A2:F2")->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['argb' => 'FF000000'],
+                    'size' => 11,
+                    'name' => 'Segoe UI'
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'color' => ['argb' => 'FFF2F2F2']
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['argb' => 'FFCCCCCC']
+                    ]
+                ]
+            ]);
+
+            // Data Rows
+            $rowIndex = 3;
+            $counter = 1;
+
+            foreach ($parents as $p) {
+                $children = $p->children;
+                if ($children->count() === 0) {
+                    $sheet->setCellValue('A' . $rowIndex, $counter++);
+                    $sheet->setCellValueExplicit('B' . $rowIndex, (string)$p->national_id, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    $sheet->setCellValue('C' . $rowIndex, $p->name_ar ?: $p->name);
+                    $sheet->setCellValueExplicit('D' . $rowIndex, (string)$p->phone, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    $sheet->setCellValue('E' . $rowIndex, '-');
+                    $sheet->setCellValue('F' . $rowIndex, '-');
+                    $sheet->getRowDimension($rowIndex)->setRowHeight(24);
+                    $rowIndex++;
+                } else {
+                    foreach ($children as $child) {
+                        $className = $child->schoolClass ? "{$child->schoolClass->grade_ar} - {$child->schoolClass->section_ar}" : '-';
+                        $sheet->setCellValue('A' . $rowIndex, $counter++);
+                        $sheet->setCellValueExplicit('B' . $rowIndex, (string)$p->national_id, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValue('C' . $rowIndex, $p->name_ar ?: $p->name);
+                        $sheet->setCellValueExplicit('D' . $rowIndex, (string)$p->phone, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValue('E' . $rowIndex, $child->name_ar);
+                        $sheet->setCellValue('F' . $rowIndex, $className);
+                        $sheet->getRowDimension($rowIndex)->setRowHeight(24);
+                        $rowIndex++;
+                    }
+                }
             }
 
-            // Fill remaining columns with empty strings
-            $remaining = $maxChildren - $p->children->count();
-            for ($k = 0; $k < $remaining; $k++) {
-                $row[] = '';
-                $row[] = '';
+            if ($rowIndex > 3) {
+                $sheet->getStyle("A3:F" . ($rowIndex - 1))->applyFromArray([
+                    'font' => [
+                        'size' => 11,
+                        'name' => 'Segoe UI'
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color' => ['argb' => 'FFE0E0E0']
+                        ]
+                    ]
+                ]);
             }
 
-            $rows[] = $row;
-        }
+            // Fixed Column Widths (A4 Portrait Optimization)
+            $sheet->getColumnDimension('A')->setWidth(6);
+            $sheet->getColumnDimension('B')->setWidth(20);
+            $sheet->getColumnDimension('C')->setWidth(28);
+            $sheet->getColumnDimension('D')->setWidth(18);
+            $sheet->getColumnDimension('E')->setWidth(28);
+            $sheet->getColumnDimension('F')->setWidth(22);
 
-        return $this->streamCsv(
-            'parents_export.csv',
-            $headers,
-            $rows
-        );
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="parents_export.xlsx"',
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 
     private function exportGrades(User $user): StreamedResponse

@@ -68,5 +68,17 @@ export const settingsService = {
 
   duplicateExamSchedule: (id, payload) => {
     return api.post(`/api/exam-schedules/${id}/duplicate`, payload);
+  },
+
+  getMidtermControlSheet: (classId) => {
+    return api.get(`/api/grades/control-midterm-sheet/${classId}`);
+  },
+
+  saveMidtermExamGrade: (payload) => {
+    return api.post('/api/grades/control-midterm-sheet/save-exam', payload);
+  },
+
+  bulkSaveMidtermExamGrades: (payload) => {
+    return api.post('/api/grades/control-midterm-sheet/bulk-save-exams', payload);
   }
 };

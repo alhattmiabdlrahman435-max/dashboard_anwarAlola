@@ -69,6 +69,7 @@ export default function ExamSchedulesTab() {
   const [showExamScheduleModal, setShowExamScheduleModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingScheduleId, setEditingScheduleId] = useState(null);
+  const [editingSubId, setEditingSubId] = useState(null);
 
   // Form Fields
   const [modalExamGrade, setModalExamGrade] = useState('الصف الأول');
@@ -272,7 +273,13 @@ export default function ExamSchedulesTab() {
       'الاجتماعيات',
       'الكيمياء',
       'الفيزياء',
-      'الأحياء'
+      'الأحياء',
+      'التربية الفنية',
+      'التربية البدنية',
+      'الحاسب الآلي',
+      'المهارات الرقمية',
+      'المهارات الحياتية',
+      'التفكير الناقد'
     ];
 
     defaultExamSpecialSubjects.forEach(s => {
@@ -353,22 +360,71 @@ export default function ExamSchedulesTab() {
     }
   };
 
-  const formatArabicDay = (dateStr) => {
+  const formatToIsoDate = (dateStr) => {
     if (!dateStr) return '';
-    const dateObj = new Date(dateStr);
-    if (isNaN(dateObj.getTime())) return '';
+    const str = String(dateStr).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(str)) return str.replace(/\//g, '-');
+    const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmyMatch) {
+      const day = dmyMatch[1].padStart(2, '0');
+      const month = dmyMatch[2].padStart(2, '0');
+      const year = dmyMatch[3];
+      return `${year}-${month}-${day}`;
+    }
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return str;
+  };
+
+  const parseDateSafe = (dateStr) => {
+    if (!dateStr) return null;
+    const str = String(dateStr).trim();
+    const isoStr = formatToIsoDate(str);
+    const parts = isoStr.split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        return new Date(y, m, d);
+      }
+    }
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const formatArabicDay = (dateStr) => {
+    const dateObj = parseDateSafe(dateStr);
+    if (!dateObj) return '';
     const daysAr = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     return daysAr[dateObj.getDay()];
   };
 
   const getDayNumber = (dateStr) => {
-    if (!dateStr) return '';
-    const dateObj = new Date(dateStr);
-    if (isNaN(dateObj.getTime())) return dateStr;
-    return `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+    const dateObj = parseDateSafe(dateStr);
+    if (!dateObj) return dateStr || '';
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}`;
   };
 
-  const handleAddExamSubject = () => {
+  const sortSubjectsByDate = (list) => {
+    return [...(list || [])].sort((a, b) => {
+      const dA = parseDateSafe(a.date);
+      const dB = parseDateSafe(b.date);
+      if (!dA) return 1;
+      if (!dB) return -1;
+      return dA.getTime() - dB.getTime();
+    });
+  };
+
+  const handleAddOrUpdateExamSubject = () => {
     const finalSubjectName = (isCustomSubject ? modalCustomSubName : modalExamSubName || '').trim();
     if (!finalSubjectName) {
       setToastMessage(lang === 'ar' ? 'الرجاء تحديد أو كتابة اسم المادة' : 'Please select or enter subject name');
@@ -380,14 +436,64 @@ export default function ExamSchedulesTab() {
       setTimeout(() => setToastMessage(''), 3000);
       return;
     }
-    const newSubject = {
-      id: Date.now() + Math.random(),
-      subjectName: finalSubjectName,
-      date: modalExamSubDate,
-      time: modalExamSubTime,
-      note: modalExamSubNote
-    };
-    setModalExamSubjects(prev => [...prev, newSubject]);
+
+    const isoDate = formatToIsoDate(modalExamSubDate);
+
+    if (editingSubId) {
+      // Update subject in-place and auto-sort by date
+      setModalExamSubjects(prev => {
+        const updated = prev.map(s => {
+          if (s.id === editingSubId) {
+            return {
+              ...s,
+              subjectName: finalSubjectName,
+              date: isoDate,
+              time: modalExamSubTime,
+              note: modalExamSubNote
+            };
+          }
+          return s;
+        });
+        return sortSubjectsByDate(updated);
+      });
+      setEditingSubId(null);
+      setToastMessage(lang === 'ar' ? 'تم تحديث المادة وترتيب الجدول حسب التاريخ تلقائياً ✅' : 'Subject updated & auto-sorted by date');
+    } else {
+      // Add new subject and auto-sort by date
+      const newSubject = {
+        id: Date.now() + Math.random(),
+        subjectName: finalSubjectName,
+        date: isoDate,
+        time: modalExamSubTime,
+        note: modalExamSubNote
+      };
+      setModalExamSubjects(prev => sortSubjectsByDate([...prev, newSubject]));
+    }
+
+    setModalExamSubDate('');
+    setModalExamSubNote('');
+    if (isCustomSubject) {
+      setModalCustomSubName('');
+      setIsCustomSubject(false);
+    }
+  };
+
+  const handleStartEditSubject = (sub) => {
+    setEditingSubId(sub.id);
+    if (availableSubjectsForSelectedClass.includes(sub.subjectName)) {
+      setIsCustomSubject(false);
+      setModalExamSubName(sub.subjectName);
+    } else {
+      setIsCustomSubject(true);
+      setModalCustomSubName(sub.subjectName);
+    }
+    setModalExamSubDate(formatToIsoDate(sub.date) || '');
+    setModalExamSubTime(sub.time || '');
+    setModalExamSubNote(sub.note || '');
+  };
+
+  const handleCancelEditSubject = () => {
+    setEditingSubId(null);
     setModalExamSubDate('');
     setModalExamSubNote('');
     if (isCustomSubject) {
@@ -399,6 +505,7 @@ export default function ExamSchedulesTab() {
   const handleStartEdit = (sched) => {
     setIsEditing(true);
     setEditingScheduleId(sched.id);
+    setEditingSubId(null);
     setModalExamGrade(sched.grade);
     setModalExamSection(sched.section);
 
@@ -409,18 +516,41 @@ export default function ExamSchedulesTab() {
 
     setModalExamTerm(sched.term);
     setModalExamPeriod(sched.period);
-    setModalExamSubjects(sched.subjects.map(s => ({
+
+    const mappedSubjects = (sched.subjects || []).map(s => ({
       id: s.id || Date.now() + Math.random(),
       subjectName: s.subjectName,
-      date: s.date,
+      date: formatToIsoDate(s.date),
       time: s.time,
       note: s.note || ''
-    })));
+    }));
+
+    setModalExamSubjects(sortSubjectsByDate(mappedSubjects));
     setShowExamScheduleModal(true);
   };
 
   const handlePublishExamSchedule = () => {
-    if (modalExamSubjects.length === 0) {
+    let finalSubjectsToSave = [...modalExamSubjects];
+    if (editingSubId) {
+      const finalSubjectName = (isCustomSubject ? modalCustomSubName : modalExamSubName || '').trim();
+      if (finalSubjectName && modalExamSubDate) {
+        finalSubjectsToSave = finalSubjectsToSave.map(s => {
+          if (s.id === editingSubId) {
+            return {
+              ...s,
+              subjectName: finalSubjectName,
+              date: modalExamSubDate,
+              time: modalExamSubTime,
+              note: modalExamSubNote
+            };
+          }
+          return s;
+        });
+      }
+    }
+    finalSubjectsToSave = sortSubjectsByDate(finalSubjectsToSave);
+
+    if (finalSubjectsToSave.length === 0) {
       setToastMessage(lang === 'ar' ? 'الرجاء إضافة مادة واحدة على الأقل للجدول' : 'Please add at least one subject to the schedule');
       setTimeout(() => setToastMessage(''), 3000);
       return;
@@ -456,7 +586,7 @@ export default function ExamSchedulesTab() {
       termEn: modalExamTerm === 'الفصل الأول' ? 'First Term' : 'Second Term',
       period: modalExamPeriod,
       periodEn: modalExamPeriod === 'الشهر الأول' ? 'Month 1' : modalExamPeriod === 'الشهر الثاني' ? 'Month 2' : modalExamPeriod === 'الشهر الثالث' ? 'Month 3' : 'Final Term Exam',
-      subjects: modalExamSubjects
+      subjects: finalSubjectsToSave
     };
 
     setIsSaving(true);
@@ -1360,50 +1490,111 @@ export default function ExamSchedulesTab() {
                   </div>
                 </div>
 
-                <button 
-                  type="button" 
-                  className="btn-accent"
-                  style={{ alignSelf: 'flex-end', height: '34px', minHeight: '34px', fontSize: '11px', padding: '0 14px', fontWeight: '700' }}
-                  onClick={handleAddExamSubject}
-                >
-                  ＋ {lang === 'ar' ? 'إضافة المادة للجدول' : 'Add to Schedule'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-end' }}>
+                  {editingSubId && (
+                    <button 
+                      type="button" 
+                      className="btn-elevated"
+                      style={{ height: '34px', minHeight: '34px', fontSize: '11px', padding: '0 12px', opacity: 0.8 }}
+                      onClick={handleCancelEditSubject}
+                    >
+                      ✕ {lang === 'ar' ? 'إلغاء التعديل' : 'Cancel'}
+                    </button>
+                  )}
+                  <button 
+                    type="button" 
+                    className="btn-accent"
+                    style={{ height: '34px', minHeight: '34px', fontSize: '11px', padding: '0 14px', fontWeight: '700' }}
+                    onClick={handleAddOrUpdateExamSubject}
+                  >
+                    {editingSubId 
+                      ? `💾 ${lang === 'ar' ? 'تحديث المادة في الجدول' : 'Update Subject'}`
+                      : `＋ ${lang === 'ar' ? 'إضافة المادة للجدول' : 'Add to Schedule'}`
+                    }
+                  </button>
+                </div>
               </div>
 
               {/* Added subjects preview list */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <strong style={{ fontSize: '12px' }}>📝 {lang === 'ar' ? 'المواد المضافة حالياً في الجدول:' : 'Current subjects added:'}</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <strong style={{ fontSize: '13px', color: 'var(--color-primary-ui)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📝</span>
+                  <span>{lang === 'ar' ? 'المواد المضافة حالياً في الجدول (مرتبة حسب التاريخ تلقائياً):' : 'Current subjects added (auto-sorted by date):'}</span>
+                </strong>
                 {modalExamSubjects.length > 0 ? (
-                  <div className="students-table-container">
-                    <table className="students-table">
+                  <div style={{ borderRadius: '8px', border: '1px solid var(--color-border)', overflow: 'hidden', background: 'var(--color-surface)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '11px' }}>
                       <thead>
-                        <tr>
-                          <th>{t.subjectLabel}</th>
-                          <th>{t.examDateLabel}</th>
-                          <th>{t.examTimeLabel}</th>
-                          <th>{t.examNoteLabel}</th>
-                          <th>{t.action}</th>
+                        <tr style={{ background: 'rgba(30, 80, 142, 0.06)', borderBottom: '1.5px solid var(--color-border)' }}>
+                          <th style={{ width: '24%', padding: '8px 10px', textAlign: 'start', color: 'var(--color-text-secondary)', fontWeight: '700' }}>{t.subjectLabel}</th>
+                          <th style={{ width: '20%', padding: '8px 10px', textAlign: 'start', color: 'var(--color-text-secondary)', fontWeight: '700' }}>{t.examDateLabel}</th>
+                          <th style={{ width: '20%', padding: '8px 10px', textAlign: 'start', color: 'var(--color-text-secondary)', fontWeight: '700' }}>{t.examTimeLabel}</th>
+                          <th style={{ width: '18%', padding: '8px 10px', textAlign: 'start', color: 'var(--color-text-secondary)', fontWeight: '700' }}>{t.examNoteLabel}</th>
+                          <th style={{ width: '18%', padding: '8px 10px', textAlign: 'center', color: 'var(--color-text-secondary)', fontWeight: '700' }}>{t.action}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {modalExamSubjects.map((sub, sidx) => (
-                          <tr key={sub.id || sidx}>
-                            <td style={{ fontWeight: 'bold' }}>{sub.subjectName}</td>
-                            <td>{sub.date}</td>
-                            <td>{sub.time}</td>
-                            <td>{sub.note}</td>
-                            <td>
-                              <button 
-                                type="button"
-                                className="btn-elevated"
-                                style={{ color: 'var(--color-error)', borderColor: 'rgba(220, 38, 38, 0.2)', padding: '2px 8px', fontSize: '10px' }}
-                                onClick={() => setModalExamSubjects(prev => prev.filter((_, idx) => idx !== sidx))}
-                              >
-                                {lang === 'ar' ? 'حذف' : 'Remove'}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {modalExamSubjects.map((sub, sidx) => {
+                          const isBeingEdited = editingSubId === sub.id;
+                          return (
+                            <tr key={sub.id || sidx} style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: isBeingEdited ? 'rgba(59, 130, 246, 0.12)' : (sidx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)') }}>
+                              <td style={{ padding: '8px 10px', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>
+                                {sub.subjectName}
+                                {isBeingEdited && <span style={{ fontSize: '10px', color: 'var(--color-accent)', display: 'block' }}>({lang === 'ar' ? 'جارٍ التعديل...' : 'Editing...'})</span>}
+                              </td>
+                              <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{sub.date}</td>
+                              <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{sub.time}</td>
+                              <td style={{ padding: '8px 10px', color: 'var(--color-text-secondary)' }}>{sub.note || '-'}</td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'nowrap' }}>
+                                  <button 
+                                    type="button"
+                                    style={{ 
+                                      color: '#1d4ed8', 
+                                      backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+                                      border: '1px solid rgba(59, 130, 246, 0.3)', 
+                                      padding: '4px 8px', 
+                                      fontSize: '10px', 
+                                      fontWeight: '700', 
+                                      borderRadius: '4px', 
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '2px'
+                                    }}
+                                    onClick={() => handleStartEditSubject(sub)}
+                                    title={lang === 'ar' ? 'تعديل بيانات هذه المادة' : 'Edit subject'}
+                                  >
+                                    ✏️ {lang === 'ar' ? 'تعديل' : 'Edit'}
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    style={{ 
+                                      color: '#dc2626', 
+                                      backgroundColor: 'rgba(220, 38, 38, 0.08)', 
+                                      border: '1px solid rgba(220, 38, 38, 0.25)', 
+                                      padding: '4px 8px', 
+                                      fontSize: '10px', 
+                                      fontWeight: '700', 
+                                      borderRadius: '4px', 
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '2px'
+                                    }}
+                                    onClick={() => {
+                                      if (editingSubId === sub.id) handleCancelEditSubject();
+                                      setModalExamSubjects(prev => prev.filter((_, idx) => idx !== sidx));
+                                    }}
+                                    title={lang === 'ar' ? 'حذف هذه المادة' : 'Remove subject'}
+                                  >
+                                    🗑️ {lang === 'ar' ? 'حذف' : 'Remove'}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

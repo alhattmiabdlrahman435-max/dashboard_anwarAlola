@@ -104,6 +104,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/grades/class/{classId}/subject/{subjectId}', [GradeController::class, 'getByClassAndSubject']);
     Route::get('/grades/class/{classId}', [GradeController::class, 'getByClass']);
     Route::get('/grades/control', [GradeController::class, 'control']);
+    Route::get('/grades/control-midterm-sheet/{classId}', [GradeController::class, 'getMidtermControlSheet']);
+    Route::post('/grades/control-midterm-sheet/save-exam', [GradeController::class, 'saveMidtermExamGrade']);
+    Route::post('/grades/control-midterm-sheet/bulk-save-exams', [GradeController::class, 'bulkSaveMidtermExamGrades']);
     Route::put('/grades/control/{studentId}', [GradeController::class, 'updateControl']);
     Route::post('/grades/generate-codes', [GradeController::class, 'generateSecretCodes']);
 
