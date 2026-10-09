@@ -7,7 +7,7 @@ import { useNotifications } from '../contexts/Notifications/useNotifications';
 import { 
   LayoutDashboard, GraduationCap, Users, BookOpen, School, Book, 
   Calendar, QrCode, ClipboardCheck, FileText, CalendarCheck, Award, 
-  DollarSign, Bell, ShieldAlert, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X, UserCheck, UserCog
+  DollarSign, Bell, ShieldAlert, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X, UserCheck, UserCog, Database
 } from 'lucide-react';
 import sloganLogo from '../assets/slogan.jpeg';
 

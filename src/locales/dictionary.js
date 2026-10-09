@@ -13,6 +13,7 @@ export const dictionary = {
     control: "الكنترول الرقمي",
     reports: "التقارير الشاملة",
     settings: "الإعدادات",
+    backups: "النسخ الاحتياطي",
 
     // Login Screen Keys
     loginTitle: "تسجيل الدخول للنظام",
@@ -311,6 +312,7 @@ export const dictionary = {
     control: "Digital Control",
     reports: "Comprehensive Reports",
     settings: "Settings",
+    backups: "Backups",
 
     // Login Screen Keys
     loginTitle: "System Sign In",

@@ -1,7 +1,10 @@
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
+import { useNavigate } from 'react-router-dom';
+import { Database, ArrowLeft, ArrowRight } from 'lucide-react';
 
 export default function SettingsTab() {
+  const navigate = useNavigate();
   const {
     lang,
     setLang,
@@ -69,6 +72,30 @@ export default function SettingsTab() {
             </label>
             <span className="label-medium">{t.darkMode}</span>
           </div>
+        </div>
+
+        {/* System Backup & Recovery Hub */}
+        <div className="settings-row" style={{ backgroundColor: 'rgba(30, 80, 142, 0.04)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
+          <div className="settings-info">
+            <span className="settings-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Database size={18} style={{ color: 'var(--color-primary-ui)' }} />
+              {lang === 'ar' ? 'النسخ الاحتياطي التلقائي للنظام' : 'Automated System Backups'}
+            </span>
+            <span className="settings-desc">
+              {lang === 'ar' 
+                ? 'مُجدول تلقائياً كل ليلة عند 02:00 صباحاً. يمكنك إدارة النسخ الاحتياطية المحفوظة، تنزيلها، أو إنشاء نسخة فورية.' 
+                : 'Scheduled daily at 02:00 AM for database & files. Download archives or trigger instant manual snapshots.'}
+            </span>
+          </div>
+          <button 
+            type="button"
+            className="btn-filled"
+            onClick={() => navigate('/backups')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', whiteSpace: 'nowrap', cursor: 'pointer' }}
+          >
+            <span>{lang === 'ar' ? 'إدارة النسخ الاحتياطي' : 'Manage Backups'}</span>
+            {lang === 'ar' ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}
+          </button>
         </div>
 
         {/* School Profile Setup */}

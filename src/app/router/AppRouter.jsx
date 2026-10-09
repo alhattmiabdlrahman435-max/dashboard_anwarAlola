@@ -37,6 +37,7 @@ const AssignmentsPage = safeLazy(() => import('../../pages/AssignmentsPage'));
 const DetailedGradesPage = safeLazy(() => import('../../pages/DetailedGradesPage'));
 const ExamSchedulesPage = safeLazy(() => import('../../pages/ExamSchedulesPage'));
 const SchedulePage = safeLazy(() => import('../../pages/SchedulePage'));
+const BackupsPage = safeLazy(() => import('../../pages/BackupsPage'));
 
 function LoadingFallback() {
   const { lang } = useApp();
@@ -134,6 +135,7 @@ export default function AppRouter() {
         <Route path="reports" element={<ProtectedRoute module="reports">{withSuspense(ReportsPage)}</ProtectedRoute>} />
         <Route path="notifications" element={<ProtectedRoute module="communications">{withSuspense(NotificationsPage)}</ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute adminOnly>{withSuspense(SettingsPage)}</ProtectedRoute>} />
+        <Route path="backups" element={<ProtectedRoute adminOnly>{withSuspense(BackupsPage)}</ProtectedRoute>} />
         <Route path="prep-supervisors" element={<ProtectedRoute module="prepSupervisors">{withSuspense(PrepSupervisorsPage)}</ProtectedRoute>} />
         <Route path="supervisors" element={<ProtectedRoute adminOnly>{withSuspense(SupervisorsPage)}</ProtectedRoute>} />
         <Route path="control" element={<ProtectedRoute module="control">{withSuspense(ControlPage)}</ProtectedRoute>} />

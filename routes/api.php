@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\PrepSupervisorController;
 use App\Http\Controllers\Api\VicePrincipalController;
 use App\Http\Controllers\Api\ExportImportController;
+use App\Http\Controllers\Api\BackupController;
 
 
 /*
@@ -162,4 +163,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Vice Principals (Supervisors) - وكلاء المدرسة
     Route::apiResource('vice-principals', VicePrincipalController::class);
+
+    // System Backups - إدارة النسخ الاحتياطي (Admin Only)
+    Route::get('/backups', [BackupController::class, 'index']);
+    Route::post('/backups', [BackupController::class, 'store']);
+    Route::post('/backups/clean', [BackupController::class, 'clean']);
+    Route::delete('/backups/{fileName}', [BackupController::class, 'destroy']);
 });
+
+// Backup archive download (supports Bearer token or ?token= in query string)
+Route::get('/backups/{fileName}/download', [BackupController::class, 'download']);
