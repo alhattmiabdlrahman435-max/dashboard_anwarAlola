@@ -52,32 +52,40 @@ class BackupController extends Controller
         $backups = [];
         $totalBytes = 0;
 
-        if ($disk->exists($backupPath)) {
-            $files = $disk->files($backupPath);
+        try {
+            if ($disk->exists($backupPath)) {
+                $files = $disk->files($backupPath);
 
-            foreach ($files as $file) {
-                if (str_ends_with(strtolower($file), '.zip')) {
-                    $size = $disk->size($file);
-                    $totalBytes += $size;
-                    $lastModified = $disk->lastModified($file);
+                foreach ($files as $file) {
+                    if (str_ends_with(strtolower($file), '.zip')) {
+                        try {
+                            $size = $disk->size($file);
+                            $totalBytes += $size;
+                            $lastModified = $disk->lastModified($file);
 
-                    // Estimate type by size or name
-                    // In general DB-only backup is much smaller (< 50MB) unless large attachments exist
-                    $isDbOnly = $size < (20 * 1024 * 1024);
+                            // Estimate type by size or name
+                            // In general DB-only backup is much smaller (< 50MB) unless large attachments exist
+                            $isDbOnly = $size < (20 * 1024 * 1024);
 
-                    $backups[] = [
-                        'file_name' => basename($file),
-                        'path' => $file,
-                        'size_raw' => $size,
-                        'size_formatted' => $this->formatBytes($size),
-                        'is_db_only' => $isDbOnly,
-                        'type_label' => $isDbOnly ? 'قاعدة البيانات فقط' : 'شامل (قاعدة البيانات + المرفقات)',
-                        'created_at' => Carbon::createFromTimestamp($lastModified)->toIso8601String(),
-                        'created_at_human' => Carbon::createFromTimestamp($lastModified)->diffForHumans(),
-                        'created_at_formatted' => Carbon::createFromTimestamp($lastModified)->format('Y/m/d h:i A'),
-                    ];
+                            $backups[] = [
+                                'file_name' => basename($file),
+                                'path' => $file,
+                                'size_raw' => $size,
+                                'size_formatted' => $this->formatBytes($size),
+                                'is_db_only' => $isDbOnly,
+                                'type_label' => $isDbOnly ? 'قاعدة البيانات فقط' : 'شامل (قاعدة البيانات + المرفقات)',
+                                'created_at' => Carbon::createFromTimestamp($lastModified)->toIso8601String(),
+                                'created_at_human' => Carbon::createFromTimestamp($lastModified)->diffForHumans(),
+                                'created_at_formatted' => Carbon::createFromTimestamp($lastModified)->format('Y/m/d h:i A'),
+                            ];
+                        } catch (\Throwable $fileEx) {
+                            Log::warning("Skipping unreadable backup file: {$file}", ['error' => $fileEx->getMessage()]);
+                        }
+                    }
                 }
             }
+        } catch (\Throwable $dirEx) {
+            Log::error("Backup directory read issue: " . $dirEx->getMessage());
         }
 
         // Sort backups by latest first
