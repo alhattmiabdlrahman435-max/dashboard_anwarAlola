@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\PrepSupervisorController;
 use App\Http\Controllers\Api\VicePrincipalController;
 use App\Http\Controllers\Api\ExportImportController;
 use App\Http\Controllers\Api\BackupController;
+use App\Http\Controllers\Api\GradeExcelController;
 
 
 /*
@@ -109,6 +110,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/grades/control', [GradeController::class, 'control']);
     Route::put('/grades/control/{studentId}', [GradeController::class, 'updateControl']);
     Route::post('/grades/generate-codes', [GradeController::class, 'generateSecretCodes']);
+    Route::get('/grades/excel/template', [GradeExcelController::class, 'exportTemplate']);
+    Route::post('/grades/excel/preview', [GradeExcelController::class, 'previewImport']);
+    Route::post('/grades/excel/confirm', [GradeExcelController::class, 'confirmImport']);
+    // Data Mapping & Reconciliation Wizard
+    Route::post('/grades/excel/inspect', [GradeExcelController::class, 'inspectWorkbook']);
+    Route::post('/grades/excel/map-columns', [GradeExcelController::class, 'mapColumns']);
+    Route::post('/grades/excel/reconcile', [GradeExcelController::class, 'reconcileData']);
+    Route::post('/grades/excel/commit', [GradeExcelController::class, 'commitReconciliation']);
 
     // Reports - البلاغات والتقارير
     Route::apiResource('reports', ReportController::class);

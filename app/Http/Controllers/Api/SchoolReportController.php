@@ -206,11 +206,22 @@ class SchoolReportController extends Controller
                 return array_sum($values);
             };
             $period = static function ($sid, $sub, $t) use ($grades, $monthly): ?array {
-                $values = [];
-                foreach ([1, 2, 3] as $m) $values[] = $monthly($grades["$sid:$sub:$t:$m"] ?? null);
-                $final = $grades["$sid:$sub:$t:0"]->final_exam ?? null;
-                if (in_array(null, $values, true) || $final === null || (float) $final < 0 || (float) $final > 30) return null;
-                $work = round(array_sum($values) / 15, 2);
+                $finalRec = $grades["$sid:$sub:$t:0"] ?? null;
+                $final = $finalRec->final_exam ?? null;
+                if ($final === null || (float) $final < 0 || (float) $final > 30) return null;
+
+                // Priority 1: Direct coursework recorded in month = 0 (Term record)
+                $directWork = $finalRec->coursework ?? null;
+                if ($directWork !== null && (float) $directWork >= 0 && (float) $directWork <= 20) {
+                    $work = round((float) $directWork, 2);
+                } else {
+                    // Priority 2: Fallback to continuous monthly assessments (months 1, 2, 3)
+                    $values = [];
+                    foreach ([1, 2, 3] as $m) $values[] = $monthly($grades["$sid:$sub:$t:$m"] ?? null);
+                    if (in_array(null, $values, true)) return null;
+                    $work = round(array_sum($values) / 15, 2);
+                }
+
                 return ['work' => $work, 'exam' => (float) $final, 'total' => round($work + (float) $final, 2)];
             };
             $rows = [];

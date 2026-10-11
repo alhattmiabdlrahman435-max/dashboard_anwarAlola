@@ -97,6 +97,7 @@ class GradeController extends Controller implements HasMiddleware
                 'oral_grade' => $grade->oral,
                 'wrt_grade' => $grade->written,
                 'final_exam' => $grade->final_exam,
+                'coursework' => $grade->coursework,
                 'is_control' => $grade->is_control,
                 // Calculations mapped for frontend
                 'month_total' => $grade->homework + $grade->attendance + $grade->behavior + $grade->oral + $grade->written,
@@ -581,6 +582,7 @@ class GradeController extends Controller implements HasMiddleware
                         'm2' => ['homework' => 0, 'attendance' => 0, 'behavior' => 0, 'oral' => 0, 'written' => 0],
                         'm3' => ['homework' => 0, 'attendance' => 0, 'behavior' => 0, 'oral' => 0, 'written' => 0],
                         'finalExam' => 0,
+                        'coursework' => null,
                     ];
 
                     $termGrades = $dbGrades->filter(fn($g) => $g->term === $termVal && $g->subject && $g->subject->name_ar === $subjectName);
@@ -596,8 +598,9 @@ class GradeController extends Controller implements HasMiddleware
                                 'written'    => (float)$g->written,
                             ];
                         } else {
-                            // month === 0 means final exam
+                            // month === 0 means final exam & term coursework
                             $gradesMap[$termKey][$subjectName]['finalExam'] = (float)$g->final_exam;
+                            $gradesMap[$termKey][$subjectName]['coursework'] = $g->coursework !== null ? (float)$g->coursework : null;
                         }
                     }
                 }
@@ -659,6 +662,7 @@ class GradeController extends Controller implements HasMiddleware
                 $termRecords[$term] = [
                     'termIndex' => $term,
                     'months' => $months,
+                    'coursework' => ($finalGrade && $finalGrade->coursework !== null) ? (float) $finalGrade->coursework : null,
                     'finalExam' => $finalGrade ? (float) $finalGrade->final_exam : 0.0,
                     'isFinalSaved' => $finalGrade != null,
                 ];

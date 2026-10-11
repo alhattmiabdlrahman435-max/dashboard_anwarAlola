@@ -5,8 +5,9 @@ import { useClasses } from '../contexts/Classes/useClasses';
 import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useSubjects } from '../contexts/Subjects/useSubjects';
-import { Download } from 'lucide-react';
+import { Download, FileSpreadsheet } from 'lucide-react';
 import '../styles/printGrades.css';
+import GradeReconciliationWizard from '../components/grades/GradeReconciliationWizard';
 
 // Screen Views
 import SubjectView from '../components/grades/SubjectView';
@@ -50,6 +51,7 @@ export default function DetailedGradesTab() {
   // State for view controls
   const [viewMode, setViewMode] = useState('class'); // Default to class view for admin reviews
   const [selectedMonth, setSelectedMonth] = useState('m1'); // 'm1', 'm2', 'm3'
+  const [showExcelModal, setShowExcelModal] = useState(false);
 
   // Calculate unique classes list from classes master table
   const classesList = classes.map(c => `${c.grade} - ${c.section}`).sort();
@@ -245,6 +247,30 @@ export default function DetailedGradesTab() {
           📊 {t.detailedGradesTitle}
         </h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Excel Import / Export Button */}
+          <button 
+            type="button"
+            className="btn-primary"
+            onClick={() => setShowExcelModal(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: 'white',
+              border: 'none',
+              padding: '0 14px',
+              height: '38px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+            }}
+          >
+            <FileSpreadsheet size={16} />
+            {lang === 'ar' ? 'استيراد / تصدير كشف الدرجات (Excel)' : 'Excel Grades (Import / Export)'}
+          </button>
+
           {canAction('grades', 'export') && (
             <button 
               className="btn-secondary"
@@ -252,7 +278,7 @@ export default function DetailedGradesTab() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               <Download size={16} />
-              {lang === 'ar' ? 'تصدير الدرجات' : 'Export Grades'}
+              {lang === 'ar' ? 'تصدير CSV' : 'Export CSV'}
             </button>
           )}
 
@@ -558,6 +584,24 @@ export default function DetailedGradesTab() {
 
         </div>
       </div>
+
+      {/* Modern Data Mapping & Reconciliation Wizard */}
+      {showExcelModal && (
+        <GradeReconciliationWizard
+          isOpen={showExcelModal}
+          onClose={() => setShowExcelModal(false)}
+          selectedClassId={selectedClassId}
+          selectedClassName={selectedClassObj ? `${selectedClassObj.grade || selectedClassObj.grade_ar || ''} - ${selectedClassObj.section || selectedClassObj.section_ar || ''}` : selectedClass}
+          selectedTerm={selectedGradeTerm}
+          lang={lang}
+          onImportSuccess={() => {
+            if (selectedClassId) {
+              fetchClassGrades(selectedClassId, selectedGradeTerm);
+            }
+            setToastMessage(lang === 'ar' ? 'تم استيراد وحفظ الدرجات بنجاح وتحديث العرض' : 'Grades successfully imported and updated');
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,1 +1,0 @@
-import{K as e,N as t,W as n}from"./index-C3ZHG8yJ.js";var r=e(n(),1);function i(){let e=(0,r.useContext)(t);if(!e)throw Error(`useReports must be used within a ReportsProvider`);return e}export{i as t};

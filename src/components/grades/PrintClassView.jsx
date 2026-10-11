@@ -427,7 +427,9 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
                         const tm1 = calculateMonthTotal(sData.m1);
                         const tm2 = calculateMonthTotal(sData.m2);
                         const tm3 = calculateMonthTotal(sData.m3);
-                        const avg = parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
+                        const avg = (sData.coursework !== undefined && sData.coursework !== null && sData.coursework !== '')
+                          ? parseFloat(sData.coursework)
+                          : parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
                         const total = parseFloat((avg + (sData.finalExam || 0)).toFixed(2));
                         return (
                           <tr key={subj}>
@@ -628,7 +630,9 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
                     const tm1 = calculateMonthTotal(sData.m1);
                     const tm2 = calculateMonthTotal(sData.m2);
                     const tm3 = calculateMonthTotal(sData.m3);
-                    const avg = parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
+                    const avg = (sData.coursework !== undefined && sData.coursework !== null && sData.coursework !== '')
+                      ? parseFloat(sData.coursework)
+                      : parseFloat(((tm1 + tm2 + tm3) / 15).toFixed(2));
                     const total = parseFloat((avg + (sData.finalExam || 0)).toFixed(2));
                     avgSum += avg;
                     finalSum += sData.finalExam || 0;

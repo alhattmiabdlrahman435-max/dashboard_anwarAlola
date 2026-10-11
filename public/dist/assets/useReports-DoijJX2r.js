@@ -1,0 +1,1 @@
+import{F as e,J as t,K as n}from"./index-hfs6RnD_.js";var r=t(n(),1);function i(){let t=(0,r.useContext)(e);if(!t)throw Error(`useReports must be used within a ReportsProvider`);return t}export{i as t};

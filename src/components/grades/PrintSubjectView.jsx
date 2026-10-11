@@ -32,7 +32,9 @@ export default function PrintSubjectView() {
   const m2_total = calculateMonthTotal(gradesData.m2);
   const m3_total = calculateMonthTotal(gradesData.m3);
   
-  const monthsAverage = parseFloat(((m1_total + m2_total + m3_total) / 15).toFixed(2));
+  const monthsAverage = (gradesData.coursework !== undefined && gradesData.coursework !== null && gradesData.coursework !== '')
+    ? parseFloat(gradesData.coursework)
+    : parseFloat(((m1_total + m2_total + m3_total) / 15).toFixed(2));
   const termTotal = parseFloat((monthsAverage + (gradesData.finalExam || 0)).toFixed(2));
 
   return (

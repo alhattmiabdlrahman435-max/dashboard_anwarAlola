@@ -1,0 +1,1 @@
+import{J as e,K as t,P as n}from"./index-hfs6RnD_.js";var r=e(t(),1);function i(){let e=(0,r.useContext)(n);if(!e)throw Error(`useSettings must be used within a SettingsProvider`);return e}export{i as t};
