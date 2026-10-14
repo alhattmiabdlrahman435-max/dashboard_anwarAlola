@@ -56,6 +56,49 @@ class GradeExcelController extends Controller implements HasMiddleware
     }
 
     /**
+     * Determine if a text cell represents a footer/summary row or repeated header,
+     * without false positives on student names containing words like 'اسماعيل', 'قاسم', 'باسم'.
+     */
+    private function isLikelyFooterOrHeaderRow(?string $rawText): bool
+    {
+        if (!$rawText) return false;
+        $clean = trim($rawText);
+        if ($clean === '') return false;
+
+        $norm = $this->normalizeArabic(mb_strtolower($clean));
+
+        // 1. Exact match with common headers
+        $exactHeaders = [
+            'اسم الطالب', 'اسم التلميذ', 'الاسم', 'اسم', 'student name', 'name',
+            'رقم الطالب', 'كود الطالب', 'معرف النظام', 'student code', 'code', 'id',
+            'م', 'ت', 'الرقم', 'تسلسل', 'مسلسل', 'no', '#'
+        ];
+        if (in_array($norm, $exactHeaders, true)) {
+            return true;
+        }
+
+        // 2. Exact or prefix match with footer/summary labels
+        $footerKeywords = [
+            'المجموع', 'مجموع', 'مجموع الدرجات', 'المجموع الكلي', 'المحصلة',
+            'نسبة النجاح', 'نسبة الرسوب', 'النسبة المئوية', 'النسبة', 'نسبه',
+            'عدد الطلاب', 'عدد الطلبة', 'العدد الكلي', 'عدد الحضور', 'عدد الغياب', 'اجمالي الطلاب',
+            'الراسبين', 'الراسبون', 'الناجحين', 'الناجحون', 'المكملين',
+            'توقيع المعلم', 'توقيع المدرس', 'اسم المعلم', 'مدرس المادة', 'معلم المادة',
+            'مدير المدرسة', 'وكيل المدرسة', 'رئيس الكنترول', 'لجنة الرصد', 'يعتمد',
+            'المتوسط', 'معدل الدرجات', 'المعدل', 'اعلى درجة', 'اقل درجة'
+        ];
+
+        foreach ($footerKeywords as $kw) {
+            $kwNorm = $this->normalizeArabic($kw);
+            if ($norm === $kwNorm || str_starts_with($norm, $kwNorm . ' ') || str_starts_with($norm, $kwNorm . ':')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Smart subject recognition from Excel header text
      */
     private function matchSubjectByHeader(string $headerText, $allSubjects): ?Subject
@@ -637,6 +680,21 @@ class GradeExcelController extends Controller implements HasMiddleware
 
         // Process Data Rows
         $dataStartRow = $subHeaderRow + 1;
+        if ($subHeaderRow <= $highestRow) {
+            $candidateName = $nameCol ? trim((string) $sheet->getCell([$nameCol, $subHeaderRow])->getValue()) : '';
+            $candidateCode = $codeCol ? trim((string) $sheet->getCell([$codeCol, $subHeaderRow])->getValue()) : '';
+            $candidateId = $idCol ? trim((string) $sheet->getCell([$idCol, $subHeaderRow])->getValue()) : '';
+            $candidateNorm = $this->normalizeArabic($candidateName);
+
+            $isKnownStudent = ($candidateId !== '' && is_numeric($candidateId) && isset($studentsById[(int)$candidateId]))
+                || ($candidateCode !== '' && isset($studentsByCode[$candidateCode]))
+                || ($candidateName !== '' && isset($studentsByNormName[$candidateNorm]));
+
+            if ($isKnownStudent) {
+                $dataStartRow = $subHeaderRow;
+            }
+        }
+
         $previewRows = [];
         $errors = [];
         $warnings = [];
@@ -686,9 +744,7 @@ class GradeExcelController extends Controller implements HasMiddleware
             }
 
             if (!$student) {
-                $normRawName = $this->normalizeArabic($rawName);
-                $isFooterRow = str_contains($normRawName, 'عدد') || str_contains($normRawName, 'نسبه') || str_contains($normRawName, 'مجموع') || str_contains($normRawName, 'اسم') || str_contains($normRawName, 'راسب') || str_contains($normRawName, 'ناجح');
-                if ($rawName !== '' && !$isFooterRow) {
+                if ($rawName !== '' && !$this->isLikelyFooterOrHeaderRow($rawName)) {
                     $unmatchedRowsCount++;
                     $warnings[] = "السطر {$r}: الطالب ({$rawName}) غير مسجل في هذه الشعبة بالنظام وتم تخطيه.";
                 }
@@ -1257,26 +1313,47 @@ class GradeExcelController extends Controller implements HasMiddleware
         // Filter active mappings (included only)
         $activeMappings = array_filter($mappings, fn($m) => !empty($m['is_included']));
 
-        // Find header row
+        // Find header row and determine data start row
         $headerRow = (int) $request->input('header_row', 7);
         $highestRow = $sheet->getHighestRow();
+
+        // Determine whether $headerRow + 1 is a sub-header row or data row
+        $dataStartRow = $headerRow + 1;
+        if ($dataStartRow <= $highestRow) {
+            $candidateName = $nameCol ? trim((string) $sheet->getCell([$nameCol, $dataStartRow])->getValue()) : '';
+            $candidateCode = $codeCol ? trim((string) $sheet->getCell([$codeCol, $dataStartRow])->getValue()) : '';
+            $candidateId = $idCol ? trim((string) $sheet->getCell([$idCol, $dataStartRow])->getValue()) : '';
+            $candidateNorm = $this->normalizeArabic($candidateName);
+
+            $isKnownStudent = ($candidateId !== '' && is_numeric($candidateId) && isset($studentsById[(int)$candidateId]))
+                || ($candidateCode !== '' && isset($studentsByCode[$candidateCode]))
+                || ($candidateName !== '' && isset($studentsByNormName[$candidateNorm]));
+
+            $isSubHeader = $this->isLikelyFooterOrHeaderRow($candidateName)
+                || in_array(strtolower($candidateName), ['student name', 'name', 'code', 'id'])
+                || str_contains($candidateNorm, 'اعمال')
+                || str_contains($candidateNorm, 'اختبار')
+                || str_contains($candidateNorm, 'مخفي');
+
+            if ($isSubHeader && !$isKnownStudent) {
+                $dataStartRow = $headerRow + 2;
+            }
+        }
 
         $reconciledRows = [];
         $matchedSystemStudentIds = [];
         $totalGradesFound = 0;
 
-        for ($r = $headerRow + 2; $r <= $highestRow; $r++) {
+        for ($r = $dataStartRow; $r <= $highestRow; $r++) {
             $rawId = $idCol ? trim((string) $sheet->getCell([$idCol, $r])->getValue()) : '';
             $rawCode = $codeCol ? trim((string) $sheet->getCell([$codeCol, $r])->getValue()) : '';
-            $rawName = trim((string) $sheet->getCell([$nameCol, $r])->getValue());
+            $rawName = $nameCol ? trim((string) $sheet->getCell([$nameCol, $r])->getValue()) : '';
 
             if ($rawId === '' && $rawCode === '' && $rawName === '') continue;
 
             $normRawName = $this->normalizeArabic($rawName);
-            $isFooterRow = str_contains($normRawName, 'عدد') || str_contains($normRawName, 'نسبه') || str_contains($normRawName, 'مجموع') || str_contains($normRawName, 'اسم') || str_contains($normRawName, 'راسب') || str_contains($normRawName, 'ناجح');
-            if ($isFooterRow) continue;
 
-            // Student Entity Resolution
+            // Student Entity Resolution (TRY MATCHING FIRST)
             $matchedStudent = null;
             $confidence = 'none';
 
@@ -1307,6 +1384,11 @@ class GradeExcelController extends Controller implements HasMiddleware
                         }
                     }
                 }
+            }
+
+            // Only if NOT matched, check if it's a footer row or repeated header
+            if (!$matchedStudent && $this->isLikelyFooterOrHeaderRow($rawName)) {
+                continue;
             }
 
             if ($matchedStudent) {
