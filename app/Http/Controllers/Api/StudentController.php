@@ -50,6 +50,21 @@ class StudentController extends Controller implements HasMiddleware
         if ($request->filled('parent_id')) {
             $query->where('parent_id', $request->input('parent_id'));
         }
+        if ($request->filled('status') && $request->input('status') !== 'all') {
+            $statusParam = $request->input('status');
+            $todayDate = today()->toDateString();
+            if ($statusParam === 'present') {
+                $query->whereHas('attendances', function($aq) use ($todayDate) {
+                    $aq->where('record_date', $todayDate)
+                       ->whereIn('status', ['present', 'late']);
+                });
+            } elseif ($statusParam === 'absent') {
+                $query->whereDoesntHave('attendances', function($aq) use ($todayDate) {
+                    $aq->where('record_date', $todayDate)
+                       ->whereIn('status', ['present', 'late']);
+                });
+            }
+        }
 
         // Apply search
         $search = $request->input('search');

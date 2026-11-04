@@ -45,15 +45,23 @@ class TeacherController extends Controller implements HasMiddleware
         }
 
         // Apply filters
-        if ($request->filled('class_id')) {
-            $query->whereHas('teacherSubjects', function($q) use ($request) {
-                $q->where('class_id', $request->input('class_id'));
-            });
+        if ($request->filled('class_id') && $request->input('class_id') !== 'all') {
+            $rawClassId = (string) $request->input('class_id');
+            $classId = preg_replace('/\D/', '', $rawClassId);
+            if ($classId !== '') {
+                $query->whereHas('teacherSubjects', function($q) use ($classId) {
+                    $q->where('class_id', (int) $classId);
+                });
+            }
         }
-        if ($request->filled('subject_id')) {
-            $query->whereHas('teacherSubjects', function($q) use ($request) {
-                $q->where('subject_id', $request->input('subject_id'));
-            });
+        if ($request->filled('subject_id') && $request->input('subject_id') !== 'all') {
+            $rawSubjectId = (string) $request->input('subject_id');
+            $subjectId = preg_replace('/\D/', '', $rawSubjectId);
+            if ($subjectId !== '') {
+                $query->whereHas('teacherSubjects', function($q) use ($subjectId) {
+                    $q->where('subject_id', (int) $subjectId);
+                });
+            }
         }
 
         // Apply search

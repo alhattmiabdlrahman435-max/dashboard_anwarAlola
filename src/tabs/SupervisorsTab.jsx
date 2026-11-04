@@ -8,7 +8,7 @@ const ALL_MODULES = [
   { key: 'students', labelAr: 'الطلاب', labelEn: 'Students', actions: ['view', 'create', 'update', 'delete', 'export', 'import'], hasScope: true },
   { key: 'parents', labelAr: 'أولياء الأمور', labelEn: 'Parents', actions: ['view', 'create', 'update', 'delete', 'export', 'import'], hasScope: true },
   { key: 'teachers', labelAr: 'المعلمون', labelEn: 'Teachers', actions: ['view', 'create', 'update', 'delete', 'export', 'import'], hasScope: true },
-  { key: 'prepSupervisors', labelAr: 'مشرفو التحضير', labelEn: 'Prep Supervisors', actions: ['view', 'create', 'update', 'delete'] },
+  { key: 'prepSupervisors', labelAr: 'مشرفو التحضير', labelEn: 'Prep Supervisors', actions: ['view', 'create', 'update', 'delete', 'export', 'import'] },
   { key: 'classes', labelAr: 'الفصول الدراسية', labelEn: 'Classes', actions: ['view', 'create', 'update', 'delete'], hasScope: true },
   { key: 'subjects', labelAr: 'المواد الدراسية', labelEn: 'Subjects', actions: ['view', 'create', 'update', 'delete'] },
   { key: 'schedule', labelAr: 'الجدول الدراسي', labelEn: 'Timetable', actions: ['view', 'create', 'update', 'delete'], hasScope: true },

@@ -29,11 +29,28 @@ export default function AssignmentsTab() {
   } = useApp();
 
   const { allowedClasses, allowedGrades: availableGrades, allowedSections: availableSections } = useAllowedClasses('assignments');
-  const { fetchClasses } = useClasses();
+  const { classes, fetchClasses } = useClasses();
   const { subjects, fetchSubjects } = useSubjects();
   const { teachers, setTeachers, fetchTeachers } = useTeachers();
   const { students, fetchStudents } = useStudents();
   const { setSmsLogs } = useNotifications();
+
+  const getLocalTodayStr = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getLocalYesterdayStr = () => {
+    const yest = new Date();
+    yest.setDate(yest.getDate() - 1);
+    const yyyy = yest.getFullYear();
+    const mm = String(yest.getMonth() + 1).padStart(2, '0');
+    const dd = String(yest.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   const {
     page,
@@ -48,8 +65,18 @@ export default function AssignmentsTab() {
     goToPrevIfEmpty,
   } = usePagination({
     moduleKey: 'assignments',
-    defaultFilters: { teacher_id: '', subject_id: '', class_id: '' }
+    defaultFilters: { teacher_id: '', subject_id: '', class_id: '', date: getLocalTodayStr() }
   });
+
+  // Auto-activate today's date upon opening Assignments Platform
+  useEffect(() => {
+    const todayStr = getLocalTodayStr();
+    setFilters((prev) => ({
+      ...prev,
+      date: todayStr,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const qs = buildQueryString();
 
@@ -101,7 +128,7 @@ export default function AssignmentsTab() {
   };
 
   const shiftDate = (days) => {
-    const base = filterDate ? new Date(filterDate) : new Date();
+    const base = filterDate ? new Date(`${filterDate}T00:00:00`) : new Date();
     base.setDate(base.getDate() + days);
     const yyyy = base.getFullYear();
     const mm = String(base.getMonth() + 1).padStart(2, '0');
@@ -111,15 +138,9 @@ export default function AssignmentsTab() {
 
   const setQuickDate = (type) => {
     if (type === 'today') {
-      const today = new Date().toISOString().split('T')[0];
-      handleFilterDate(today);
+      handleFilterDate(getLocalTodayStr());
     } else if (type === 'yesterday') {
-      const yest = new Date();
-      yest.setDate(yest.getDate() - 1);
-      const yyyy = yest.getFullYear();
-      const mm = String(yest.getMonth() + 1).padStart(2, '0');
-      const dd = String(yest.getDate()).padStart(2, '0');
-      handleFilterDate(`${yyyy}-${mm}-${dd}`);
+      handleFilterDate(getLocalYesterdayStr());
     } else if (type === 'all') {
       handleFilterDate('');
     }
@@ -178,6 +199,37 @@ export default function AssignmentsTab() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredAssignments.length]);
 
+  // Derive all grades & sections from allowedClasses + availableGrades/Sections so Admin has every grade & section
+  const allModalGrades = Array.from(new Set([
+    ...(allowedClasses || []).map(c => c.grade_ar || c.grade).filter(Boolean),
+    ...(availableGrades || []),
+  ]));
+
+  const sectionsForSelectedGrade = Array.from(new Set(
+    (allowedClasses || [])
+      .filter(c => (c.grade_ar || c.grade) === modalAssignmentGrade)
+      .map(c => c.section_ar || c.section)
+      .filter(Boolean)
+  ));
+
+  const allModalSections = Array.from(new Set([
+    ...sectionsForSelectedGrade,
+    ...(availableSections || []),
+  ]));
+
+  // Keep modal grade & section synced with available options
+  useEffect(() => {
+    if (allModalGrades.length > 0 && !allModalGrades.includes(modalAssignmentGrade)) {
+      setModalAssignmentGrade(allModalGrades[0]);
+    }
+  }, [allModalGrades, modalAssignmentGrade]);
+
+  useEffect(() => {
+    if (sectionsForSelectedGrade.length > 0 && !sectionsForSelectedGrade.includes(modalAssignmentSection)) {
+      setModalAssignmentSection(sectionsForSelectedGrade[0]);
+    }
+  }, [modalAssignmentGrade, sectionsForSelectedGrade, modalAssignmentSection]);
+
   // CRUD Handlers
   const handleAddAssignment = async (e) => {
     e.preventDefault();
@@ -187,15 +239,17 @@ export default function AssignmentsTab() {
       return;
     }
 
-    // Find class_id
-    const targetClass = classes?.find(
-      (c) => c.grade_ar === modalAssignmentGrade && c.section_ar === modalAssignmentSection
+    // Find class_id from classes or allowedClasses
+    const allClassPool = [...(allowedClasses || []), ...(classes || [])];
+    const targetClass = allClassPool.find(
+      (c) =>
+        (c.grade === modalAssignmentGrade || c.grade_ar === modalAssignmentGrade) &&
+        (c.section === modalAssignmentSection || c.section_ar === modalAssignmentSection)
     );
-    if (!targetClass) {
-      setToastMessage(lang === 'ar' ? 'الصف المحدد غير موجود في قاعدة البيانات' : 'Selected class not found in DB');
-      setTimeout(() => setToastMessage(''), 3000);
-      return;
-    }
+
+    const numericClassId = targetClass
+      ? Number(targetClass.numericId || String(targetClass.id).replace(/\D/g, ''))
+      : null;
 
     // Find subject_id
     const targetSubject = subjects?.find(
@@ -207,13 +261,20 @@ export default function AssignmentsTab() {
       return;
     }
 
+    const numericSubjectId = Number(targetSubject.numericId || String(targetSubject.id).replace(/\D/g, ''));
+
     try {
+      const createdDateStr = filterDate || getLocalTodayStr();
       const res = await api.post('/api/assignments', {
-        class_id: targetClass.id,
-        subject_id: targetSubject.id,
+        class_id: numericClassId || undefined,
+        grade_ar: modalAssignmentGrade,
+        section_ar: modalAssignmentSection,
+        subject_id: numericSubjectId,
         title: modalAssignmentTitle,
         content: modalAssignmentContent,
         due_date: modalAssignmentDueDate,
+        date_created: createdDateStr,
+        attachment_url: modalAssignmentAttachment.trim() || null,
       });
 
       if (res.success) {
@@ -232,7 +293,7 @@ export default function AssignmentsTab() {
           teacherId: matchingTeacher ? matchingTeacher.id : null,
           title: modalAssignmentTitle,
           content: modalAssignmentContent,
-          dateCreated: new Date().toISOString().split('T')[0],
+          dateCreated: createdDateStr,
           dueDate: modalAssignmentDueDate,
           attachments: modalAssignmentAttachment.trim() ? [modalAssignmentAttachment.trim()] : [],
           submissions: students
@@ -243,6 +304,8 @@ export default function AssignmentsTab() {
         setAssignments(prev => [newAssignment, ...prev]);
         setSelectedAssignmentId(newId);
         setShowAssignmentModal(false);
+        fetchClasses(true);
+        fetchAssignments(buildQueryString());
         
         if (matchingTeacher) {
           setTeachers(prev => prev.map(t => {
@@ -291,19 +354,21 @@ export default function AssignmentsTab() {
 
   // Update Assignment Submissions
   const handleUpdateSubmissionStatus = (assignmentId, studentId, newStatus, note) => {
+    const normalizedStudentId = Number(studentId);
     setAssignments(prev => prev.map(assign => {
       if (assign.id === assignmentId) {
-        const updatedSubs = assign.submissions.map(sub => {
-          if (sub.studentId === studentId) {
+        const currentSubs = assign.submissions || [];
+        const updatedSubs = currentSubs.map(sub => {
+          if (Number(sub.studentId) === normalizedStudentId) {
             return { ...sub, status: newStatus, teacherNote: note };
           }
           return sub;
         });
-        const exists = assign.submissions.some(sub => sub.studentId === studentId);
+        const exists = currentSubs.some(sub => Number(sub.studentId) === normalizedStudentId);
         if (!exists) {
-          const student = students.find(s => s.id === studentId);
+          const student = students.find(s => Number(s.id) === normalizedStudentId);
           updatedSubs.push({
-            studentId,
+            studentId: normalizedStudentId,
             studentName: student ? student.name : '',
             status: newStatus,
             teacherNote: note
@@ -484,7 +549,7 @@ export default function AssignmentsTab() {
             <div style={{ display: 'flex', gap: '4px', marginInlineStart: '4px' }}>
               <button
                 type="button"
-                className={`chip ${filterDate === new Date().toISOString().split('T')[0] ? 'selected' : ''}`}
+                className={`chip ${filterDate === getLocalTodayStr() ? 'selected' : ''}`}
                 onClick={() => setQuickDate('today')}
                 style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
               >
@@ -492,7 +557,7 @@ export default function AssignmentsTab() {
               </button>
               <button
                 type="button"
-                className="chip"
+                className={`chip ${filterDate === getLocalYesterdayStr() ? 'selected' : ''}`}
                 onClick={() => setQuickDate('yesterday')}
                 style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
               >
@@ -747,15 +812,23 @@ export default function AssignmentsTab() {
         const selectedAssign = assignments.find(a => a.id === selectedAssignmentId);
         if (!selectedAssign) return null;
         const classStudents = students.filter(s => s.grade === selectedAssign.grade && s.section === selectedAssign.section);
-        // If the filter returns no students, fallback to using submission data directly
-        const displayStudents = classStudents.length > 0
-          ? classStudents
-          : (selectedAssign.submissions || []).map(sub => ({
-              id: sub.studentId,
-              name: sub.studentName || `طالب #${sub.studentId}`,
-              nameEn: sub.studentNameEn || sub.studentName || `Student #${sub.studentId}`,
-              photo: null
-            }));
+        const subStudents = (selectedAssign.submissions || []).map(sub => {
+          const matchedStudent = students.find(st => Number(st.id) === Number(sub.studentId));
+          return {
+            id: Number(sub.studentId),
+            name: matchedStudent?.name || sub.studentName || `طالب #${sub.studentId}`,
+            nameEn: matchedStudent?.nameEn || sub.studentNameEn || sub.studentName || `Student #${sub.studentId}`,
+            photo: matchedStudent?.photo || null
+          };
+        });
+        const mergedStudentsMap = new Map();
+        subStudents.forEach(st => mergedStudentsMap.set(Number(st.id), st));
+        classStudents.forEach(st => {
+          if (!mergedStudentsMap.has(Number(st.id))) {
+            mergedStudentsMap.set(Number(st.id), st);
+          }
+        });
+        const displayStudents = Array.from(mergedStudentsMap.values());
         const submittedCount = selectedAssign.submissions?.filter(s => s.status === 'submitted' || s.status === 'submittedLate').length || 0;
         const totalCount = displayStudents.length;
         return (
@@ -817,7 +890,7 @@ export default function AssignmentsTab() {
                     </thead>
                     <tbody>
                       {displayStudents.map(student => {
-                        const submission = selectedAssign.submissions?.find(sub => sub.studentId === student.id) || { status: 'notSubmitted', teacherNote: '' };
+                        const submission = selectedAssign.submissions?.find(sub => Number(sub.studentId) === Number(student.id)) || { status: 'notSubmitted', teacherNote: '' };
                         return (
                           <tr key={student.id}>
                             <td>
@@ -842,7 +915,7 @@ export default function AssignmentsTab() {
                             <td>
                               <input
                                 type="text"
-                                placeholder={lang === 'ar' ? 'ملاحظة المعلم...' : 'Teacher note...'}
+                                placeholder={lang === 'ar' ? 'ملاحظة المعلم (تظهر لولي الأمر عند التسليم أو عدمه)...' : 'Teacher note...'}
                                 value={submission.teacherNote || ''}
                                 onChange={(e) => handleUpdateSubmissionStatus(selectedAssign.id, student.id, submission.status, e.target.value)}
                                 disabled={!canAction('assignments', 'update')}
@@ -867,15 +940,19 @@ export default function AssignmentsTab() {
                     className="btn-filled"
                     onClick={async () => {
                       try {
-                        const payload = (selectedAssign.submissions || []).map(sub => ({
-                          student_id: sub.studentId,
-                          status: sub.status === 'submittedLate' ? 'submitted_late' : (sub.status === 'submitted' ? 'submitted' : 'not_submitted'),
-                          teacher_note: sub.teacherNote || ''
-                        }));
+                        const payload = displayStudents.map(student => {
+                          const sub = (selectedAssign.submissions || []).find(s => Number(s.studentId) === Number(student.id)) || { status: 'notSubmitted', teacherNote: '' };
+                          return {
+                            student_id: Number(student.id),
+                            status: sub.status === 'submittedLate' ? 'submitted_late' : (sub.status === 'submitted' ? 'submitted' : 'not_submitted'),
+                            teacher_note: sub.teacherNote || ''
+                          };
+                        });
                         const res = await api.put(`/api/assignments/${selectedAssign.id}/submissions`, { submissions: payload });
                         if (res.success) {
                           setToastMessage(res.message || (lang === 'ar' ? 'تم حفظ بيانات التسليمات بنجاح!' : 'Submissions saved!'));
                           setShowSubmissionsModal(false);
+                          fetchAssignments(buildQueryString());
                         } else {
                           setToastMessage(res.message || (lang === 'ar' ? 'فشل الحفظ' : 'Save failed'));
                         }
@@ -921,7 +998,7 @@ export default function AssignmentsTab() {
                       onChange={(e) => setModalAssignmentGrade(e.target.value)}
                       className="text-field"
                     >
-                      {availableGrades.map(g => (
+                      {allModalGrades.map(g => (
                         <option key={g} value={g}>{g}</option>
                       ))}
                     </select>
@@ -933,7 +1010,7 @@ export default function AssignmentsTab() {
                       onChange={(e) => setModalAssignmentSection(e.target.value)}
                       className="text-field"
                     >
-                      {availableSections.map(s => {
+                      {allModalSections.map(s => {
                         const secMap = { 'أ': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'هـ': 'E', 'و': 'F', 'ز': 'G' };
                         return (
                           <option key={s} value={s}>{lang === 'ar' ? s : (secMap[s] || s)}</option>

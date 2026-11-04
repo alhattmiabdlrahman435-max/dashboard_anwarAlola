@@ -43,9 +43,12 @@ class ParentController extends Controller implements HasMiddleware
 
         // Apply filters
         if ($request->filled('class_id')) {
-            $query->whereHas('children', function($q) use ($request) {
-                $q->where('class_id', $request->input('class_id'));
-            });
+            $classId = preg_replace('/\D/', '', (string) $request->input('class_id'));
+            if (!empty($classId)) {
+                $query->whereHas('children', function($q) use ($classId) {
+                    $q->where('class_id', $classId);
+                });
+            }
         }
 
         // Apply search

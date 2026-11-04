@@ -119,9 +119,9 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
   const debounceRef = useRef(null);
 
   // ── Stable ref: always holds latest state without causing dep churn ──
-  const stateRef = useRef({ page, perPage, search, sort, direction, filters, defaultPerPage });
+  const stateRef = useRef({ page, perPage, search, sort, direction, filters, defaultPerPage, hasMountedUrlSync: false });
   useEffect(() => {
-    stateRef.current = { page, perPage, search, sort, direction, filters, defaultPerPage };
+    stateRef.current = { ...stateRef.current, page, perPage, search, sort, direction, filters, defaultPerPage };
   }); // no deps — runs after every render to stay current
 
   // ── Sync sessionStorage whenever page / perPage change ──
@@ -131,6 +131,11 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
 
   // ── Re-sync local state when URL changes (Back / Forward navigation) ──
   useEffect(() => {
+    if (!stateRef.current.hasMountedUrlSync) {
+      stateRef.current.hasMountedUrlSync = true;
+      return;
+    }
+
     const urlPage = parseInt(searchParams.get('page'), 10);
     if (!isNaN(urlPage) && urlPage > 0 && urlPage !== stateRef.current.page) {
       _setPage(urlPage);
@@ -148,12 +153,14 @@ export function usePagination({ moduleKey, defaultFilters = {}, defaultPerPage =
     const urlDir = searchParams.get('direction') || 'desc';
     if (urlDir !== stateRef.current.direction) _setDir(urlDir);
 
-    // ── FIX: also sync filters from URL (was missing before) ──
+    // ── Sync filters from URL when URL has parameters ──
+    const hasAnyUrlParams = searchParams.toString().length > 0;
     const currentFilters = stateRef.current.filters;
     const newFilters = { ...currentFilters };
     let filtersChanged = false;
     Object.keys(defaultFilters).forEach((k) => {
-      const v = searchParams.get(k) ?? '';
+      const paramVal = searchParams.get(k);
+      const v = paramVal !== null ? paramVal : (hasAnyUrlParams ? '' : (defaultFilters[k] ?? ''));
       if (v !== (currentFilters[k] ?? '')) {
         newFilters[k] = v;
         filtersChanged = true;

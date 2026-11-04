@@ -39,6 +39,23 @@ export default function AbsenceRequestsTab() {
 
   const { students, handleManualAttendanceNoteChange, fetchStudents } = useStudents();
 
+  const getLocalTodayStr = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getLocalYesterdayStr = () => {
+    const yest = new Date();
+    yest.setDate(yest.getDate() - 1);
+    const yyyy = yest.getFullYear();
+    const mm = String(yest.getMonth() + 1).padStart(2, '0');
+    const dd = String(yest.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const {
     page,
     perPage,
@@ -55,7 +72,7 @@ export default function AbsenceRequestsTab() {
     goToPrevIfEmpty,
   } = usePagination({
     moduleKey: 'absence_requests',
-    defaultFilters: { status: 'pending', date: new Date().toISOString().split('T')[0], class_id: '' }
+    defaultFilters: { status: 'pending', date: getLocalTodayStr(), class_id: '' }
   });
 
   // Local tab/filters states
@@ -86,13 +103,18 @@ export default function AbsenceRequestsTab() {
   useEffect(() => {
     if (absenceSubTab === 'roster' && activeClass) {
       // Load all students for the class roster
-      fetchStudents(`?class_id=${activeClass.id}&per_page=100`);
+      const cleanClassId = activeClass.numericId || String(activeClass.id).replace(/\D/g, '');
+      fetchStudents(`?class_id=${cleanClassId}&per_page=100`);
     }
   }, [absenceSubTab, activeClass, fetchStudents]);
 
   useEffect(() => {
+    const todayStr = getLocalTodayStr();
+    setAttendanceRosterDate(todayStr);
+    setFilters({ status: 'all', date: todayStr, class_id: '' });
     fetchClasses();
-  }, [fetchClasses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const absenceFilter = filters.status || 'pending';
   const filterDate = filters.date || '';
   const filterClassId = filters.class_id || 'all';
@@ -104,7 +126,7 @@ export default function AbsenceRequestsTab() {
   };
 
   const shiftDate = (days) => {
-    const base = filterDate ? new Date(filterDate) : new Date();
+    const base = filterDate ? new Date(`${filterDate}T00:00:00`) : new Date();
     base.setDate(base.getDate() + days);
     const yyyy = base.getFullYear();
     const mm = String(base.getMonth() + 1).padStart(2, '0');
@@ -114,17 +136,11 @@ export default function AbsenceRequestsTab() {
 
   const setQuickDate = (type) => {
     if (type === 'today') {
-      const today = new Date().toISOString().split('T')[0];
-      setFilters({ ...filters, date: today });
+      setFilters({ ...filters, date: getLocalTodayStr() });
     } else if (type === 'yesterday') {
-      const yest = new Date();
-      yest.setDate(yest.getDate() - 1);
-      const yyyy = yest.getFullYear();
-      const mm = String(yest.getMonth() + 1).padStart(2, '0');
-      const dd = String(yest.getDate()).padStart(2, '0');
-      setFilters({ ...filters, date: `${yyyy}-${mm}-${dd}` });
+      setFilters({ ...filters, date: getLocalYesterdayStr() });
     } else if (type === 'all') {
-      setFilters({ ...filters, date: '' });
+      setFilters({ ...filters, date: '', status: 'all' });
     }
   };
 
@@ -273,7 +289,7 @@ export default function AbsenceRequestsTab() {
                 <div style={{ display: 'flex', gap: '4px', marginInlineStart: '4px' }}>
                   <button
                     type="button"
-                    className={`chip ${filterDate === new Date().toISOString().split('T')[0] ? 'selected' : ''}`}
+                    className={`chip ${filterDate === getLocalTodayStr() ? 'selected' : ''}`}
                     onClick={() => setQuickDate('today')}
                     style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
                   >
@@ -281,7 +297,7 @@ export default function AbsenceRequestsTab() {
                   </button>
                   <button
                     type="button"
-                    className="chip"
+                    className={`chip ${filterDate === getLocalYesterdayStr() ? 'selected' : ''}`}
                     onClick={() => setQuickDate('yesterday')}
                     style={{ margin: 0, padding: '4px 10px', fontSize: '11px', border: 'none' }}
                   >
@@ -343,11 +359,11 @@ export default function AbsenceRequestsTab() {
                   className={`chip ${absenceFilter === 'pending' ? 'selected' : ''}`}
                   onClick={() => setFilters({ ...filters, status: 'pending' })}
                 >
-                  ⏳ {t.pendingStatus} ({pendingRequestsCount})
+                  ⏳ {t.pendingStatus}
                 </button>
                 <button 
-                  className={`chip ${absenceFilter === 'all' ? 'selected' : ''}`}
-                  onClick={() => setFilters({ ...filters, status: 'all' })}
+                  className={`chip ${absenceFilter === 'all' && !filterDate ? 'selected' : ''}`}
+                  onClick={() => setFilters({ ...filters, status: 'all', date: '' })}
                 >
                   🗂️ {t.filterAll} ({absenceRequestsPagination.total})
                 </button>
@@ -395,7 +411,7 @@ export default function AbsenceRequestsTab() {
                     <table className="students-table">
                       <thead>
                         <tr>
-                          <th>{t.studentName}</th>
+                          <th className="sticky-col-name">{t.studentName}</th>
                           <th 
                             onClick={toggleDateSort}
                             style={{ cursor: 'pointer', userSelect: 'none' }}
@@ -413,12 +429,12 @@ export default function AbsenceRequestsTab() {
                       </thead>
                       <tbody>
                         {filteredRequests.map((req) => {
-                          const student = students.find(s => s.id === req.studentId);
+                          const student = students.find(s => String(s.id) === String(req.studentId));
                           return (
                             <tr key={req.id}>
-                              <td>
+                              <td className="sticky-col-name">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  {renderAvatar(student?.photo, "👨‍🎓")}
+                                  {renderAvatar(student?.photo || req.studentPhoto, "👨‍🎓")}
                                   <div>
                                     <div style={{ fontWeight: 'bold', fontSize: '13px' }}>
                                       {lang === 'ar' ? (student?.name || req.studentName) : (student?.nameEn || req.studentNameEn || req.studentName)}
@@ -567,8 +583,8 @@ export default function AbsenceRequestsTab() {
                   <table className="students-table">
                     <thead>
                       <tr>
-                        <th>{t.studentId}</th>
-                        <th>{t.studentName}</th>
+                        <th className="sticky-col-1">{t.studentId}</th>
+                        <th className="sticky-col-2">{t.studentName}</th>
                         <th>{lang === 'ar' ? 'الحالة الحالية' : 'Current Status'}</th>
                         <th>{lang === 'ar' ? 'ملاحظة المعلم' : 'Teacher Note'}</th>
                         <th className="no-print" style={{ textAlign: 'center' }}>{lang === 'ar' ? 'رصد وتحديث الحضور' : 'Mark Attendance'}</th>
@@ -580,8 +596,8 @@ export default function AbsenceRequestsTab() {
                         const hasExcuse = absenceRequests.some(r => r.studentId === student.id && r.requestedDate === attendanceRosterDate && r.status === 'approved');
                         return (
                           <tr key={student.id}>
-                            <td style={{ fontFamily: 'var(--font-mono)' }}>{student.id}</td>
-                            <td style={{ fontWeight: '600' }}>
+                            <td className="sticky-col-1" style={{ fontFamily: 'var(--font-mono)' }}>{student.id}</td>
+                            <td className="sticky-col-2" style={{ fontWeight: '600' }}>
                               {renderAvatar(student.photo, '👨‍🎓')}
                               {lang === 'ar' ? student.name : student.nameEn}
                             </td>

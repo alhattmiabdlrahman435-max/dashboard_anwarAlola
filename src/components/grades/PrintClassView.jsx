@@ -156,7 +156,7 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
                 {classSubjectsList.map((subj, idx) => {
                   const subColWidth = `${64 / Math.max(classSubjectsList.length, 1)}%`;
                   return (
-                    <th key={idx} style={{ width: subColWidth, border: '1px solid #64748b', padding: '4px 2px', textAlign: 'center', fontWeight: '700', color: '#0f172a', fontSize: '9px', lineHeight: 1.15 }}>
+                    <th key={idx} style={{ width: subColWidth, border: '1px solid #64748b', padding: '4px 2px', textAlign: 'center', fontWeight: '700', color: '#0f172a', fontSize: '9px', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
                       {subj}
                     </th>
                   );
@@ -203,7 +203,7 @@ export default function PrintClassView({ selectedClass, classPeriod, classSubjec
                   return (
                     <tr key={s.id} style={{ height: '22px' }}>
                       <td style={{ border: '1px solid #cbd5e1', padding: '3px 2px', textAlign: 'center' }}>{index + 1}</td>
-                      <td className="student-name-cell" style={{ border: '1px solid #cbd5e1', padding: '3px 4px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td className="student-name-cell" style={{ border: '1px solid #cbd5e1', padding: '3px 4px', fontWeight: '600', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                         {lang === 'ar' ? s.name : (s.nameEn || s.name)}
                       </td>
                       {subjectVals.map((val, vIdx) => (

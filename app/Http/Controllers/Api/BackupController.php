@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\AcademicYearArchiveService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -57,15 +58,23 @@ class BackupController extends Controller
                 $files = $disk->files($backupPath);
 
                 foreach ($files as $file) {
-                    if (str_ends_with(strtolower($file), '.zip')) {
+                    $lowerFile = strtolower($file);
+                    if (str_ends_with($lowerFile, '.zip') || str_ends_with($lowerFile, '.html') || str_ends_with($lowerFile, '.xlsx')) {
                         try {
                             $size = $disk->size($file);
                             $totalBytes += $size;
                             $lastModified = $disk->lastModified($file);
 
-                            // Estimate type by size or name
-                            // In general DB-only backup is much smaller (< 50MB) unless large attachments exist
-                            $isDbOnly = $size < (20 * 1024 * 1024);
+                            $isExcel = str_ends_with($lowerFile, '.xlsx');
+                            $isHtml = str_ends_with($lowerFile, '.html');
+                            $isYearArchive = str_contains($file, 'ارشيف_العام') || str_contains($lowerFile, 'academic_year');
+                            $isDbOnly = $size < (20 * 1024 * 1024) && ! $isYearArchive && ! $isExcel && ! $isHtml;
+
+                            $typeLabel = $isYearArchive
+                                ? ($isExcel ? 'أرشيف العام الدراسي (مصنف إكسل Excel مبوب)' : ($isHtml ? 'أرشيف العام الدراسي (صفحة تفاعلية HTML)' : 'أرشيف العام الدراسي الشامل (حزمة ZIP متكاملة)'))
+                                : ($isDbOnly ? 'قاعدة البيانات فقط' : 'شامل (قاعدة البيانات + المرفقات)');
+
+                            $fileFormat = $isExcel ? 'excel' : ($isHtml ? 'html' : 'zip');
 
                             $backups[] = [
                                 'file_name' => basename($file),
@@ -73,7 +82,9 @@ class BackupController extends Controller
                                 'size_raw' => $size,
                                 'size_formatted' => $this->formatBytes($size),
                                 'is_db_only' => $isDbOnly,
-                                'type_label' => $isDbOnly ? 'قاعدة البيانات فقط' : 'شامل (قاعدة البيانات + المرفقات)',
+                                'is_year_archive' => $isYearArchive,
+                                'format' => $fileFormat,
+                                'type_label' => $typeLabel,
                                 'created_at' => Carbon::createFromTimestamp($lastModified)->toIso8601String(),
                                 'created_at_human' => Carbon::createFromTimestamp($lastModified)->diffForHumans(),
                                 'created_at_formatted' => Carbon::createFromTimestamp($lastModified)->format('Y/m/d h:i A'),
@@ -103,8 +114,8 @@ class BackupController extends Controller
             'disk_name' => $diskName,
             'schedule_time' => 'يومياً 02:00 صباحاً',
             'cleanup_time' => 'يومياً 02:30 صباحاً',
-            'retention_days' => config('backup.cleanup.default_strategy.keep_all_backups_for_days', 7),
-            'keep_daily_days' => config('backup.cleanup.default_strategy.keep_daily_backups_for_days', 16),
+            'retention_days' => config('backup.cleanup.default_strategy.keep_all_backups_for_days', 365),
+            'keep_daily_days' => config('backup.cleanup.default_strategy.keep_daily_backups_for_days', 365),
             'db_connection' => config('database.default', 'mysql'),
             'status' => 'healthy',
         ];
@@ -182,6 +193,44 @@ class BackupController extends Controller
     }
 
     /**
+     * Export a full academic year offline archive.
+     */
+    public function exportAcademicYearArchive(Request $request, AcademicYearArchiveService $archiveService)
+    {
+        if (! $this->authorizeAdmin($request)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بتصدير أرشيف العام الدراسي.'], 403);
+        }
+
+        try {
+            set_time_limit(600);
+            ini_set('max_execution_time', '600');
+
+            $year = $request->input('academic_year', '2026-2027م');
+            $format = $request->input('format');
+            if (! $format) {
+                $asZip = filter_var($request->input('as_zip', true), FILTER_VALIDATE_BOOLEAN);
+                $format = $asZip ? 'zip' : 'html';
+            }
+
+            $result = $archiveService->exportArchive($year, $format);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إنشاء وتجهيز أرشيف نهاية العام الدراسي الشامل بنجاح.',
+                'file_name' => $result['file_name'],
+                'size_formatted' => $this->formatBytes($result['size']),
+                'download_url' => url("/api/backups/" . rawurlencode($result['file_name']) . "/download"),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Academic year archive export failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل إنشاء أرشيف العام الدراسي: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Trigger cleanup of old backups according to retention policy.
      */
     public function clean(Request $request)
@@ -219,9 +268,10 @@ class BackupController extends Controller
         }
 
         $safeFileName = basename($fileName);
+        $lowerFile = strtolower($safeFileName);
 
-        // Security check: must end with .zip
-        if (! str_ends_with(strtolower($safeFileName), '.zip')) {
+        // Security check: must end with .zip, .html, or .xlsx
+        if (! str_ends_with($lowerFile, '.zip') && ! str_ends_with($lowerFile, '.html') && ! str_ends_with($lowerFile, '.xlsx')) {
             abort(400, 'ملف النسخة الاحتياطية غير صالح.');
         }
 
@@ -235,9 +285,15 @@ class BackupController extends Controller
         }
 
         $fullPath = $disk->path($filePath);
+        $contentType = 'application/zip';
+        if (str_ends_with($lowerFile, '.html')) {
+            $contentType = 'text/html; charset=UTF-8';
+        } elseif (str_ends_with($lowerFile, '.xlsx')) {
+            $contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        }
 
         return response()->download($fullPath, $safeFileName, [
-            'Content-Type' => 'application/zip',
+            'Content-Type' => $contentType,
             'Cache-Control' => 'no-store, no-cache, must-revalidate',
         ]);
     }

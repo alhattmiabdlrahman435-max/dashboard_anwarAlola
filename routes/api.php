@@ -42,11 +42,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Export / Import - استيراد وتصدير البيانات (MUST BE BEFORE RESOURCES)
     Route::get('/{module}/export', [ExportImportController::class, 'export'])
-        ->where('module', 'students|teachers|parents|grades');
+        ->where('module', 'students|teachers|parents|grades|supervisors|classes');
     Route::post('/{module}/import', [ExportImportController::class, 'import'])
-        ->where('module', 'students|teachers|parents');
+        ->where('module', 'students|teachers|parents|supervisors|classes');
     Route::get('/{module}/template', [ExportImportController::class, 'template'])
-        ->where('module', 'students|teachers|parents');
+        ->where('module', 'students|teachers|parents|supervisors|classes');
 
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -178,6 +178,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/backups', [BackupController::class, 'store']);
     Route::post('/backups/clean', [BackupController::class, 'clean']);
     Route::delete('/backups/{fileName}', [BackupController::class, 'destroy']);
+    Route::post('/backups/academic-year-archive', [BackupController::class, 'exportAcademicYearArchive']);
 });
 
 // Backup archive download (supports Bearer token or ?token= in query string)

@@ -63,7 +63,7 @@ return [
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
             'dump' => [
-                'dumpBinaryPath' => env('DUMP_BINARY_PATH', ''),
+                'dumpBinaryPath' => env('DUMP_BINARY_PATH', file_exists('C:/laragon/bin/mysql/mysql-8.4.3-winx64/bin/mysqldump.exe') ? 'C:/laragon/bin/mysql/mysql-8.4.3-winx64/bin' : ''),
                 'useSingleTransaction' => true,
                 'useQuick' => true,
                 'doNotUseColumnStatistics' => true,

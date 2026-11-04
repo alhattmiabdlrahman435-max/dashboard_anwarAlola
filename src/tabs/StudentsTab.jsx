@@ -1,3 +1,4 @@
+import { SLOGAN_BASE64 } from '../assets/sloganBase64';
 import { studentsService } from "../services/students/students.service";
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
@@ -9,7 +10,7 @@ import { useParents } from '../contexts/Parents/useParents';
 import { useSettings } from '../contexts/Settings/useSettings';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
-import { Plus, Search, Eye, Edit2, Trash2, CreditCard, Download, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, RefreshCw, X, User, Camera } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Trash2, CreditCard, Download, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, RefreshCw, X, User, Camera, Printer } from 'lucide-react';
 import { processAndCompressFile } from '../utils/fileCompressor';
 
 export default function StudentsTab() {
@@ -107,6 +108,421 @@ export default function StudentsTab() {
   const [importSuccess, setImportSuccess] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  // Print Modal States
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printClassId, setPrintClassId] = useState('');
+  const [printRosterType, setPrintRosterType] = useState('without_code'); // 'without_code' | 'with_code'
+  const [isPrintingRoster, setIsPrintingRoster] = useState(false);
+
+  // ── Print Roster Handler (مع أكليشة المدرسة الرسمية وكافة التفاصيل) ────────
+  const handlePrintRoster = async () => {
+    if (!printClassId) {
+      if (setToastMessage) setToastMessage(lang === 'ar' ? 'الرجاء اختيار الصف والشعبة أولاً' : 'Please select class and section first');
+      return;
+    }
+
+    setIsPrintingRoster(true);
+
+    try {
+      const selectedClass = (allowedClasses || []).find(c => {
+        const numId = typeof c.id === 'string' && c.id.startsWith('cls-') ? c.id.replace('cls-', '') : String(c.id);
+        return numId === String(printClassId) || String(c.id) === String(printClassId);
+      });
+
+      const className = selectedClass 
+        ? (lang === 'ar' ? selectedClass.name : (selectedClass.nameEn || selectedClass.name))
+        : '';
+
+      const numericId = String(printClassId).replace(/\D/g, '');
+
+      // جلب جميع طلاب الفصل المحدد من الخادم لضمان عدم اقتصار الكشف على الصفحة الحالية فقط
+      let classStudents = [];
+      try {
+        const response = await studentsService.getStudents(`?class_id=${numericId}&per_page=500`);
+        const rawList = response?.data?.students || response?.data?.data || response?.students || [];
+        classStudents = rawList.map(st => ({
+          id: st.id,
+          name: st.name_ar || st.name || '',
+          nameEn: st.name_en || st.nameEn || '',
+          studentCode: st.student_code || st.qrCode || st.id || '',
+        }));
+      } catch (err) {
+        console.warn('Fallback to context students:', err);
+      }
+
+      // في حال تعذر الاتصال أو كان الرد فارغاً، الاعتماد على بيانات الواجهة كخيار بديل
+      if (!classStudents || classStudents.length === 0) {
+        classStudents = (students || [])
+          .filter(s => {
+            const sClassId = String(s.class_id || s.classId || '').replace(/\D/g, '');
+            return sClassId === numericId || String(s.class_id) === String(printClassId);
+          })
+          .map(st => ({
+            id: st.id,
+            name: st.name || st.name_ar || '',
+            nameEn: st.nameEn || st.name_en || '',
+            studentCode: st.qrCode || st.student_code || st.id || '',
+          }));
+      }
+
+      // الترتيب الأبجدي الدقيق للأسماء العربية (مع توحيد الهمزات والتشكيل)
+      const normalizeArabic = (str = '') => {
+        return str
+          .replace(/[ً-ٰٟ]/g, '') // إزالة التشكيل
+          .replace(/[إأآٱ]/g, 'ا')               // توحيد الألفات
+          .replace(/ة/g, 'ه')                    // توحيد التاء المربوطة
+          .replace(/ى/g, 'ي')                    // توحيد الياء
+          .trim();
+      };
+
+      classStudents.sort((a, b) => {
+        const normA = normalizeArabic(a.name || '');
+        const normB = normalizeArabic(b.name || '');
+        const cmp = normA.localeCompare(normB, 'ar');
+        return cmp !== 0 ? cmp : (a.name || '').localeCompare(b.name || '', 'ar');
+      });
+
+      const withCode = printRosterType === 'with_code';
+      const rosterTitle = withCode
+        ? 'كشف أسماء الطلاب مع الرقم الأكاديمي'
+        : 'كشف بأسماء الطلاب بدون الرقم الأكاديمي';
+
+      const todayStr = new Date().toLocaleDateString('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+      });
+
+      const rowsHtml = classStudents.length > 0 ? classStudents.map((st, idx) => `
+        <tr>
+          <td class="col-num">${idx + 1}</td>
+          ${withCode ? `<td class="col-code">${st.studentCode}</td>` : ''}
+          <td class="col-name">${st.name}</td>
+          <td class="col-notes">&nbsp;</td>
+        </tr>
+      `).join('') : `
+        <tr>
+          <td colspan="${withCode ? 4 : 3}" style="text-align:center;padding:24px;color:#64748b;font-weight:700;">
+            لا توجد بيانات طلاب مسجلة في هذا الفصل
+          </td>
+        </tr>
+      `;
+
+      const html = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>${rosterTitle} - ${className}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    direction: rtl;
+    font-family: 'Tajawal', 'Almarai', 'Segoe UI', Tahoma, Arial, sans-serif;
+    color: #0f172a;
+    background: #fff;
+    font-size: 11px;
+    line-height: 1.4;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-page-wrapper {
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    min-height: 275mm;
+  }
+  .sr-official-header {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1.3fr;
+    align-items: center;
+    width: 100%;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #1e3a8a;
+    margin-bottom: 10px;
+  }
+  .sr-header-ar {
+    text-align: right;
+    font-size: 11px;
+    line-height: 1.5;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .sr-header-school-ar {
+    font-weight: 800;
+    font-size: 12.5px;
+    color: #1e3a8a;
+    margin-top: 2px;
+  }
+  .sr-header-logo {
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .sr-header-logo img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    border-radius: 50%;
+    border: 2px solid #1e3a8a;
+    padding: 2px;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  }
+  .sr-header-en {
+    text-align: left;
+    font-size: 10px;
+    line-height: 1.5;
+    font-weight: 700;
+    color: #0f172a;
+    direction: ltr;
+  }
+  .sr-header-school-en {
+    font-weight: 800;
+    font-size: 11px;
+    color: #1e3a8a;
+    margin-top: 2px;
+  }
+  .sr-title-bar {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .sr-main-title {
+    font-size: 16.5px;
+    font-weight: 800;
+    color: #1e3a8a;
+  }
+  .sr-meta-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 14px;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+  .sr-meta-item strong {
+    color: #1e3a8a;
+  }
+  table.roster-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    border: 1.5px solid #1e3a8a;
+    font-size: 11px;
+  }
+  table.roster-table thead th {
+    background-color: #f1f5f9;
+    color: #0f2e5a;
+    font-weight: 800;
+    padding: 8px 10px;
+    border: 1px solid #94a3b8;
+    border-bottom: 2px solid #1e3a8a;
+    text-align: center;
+  }
+  table.roster-table tbody td {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    vertical-align: middle;
+  }
+  table.roster-table tbody tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+  .col-num {
+    width: 36px;
+    text-align: center;
+    font-weight: 700;
+    background-color: #f1f5f9;
+  }
+  .col-code {
+    width: 110px;
+    text-align: center;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 11.5px;
+  }
+  .col-name {
+    text-align: right;
+    font-weight: 700;
+    font-size: 11.5px;
+  }
+  .col-notes {
+    min-width: 180px;
+    text-align: right;
+    background-color: #ffffff;
+  }
+  .sr-signatures {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    text-align: center;
+    gap: 12px;
+    margin-top: 28px;
+    padding-top: 10px;
+    page-break-inside: avoid;
+  }
+  .sr-sig-box strong {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 25px;
+  }
+  .sr-sig-box .sig-line {
+    border-bottom: 1px dashed #94a3b8;
+    width: 80%;
+    margin: 0 auto;
+  }
+  .sr-stamp-box {
+    border: 1.5px dashed #1e3a8a;
+    border-radius: 8px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .sr-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #cbd5e1;
+    padding-top: 6px;
+    font-size: 9px;
+    color: #64748b;
+    margin-top: 16px;
+    page-break-inside: avoid;
+  }
+</style>
+</head>
+<body>
+  <div class="print-page-wrapper">
+    <div class="sr-official-header">
+      <div class="sr-header-ar">
+        <div>الجمهورية اليمنية</div>
+        <div>وزارة التربية والتعليم والبحث العلمي</div>
+        <div class="sr-header-school-ar">رياض ومدارس أنوار العلى الدولية النموذجية</div>
+      </div>
+      <div class="sr-header-logo">
+        <img src="${SLOGAN_BASE64}" alt="Logo" />
+      </div>
+      <div class="sr-header-en">
+        <div>Republic of Yemen</div>
+        <div>Min. of Education & Scientific Research</div>
+        <div class="sr-header-school-en">Riyadh & Anwar Al-Ola Int. Model Schools</div>
+      </div>
+    </div>
+
+    <div class="sr-title-bar">
+      <div class="sr-meta-bar">
+        <div class="sr-meta-item">الفصل الدراسي: <strong>${className}</strong></div>
+        <div class="sr-meta-item">العام الدراسي: <strong>1447-1448هـ (2025-2026م)</strong></div>
+        <div class="sr-meta-item">إجمالي الطلاب: <strong>${classStudents.length} طالب</strong></div>
+        <div class="sr-meta-item">التاريخ: <strong>${todayStr}</strong></div>
+      </div>
+    </div>
+
+    <table class="roster-table">
+      <thead>
+        <tr>
+          <th style="width: 36px;">م</th>
+          ${withCode ? '<th style="width: 110px;">الرقم الأكاديمي</th>' : ''}
+          <th style="text-align: right;">اسم الطالب</th>
+          <th style="width: 220px; text-align: right;">الملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+
+    <!-- تم تعطيل مربعات التوقيعات والختم لأنها لم تُطلب في المتطلبات
+    <div class="sr-signatures">
+      <div class="sr-sig-box">
+        <strong>رائد / مربي الفصل</strong>
+        <div class="sig-line"></div>
+      </div>
+      <div class="sr-sig-box">
+        <strong>المرشد الطلابي / المشرف</strong>
+        <div class="sig-line"></div>
+      </div>
+      <div class="sr-sig-box">
+        <strong>مدير المدرسة</strong>
+        <div class="sig-line"></div>
+      </div>
+      <div class="sr-stamp-box">
+        ختم الإدارة المدرسية
+      </div>
+    </div>
+    -->
+
+    <div class="sr-footer">
+      <div>تم إصدار الكشف آلياً عبر نظام إدارة رياض ومدارس أنوار العلى الدولية النموذجية</div>
+      <div>صفحة 1 من 1</div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0;opacity:0;';
+      document.body.appendChild(frame);
+      const doc = frame.contentDocument;
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      const cleanup = () => {
+        try {
+          if (frame.parentNode) document.body.removeChild(frame);
+        } catch (e) {}
+        setIsPrintingRoster(false);
+      };
+
+      frame.contentWindow.addEventListener('afterprint', cleanup, { once: true });
+
+      const images = [...doc.images].map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      }));
+
+      Promise.all(images).then(() => {
+        setTimeout(() => {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+          setShowPrintModal(false);
+          setTimeout(cleanup, 60000);
+        }, 150);
+      }).catch(() => {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+        setShowPrintModal(false);
+        setTimeout(cleanup, 60000);
+      });
+
+    } catch (err) {
+      console.error('Print Error:', err);
+      if (setToastMessage) setToastMessage(lang === 'ar' ? 'حدث خطأ أثناء إعداد كشف الطباعة' : 'Error generating print sheet');
+      setIsPrintingRoster(false);
+    }
+  };
+
 
   // Student Form states
   const [modalStudentName, setModalStudentName] = useState('');
@@ -474,9 +890,15 @@ export default function StudentsTab() {
       if (currentUser?.role === 'parent' && student.parentNationalId !== currentUser.username) {
         return false;
       }
+      if (statusFilter === 'present') {
+        return student.status === 'present' || student.status === 'late';
+      }
+      if (statusFilter === 'absent') {
+        return student.status !== 'present' && student.status !== 'late';
+      }
       return true;
     });
-  }, [students, currentUser]);
+  }, [students, currentUser, statusFilter]);
 
   const filteredParentUsers = useMemo(() => {
     return parentUsers.filter(p => {
@@ -573,6 +995,29 @@ export default function StudentsTab() {
           </h3>
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {/* Print Roster Button */}
+            <button
+              className="btn-elevated"
+              onClick={() => {
+                const initialClassId = allowedClasses.length > 0
+                  ? (typeof allowedClasses[0].id === 'string' && allowedClasses[0].id.startsWith('cls-') ? allowedClasses[0].id.replace('cls-', '') : String(allowedClasses[0].id))
+                  : '';
+                setPrintClassId(initialClassId);
+                setPrintRosterType('without_code');
+                setShowPrintModal(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'rgba(234, 88, 12, 0.08)',
+                borderColor: 'rgba(234, 88, 12, 0.25)',
+                color: '#ea580c'
+              }}
+            >
+              <Printer size={16} />
+              {lang === 'ar' ? 'طباعة كشف' : 'Print Roster'}
+            </button>
             {(canAction('students', 'export') || canAction('students', 'import')) && (
               <button 
                 className="btn-elevated" 
@@ -697,8 +1142,8 @@ export default function StudentsTab() {
           <table className="students-table">
             <thead>
               <tr>
-                <th>{t.studentId}</th>
-                <th>{t.studentName}</th>
+                <th className="sticky-col-1">{t.studentId}</th>
+                <th className="sticky-col-2">{t.studentName}</th>
                 <th>{t.grade}</th>
                 <th>{t.section}</th>
                 <th>{t.status}</th>
@@ -710,10 +1155,12 @@ export default function StudentsTab() {
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
                   <tr key={student.id}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{student.qrCode || student.id}</td>
-                    <td style={{ fontWeight: '600' }}>
-                      {renderAvatar(student.photo, "👨‍🎓")}
-                      {lang === 'ar' ? student.name : student.nameEn}
+                    <td className="sticky-col-1" style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{student.qrCode || student.id}</td>
+                    <td className="sticky-col-2" style={{ fontWeight: '600', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ flexShrink: 0 }}>{renderAvatar(student.photo, "👨‍🎓")}</span>
+                        <span style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{lang === 'ar' ? student.name : student.nameEn}</span>
+                      </div>
                     </td>
                     <td>{lang === 'ar' ? student.grade : student.gradeEn}</td>
                     <td>{lang === 'ar' ? student.section : student.sectionEn}</td>
@@ -1905,6 +2352,125 @@ export default function StudentsTab() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ─── Print Roster Modal ─────────────────────────────────────── */}
+      {showPrintModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1050,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--color-surface)',
+            borderRadius: '16px',
+            padding: '28px',
+            width: '100%',
+            maxWidth: '480px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.25)'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Printer size={20} style={{ color: '#ea580c' }} />
+                {lang === 'ar' ? 'طباعة كشف الطلاب' : 'Print Student Roster'}
+              </h3>
+              <button onClick={() => setShowPrintModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Class Selector */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'var(--color-text-secondary)' }}>
+                {lang === 'ar' ? 'اختر الصف والشعبة' : 'Select Class'}
+              </label>
+              <select
+                className="text-field"
+                value={printClassId}
+                onChange={e => setPrintClassId(e.target.value)}
+                style={{ width: '100%', height: '44px', borderRadius: '10px', fontSize: '14px', padding: '0 12px' }}
+              >
+                <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
+                {(allowedClasses || []).map(cls => {
+                  const numId = typeof cls.id === 'string' && cls.id.startsWith('cls-') ? cls.id.replace('cls-', '') : String(cls.id);
+                  return (
+                    <option key={cls.id} value={numId}>
+                      {lang === 'ar' ? cls.name : (cls.nameEn || cls.name)}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Roster Type */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '12px', color: 'var(--color-text-secondary)' }}>
+                {lang === 'ar' ? 'نوع الكشف' : 'Roster Type'}
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[
+                  { value: 'without_code', ar: 'كشف بأسماء الطلاب بدون الرقم الأكاديمي', en: 'Student roster without academic number' },
+                  { value: 'with_code',    ar: 'كشف أسماء الطلاب مع الرقم الأكاديمي', en: 'Student roster with academic number' }
+                ].map(opt => (
+                  <label key={opt.value} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer',
+                    padding: '12px 14px', borderRadius: '10px', border: `2px solid ${printRosterType === opt.value ? '#ea580c' : 'var(--color-border)'}`,
+                    background: printRosterType === opt.value ? 'rgba(234,88,12,0.06)' : 'transparent',
+                    transition: 'all 0.15s ease'
+                  }}>
+                    <input
+                      type="radio"
+                      name="rosterType"
+                      value={opt.value}
+                      checked={printRosterType === opt.value}
+                      onChange={() => setPrintRosterType(opt.value)}
+                      style={{ marginTop: '2px', accentColor: '#ea580c' }}
+                    />
+                    <span style={{ fontSize: '14px', lineHeight: 1.5 }}>{lang === 'ar' ? opt.ar : opt.en}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn-elevated"
+                onClick={() => setShowPrintModal(false)}
+                style={{ height: '44px', padding: '0 18px' }}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintRoster}
+                disabled={!printClassId || isPrintingRoster}
+                style={{
+                  height: '44px', padding: '0 22px', borderRadius: '10px',
+                  background: (!printClassId || isPrintingRoster) ? '#ccc' : '#ea580c',
+                  color: '#fff', border: 'none', cursor: (!printClassId || isPrintingRoster) ? 'not-allowed' : 'pointer',
+                  fontWeight: '600', fontSize: '14px',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {isPrintingRoster ? (
+                  <>
+                    <RefreshCw size={16} className="spin" />
+                    {lang === 'ar' ? 'جاري تجهيز الكشف...' : 'Preparing Roster...'}
+                  </>
+                ) : (
+                  <>
+                    <Printer size={16} />
+                    {lang === 'ar' ? 'طباعة' : 'Print'}
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

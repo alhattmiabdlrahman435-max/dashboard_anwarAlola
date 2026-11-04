@@ -55,13 +55,15 @@ export default function StudentsProvider({ children }) {
    *   fetchStudents(true)       — force refresh with current queryString
    */
   const lastStudentsQueryRef = useRef(null);
+  const stateRef = useRef({ isStale: true, count: 0 });
+  stateRef.current = { isStale, count: rawStudents.length };
 
   const fetchStudents = useCallback((arg) => {
     const isForce = arg === true;
     const isQueryString = typeof arg === 'string';
     const queryString = isQueryString ? arg : '?page=1&per_page=20';
 
-    if (!isForce && !isStale && rawStudents.length > 0 && lastStudentsQueryRef.current === queryString) {
+    if (!isForce && !stateRef.current.isStale && stateRef.current.count > 0 && lastStudentsQueryRef.current === queryString) {
       return;
     }
     lastStudentsQueryRef.current = queryString;
@@ -130,7 +132,7 @@ export default function StudentsProvider({ children }) {
           abortRef.current = null;
         }
       });
-  }, [isStale, rawStudents.length]);
+  }, []);
 
   // Fetch students when authenticated
   useEffect(() => {
@@ -529,14 +531,15 @@ export default function StudentsProvider({ children }) {
     (studentId) => {
       const records = attendanceRecords.filter(
         (r) =>
-          r.studentId === studentId &&
+          String(r.studentId) === String(studentId) &&
+          r.date &&
           r.date.startsWith(selectedAttendanceMonth),
       );
-      const total = records.length;
-      const present = records.filter((r) => r.status === "present").length;
+      const present = records.filter((r) => r.status === "present" || r.status === "late").length;
       const absent = records.filter((r) => r.status === "absent").length;
-      const rate = total > 0 ? Math.round((present / total) * 100) : 100;
-      return { total, present, late: 0, absent, rate };
+      const total = present + absent;
+      const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+      return { total, totalDays: total, present, late: 0, absent, rate };
     },
     [attendanceRecords, selectedAttendanceMonth],
   );

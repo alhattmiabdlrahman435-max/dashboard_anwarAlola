@@ -56,9 +56,18 @@ export default function CommunicationsTab() {
       moduleKey: "notifications",
     });
 
+  // Local (device) date in YYYY-MM-DD — used to auto-activate today's date on open
+  const getTodayLocalISO = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const [activeFilter, setActiveFilter] = useState("all");
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [filterDate, setFilterDate] = useState("");
+  const [filterDate, setFilterDate] = useState(() => getTodayLocalISO());
   const [copiedId, setCopiedId] = useState(null);
 
   const qs = useMemo(() => {
@@ -103,6 +112,9 @@ export default function CommunicationsTab() {
 
   const [modalNotificationStudentId, setModalNotificationStudentId] =
     useState("");
+  // Student picker filters (grade + section) to avoid mixing up students with similar names
+  const [modalStudentGrade, setModalStudentGrade] = useState("");
+  const [modalStudentSection, setModalStudentSection] = useState("");
   const [modalNotificationGrade, setModalNotificationGrade] = useState("");
   const [modalNotificationTeacherId, setModalNotificationTeacherId] =
     useState("");
@@ -119,23 +131,60 @@ export default function CommunicationsTab() {
       ? classesList[0]
       : "";
 
+  // IMPORTANT: no silent fallback to students[0] / teachers[0] anymore.
+  // The recipient must be explicitly chosen, otherwise a different student
+  // (the first one in the list) could receive the notification by mistake.
   const hasSelectedStudent =
     Array.isArray(students) &&
     students.some((s) => String(s.id) === String(modalNotificationStudentId));
-  const selectedStudentId = hasSelectedStudent
-    ? modalNotificationStudentId
-    : students && students.length > 0
-      ? students[0].id
-      : "";
+  const selectedStudentId = hasSelectedStudent ? modalNotificationStudentId : "";
 
   const hasSelectedTeacher =
     Array.isArray(teachers) &&
     teachers.some((t) => String(t.id) === String(modalNotificationTeacherId));
-  const selectedTeacherId = hasSelectedTeacher
-    ? modalNotificationTeacherId
-    : teachers && teachers.length > 0
-      ? teachers[0].id
-      : "";
+  const selectedTeacherId = hasSelectedTeacher ? modalNotificationTeacherId : "";
+
+  // Grades / sections available in the student picker (derived from classes + students)
+  const studentPickerGrades = useMemo(() => {
+    const set = new Set();
+    (classes || []).forEach((c) => c.grade && set.add(c.grade));
+    (students || []).forEach((s) => s.grade && set.add(s.grade));
+    return Array.from(set);
+  }, [classes, students]);
+
+  const studentPickerSections = useMemo(() => {
+    if (!modalStudentGrade) return [];
+    const set = new Set();
+    (classes || []).forEach((c) => {
+      if (c.grade === modalStudentGrade && c.section) set.add(c.section);
+    });
+    (students || []).forEach((s) => {
+      if (s.grade === modalStudentGrade && s.section) set.add(s.section);
+    });
+    return Array.from(set);
+  }, [classes, students, modalStudentGrade]);
+
+  const selectedStudentObj = useMemo(
+    () =>
+      hasSelectedStudent
+        ? students.find((s) => String(s.id) === String(modalNotificationStudentId))
+        : null,
+    [hasSelectedStudent, students, modalNotificationStudentId],
+  );
+
+  // Opens the composer with a clean state (no leftover selections from previous use)
+  const openComposer = (type = "parents") => {
+    setModalNotificationType(type);
+    setModalNotificationTitle("");
+    setModalNotificationContent("");
+    setModalNotificationStudentId("");
+    setModalNotificationTeacherId("");
+    setModalStudentGrade("");
+    setModalStudentSection("");
+    setStudentSearchText("");
+    setTeacherSearchText("");
+    setShowNotificationModal(true);
+  };
 
   // Delete handlers
   const onDeleteNotificationClick = (e, notifId) => {
@@ -234,26 +283,56 @@ export default function CommunicationsTab() {
     if (!modalNotificationTitle.trim() || !modalNotificationContent.trim())
       return;
 
+    // Strict recipient validation: the exact student / teacher must be chosen explicitly
+    if (modalNotificationType === "student") {
+      if (!modalStudentGrade || !modalStudentSection || !selectedStudentObj) {
+        if (setToastMessage) {
+          setToastMessage(
+            lang === "ar"
+              ? "يرجى تحديد الصف ثم الشعبة ثم اسم الطالب قبل الإرسال"
+              : "Please select grade, section and student before sending",
+          );
+          setTimeout(() => setToastMessage(""), 4000);
+        }
+        return;
+      }
+    }
+    if (modalNotificationType === "teacher" && !selectedTeacherId) {
+      if (setToastMessage) {
+        setToastMessage(
+          lang === "ar"
+            ? "يرجى اختيار المعلم قبل الإرسال"
+            : "Please select a teacher before sending",
+        );
+        setTimeout(() => setToastMessage(""), 4000);
+      }
+      return;
+    }
+
     const nowStr = new Date().toISOString().replace("T", " ").substring(0, 16);
     let extraDetails = {};
 
     if (modalNotificationType === "student") {
-      const targetStudent = students.find(
-        (s) => s.id === Number(selectedStudentId),
-      );
+      const targetStudent = selectedStudentObj;
       extraDetails = {
-        studentId: Number(selectedStudentId),
-        studentName: targetStudent ? targetStudent.name : null,
-        studentNameEn: targetStudent ? targetStudent.nameEn : null,
-        grade: targetStudent ? targetStudent.grade : null,
+        studentId: Number(targetStudent.id),
+        studentName: targetStudent.name,
+        studentNameEn: targetStudent.nameEn,
+        grade: `${targetStudent.grade || modalStudentGrade} - ${targetStudent.section || modalStudentSection}`,
       };
     } else if (modalNotificationType === "class") {
+      const targetClassObj = (classes || []).find(
+        (c) => (c.name || `${c.grade} - ${c.section}`) === selectedGrade,
+      );
       extraDetails = {
         grade: selectedGrade,
+        classId: targetClassObj
+          ? Number(targetClassObj.numericId || String(targetClassObj.id).replace(/\D/g, ""))
+          : null,
       };
     } else if (modalNotificationType === "teacher") {
       const targetTeacher = teachers.find(
-        (t) => t.id === Number(selectedTeacherId),
+        (t) => String(t.id) === String(selectedTeacherId),
       );
       extraDetails = {
         teacherId: Number(selectedTeacherId),
@@ -273,9 +352,7 @@ export default function CommunicationsTab() {
 
     const extraLogs = [];
     if (modalNotificationType === "student") {
-      const targetStudent = students.find(
-        (s) => s.id === Number(selectedStudentId),
-      );
+      const targetStudent = selectedStudentObj;
       if (targetStudent) {
         const smsText =
           lang === "ar"
@@ -329,6 +406,10 @@ export default function CommunicationsTab() {
     setShowNotificationModal(false);
     setModalNotificationTitle("");
     setModalNotificationContent("");
+    setModalNotificationStudentId("");
+    setModalNotificationTeacherId("");
+    setModalStudentGrade("");
+    setModalStudentSection("");
     setStudentSearchText("");
     setTeacherSearchText("");
   };
@@ -719,27 +800,32 @@ export default function CommunicationsTab() {
 
   // Student & Teacher Search Filters for Modal
   const qStudent = (studentSearchText || "").toLowerCase().trim();
+  // Only students of the chosen grade + section are listed (prevents mixing similar names)
   const filteredStudentsList = Array.isArray(students)
-    ? !qStudent
-      ? students
-      : students.filter((s) => {
-          if (!s) return false;
-          const nameMatch = Boolean(
-            s.name?.toString().toLowerCase().includes(qStudent) ||
-            s.nameEn?.toString().toLowerCase().includes(qStudent),
-          );
-          const idMatch = Boolean(s.id?.toString().includes(qStudent));
-          const studentNum =
-            s.student_number ||
-            s.studentNumber ||
-            s.academic_number ||
-            s.national_id ||
-            s.code;
-          const studentNumMatch = Boolean(
-            studentNum?.toString().toLowerCase().includes(qStudent),
-          );
-          return nameMatch || idMatch || studentNumMatch;
-        })
+    ? students.filter((s) => {
+        if (!s) return false;
+        if (!modalStudentGrade || !modalStudentSection) return false;
+        if (s.grade !== modalStudentGrade || s.section !== modalStudentSection)
+          return false;
+        if (!qStudent) return true;
+        const nameMatch = Boolean(
+          s.name?.toString().toLowerCase().includes(qStudent) ||
+          s.nameEn?.toString().toLowerCase().includes(qStudent),
+        );
+        const idMatch = Boolean(s.id?.toString().includes(qStudent));
+        const studentNum =
+          s.student_number ||
+          s.studentNumber ||
+          s.academic_number ||
+          s.national_id ||
+          s.code ||
+          s.student_code ||
+          s.qrCode;
+        const studentNumMatch = Boolean(
+          studentNum?.toString().toLowerCase().includes(qStudent),
+        );
+        return nameMatch || idMatch || studentNumMatch;
+      })
     : [];
 
   const qTeacher = (teacherSearchText || "").toLowerCase().trim();
@@ -1328,6 +1414,29 @@ export default function CommunicationsTab() {
                   title={lang === "ar" ? "تصفية حسب التاريخ" : "Filter by Date"}
                 />
               </div>
+              {filterDate !== getTodayLocalISO() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterDate(getTodayLocalISO());
+                    setPage(1);
+                  }}
+                  title={lang === "ar" ? "العودة إلى تاريخ اليوم" : "Back to today"}
+                  style={{
+                    height: "42px",
+                    padding: "0 12px",
+                    borderRadius: "12px",
+                    border: "1.5px solid var(--color-primary-ui)",
+                    background: "rgba(30, 80, 142, 0.08)",
+                    color: "var(--color-primary-ui)",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    cursor: "pointer",
+                  }}
+                >
+                  {lang === "ar" ? "اليوم" : "Today"}
+                </button>
+              )}
               {filterDate && (
                 <button
                   type="button"
@@ -1335,17 +1444,24 @@ export default function CommunicationsTab() {
                     setFilterDate("");
                     setPage(1);
                   }}
+                  title={lang === "ar" ? "عرض كل التواريخ" : "Show all dates"}
                   style={{
-                    position: "absolute",
-                    left: lang === "ar" ? "8px" : "auto",
-                    right: lang === "ar" ? "auto" : "8px",
-                    background: "transparent",
-                    border: "none",
+                    height: "42px",
+                    padding: "0 12px",
+                    borderRadius: "12px",
+                    border: "1.5px solid var(--color-border)",
+                    background: "var(--color-surface)",
                     color: "var(--color-text-secondary)",
+                    fontSize: "12px",
+                    fontWeight: "800",
                     cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
                   }}
                 >
                   <X size={14} />
+                  {lang === "ar" ? "الكل" : "All"}
                 </button>
               )}
             </div>
@@ -1376,12 +1492,7 @@ export default function CommunicationsTab() {
 
             {canAction("communications", "create") && (
               <button
-                onClick={() => {
-                  setModalNotificationType("parents");
-                  setModalNotificationTitle("");
-                  setModalNotificationContent("");
-                  setShowNotificationModal(true);
-                }}
+                onClick={() => openComposer("parents")}
                 style={{
                   height: "42px",
                   padding: "0 20px",
@@ -1624,7 +1735,7 @@ export default function CommunicationsTab() {
                 else if (activeFilter === "teachers") targetType = "teachers";
                 else if (activeFilter === "private") targetType = "student";
 
-                setModalNotificationType(targetType);
+                openComposer(targetType);
                 if (
                   targetType === "class" &&
                   availableGrades.length > 0 &&
@@ -1632,24 +1743,6 @@ export default function CommunicationsTab() {
                 ) {
                   setModalNotificationGrade(availableGrades[0]);
                 }
-                if (
-                  targetType === "student" &&
-                  students.length > 0 &&
-                  !modalNotificationStudentId
-                ) {
-                  setModalNotificationStudentId(students[0].id);
-                }
-                if (
-                  targetType === "teacher" &&
-                  teachers.length > 0 &&
-                  !modalNotificationTeacherId
-                ) {
-                  setModalNotificationTeacherId(teachers[0].id);
-                }
-
-                setModalNotificationTitle("");
-                setModalNotificationContent("");
-                setShowNotificationModal(true);
               }}
               style={{
                 marginTop: "8px",
@@ -1960,8 +2053,6 @@ export default function CommunicationsTab() {
                     <div
                       onClick={() => {
                         setModalNotificationType("student");
-                        if (students.length > 0 && !modalNotificationStudentId)
-                          setModalNotificationStudentId(students[0].id);
                       }}
                       style={{
                         padding: "10px 8px",
@@ -2024,8 +2115,6 @@ export default function CommunicationsTab() {
                     <div
                       onClick={() => {
                         setModalNotificationType("teacher");
-                        if (teachers.length > 0 && !modalNotificationTeacherId)
-                          setModalNotificationTeacherId(teachers[0].id);
                       }}
                       style={{
                         padding: "10px 8px",
@@ -2063,48 +2152,203 @@ export default function CommunicationsTab() {
                     style={{
                       display: "flex",
                       flexDirection: "column",
-                      gap: "6px",
+                      gap: "10px",
+                      padding: "14px",
+                      borderRadius: "14px",
+                      border: "1.5px solid var(--color-border)",
+                      background: "var(--color-surface-alt)",
                     }}
                   >
-                    <label style={{ fontSize: "11.5px", fontWeight: "700" }}>
-                      🔍 {t.selectStudent}
+                    <label style={{ fontSize: "12px", fontWeight: "800" }}>
+                      🎯{" "}
+                      {lang === "ar"
+                        ? "تحديد الطالب بدقة (الصف ← الشعبة ← الاسم):"
+                        : "Pick the exact student (Grade → Section → Name):"}
                     </label>
-                    <input
-                      type="text"
-                      placeholder={
-                        lang === "ar"
-                          ? "ابحث باسم الطالب أو الرقم الأكاديمي..."
-                          : "Search by student name or ID..."
-                      }
-                      value={studentSearchText}
-                      onChange={(e) => setStudentSearchText(e.target.value)}
-                      className="text-field"
-                      style={{
-                        height: "36px",
-                        fontSize: "12px",
-                        padding: "0 10px",
-                      }}
-                    />
-                    <select
-                      value={selectedStudentId}
-                      onChange={(e) =>
-                        setModalNotificationStudentId(e.target.value)
-                      }
-                      className="text-field"
-                      style={{
-                        minHeight: "45px",
-                        fontSize: "14px",
-                        padding: "0 12px",
-                        boxSizing: "border-box",
-                        lineHeight: "normal",
-                      }}
-                    >
-                      {filteredStudentsList.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {lang === "ar" ? s.name : s.nameEn || s.name}
+
+                    {/* Step 1: Grade */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <label style={{ fontSize: "11.5px", fontWeight: "700" }}>
+                        1️⃣ {lang === "ar" ? "الصف الدراسي" : "Grade"}
+                      </label>
+                      <select
+                        value={modalStudentGrade}
+                        onChange={(e) => {
+                          setModalStudentGrade(e.target.value);
+                          setModalStudentSection("");
+                          setModalNotificationStudentId("");
+                          setStudentSearchText("");
+                        }}
+                        className="text-field"
+                        required
+                        style={{
+                          minHeight: "42px",
+                          fontSize: "13.5px",
+                          padding: "0 12px",
+                          boxSizing: "border-box",
+                          lineHeight: "normal",
+                        }}
+                      >
+                        <option value="">
+                          {lang === "ar" ? "-- اختر الصف --" : "-- Select grade --"}
                         </option>
-                      ))}
-                    </select>
+                        {studentPickerGrades.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Step 2: Section */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <label style={{ fontSize: "11.5px", fontWeight: "700" }}>
+                        2️⃣ {lang === "ar" ? "الشعبة" : "Section"}
+                      </label>
+                      <select
+                        value={modalStudentSection}
+                        onChange={(e) => {
+                          setModalStudentSection(e.target.value);
+                          setModalNotificationStudentId("");
+                          setStudentSearchText("");
+                        }}
+                        disabled={!modalStudentGrade}
+                        className="text-field"
+                        required
+                        style={{
+                          minHeight: "42px",
+                          fontSize: "13.5px",
+                          padding: "0 12px",
+                          boxSizing: "border-box",
+                          lineHeight: "normal",
+                        }}
+                      >
+                        <option value="">
+                          {lang === "ar" ? "-- اختر الشعبة --" : "-- Select section --"}
+                        </option>
+                        {studentPickerSections.map((sec) => (
+                          <option key={sec} value={sec}>
+                            {sec}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Step 3: Student name */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <label style={{ fontSize: "11.5px", fontWeight: "700" }}>
+                        3️⃣ 🔍 {t.selectStudent}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={
+                          lang === "ar"
+                            ? "ابحث باسم الطالب أو الرقم الأكاديمي داخل الشعبة المحددة..."
+                            : "Search by student name or ID inside the selected section..."
+                        }
+                        value={studentSearchText}
+                        onChange={(e) => setStudentSearchText(e.target.value)}
+                        disabled={!modalStudentGrade || !modalStudentSection}
+                        className="text-field"
+                        style={{
+                          height: "36px",
+                          fontSize: "12px",
+                          padding: "0 10px",
+                        }}
+                      />
+                      <select
+                        value={selectedStudentId}
+                        onChange={(e) =>
+                          setModalNotificationStudentId(e.target.value)
+                        }
+                        disabled={!modalStudentGrade || !modalStudentSection}
+                        className="text-field"
+                        required
+                        style={{
+                          minHeight: "45px",
+                          fontSize: "14px",
+                          padding: "0 12px",
+                          boxSizing: "border-box",
+                          lineHeight: "normal",
+                        }}
+                      >
+                        <option value="">
+                          {!modalStudentGrade || !modalStudentSection
+                            ? lang === "ar"
+                              ? "-- حدد الصف والشعبة أولاً --"
+                              : "-- Select grade & section first --"
+                            : filteredStudentsList.length === 0
+                              ? lang === "ar"
+                                ? "-- لا يوجد طلاب مطابقون --"
+                                : "-- No matching students --"
+                              : lang === "ar"
+                                ? "-- اختر الطالب --"
+                                : "-- Select student --"}
+                        </option>
+                        {filteredStudentsList.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {lang === "ar" ? s.name : s.nameEn || s.name} — {s.grade} -{" "}
+                            {s.section}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Confirmation of the exact recipient */}
+                    {selectedStudentObj ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "10px 12px",
+                          borderRadius: "10px",
+                          background: "rgba(16, 185, 129, 0.08)",
+                          border: "1.5px solid rgba(16, 185, 129, 0.35)",
+                          fontSize: "12.5px",
+                          fontWeight: "700",
+                          color: "#047857",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <CheckCircle2 size={16} />
+                        <span>
+                          {lang === "ar"
+                            ? "سيصل الإشعار إلى ولي أمر الطالب:"
+                            : "The notification will be sent to the parent of:"}
+                        </span>
+                        <strong>
+                          {lang === "ar"
+                            ? selectedStudentObj.name
+                            : selectedStudentObj.nameEn || selectedStudentObj.name}
+                        </strong>
+                        <span>
+                          ({selectedStudentObj.grade} - {selectedStudentObj.section})
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "10px 12px",
+                          borderRadius: "10px",
+                          background: "rgba(217, 119, 6, 0.08)",
+                          border: "1.5px solid rgba(217, 119, 6, 0.35)",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          color: "#b45309",
+                        }}
+                      >
+                        <AlertCircle size={16} />
+                        <span>
+                          {lang === "ar"
+                            ? "لم يتم تحديد الطالب بعد — اختر الصف ثم الشعبة ثم الاسم قبل كتابة الإشعار."
+                            : "No student selected yet — choose grade, section, then name before composing."}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2174,6 +2418,7 @@ export default function CommunicationsTab() {
                       onChange={(e) =>
                         setModalNotificationTeacherId(e.target.value)
                       }
+                      required
                       className="text-field"
                       style={{
                         minHeight: "45px",
@@ -2183,6 +2428,9 @@ export default function CommunicationsTab() {
                         lineHeight: "normal",
                       }}
                     >
+                      <option value="">
+                        {lang === "ar" ? "-- اختر المعلم --" : "-- Select teacher --"}
+                      </option>
                       {filteredTeachersList.map((t) => (
                         <option key={t.id} value={t.id}>
                           {lang === "ar" ? t.name : t.nameEn || t.name}
@@ -2348,12 +2596,8 @@ export default function CommunicationsTab() {
     return (
       <div
         key={notif.id}
-        className={`notif-card-modern ${!notif.isRead ? "unread" : ""}`}
-        onClick={() => {
-          if (!notif.isRead) {
-            handleMarkNotificationAsRead(notif.id);
-          }
-        }}
+        className="notif-card-modern"
+
       >
         <div className="notif-card-header">
           <div className="notif-card-title-area">
@@ -2372,23 +2616,25 @@ export default function CommunicationsTab() {
             <div>
               <h4 className="notif-card-title">
                 {notif.title}
-                {!notif.isRead && (
-                  <span
-                    style={{
-                      fontSize: "10.5px",
-                      fontWeight: "800",
-                      background: "#ef4444",
-                      color: "white",
-                      padding: "1px 8px",
-                      borderRadius: "10px",
-                      marginInlineStart: "8px",
-                      display: "inline-block",
-                      verticalAlign: "middle",
-                    }}
-                  >
-                    {lang === "ar" ? "جديد" : "New"}
-                  </span>
-                )}
+                <span
+                  style={{
+                    fontSize: "10.5px",
+                    fontWeight: "700",
+                    background: "rgba(16, 185, 129, 0.12)",
+                    color: "#059669",
+                    border: "1px solid rgba(16, 185, 129, 0.25)",
+                    padding: "2px 8px",
+                    borderRadius: "10px",
+                    marginInlineStart: "8px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "3px",
+                    verticalAlign: "middle",
+                  }}
+                >
+                  <Check size={11} strokeWidth={2.5} />
+                  <span>{lang === "ar" ? "تم الإرسال" : "Sent"}</span>
+                </span>
               </h4>
 
               <div className="notif-card-meta">
@@ -2439,15 +2685,7 @@ export default function CommunicationsTab() {
             className="notif-action-btn-group no-print"
             onClick={(e) => e.stopPropagation()}
           >
-            {!notif.isRead && (
-              <button
-                className="notif-icon-btn"
-                onClick={() => handleMarkNotificationAsRead(notif.id)}
-                title={lang === "ar" ? "تحديد كمقروء" : "Mark as read"}
-              >
-                <Check size={14} />
-              </button>
-            )}
+
 
             <button
               className="notif-icon-btn"

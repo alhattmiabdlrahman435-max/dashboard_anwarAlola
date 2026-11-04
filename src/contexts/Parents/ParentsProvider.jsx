@@ -17,6 +17,9 @@ export default function ParentsProvider({ children }) {
 
   const fetchRequestRef = useRef(0);
   const abortRef = useRef(null);
+  const lastParentsQueryRef = useRef(null);
+  const stateRef = useRef({ isStale: true, count: 0 });
+  stateRef.current = { isStale, count: parentUsers.length };
 
   const fetchParents = useCallback((arg) => {
     const isForce = arg === true;
@@ -26,11 +29,16 @@ export default function ParentsProvider({ children }) {
     const activeToken = localStorage.getItem('auth_token');
     if (!activeToken) return;
 
-    if (!isForce && !isQueryString && !isStale && parentUsers.length > 0) return;
+    if (!isForce && !stateRef.current.isStale && stateRef.current.count > 0 && lastParentsQueryRef.current === queryString) {
+      return;
+    }
 
-    if (abortRef.current) abortRef.current.abort();
+    if (abortRef.current && lastParentsQueryRef.current !== queryString) {
+      abortRef.current.abort();
+    }
     const controller = new AbortController();
     abortRef.current = controller;
+    lastParentsQueryRef.current = queryString;
 
     const reqId = ++fetchRequestRef.current;
     setLoading(true);
@@ -78,6 +86,7 @@ export default function ParentsProvider({ children }) {
       .catch((err) => {
         if (err.name === 'AbortError' || controller.signal.aborted) return;
         if (reqId !== fetchRequestRef.current) return;
+        lastParentsQueryRef.current = null;
         console.error('Error fetching parents:', err);
       })
       .finally(() => {
@@ -86,7 +95,7 @@ export default function ParentsProvider({ children }) {
           abortRef.current = null;
         }
       });
-  }, [isStale, parentUsers.length]);
+  }, []);
 
   const handleAddParent = useCallback((newParent) => {
     const token = localStorage.getItem("auth_token");

@@ -40,6 +40,7 @@ export default function SettingsProvider({ children }) {
   const fetchWeeklySchedulesRequestRef = useRef(0);
   const fetchExamSchedulesRequestRef = useRef(0);
   const examSchedulesAbortRef = useRef(null);
+  const lastExamSchedulesQueryRef = useRef('?page=1&per_page=20');
 
   // Fetch weekly schedules
   const fetchWeeklySchedules = useCallback((...args) => {
@@ -77,10 +78,14 @@ export default function SettingsProvider({ children }) {
   }, [isStale, schedules]);
 
   // Fetch exam schedules
-  const fetchExamSchedules = useCallback((arg) => {
-    const isForce = arg === true;
-    const isQueryString = typeof arg === 'string';
-    const queryString = isQueryString ? arg : '?page=1&per_page=20';
+  const fetchExamSchedules = useCallback((...args) => {
+    const isForce = args.includes(true);
+    const qsArg = args.find(a => typeof a === 'string' && a.startsWith('?'));
+    const isQueryString = Boolean(qsArg);
+    if (qsArg) {
+      lastExamSchedulesQueryRef.current = qsArg;
+    }
+    const queryString = qsArg || lastExamSchedulesQueryRef.current || '?page=1&per_page=20';
 
     const token = localStorage.getItem("auth_token");
     if (!token) return;
@@ -103,13 +108,15 @@ export default function SettingsProvider({ children }) {
         if (data.success) {
           const mapped = data.exam_schedules.map((sch) => {
             const classObj = sch.class || {};
-            const subs = (sch.subjects || []).map((sub) => ({
-              id: sub.id,
-              subjectName: sub.name_ar || sub.subject_name || sub.name || "",
-              date: sub.exam_date,
-              time: sub.exam_time,
-              note: sub.note || "",
-            }));
+            const subs = (sch.subjects || [])
+              .map((sub) => ({
+                id: sub.id,
+                subjectName: sub.name_ar || sub.subject_name || sub.name || "",
+                date: sub.exam_date,
+                time: sub.exam_time,
+                note: sub.note || "",
+              }))
+              .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
 
             return {
               id: sch.id,

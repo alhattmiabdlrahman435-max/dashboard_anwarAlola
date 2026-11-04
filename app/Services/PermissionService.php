@@ -76,6 +76,8 @@ class PermissionService
                 'attendance' => 'scanner',
                 'absenceRequests' => 'absence',
                 'absence' => 'absenceRequests',
+                'supervisors' => 'prepSupervisors',
+                'prepSupervisors' => 'supervisors',
                 default => null
             };
             if (!$altKey || !isset($permissions[$altKey])) {
@@ -87,6 +89,11 @@ class PermissionService
         $modulePerms = $permissions[$module];
 
         $candidateActions = [$action];
+        if ($action === 'export') {
+            $candidateActions[] = 'view';
+        } elseif ($action === 'import') {
+            $candidateActions[] = 'create';
+        }
         if ($module === 'finance' && $action === 'collect') {
             $candidateActions[] = 'create';
             $candidateActions[] = 'update';

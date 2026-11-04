@@ -424,10 +424,16 @@ export const AppProvider = ({ children }) => {
             (Array.isArray(data.grades) ? data.grades : []).forEach((g) => {
               const termKey = g.term; // 'term1' or 'term2'
               const subjName = g.subject ? g.subject.name_ar : null;
-              if (subjName && gradesMap[termKey] && gradesMap[termKey][subjName]) {
+              if (subjName && gradesMap[termKey]) {
+                if (!gradesMap[termKey][subjName]) {
+                  gradesMap[termKey][subjName] = defaultDetailedGradeObj(0, 0, 0, 0, 0, 0);
+                }
                 const monthKey = g.month; // 'm1', 'm2', 'm3', or 'final'
                 if (monthKey === 'final') {
                   gradesMap[termKey][subjName].finalExam = Number(g.final_exam) || 0;
+                  if (g.coursework !== undefined && g.coursework !== null) {
+                    gradesMap[termKey][subjName].coursework = Number(g.coursework);
+                  }
                 } else if (gradesMap[termKey][subjName][monthKey]) {
                   gradesMap[termKey][subjName][monthKey] = {
                     homework: Number(g.hw_grade) || 0,
@@ -885,28 +891,35 @@ export const AppProvider = ({ children }) => {
 
   const fetchClassGrades = useCallback((classId) => {
     const token = localStorage.getItem("auth_token");
-    if (!token || !classId) return;
-    settingsService.getClassGrades(classId)
+    if (!token || !classId) return Promise.resolve([]);
+    const numericId = String(classId).replace("class-", "");
+    return settingsService.getClassGrades(numericId)
       .then((data) => {
         if (data.success && Array.isArray(data.students)) {
+          const mappedStudents = data.students.map(s => ({
+            studentId: Number(s.studentId),
+            studentName: s.studentName || "",
+            // The backend (/api/grades/class/{id}) already returns grades as a
+            // pre-processed nested object: { term1: { Subject: { m1, m2, m3, finalExam } } }
+            // Use it directly — do NOT iterate it as a flat array.
+            grades: s.grades || {},
+          }));
           setDetailedGrades((prev) => {
-            const incomingIds = data.students.map(s => Number(s.studentId));
+            const incomingIds = mappedStudents.map(s => Number(s.studentId));
             const filtered = prev.filter(r => !incomingIds.includes(Number(r.studentId)));
             return [
               ...filtered,
-              ...data.students.map(s => ({
-                studentId: Number(s.studentId),
-                studentName: s.studentName || "",
-                // The backend (/api/grades/class/{id}) already returns grades as a
-                // pre-processed nested object: { term1: { Subject: { m1, m2, m3, finalExam } } }
-                // Use it directly — do NOT iterate it as a flat array.
-                grades: s.grades || {},
-              }))
+              ...mappedStudents
             ];
           });
+          return mappedStudents;
         }
+        return [];
       })
-      .catch((err) => console.error("Error fetching class grades:", err));
+      .catch((err) => {
+        console.error("Error fetching class grades:", err);
+        return [];
+      });
   }, [setDetailedGrades]);
 
   const appContextValue = useMemo(() => ({

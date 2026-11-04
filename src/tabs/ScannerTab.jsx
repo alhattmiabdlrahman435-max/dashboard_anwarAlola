@@ -6,6 +6,7 @@ import { useStudents } from '../contexts/Students/useStudents';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useAttendance } from '../contexts/Attendance/useAttendance';
 import PrintHeader from '../components/PrintHeader';
+import { SLOGAN_BASE64 } from '../assets/sloganBase64';
 import { X, Calendar, BarChart3, Printer, Clock, Search } from 'lucide-react';
 
 export default function ScannerTab() {
@@ -30,6 +31,7 @@ export default function ScannerTab() {
     handleCellAttendanceChange,
     selectedAttendanceMonth,
     setSelectedAttendanceMonth,
+    setAttendanceRosterDate,
     fetchAttendance,
   } = useAttendance();
 
@@ -39,19 +41,252 @@ export default function ScannerTab() {
     setPrintStudentObject,
     fetchStudents,
   } = useStudents();
+
+  const handlePrintStudentAttendanceReport = (student) => {
+    if (!student) return;
+    const stats = calculateStudentStats(student.id);
+    const studentName = (lang === 'ar' ? student.name : student.nameEn) || student.name || '-';
+    const gradeName = student.grade || attendanceMonthGrade || '-';
+    const sectionName = student.section || attendanceMonthSection || '-';
+    const studentNationalId = student.nationalId || student.idNumber || student.id || '-';
+    const todayStr = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const studentRecords = (attendanceRecords || [])
+      .filter(r => String(r.studentId) === String(student.id) && r.date && r.date.startsWith(selectedAttendanceMonth))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const arabicDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+    const rowsHtml = studentRecords.length > 0
+      ? studentRecords.map((rec, idx) => {
+          const dObj = new Date(rec.date + 'T00:00:00');
+          const dayLabel = !isNaN(dObj.getTime()) ? arabicDays[dObj.getDay()] : '-';
+          const isPresent = rec.status === 'present';
+          const statusLabel = isPresent ? 'حاضر' : (rec.status === 'absent' ? 'غائب' : (rec.status || '-'));
+          const statusStyle = isPresent
+            ? 'color:#15803d;font-weight:800;background:#dcfce7;padding:2px 10px;border-radius:12px;display:inline-block;'
+            : 'color:#b91c1c;font-weight:800;background:#fee2e2;padding:2px 10px;border-radius:12px;display:inline-block;';
+          return `
+            <tr>
+              <td style="text-align:center;font-weight:700;">${idx + 1}</td>
+              <td style="text-align:center;font-weight:700;">${dayLabel}</td>
+              <td style="text-align:center;font-family:monospace;font-size:13px;" dir="ltr">${rec.date}</td>
+              <td style="text-align:center;"><span style="${statusStyle}">${statusLabel}</span></td>
+              <td style="text-align:center;font-family:monospace;" dir="ltr">${rec.arrivalTime && rec.arrivalTime !== '-' ? rec.arrivalTime : '—'}</td>
+              <td>${rec.excuseReason || ''}</td>
+            </tr>
+          `;
+        }).join('')
+      : '<tr><td colspan="6" style="text-align:center;padding:18px;color:#64748b;font-weight:700;">لا توجد سجلات حضور أو غياب مرصودة لهذا الطالب في الشهر المحدد</td></tr>';
+
+    const htmlContent = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>تقرير حضور وغياب الطالب - ${studentName}</title>
+  <style>
+    @page { size: A4 portrait; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
+      direction: rtl;
+      margin: 0;
+      padding: 0;
+      color: #0f172a;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sr-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px double #1e3a8a;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .sr-header-col {
+      width: 33%;
+      font-size: 12px;
+      line-height: 1.6;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .sr-header-right { text-align: right; }
+    .sr-header-center { text-align: center; display: flex; flex-direction: column; align-items: center; }
+    .sr-header-left { text-align: left; direction: ltr; }
+    .sr-logo { width: 72px; height: 72px; object-fit: contain; }
+    .sr-meta {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 14px;
+      margin-bottom: 12px;
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+    .sr-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .sr-kpi-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: center;
+      background: #f8fafc;
+    }
+    .sr-kpi-title { font-size: 11.5px; color: #475569; font-weight: 700; margin-bottom: 4px; }
+    .sr-kpi-val { font-size: 18px; font-weight: 800; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { border: 1px solid #334155; padding: 6px 8px; text-align: right; vertical-align: middle; }
+    th { background-color: #e2e8f0 !important; color: #0f172a; font-weight: 800; text-align: center; }
+    tr:nth-child(even) td { background-color: #f8fafc; }
+    tr { page-break-inside: avoid; }
+    .sr-footer {
+      margin-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 0 20px;
+      page-break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+  <div class="sr-header">
+    <div class="sr-header-col sr-header-right">
+      <div>الجمهورية اليمنية</div>
+      <div>وزارة التربية والتعليم</div>
+      <div>رياض ومدارس أنوار العلى الدولية النموذجية</div>
+    </div>
+    <div class="sr-header-col sr-header-center">
+      <img src="${SLOGAN_BASE64}" alt="شعار المدرسة" class="sr-logo" />
+    </div>
+    <div class="sr-header-col sr-header-left">
+      <div>Republic of Yemen</div>
+      <div>Ministry of Education</div>
+      <div>Anwar Al-Ola International Model Schools</div>
+    </div>
+  </div>
+
+  <div class="sr-meta">
+    <div>اسم الطالب: <strong>${studentName}</strong></div>
+    <div>الصف والشعبة: <strong>${gradeName} (${sectionName})</strong></div>
+    <div>رقم الهوية / الأكاديمي: <strong dir="ltr">${studentNationalId}</strong></div>
+    <div>الشهر: <strong dir="ltr">${selectedAttendanceMonth}</strong></div>
+    <div>تاريخ الإصدار: <strong>${todayStr}</strong></div>
+  </div>
+
+  <div class="sr-kpis">
+    <div class="sr-kpi-card">
+      <div class="sr-kpi-title">أيام الحضور</div>
+      <div class="sr-kpi-val" style="color:#15803d;">${stats.present}</div>
+    </div>
+    <div class="sr-kpi-card">
+      <div class="sr-kpi-title">أيام الغياب</div>
+      <div class="sr-kpi-val" style="color:#b91c1c;">${stats.absent}</div>
+    </div>
+    <div class="sr-kpi-card">
+      <div class="sr-kpi-title">إجمالي الأيام المرصودة</div>
+      <div class="sr-kpi-val" style="color:#1e3a8a;">${stats.total ?? stats.totalDays ?? 0}</div>
+    </div>
+    <div class="sr-kpi-card">
+      <div class="sr-kpi-title">نسبة الانضباط</div>
+      <div class="sr-kpi-val" style="color:${stats.rate >= 90 ? '#15803d' : stats.rate >= 75 ? '#d97706' : '#b91c1c'};">${stats.rate}%</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:45px;">م</th>
+        <th style="width:95px;">اليوم</th>
+        <th style="width:120px;">التاريخ</th>
+        <th style="width:110px;">حالة الحضور</th>
+        <th style="width:110px;">وقت الوصول</th>
+        <th>ملاحظات / سبب الغياب</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+
+  <div class="sr-footer">
+    <div>مشرف التحضير / شؤون الطلاب: ............................</div>
+    <div>اعتماد إدارة المدرسة: ............................</div>
+  </div>
+</body>
+</html>`;
+
+    let iframe = document.getElementById('student-attendance-print-frame');
+    if (iframe) {
+      document.body.removeChild(iframe);
+    }
+    iframe = document.createElement('iframe');
+    iframe.id = 'student-attendance-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }, 350);
+  };
+
+  const getTodayLocalParts = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return {
+      fullDate: `${yyyy}-${mm}-${dd}`,
+      yearMonth: `${yyyy}-${mm}`,
+      dayNum: now.getDate(),
+    };
+  };
+
   // Local navigation and filters
   const [attendanceSubTab, setAttendanceSubTab] = useState('monthlySheet');
   const [attendanceMonthGrade, setAttendanceMonthGrade] = useState('الصف الأول');
   const [attendanceMonthSection, setAttendanceMonthSection] = useState('أ');
   const [attendanceSearchQuery, setAttendanceSearchQuery] = useState('');
+  const [selectedAttendanceDate, setSelectedAttendanceDate] = useState(() => getTodayLocalParts().fullDate);
 
   const { allowedClasses, allowedGrades, allowedSections } = useAllowedClasses('scanner');
 
   const activeClass = allowedClasses.find(c => c.grade === attendanceMonthGrade && c.section === attendanceMonthSection) || (allowedClasses.length > 0 ? allowedClasses[0] : null);
 
+  // Auto-update Day, Month, and Year immediately upon opening the Attendance Log
   useEffect(() => {
+    const today = getTodayLocalParts();
+    setSelectedAttendanceDate(today.fullDate);
+    setSelectedAttendanceMonth(today.yearMonth);
+    if (setAttendanceRosterDate) {
+      setAttendanceRosterDate(today.fullDate);
+    }
+    setQuickDate(today.fullDate);
     fetchClasses();
-  }, [fetchClasses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (allowedClasses.length > 0) {
@@ -79,7 +314,7 @@ export default function ScannerTab() {
   const [quickGrade, setQuickGrade] = useState('الصف الأول');
   const [quickSection, setQuickSection] = useState('أ');
   const [quickStudentId, setQuickStudentId] = useState('');
-  const [quickDate, setQuickDate] = useState(new Date().toISOString().substring(0, 10));
+  const [quickDate, setQuickDate] = useState(() => getTodayLocalParts().fullDate);
   const [quickStatus, setQuickStatus] = useState('present');
 
   // Auto-sync students selection for quick attendance modal when class/section changes
@@ -183,8 +418,8 @@ export default function ScannerTab() {
           <PrintHeader 
             title="كشف حضور وغياب الطلاب الشهري"
             subtitle={lang === 'ar' 
-              ? `الصف الدراسي: ${attendanceMonthGrade} | الشعبة: ${attendanceMonthSection} | الشهر: ${selectedAttendanceMonth}`
-              : `Grade: ${attendanceMonthGrade} | Section: ${attendanceMonthSection} | Month: ${selectedAttendanceMonth}`
+              ? `الصف الدراسي: ${attendanceMonthGrade} | الشعبة: ${attendanceMonthSection} | التاريخ: ${selectedAttendanceDate}`
+              : `Grade: ${attendanceMonthGrade} | Section: ${attendanceMonthSection} | Date: ${selectedAttendanceDate}`
             }
           />
           {/* Filters bar (no-print) */}
@@ -217,11 +452,39 @@ export default function ScannerTab() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'الشهر المالي' : 'Month'}</label>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'التاريخ (اليوم / الشهر / السنة)' : 'Date (Day / Month / Year)'}</label>
+                <input 
+                  type="date" 
+                  value={selectedAttendanceDate} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val) {
+                      setSelectedAttendanceDate(val);
+                      setSelectedAttendanceMonth(val.substring(0, 7));
+                      if (setAttendanceRosterDate) setAttendanceRosterDate(val);
+                      setQuickDate(val);
+                    }
+                  }} 
+                  className="text-field"
+                  style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'الشهر والسنة' : 'Month & Year'}</label>
                 <input 
                   type="month" 
                   value={selectedAttendanceMonth} 
-                  onChange={(e) => setSelectedAttendanceMonth(e.target.value)} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val) {
+                      setSelectedAttendanceMonth(val);
+                      const today = getTodayLocalParts();
+                      const nextDate = val === today.yearMonth ? today.fullDate : `${val}-01`;
+                      setSelectedAttendanceDate(nextDate);
+                      if (setAttendanceRosterDate) setAttendanceRosterDate(nextDate);
+                    }
+                  }} 
                   className="text-field"
                   style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
                 />
@@ -272,7 +535,7 @@ export default function ScannerTab() {
                     setQuickGrade(defaultGrade);
                     setQuickSection(defaultSec);
                     setQuickStudentId(initialStudents.length > 0 ? initialStudents[0].id : '');
-                    setQuickDate(new Date().toISOString().substring(0, 10));
+                    setQuickDate(selectedAttendanceDate || getTodayLocalParts().fullDate);
                     setQuickStatus('present');
                     setShowQuickAttendanceModal(true);
                   }}
@@ -363,28 +626,30 @@ export default function ScannerTab() {
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)', backgroundColor: 'var(--color-surface-alt)' }}>
-                  <table className="schedule-table monthly-attendance-table" style={{ width: '100%', minWidth: '1000px', fontSize: '11px', borderCollapse: 'collapse' }}>
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)', backgroundColor: 'var(--color-surface-alt)' }}>
+                  <table className="schedule-table monthly-attendance-table" style={{ width: '100%', minWidth: '1000px', fontSize: '11px' }}>
                     <thead>
                       <tr>
-                        <th style={{ position: 'sticky', left: 0, zIndex: 10, background: 'var(--color-surface)', textAlign: 'start', minWidth: '160px', padding: '10px var(--space-md)', borderBottom: '1px solid var(--color-border)' }}>
+                        <th className="sticky-student-name" style={{ textAlign: 'start', padding: '10px var(--space-md)', borderBottom: '1px solid var(--color-border)' }}>
                           {lang === 'ar' ? 'اسم الطالب' : 'Student Name'}
                         </th>
                         {daysArray.filter(day => !checkIsWeekend(day)).map(day => {
+                          const dayDateStr = `${selectedAttendanceMonth}-${String(day).padStart(2, '0')}`;
+                          const isSelectedDay = dayDateStr === selectedAttendanceDate;
                           return (
                             <th 
                               key={day} 
                               style={{ 
                                 padding: '8px 2px', 
-                                background: 'var(--color-surface)',
-                                color: 'var(--color-text-primary)',
-                                minWidth: '26px',
-                                borderBottom: '1px solid var(--color-border)',
+                                background: isSelectedDay ? 'rgba(30, 80, 142, 0.14)' : 'var(--color-surface)',
+                                color: isSelectedDay ? 'var(--color-primary-ui)' : 'var(--color-text-primary)',
+                                minWidth: '28px',
+                                borderBottom: isSelectedDay ? '2px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
                                 borderLeft: '1px solid var(--color-border)'
                               }}
                             >
                               <div style={{ fontSize: '9px', opacity: 0.7, marginBottom: '2px', fontWeight: 'normal' }}>{getDayLetter(day)}</div>
-                              <div>{day}</div>
+                              <div style={{ fontWeight: isSelectedDay ? '800' : '700' }}>{day}</div>
                             </th>
                           );
                         })}
@@ -393,11 +658,12 @@ export default function ScannerTab() {
                     <tbody>
                       {filteredStudentsForAttendance.map(student => (
                         <tr key={student.id}>
-                          <td style={{ position: 'sticky', left: 0, zIndex: 10, background: 'var(--color-surface-alt)', textAlign: 'start', fontWeight: 'bold', padding: '8px var(--space-md)', borderRight: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)' }}>
+                          <td className="sticky-student-name" style={{ textAlign: 'start', fontWeight: 'bold', padding: '8px var(--space-md)', borderRight: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)' }}>
                             <span style={{ fontSize: '12px' }}>{lang === 'ar' ? student.name : student.nameEn}</span>
                           </td>
                           {daysArray.filter(day => !checkIsWeekend(day)).map(day => {
                             const dateStr = `${selectedAttendanceMonth}-${String(day).padStart(2, '0')}`;
+                            const isSelectedDay = dateStr === selectedAttendanceDate;
                             const record = attendanceRecords.find(r => r.studentId === student.id && r.date === dateStr);
                             const isLocked = isDate24HoursPassed(dateStr);
                             
@@ -424,7 +690,7 @@ export default function ScannerTab() {
                                 title={`${student.name}: ${cellTitle} (${dateStr})`}
                                 style={{ 
                                   padding: '6px 2px', 
-                                  backgroundColor: isLocked ? 'rgba(0,0,0,0.02)' : 'transparent',
+                                  backgroundColor: isLocked ? 'rgba(0,0,0,0.02)' : (isSelectedDay ? 'rgba(30, 80, 142, 0.06)' : 'transparent'),
                                   opacity: isLocked ? 0.65 : 1,
                                   cursor: isLocked ? 'not-allowed' : (canAction('scanner', 'update') ? 'pointer' : 'default'),
                                   fontSize: '12px',
@@ -513,11 +779,37 @@ export default function ScannerTab() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'الشهر المالي' : 'Month'}</label>
+              <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'التاريخ (اليوم / الشهر / السنة)' : 'Date (Day / Month / Year)'}</label>
+              <input 
+                type="date" 
+                value={selectedAttendanceDate} 
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    setSelectedAttendanceDate(val);
+                    setSelectedAttendanceMonth(val.substring(0, 7));
+                    if (setAttendanceRosterDate) setAttendanceRosterDate(val);
+                  }
+                }} 
+                className="text-field"
+                style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 'bold' }}>{lang === 'ar' ? 'الشهر والسنة' : 'Month & Year'}</label>
               <input 
                 type="month" 
                 value={selectedAttendanceMonth} 
-                onChange={(e) => setSelectedAttendanceMonth(e.target.value)} 
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    setSelectedAttendanceMonth(val);
+                    const today = getTodayLocalParts();
+                    const nextDate = val === today.yearMonth ? today.fullDate : `${val}-01`;
+                    setSelectedAttendanceDate(nextDate);
+                  }
+                }} 
                 className="text-field"
                 style={{ height: '36px', padding: '0 8px', fontSize: '12px' }}
               />
@@ -529,15 +821,16 @@ export default function ScannerTab() {
             const filteredStudentsForAttendance = students.filter(s => s.grade === attendanceMonthGrade && s.section === attendanceMonthSection);
             
             const classRecords = attendanceRecords.filter(r => {
-              const studentObj = students.find(s => s.id === r.studentId);
-              return studentObj && studentObj.grade === attendanceMonthGrade && studentObj.section === attendanceMonthSection && r.date.startsWith(selectedAttendanceMonth);
+              const studentObj = students.find(s => String(s.id) === String(r.studentId));
+              return studentObj && studentObj.grade === attendanceMonthGrade && studentObj.section === attendanceMonthSection && r.date && r.date.startsWith(selectedAttendanceMonth);
             });
             
             const classTotal = classRecords.length;
-            const classPresent = classRecords.filter(r => r.status === 'present').length;
+            const classPresent = classRecords.filter(r => r.status === 'present' || r.status === 'late').length;
             const classAbsent = classRecords.filter(r => r.status === 'absent').length;
             
-            const classAttendanceRate = classTotal > 0 ? Math.round((classPresent / classTotal) * 100) : 100;
+            const classAttendanceRate = (classPresent + classAbsent) > 0 ? Math.round((classPresent / (classPresent + classAbsent)) * 100) : 0;
+            const classAbsenceRate = (classPresent + classAbsent) > 0 ? Math.round((classAbsent / (classPresent + classAbsent)) * 100) : 0;
 
             if (filteredStudentsForAttendance.length === 0) {
               return (
@@ -557,10 +850,18 @@ export default function ScannerTab() {
 
             return (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
                   <div className="card-kpi" style={{ padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-alt)' }}>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'متوسط نسبة الحضور للشعبة' : 'Average Attendance Rate'}</div>
                     <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-success)', marginTop: '4px' }}>🟢 {classAttendanceRate}%</div>
+                  </div>
+                  <div className="card-kpi" style={{ padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-alt)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'متوسط نسبة الغياب للشعبة' : 'Average Absence Rate'}</div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-error)', marginTop: '4px' }}>🔴 {classAbsenceRate}%</div>
+                  </div>
+                  <div className="card-kpi" style={{ padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-alt)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'إجمالي أيام الحضور للشعبة' : 'Total Present Days'}</div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-success)', marginTop: '4px' }}>🟢 {classPresent} {lang === 'ar' ? 'يوم' : 'Days'}</div>
                   </div>
                   <div className="card-kpi" style={{ padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-alt)' }}>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{lang === 'ar' ? 'إجمالي أيام الغياب للشعبة' : 'Total Absent Days'}</div>
@@ -577,7 +878,7 @@ export default function ScannerTab() {
                   <table className="students-table">
                     <thead>
                       <tr>
-                        <th>{t.studentName}</th>
+                        <th className="sticky-col-name">{t.studentName}</th>
                         <th style={{ textAlign: 'center' }}>{lang === 'ar' ? 'أيام الحضور (🟢)' : 'Days Present (🟢)'}</th>
                         <th style={{ textAlign: 'center' }}>{lang === 'ar' ? 'أيام الغياب (🔴)' : 'Days Absent (🔴)'}</th>
                         <th style={{ textAlign: 'center' }}>{lang === 'ar' ? 'نسبة الانضباط' : 'Discipline Rate'}</th>
@@ -589,7 +890,7 @@ export default function ScannerTab() {
                         const stats = calculateStudentStats(student.id);
                         return (
                           <tr key={student.id}>
-                            <td style={{ fontWeight: '600' }}>
+                            <td className="sticky-col-name" style={{ fontWeight: '600' }}>
                               {renderAvatar(student.photo, "👨‍🎓")}
                               <span>{lang === 'ar' ? student.name : student.nameEn}</span>
                             </td>
@@ -605,7 +906,7 @@ export default function ScannerTab() {
                                 type="button"
                                 className="btn-elevated"
                                 style={{ fontSize: '11px', height: '28px', padding: '0 8px' }}
-                                onClick={() => setPrintStudentObject(student)}
+                                onClick={() => handlePrintStudentAttendanceReport(student)}
                               >
                                 🖨️ {lang === 'ar' ? 'طباعة التقرير الفردي' : 'Print Report'}
                               </button>

@@ -43,5 +43,17 @@ export const teachersService = {
 
   downloadTemplate: () => {
     return api.get("/api/teachers/template");
+  },
+
+  exportSupervisors: () => {
+    return api.get("/api/supervisors/export");
+  },
+
+  importSupervisors: (formData) => {
+    return api.post("/api/supervisors/import", formData);
+  },
+
+  downloadSupervisorTemplate: () => {
+    return api.get("/api/supervisors/template");
   }
 };

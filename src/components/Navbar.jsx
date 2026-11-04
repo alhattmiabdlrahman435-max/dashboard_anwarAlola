@@ -112,9 +112,9 @@ export default function Navbar() {
           >
             <Bell />
           </button>
-          {notifications.filter(n => !n.isRead).length > 0 && (
+          {notifications.filter(n => !n.isRead && !n.isOutbound).length > 0 && (
             <span className="badge-count-notification">
-              {notifications.filter(n => !n.isRead).length}
+              {notifications.filter(n => !n.isRead && !n.isOutbound).length}
             </span>
           )}
 
@@ -130,10 +130,10 @@ export default function Navbar() {
               <div className="dropdown-body">
                 {notifications.slice(0, 3).map((notif) => (
                   <div 
-                    className={`dropdown-item ${notif.isRead ? 'read' : 'unread'}`} 
+                    className={`dropdown-item ${(notif.isRead || notif.isOutbound) ? 'read' : 'unread'}`} 
                     key={notif.id}
                     onClick={() => {
-                      if (!notif.isRead) {
+                      if (!notif.isRead && !notif.isOutbound) {
                         handleMarkNotificationAsRead(notif.id);
                       }
                       
@@ -174,13 +174,13 @@ export default function Navbar() {
                         setShowNotificationsDropdown(false);
                       }
                     }}
-                    style={{ opacity: notif.isRead ? 0.6 : 1, transition: 'all 0.3s' }}
+                    style={{ opacity: (notif.isRead || notif.isOutbound) ? 0.75 : 1, transition: 'all 0.3s' }}
                   >
                     <div className="item-icon-wrapper info">
                       <Bell size={14} />
                     </div>
                     <div className="item-content">
-                      <div className="item-title" style={{ fontWeight: notif.isRead ? 'normal' : 'bold' }}>{notif.title}</div>
+                      <div className="item-title" style={{ fontWeight: (notif.isRead || notif.isOutbound) ? 'normal' : 'bold' }}>{notif.title}</div>
                       <div className="item-desc">{notif.content}</div>
                       <div className="item-time">{notif.date}</div>
                     </div>

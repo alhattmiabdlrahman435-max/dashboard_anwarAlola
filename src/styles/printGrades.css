@@ -53,7 +53,7 @@
   /* Compact general class sheet table to guarantee 100% fit on A4 Landscape */
   .class-general-print-table {
     width: 100% !important;
-    table-layout: fixed !important;
+    table-layout: auto !important;
     border-collapse: collapse !important;
     font-size: 9.5px !important;
     direction: rtl !important;
@@ -61,11 +61,13 @@
 
   .class-general-print-table th,
   .class-general-print-table td {
-    padding: 4px 2px !important;
+    padding: 3px 2px !important;
     border: 1px solid #64748b !important;
     text-align: center !important;
-    overflow: hidden !important;
-    word-break: break-word !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    word-wrap: normal !important;
+    hyphens: none !important;
   }
 
   .class-general-print-table th {
@@ -74,6 +76,7 @@
     font-weight: 700 !important;
     font-size: 9px !important;
     line-height: 1.15 !important;
+    white-space: nowrap !important;
   }
 
   .class-general-print-table td.student-name-cell {
@@ -81,7 +84,7 @@
     padding-right: 6px !important;
     font-weight: 600 !important;
     white-space: nowrap !important;
-    text-overflow: ellipsis !important;
+    word-break: keep-all !important;
   }
 
   .class-general-print-table td.total-cell {

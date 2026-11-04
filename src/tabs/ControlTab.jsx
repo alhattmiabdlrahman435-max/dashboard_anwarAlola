@@ -315,7 +315,7 @@ export default function ControlTab() {
       </div>
 
       {/* Final control sheet table grid */}
-      <div>
+      <div style={{ minWidth: 0, width: '100%', maxWidth: '100%' }}>
         <PrintHeader
           title={t.gradesSheetTitle}
           subtitle={lang === 'ar' ? "كشف مطابقة الأرقام السرية" : "Secret Number Mapping Sheet"}
@@ -325,17 +325,17 @@ export default function ControlTab() {
           <table className="control-grade-table">
             <thead>
               <tr>
+                <th className="sticky-col-1" style={{ cursor: 'pointer' }} onClick={() => handleSortChange('id')}>
+                  {lang === 'ar' ? 'رقم الطالب' : 'Student ID'} {sort === 'id' ? (direction === 'asc' ? '🔼' : '🔽') : ''}
+                </th>
+                <th className="sticky-col-2" style={{ cursor: 'pointer', textAlign: 'right' }} onClick={() => handleSortChange(lang === 'ar' ? 'name_ar' : 'name_en')}>
+                  {t.studentName} {sort === (lang === 'ar' ? 'name_ar' : 'name_en') ? (direction === 'asc' ? '🔼' : '🔽') : ''}
+                </th>
                 {isGradesEncrypted && (
                   <th style={{ cursor: 'pointer' }} onClick={() => handleSortChange('secret_code')}>
                     {t.secretCode} {sort === 'secret_code' ? (direction === 'asc' ? '🔼' : '🔽') : ''}
                   </th>
                 )}
-                <th style={{ cursor: 'pointer' }} onClick={() => handleSortChange('id')}>
-                  {lang === 'ar' ? 'رقم الطالب' : 'Student ID'} {sort === 'id' ? (direction === 'asc' ? '🔼' : '🔽') : ''}
-                </th>
-                <th style={{ cursor: 'pointer' }} onClick={() => handleSortChange(lang === 'ar' ? 'name_ar' : 'name_en')}>
-                  {t.studentName} {sort === (lang === 'ar' ? 'name_ar' : 'name_en') ? (direction === 'asc' ? '🔼' : '🔽') : ''}
-                </th>
                 <th>{lang === 'ar' ? 'صف الطالب' : 'Student Class'}</th>
               </tr>
             </thead>
@@ -345,15 +345,15 @@ export default function ControlTab() {
                   const studentClass = lang === 'ar' ? row.class_name_ar : row.class_name_en;
                   return (
                     <tr key={row.studentId}>
-                      {isGradesEncrypted && (
-                        <td className="secret-code-cell">{row.secretCode}</td>
-                      )}
-                      <td style={{ fontFamily: 'var(--font-mono)' }}>{row.studentId}</td>
-                      <td style={{ fontWeight: '600' }}>
+                      <td className="sticky-col-1" style={{ fontFamily: 'var(--font-mono)' }}>{row.studentId}</td>
+                      <td className="sticky-col-2" style={{ fontWeight: '600', textAlign: 'right' }}>
                         <span className={isGradesEncrypted ? 'encrypted-text' : ''}>
                           {lang === 'ar' ? row.name : row.nameEn}
                         </span>
                       </td>
+                      {isGradesEncrypted && (
+                        <td className="secret-code-cell">{row.secretCode}</td>
+                      )}
                       <td>{studentClass}</td>
                     </tr>
                   );

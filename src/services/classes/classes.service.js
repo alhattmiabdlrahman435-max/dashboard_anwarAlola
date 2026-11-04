@@ -20,4 +20,16 @@ export const classesService = {
   syncSubjects: (classId, subjects) => {
     return api.post(`/api/classes/${classId}/subjects`, { subjects });
   },
+
+  exportClasses: () => {
+    return api.get("/api/classes/export");
+  },
+
+  importClasses: (formData) => {
+    return api.post("/api/classes/import", formData);
+  },
+
+  downloadTemplate: () => {
+    return api.get("/api/classes/template");
+  },
 };

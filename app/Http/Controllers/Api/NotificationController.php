@@ -213,8 +213,19 @@ class NotificationController extends Controller implements HasMiddleware
             'title' => 'required|string',
             'content' => 'required|string',
             'target_type' => 'required|string|in:all_users,all_parents,by_class,by_student,all_teachers,specific_teacher',
-            'target_id' => 'nullable|integer',
+            'target_id' => 'nullable|integer|required_if:target_type,by_class,by_student,specific_teacher',
         ]);
+
+        // The exact recipient must exist: never fall back to another student / class / teacher
+        if ($request->target_type === 'by_student' && !Student::whereKey($request->target_id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'الطالب المحدد غير موجود.'], 422);
+        }
+        if ($request->target_type === 'by_class' && !\App\Models\SchoolClass::whereKey($request->target_id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'الصف المحدد غير موجود.'], 422);
+        }
+        if ($request->target_type === 'specific_teacher' && !\App\Models\User::whereKey($request->target_id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'المعلم المحدد غير موجود.'], 422);
+        }
 
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'communications');

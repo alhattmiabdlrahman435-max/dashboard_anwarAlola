@@ -45,7 +45,7 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
         <table className="control-grade-table">
           <thead>
             <tr>
-              <th>{lang === 'ar' ? 'المادة الدراسية' : 'Academic Subject'}</th>
+              <th className="sticky-col-name" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'المادة الدراسية' : 'Academic Subject'}</th>
               <th>{t.hwLabel}</th>
               <th>{t.attLabel}</th>
               <th>{t.behLabel}</th>
@@ -69,7 +69,7 @@ const MonthView = memo(function MonthView({ selectedMonth }) {
 
                 return (
                   <tr key={subj}>
-                    <td style={{ fontWeight: 'bold' }}>{subjectLabel}</td>
+                    <td className="sticky-col-name" style={{ fontWeight: 'bold', textAlign: 'right' }}>{subjectLabel}</td>
                   <td>
                     <GradeInput 
                       min="0" max="15" 

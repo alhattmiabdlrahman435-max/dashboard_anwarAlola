@@ -583,7 +583,7 @@ class DatabaseSeeder extends Seeder
         // Broadcast notification to all
         DB::table('notifications')->insert([
             'title' => 'بدء التسجيل للعام الدراسي الجديد',
-            'content' => 'تعلن إدارة مدارس أنوار العلا عن فتح باب التسجيل والقبول للعام الدراسي القادم.',
+            'content' => 'تعلن إدارة رياض ومدارس أنوار العلى الدولية النموذجية عن فتح باب التسجيل والقبول للعام الدراسي القادم.',
             'type' => 'general',
             'is_read' => false,
             'created_at' => now(),

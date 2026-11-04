@@ -266,9 +266,9 @@ export default function Sidebar() {
               >
                 <Bell />
                 <span>{t.communications}</span>
-                {notifications.filter(n => !n.isRead).length > 0 && (
+                {notifications.filter(n => !n.isRead && !n.isOutbound).length > 0 && (
                   <span className="menu-item-badge">
-                    {notifications.filter(n => !n.isRead).length}
+                    {notifications.filter(n => !n.isRead && !n.isOutbound).length}
                   </span>
                 )}
               </NavLink>

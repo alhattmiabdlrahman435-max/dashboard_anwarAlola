@@ -17,6 +17,26 @@ export const backupsService = {
   },
 
   /**
+   * Export standalone full academic year archive (Excel, ZIP, or HTML)
+   * @param {string} academicYear
+   * @param {string|boolean} formatOrAsZip - 'excel' | 'zip' | 'html' or boolean
+   */
+  async exportAcademicYearArchive(academicYear = '2026-2027م', formatOrAsZip = 'excel') {
+    let format = 'excel';
+    if (typeof formatOrAsZip === 'boolean') {
+      format = formatOrAsZip ? 'zip' : 'html';
+    } else if (typeof formatOrAsZip === 'string') {
+      format = formatOrAsZip;
+    }
+
+    return api.post('/api/backups/academic-year-archive', {
+      academic_year: academicYear,
+      format: format,
+      as_zip: format === 'zip',
+    });
+  },
+
+  /**
    * Clean old backups according to retention policy
    */
   async cleanBackups() {
@@ -32,7 +52,7 @@ export const backupsService = {
   },
 
   /**
-   * Download a backup zip file directly
+   * Download a backup zip or html file directly
    * @param {string} fileName
    */
   async downloadBackup(fileName) {

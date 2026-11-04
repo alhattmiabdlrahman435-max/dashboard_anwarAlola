@@ -1369,20 +1369,187 @@ body[dir="rtl"] .search-box .text-field {
   padding-right: 42px;
 }
 
+.main-workspace,
+.main-content-layout,
+.content-area,
+.section-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .students-table-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  overflow-x: auto;
+  overflow-x: auto !important;
   overflow-y: hidden;
   background-color: var(--color-surface-alt);
   box-shadow: var(--color-shadow);
   -webkit-overflow-scrolling: touch;
+  position: relative;
 }
 
 .students-table {
-  width: 100%;
-  border-collapse: collapse;
+  display: table !important;
+  overflow: visible !important;
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
   text-align: start;
+}
+
+/* Sticky Columns for Students & Parents Tables (Desktop, Desktop-Mode on Mobile, & Phone) */
+.students-table th.sticky-col-1,
+.students-table td.sticky-col-1 {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 0 !important;
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+
+.students-table th.sticky-col-2,
+.students-table td.sticky-col-2 {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 110px !important;
+  width: 185px !important;
+  min-width: 185px !important;
+  max-width: 185px !important;
+  box-sizing: border-box !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.4 !important;
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.09) !important;
+  border-left: 1px solid var(--color-border) !important;
+}
+
+.students-table th.sticky-col-1,
+.students-table th.sticky-col-2 {
+  background-color: #f8fafc !important;
+  z-index: 30 !important;
+}
+
+.students-table td.sticky-col-1,
+.students-table td.sticky-col-2 {
+  background-color: #ffffff !important;
+  z-index: 20 !important;
+}
+
+.students-table tr:hover td.sticky-col-1,
+.students-table tr:hover td.sticky-col-2 {
+  background-color: #f1f5f9 !important;
+}
+
+body.dark-mode .students-table th.sticky-col-1,
+body.dark-mode .students-table th.sticky-col-2,
+:root.dark .students-table th.sticky-col-1,
+:root.dark .students-table th.sticky-col-2 {
+  background-color: #1e293b !important;
+}
+
+body.dark-mode .students-table td.sticky-col-1,
+body.dark-mode .students-table td.sticky-col-2,
+:root.dark .students-table td.sticky-col-1,
+:root.dark .students-table td.sticky-col-2 {
+  background-color: #0f172a !important;
+}
+
+body.dark-mode .students-table tr:hover td.sticky-col-1,
+body.dark-mode .students-table tr:hover td.sticky-col-2,
+:root.dark .students-table tr:hover td.sticky-col-1,
+:root.dark .students-table tr:hover td.sticky-col-2 {
+  background-color: #1e293b !important;
+}
+
+/* Single Sticky Name Column (e.g. Attendance Stats & Grades Tables) */
+.students-table th.sticky-col-name,
+.students-table td.sticky-col-name {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 0 !important;
+  width: 190px !important;
+  min-width: 190px !important;
+  max-width: 190px !important;
+  box-sizing: border-box !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.4 !important;
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.09) !important;
+  border-left: 1px solid var(--color-border) !important;
+}
+
+.students-table th.sticky-col-name {
+  background-color: #f8fafc !important;
+  z-index: 30 !important;
+}
+
+.students-table td.sticky-col-name {
+  background-color: #ffffff !important;
+  z-index: 20 !important;
+}
+
+.students-table tr:hover td.sticky-col-name {
+  background-color: #f1f5f9 !important;
+}
+
+body.dark-mode .students-table th.sticky-col-name,
+:root.dark .students-table th.sticky-col-name {
+  background-color: #1e293b !important;
+}
+
+body.dark-mode .students-table td.sticky-col-name,
+:root.dark .students-table td.sticky-col-name {
+  background-color: #0f172a !important;
+}
+
+body.dark-mode .students-table tr:hover td.sticky-col-name,
+:root.dark .students-table tr:hover td.sticky-col-name {
+  background-color: #1e293b !important;
+}
+
+@media (max-width: 768px) {
+  .students-table th.sticky-col-1,
+  .students-table td.sticky-col-1 {
+    right: 0 !important;
+    width: 78px !important;
+    min-width: 78px !important;
+    max-width: 78px !important;
+    padding: 8px 4px !important;
+    font-size: 10.5px !important;
+  }
+
+  .students-table th.sticky-col-2,
+  .students-table td.sticky-col-2 {
+    right: 78px !important;
+    width: 115px !important;
+    min-width: 115px !important;
+    max-width: 115px !important;
+    padding: 8px 6px !important;
+    font-size: 11.5px !important;
+    white-space: normal !important;
+    line-height: 1.35 !important;
+  }
+
+  .students-table th.sticky-col-name,
+  .students-table td.sticky-col-name {
+    right: 0 !important;
+    width: 135px !important;
+    min-width: 135px !important;
+    max-width: 135px !important;
+    padding: 8px 6px !important;
+    font-size: 11.5px !important;
+    white-space: normal !important;
+    line-height: 1.35 !important;
+  }
 }
 
 .students-table th {
@@ -1636,26 +1803,35 @@ body[dir="rtl"] .search-box .text-field {
 }
 
 /* ==========================================================================
-   Digital Exam Grading Control Tab
+   Digital Exam Grading Control Tab & Grades Tables
    ========================================================================== */
 .control-grade-table-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  overflow-x: auto;
+  overflow-x: auto !important;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   background-color: var(--color-surface-alt);
   box-shadow: var(--color-shadow);
+  position: relative;
 }
 
 .control-grade-table {
-  width: 100%;
-  border-collapse: collapse;
+  display: table !important;
+  overflow: visible !important;
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
   text-align: start;
 }
 
 .control-grade-table th {
   background-color: var(--color-surface);
-  padding: 14px var(--space-xl);
+  padding: 14px var(--space-lg);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--color-text-primary);
@@ -1663,11 +1839,143 @@ body[dir="rtl"] .search-box .text-field {
 }
 
 .control-grade-table td {
-  padding: 12px var(--space-xl);
+  padding: 12px var(--space-lg);
   font-size: 0.825rem;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
   vertical-align: middle;
+}
+
+/* Sticky Columns for Grades Table (Desktop & Mobile) */
+.control-grade-table th.sticky-col-1,
+.control-grade-table td.sticky-col-1 {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 0 !important;
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+.control-grade-table th.sticky-col-2,
+.control-grade-table td.sticky-col-2 {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 48px !important;
+  width: 185px !important;
+  min-width: 185px !important;
+  max-width: 185px !important;
+  box-sizing: border-box !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.4 !important;
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.09) !important;
+  border-left: 1px solid var(--color-border) !important;
+}
+
+.control-grade-table th.sticky-col-name,
+.control-grade-table td.sticky-col-name {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 0 !important;
+  width: 185px !important;
+  min-width: 185px !important;
+  max-width: 185px !important;
+  box-sizing: border-box !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.4 !important;
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.09) !important;
+  border-left: 1px solid var(--color-border) !important;
+}
+
+.control-grade-table th.sticky-col-1,
+.control-grade-table th.sticky-col-2,
+.control-grade-table th.sticky-col-name {
+  background-color: #f8fafc !important;
+  z-index: 30 !important;
+}
+
+.control-grade-table td.sticky-col-1,
+.control-grade-table td.sticky-col-2,
+.control-grade-table td.sticky-col-name {
+  background-color: #ffffff !important;
+  z-index: 20 !important;
+}
+
+.control-grade-table tr:hover td.sticky-col-1,
+.control-grade-table tr:hover td.sticky-col-2,
+.control-grade-table tr:hover td.sticky-col-name {
+  background-color: #f1f5f9 !important;
+}
+
+body.dark-mode .control-grade-table th.sticky-col-1,
+body.dark-mode .control-grade-table th.sticky-col-2,
+body.dark-mode .control-grade-table th.sticky-col-name,
+:root.dark .control-grade-table th.sticky-col-1,
+:root.dark .control-grade-table th.sticky-col-2,
+:root.dark .control-grade-table th.sticky-col-name {
+  background-color: #1e293b !important;
+}
+
+body.dark-mode .control-grade-table td.sticky-col-1,
+body.dark-mode .control-grade-table td.sticky-col-2,
+body.dark-mode .control-grade-table td.sticky-col-name,
+:root.dark .control-grade-table td.sticky-col-1,
+:root.dark .control-grade-table td.sticky-col-2,
+:root.dark .control-grade-table td.sticky-col-name {
+  background-color: #0f172a !important;
+}
+
+body.dark-mode .control-grade-table tr:hover td.sticky-col-1,
+body.dark-mode .control-grade-table tr:hover td.sticky-col-2,
+body.dark-mode .control-grade-table tr:hover td.sticky-col-name,
+:root.dark .control-grade-table tr:hover td.sticky-col-1,
+:root.dark .control-grade-table tr:hover td.sticky-col-2,
+:root.dark .control-grade-table tr:hover td.sticky-col-name {
+  background-color: #1e293b !important;
+}
+
+@media (max-width: 768px) {
+  .control-grade-table th.sticky-col-1,
+  .control-grade-table td.sticky-col-1 {
+    right: 0 !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    padding: 8px 2px !important;
+    font-size: 11px !important;
+  }
+
+  .control-grade-table th.sticky-col-2,
+  .control-grade-table td.sticky-col-2 {
+    right: 36px !important;
+    width: 130px !important;
+    min-width: 130px !important;
+    max-width: 130px !important;
+    padding: 8px 6px !important;
+    font-size: 11.5px !important;
+    white-space: normal !important;
+    line-height: 1.35 !important;
+  }
+
+  .control-grade-table th.sticky-col-name,
+  .control-grade-table td.sticky-col-name {
+    right: 0 !important;
+    width: 135px !important;
+    min-width: 135px !important;
+    max-width: 135px !important;
+    padding: 8px 6px !important;
+    font-size: 11.5px !important;
+    white-space: normal !important;
+    line-height: 1.35 !important;
+  }
 }
 
 .secret-code-cell {
@@ -2319,8 +2627,70 @@ body:has(.modal-overlay) {
   }
 }
 
+.monthly-attendance-table {
+  display: table !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
 .monthly-attendance-table td {
   min-width: 28px !important;
+}
+
+.monthly-attendance-table th.sticky-student-name,
+.monthly-attendance-table td.sticky-student-name {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 0 !important;
+  width: 175px !important;
+  min-width: 175px !important;
+  max-width: 175px !important;
+  box-sizing: border-box !important;
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.09) !important;
+  border-left: 1px solid var(--color-border) !important;
+}
+
+.monthly-attendance-table th.sticky-student-name {
+  background-color: #f8fafc !important;
+  z-index: 30 !important;
+}
+
+.monthly-attendance-table td.sticky-student-name {
+  background-color: #ffffff !important;
+  z-index: 20 !important;
+}
+
+.monthly-attendance-table tr:hover td.sticky-student-name {
+  background-color: #f1f5f9 !important;
+}
+
+body.dark-mode .monthly-attendance-table th.sticky-student-name,
+:root.dark .monthly-attendance-table th.sticky-student-name {
+  background-color: #1e293b !important;
+}
+
+body.dark-mode .monthly-attendance-table td.sticky-student-name,
+:root.dark .monthly-attendance-table td.sticky-student-name {
+  background-color: #0f172a !important;
+}
+
+body.dark-mode .monthly-attendance-table tr:hover td.sticky-student-name,
+:root.dark .monthly-attendance-table tr:hover td.sticky-student-name {
+  background-color: #1e293b !important;
+}
+
+@media (max-width: 768px) {
+  .monthly-attendance-table th.sticky-student-name,
+  .monthly-attendance-table td.sticky-student-name {
+    right: 0 !important;
+    width: 130px !important;
+    min-width: 130px !important;
+    max-width: 130px !important;
+    padding: 8px 6px !important;
+    font-size: 11.5px !important;
+    white-space: normal !important;
+    line-height: 1.35 !important;
+  }
 }
 
 @media print {
@@ -3842,10 +4212,10 @@ body[dir="rtl"] .menu-item.active {
     gap: var(--space-md) !important;
   }
 
-  /* Tables: horizontal scroll to prevent content cut-off */
-  .section-card table,
-  .tab-content table,
-  .table-wrapper table {
+  /* Tables: horizontal scroll to prevent content cut-off (exclude .students-table, .monthly-attendance-table, and .control-grade-table so sticky columns work) */
+  .section-card table:not(.students-table):not(.monthly-attendance-table):not(.control-grade-table),
+  .tab-content table:not(.students-table):not(.monthly-attendance-table):not(.control-grade-table),
+  .table-wrapper table:not(.students-table):not(.monthly-attendance-table):not(.control-grade-table) {
     display: block;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -3904,10 +4274,10 @@ body[dir="rtl"] .menu-item.active {
     border-radius: var(--radius-card) !important;
   }
 
-  /* Schedule/timetable: horizontal scroll */
+  /* Schedule/timetable: horizontal scroll (exclude .monthly-attendance-table so sticky column works) */
   .schedule-grid,
-  .schedule-table,
-  [class*="schedule"] table {
+  .schedule-table:not(.monthly-attendance-table),
+  [class*="schedule"] table:not(.monthly-attendance-table) {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     display: block;

@@ -5,9 +5,10 @@ import { useClasses } from '../contexts/Classes/useClasses';
 import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useStudents } from '../contexts/Students/useStudents';
 import { useSubjects } from '../contexts/Subjects/useSubjects';
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { Download, FileSpreadsheet, Printer } from 'lucide-react';
 import '../styles/printGrades.css';
 import GradeReconciliationWizard from '../components/grades/GradeReconciliationWizard';
+import GradesDirectPrintModal from '../components/grades/GradesDirectPrintModal';
 
 // Screen Views
 import SubjectView from '../components/grades/SubjectView';
@@ -35,6 +36,7 @@ export default function DetailedGradesTab() {
     selectedGradeSubject,
     setSelectedGradeSubject,
     setShowPrintModal,
+    detailedGrades,
     fetchClassGrades
   } = useApp();
 
@@ -46,12 +48,15 @@ export default function DetailedGradesTab() {
   useEffect(() => {
     fetchClasses(true);
     fetchSubjects(true);
-  }, [fetchClasses, fetchSubjects]);
+    fetchStudents('?per_page=1000');
+  }, [fetchClasses, fetchSubjects, fetchStudents]);
 
   // State for view controls
   const [viewMode, setViewMode] = useState('class'); // Default to class view for admin reviews
   const [selectedMonth, setSelectedMonth] = useState('m1'); // 'm1', 'm2', 'm3'
   const [showExcelModal, setShowExcelModal] = useState(false);
+  const [showDirectPrintModal, setShowDirectPrintModal] = useState(false);
+  const [initialPrintTemplate, setInitialPrintTemplate] = useState('template_1_blank_year');
 
   // Calculate unique classes list from classes master table
   const classesList = classes.map(c => `${c.grade} - ${c.section}`).sort();
@@ -67,15 +72,6 @@ export default function DetailedGradesTab() {
   const selectedClassId = selectedClassObj
     ? (selectedClassObj.numericId || String(selectedClassObj.id).replace(/\D/g, ''))
     : null;
-
-  useEffect(() => {
-    if (selectedClassObj) {
-      const cleanClassId = selectedClassObj.numericId || String(selectedClassObj.id).replace(/\D/g, '');
-      fetchStudents(`?class_id=${cleanClassId}&per_page=500`);
-    } else {
-      fetchStudents('?per_page=500');
-    }
-  }, [selectedClassObj, fetchStudents]);
   const [classPeriod, setClassPeriod] = useState(localStorage.getItem('goto_period') || 'm1'); // 'm1', 'm2', 'm3', 'termTotal', 'yearlyTotal'
   const [classSubject, setClassSubject] = useState('all'); // 'all', 'detailed', and subjects
 
@@ -246,7 +242,42 @@ export default function DetailedGradesTab() {
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px', margin: 0 }}>
           📊 {t.detailedGradesTitle}
         </h3>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Direct Print Templates Button (beside Import/Export as requested) */}
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              if (viewMode === 'month') {
+                setInitialPrintTemplate('template_2_monthly_sheet');
+              } else if (classPeriod === 'termTotal') {
+                setInitialPrintTemplate('template_4_term_final');
+              } else if (classPeriod === 'yearlyTotal') {
+                setInitialPrintTemplate('template_5_direct_result');
+              } else {
+                setInitialPrintTemplate('template_1_blank_year');
+              }
+              setShowDirectPrintModal(true);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'linear-gradient(135deg, #1e3a8a, #2563eb)',
+              color: 'white',
+              border: 'none',
+              padding: '0 14px',
+              height: '38px',
+              borderRadius: '8px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
+            }}
+          >
+            <Printer size={16} />
+            {lang === 'ar' ? 'طباعة مباشرة (كشوفات / نتائج / شهادات)' : 'Direct Print (Sheets / Results / Certificates)'}
+          </button>
+
           {/* Excel Import / Export Button */}
           <button 
             type="button"
@@ -556,11 +587,11 @@ export default function DetailedGradesTab() {
       </div>
 
       {/* Grading Grid Sheet Container */}
-      <div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+      <div style={{ minWidth: 0, width: '100%', maxWidth: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)', minWidth: 0, width: '100%', maxWidth: '100%' }}>
 
           {/* ==================== SCREEN UI ORCHESTRATION ==================== */}
-          <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', minWidth: 0, width: '100%', maxWidth: '100%' }}>
             {viewMode === 'subject' && <SubjectView />}
             {viewMode === 'month' && <MonthView selectedMonth={selectedMonth} />}
             {viewMode === 'class' && (
@@ -584,6 +615,23 @@ export default function DetailedGradesTab() {
 
         </div>
       </div>
+
+      {/* Direct Print Ready Templates Modal (6 Official Templates) */}
+      <GradesDirectPrintModal
+        isOpen={showDirectPrintModal}
+        onClose={() => setShowDirectPrintModal(false)}
+        lang={lang}
+        classes={classes}
+        students={students}
+        subjects={subjects}
+        selectedClass={selectedClass}
+        selectedGradeTerm={selectedGradeTerm}
+        selectedMonth={viewMode === 'month' ? selectedMonth : (['m1', 'm2', 'm3'].includes(classPeriod) ? classPeriod : 'm1')}
+        selectedGradeStudentId={selectedGradeStudentId}
+        detailedGrades={detailedGrades}
+        fetchClassGrades={fetchClassGrades}
+        initialTemplate={initialPrintTemplate}
+      />
 
       {/* Modern Data Mapping & Reconciliation Wizard */}
       {showExcelModal && (

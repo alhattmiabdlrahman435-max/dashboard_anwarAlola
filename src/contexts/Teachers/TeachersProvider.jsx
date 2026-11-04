@@ -29,6 +29,9 @@ export default function TeachersProvider({ children }) {
   const supervisorsAbortRef = useRef(null);
 
   const lastTeachersQueryRef = useRef(null);
+  const lastSupervisorsQueryRef = useRef(null);
+  const stateRef = useRef({ isStale: true, teachersCount: 0, supervisorsCount: 0 });
+  stateRef.current = { isStale, teachersCount: teachers.length, supervisorsCount: supervisors.length };
 
   // ─── Fetch Teachers ────────────────────────────────────────────────
   const fetchTeachers = useCallback((arg) => {
@@ -39,7 +42,7 @@ export default function TeachersProvider({ children }) {
     const activeToken = localStorage.getItem('auth_token');
     if (!activeToken) return;
 
-    if (!isForce && !isStale && teachers.length > 0 && lastTeachersQueryRef.current === queryString) return;
+    if (!isForce && !stateRef.current.isStale && stateRef.current.teachersCount > 0 && lastTeachersQueryRef.current === queryString) return;
     lastTeachersQueryRef.current = queryString;
 
     if (teachersAbortRef.current) teachersAbortRef.current.abort();
@@ -132,7 +135,7 @@ export default function TeachersProvider({ children }) {
           teachersAbortRef.current = null;
         }
       });
-  }, [isStale, teachers.length]);
+  }, []);
 
   // ─── Fetch Supervisors ─────────────────────────────────────────────
   const fetchSupervisors = useCallback((arg) => {
@@ -140,7 +143,8 @@ export default function TeachersProvider({ children }) {
     const isQueryString = typeof arg === 'string';
     const queryString = isQueryString ? arg : '?page=1&per_page=20';
 
-    if (!isForce && !isQueryString && !isStale && supervisors.length > 0) return;
+    if (!isForce && !stateRef.current.isStale && stateRef.current.supervisorsCount > 0 && lastSupervisorsQueryRef.current === queryString) return;
+    lastSupervisorsQueryRef.current = queryString;
 
     if (supervisorsAbortRef.current) supervisorsAbortRef.current.abort();
     const controller = new AbortController();
@@ -173,7 +177,7 @@ export default function TeachersProvider({ children }) {
       .finally(() => {
         if (reqId === fetchSupervisorsRequestRef.current) supervisorsAbortRef.current = null;
       });
-  }, [isStale, supervisors.length]);
+  }, []);
 
   // ─── Auto-fetch on authentication ─────────────────────────────────
   useEffect(() => {

@@ -35,6 +35,8 @@ class ExportImportController extends Controller
         return match ($module) {
             'students' => $this->exportStudents($user),
             'teachers' => $this->exportTeachers($user),
+            'supervisors' => $this->exportSupervisors($user),
+            'classes' => $this->exportClasses($user),
             'parents' => $this->exportParents($user),
             'grades' => $this->exportGrades($user),
             default => response()->json(['success' => false, 'message' => 'الموديول غير مدعوم.'], 400),
@@ -192,6 +194,45 @@ class ExportImportController extends Controller
         return $this->streamCsv(
             'teachers_export.csv',
             ['الاسم (عربي)', 'الرقم الوظيفي', 'الرقم الوطني', 'رقم الجوال', 'عنوان السكن'],
+            $rows
+        );
+    }
+
+    private function exportSupervisors(User $user): StreamedResponse
+    {
+        $data = User::where('role', 'preparation_supervisor')->with('supervisorClasses.schoolClass')->get();
+        $rows = [];
+        foreach ($data as $s) {
+            $classesList = $s->supervisorClasses->map(function ($sc) {
+                return $sc->schoolClass ? ($sc->schoolClass->name_ar ?? "{$sc->schoolClass->grade_ar} - {$sc->schoolClass->section_ar}") : '';
+            })->filter()->values()->implode('، ');
+            $rows[] = [$s->job_id, $s->name_ar ?? $s->name, $s->phone, $classesList];
+        }
+
+        return $this->streamCsv(
+            'supervisors_export.csv',
+            ['الرقم الوظيفي', 'اسم مشرف التحضير', 'رقم الجوال', 'الفصول المكلف بها'],
+            $rows
+        );
+    }
+
+    private function exportClasses(User $user): StreamedResponse
+    {
+        $classes = SchoolClass::with(['subjects'])->withCount('students')->get();
+        $rows = [];
+        foreach ($classes as $c) {
+            $subjectsStr = $c->subjects ? $c->subjects->pluck('name_ar')->filter()->implode('، ') : '';
+            $rows[] = [
+                $c->grade_ar,
+                $c->section_ar,
+                $c->students_count ?? 0,
+                $subjectsStr,
+            ];
+        }
+
+        return $this->streamCsv(
+            'classes_export.csv',
+            ['الصف الدراسي', 'الشعبة', 'عدد الطلاب', 'المواد المقررة'],
             $rows
         );
     }
@@ -367,6 +408,8 @@ class ExportImportController extends Controller
         return match ($module) {
             'students' => $this->importStudents($path, $extension),
             'teachers' => $this->importTeachers($path, $extension),
+            'supervisors' => $this->importSupervisors($path, $extension),
+            'classes' => $this->importClasses($path, $extension),
             'parents' => $this->importParents($path, $extension),
             default => response()->json(['success' => false, 'message' => 'الموديول غير مدعوم للاستيراد.'], 400),
         };
@@ -733,6 +776,238 @@ class ExportImportController extends Controller
         ]);
     }
 
+    private function importSupervisors(string $path, string $extension = 'csv')
+    {
+        if ($extension === 'xlsx') {
+            $parsed = $this->parseXlsx($path);
+        } else {
+            $parsed = $this->parseCsv($path);
+        }
+
+        $allRows = $parsed['rows'] ?? [];
+        $firstRow = $parsed['headers'] ?? [];
+
+        $data = array_merge([$firstRow], $allRows);
+        if (empty($data)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الملف المرفوع فارغ أو غير صالح.'
+            ], 422);
+        }
+
+        $hasBanner = false;
+        if (isset($data[0][0]) && (str_contains($data[0][0], 'كشف') || str_contains($data[0][0], 'نموذج') || str_contains($data[0][0], 'مشرف') || str_contains($data[0][0], 'استيراد') || str_contains($data[0][0], 'موظف'))) {
+            $hasBanner = true;
+        }
+
+        if ($hasBanner) {
+            $headers = array_map('trim', $data[1] ?? []);
+            $rows = array_slice($data, 2);
+        } else {
+            $headers = array_map('trim', $data[0] ?? []);
+            $rows = array_slice($data, 1);
+        }
+
+        $imported = 0;
+        $errors = [];
+
+        $findIdx = function($terms, $default) use ($headers) {
+            foreach ($terms as $term) {
+                $idx = array_search($term, $headers);
+                if ($idx !== false) return $idx;
+                foreach ($headers as $i => $h) {
+                    if (str_contains($h, $term)) return $i;
+                }
+            }
+            return $default;
+        };
+
+        $jobIdIdx = $findIdx(['الرقم الوظيفي', 'الرقم', 'رقم الوظيفة', 'job_id'], 0);
+        $nameIdx = $findIdx(['اسم مشرف التحضير', 'اسم المشرف', 'اسم الموظف', 'الاسم (عربي)', 'الاسم'], 1);
+        $phoneIdx = $findIdx(['رقم الجوال', 'رقم التلفون', 'جوال', 'الجوال', 'الهاتف'], 2);
+        $classesIdx = $findIdx(['الفصول المكلف بها', 'الفصول', 'الشعب', 'classes'], 3);
+
+        $allClasses = SchoolClass::all();
+
+        foreach ($rows as $index => $row) {
+            $lineNum = $index + 2 + ($hasBanner ? 1 : 0);
+
+            $jobId = isset($row[$jobIdIdx]) ? trim($row[$jobIdIdx]) : '';
+            $nameAr = isset($row[$nameIdx]) ? trim($row[$nameIdx]) : '';
+            $phone = ($phoneIdx !== -1 && isset($row[$phoneIdx])) ? trim($row[$phoneIdx]) : '';
+            $classesStr = ($classesIdx !== -1 && isset($row[$classesIdx])) ? trim($row[$classesIdx]) : '';
+
+            if (empty($nameAr) || empty($jobId)) {
+                $errors[] = "سطر {$lineNum}: اسم المشرف أو الرقم الوظيفي فارغ.";
+                continue;
+            }
+
+            $exists = User::where('job_id', $jobId)
+                ->orWhere('username', $jobId)
+                ->orWhere('national_id', $jobId)
+                ->first();
+
+            if ($exists && $exists->role !== 'preparation_supervisor') {
+                $errors[] = "سطر {$lineNum}: الرقم الوظيفي ({$jobId}) مسجل مسبقاً لمستخدم آخر.";
+                continue;
+            }
+
+            if ($exists) {
+                $exists->update([
+                    'name' => $nameAr,
+                    'name_ar' => $nameAr,
+                    'phone' => $phone ?: $exists->phone,
+                ]);
+                $supervisor = $exists;
+            } else {
+                $supervisor = User::create([
+                    'name' => $nameAr,
+                    'name_ar' => $nameAr,
+                    'name_en' => $nameAr,
+                    'username' => $jobId,
+                    'national_id' => $jobId,
+                    'job_id' => $jobId,
+                    'phone' => $phone ?: '777777777',
+                    'password' => Hash::make($phone ?: '12345678'),
+                    'role' => 'preparation_supervisor',
+                    'is_active' => true,
+                    'photo_url' => '👩‍🏫',
+                ]);
+            }
+
+            if (!empty($classesStr)) {
+                $classParts = preg_split('/[,،;]+/u', $classesStr);
+                foreach ($classParts as $cName) {
+                    $cName = trim($cName);
+                    if (empty($cName)) continue;
+                    $matchedClass = $allClasses->first(function ($c) use ($cName) {
+                        $combined = trim("{$c->grade_ar} - {$c->section_ar}");
+                        return $combined === $cName || trim($c->grade_ar) === $cName;
+                    });
+                    if ($matchedClass) {
+                        DB::table('supervisor_classes')->updateOrInsert([
+                            'supervisor_id' => $supervisor->id,
+                            'class_id' => $matchedClass->id,
+                        ]);
+                    }
+                }
+            }
+
+            $imported++;
+        }
+
+        $msg = "تم استيراد/تحديث {$imported} مشرف تحضير بنجاح.";
+
+        return response()->json([
+            'success' => true,
+            'message' => $msg,
+            'imported' => $imported,
+            'errors' => $errors,
+        ]);
+    }
+
+    private function importClasses(string $path, string $extension = 'csv')
+    {
+        if ($extension === 'xlsx') {
+            $parsed = $this->parseXlsx($path);
+        } else {
+            $parsed = $this->parseCsv($path);
+        }
+
+        $allRows = $parsed['rows'] ?? [];
+        $firstRow = $parsed['headers'] ?? [];
+
+        $data = array_merge([$firstRow], $allRows);
+        if (empty($data)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الملف المرفوع فارغ أو غير صالح.'
+            ], 422);
+        }
+
+        $hasBanner = false;
+        if (isset($data[0][0]) && (str_contains($data[0][0], 'كشف') || str_contains($data[0][0], 'نموذج') || str_contains($data[0][0], 'فصول') || str_contains($data[0][0], 'استيراد'))) {
+            $hasBanner = true;
+        }
+
+        if ($hasBanner) {
+            $headers = array_map('trim', $data[1] ?? []);
+            $rows = array_slice($data, 2);
+        } else {
+            $headers = array_map('trim', $data[0] ?? []);
+            $rows = array_slice($data, 1);
+        }
+
+        $imported = 0;
+        $errors = [];
+
+        $findIdx = function($terms, $default) use ($headers) {
+            foreach ($terms as $term) {
+                $idx = array_search($term, $headers);
+                if ($idx !== false) return $idx;
+                foreach ($headers as $i => $h) {
+                    if (str_contains($h, $term)) return $i;
+                }
+            }
+            return $default;
+        };
+
+        $gradeIdx = $findIdx(['الصف الدراسي', 'الصف', 'grade_ar', 'grade'], 0);
+        $sectionIdx = $findIdx(['الشعبة', 'القسم', 'section_ar', 'section'], 1);
+
+        $gradeMap = [
+            'تمهيدي أول' => 'KG1',
+            'تمهيدي ثاني' => 'KG2',
+            'الصف الأول' => 'Grade 1',
+            'الصف الثاني' => 'Grade 2',
+            'الصف الثالث' => 'Grade 3',
+            'الصف الرابع' => 'Grade 4',
+            'الصف الخامس' => 'Grade 5',
+            'الصف السادس' => 'Grade 6',
+            'الصف الأول المتوسط' => 'Grade 7',
+            'الصف الثاني المتوسط' => 'Grade 8',
+            'الصف الثالث المتوسط' => 'Grade 9',
+            'الصف الأول الثانوي' => 'Grade 10',
+            'الصف الثاني الثانوي' => 'Grade 11',
+            'الصف الثالث الثانوي' => 'Grade 12',
+        ];
+        $secMap = ['أ' => 'A', 'ب' => 'B', 'ج' => 'C', 'د' => 'D', 'هـ' => 'E', 'و' => 'F', 'ز' => 'G'];
+
+        foreach ($rows as $index => $row) {
+            $lineNum = $index + 2 + ($hasBanner ? 1 : 0);
+            $gradeAr = isset($row[$gradeIdx]) ? trim($row[$gradeIdx]) : '';
+            $sectionAr = isset($row[$sectionIdx]) ? trim($row[$sectionIdx]) : '';
+
+            if (empty($gradeAr) && empty($sectionAr)) {
+                continue;
+            }
+            if (empty($gradeAr) || empty($sectionAr)) {
+                $errors[] = "سطر {$lineNum}: الصف أو الشعبة فارغ.";
+                continue;
+            }
+
+            $exists = SchoolClass::where('grade_ar', $gradeAr)->where('section_ar', $sectionAr)->first();
+            if (!$exists) {
+                SchoolClass::create([
+                    'grade_ar' => $gradeAr,
+                    'grade_en' => $gradeMap[$gradeAr] ?? $gradeAr,
+                    'section_ar' => $sectionAr,
+                    'section_en' => $secMap[$sectionAr] ?? $sectionAr,
+                ]);
+                $imported++;
+            }
+        }
+
+        $msg = "تم استيراد {$imported} فصل دراسي جديد بنجاح.";
+
+        return response()->json([
+            'success' => true,
+            'message' => $msg,
+            'imported' => $imported,
+            'errors' => $errors,
+        ]);
+    }
+
     private function importParents(string $path, string $extension = 'csv')
     {
         if ($extension === 'xlsx') {
@@ -1071,6 +1346,170 @@ class ExportImportController extends Controller
             }, 200, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'Content-Disposition' => 'attachment; filename="students_template.xlsx"',
+                'Cache-Control' => 'max-age=0',
+            ]);
+        }
+
+        if ($module === 'classes') {
+            return new StreamedResponse(function () {
+                $spreadsheet = new Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+                $sheet->setRightToLeft(true);
+                $sheet->setShowGridlines(true);
+
+                $titleText = "نموذج استيراد بيانات الفصول الدراسية والشعب للعام 2026 - 2027م";
+                $sheet->mergeCells('A1:C1');
+                $sheet->setCellValue('A1', $titleText);
+
+                $sheet->getRowDimension(1)->setRowHeight(45);
+                $sheet->getStyle('A1')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['argb' => 'FFFFFFFF'],
+                        'size' => 14,
+                        'name' => 'Segoe UI'
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'color' => ['argb' => 'FF31859C']
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ]
+                ]);
+
+                $headers = ['الصف الدراسي (إجباري)', 'الشعبة (إجباري)', 'ملاحظات (اختياري)'];
+                $sheet->fromArray([$headers], null, 'A2');
+                $sheet->getRowDimension(2)->setRowHeight(30);
+
+                $sheet->getStyle('A2:C2')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['argb' => 'FF000000'],
+                        'size' => 11,
+                        'name' => 'Segoe UI'
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'color' => ['argb' => 'FFF2F2F2']
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color' => ['argb' => 'FFCCCCCC']
+                        ]
+                    ]
+                ]);
+
+                $exampleRow = ['الصف الأول', 'أ', ''];
+                $sheet->fromArray([$exampleRow], null, 'A3');
+                $sheet->getRowDimension(3)->setRowHeight(25);
+
+                $sheet->getColumnDimension('A')->setWidth(30);
+                $sheet->getColumnDimension('B')->setWidth(20);
+                $sheet->getColumnDimension('C')->setWidth(30);
+
+                $writer = new Xlsx($spreadsheet);
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="classes_template.xlsx"',
+                'Cache-Control' => 'max-age=0',
+            ]);
+        }
+
+        if ($module === 'supervisors') {
+            return new StreamedResponse(function () {
+                $spreadsheet = new Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+                $sheet->setRightToLeft(true);
+                $sheet->setShowGridlines(true);
+
+                $titleText = "نموذج استيراد بيانات مشرفي التحضير للعام 2026 - 2027م";
+                $sheet->mergeCells('A1:D1');
+                $sheet->setCellValue('A1', $titleText);
+
+                $sheet->getRowDimension(1)->setRowHeight(45);
+                $sheet->getStyle('A1')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['argb' => 'FFFFFFFF'],
+                        'size' => 14,
+                        'name' => 'Segoe UI'
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'color' => ['argb' => 'FF31859C']
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ]
+                ]);
+
+                $headers = ['الرقم الوظيفي (إجباري)', 'اسم مشرف التحضير (إجباري)', 'رقم الجوال (إجباري)', 'الفصول المكلف بها (اختياري)'];
+                $sheet->fromArray([$headers], null, 'A2');
+                $sheet->getRowDimension(2)->setRowHeight(30);
+
+                $sheet->getStyle('A2:D2')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['argb' => 'FF000000'],
+                        'size' => 11,
+                        'name' => 'Segoe UI'
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'color' => ['argb' => 'FFF2F2F2']
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color' => ['argb' => 'FFCCCCCC']
+                        ]
+                    ]
+                ]);
+
+                $exampleRow = ['1000000105', 'أ. سارة العتيبي', '771234567', 'الصف الأول - أ، الصف الثاني - أ'];
+                $sheet->fromArray([$exampleRow], null, 'A3');
+                $sheet->getRowDimension(3)->setRowHeight(25);
+
+                $sheet->getStyle('A3:D3')->applyFromArray([
+                    'font' => [
+                        'size' => 11,
+                        'name' => 'Segoe UI'
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color' => ['argb' => 'FFE0E0E0']
+                        ]
+                    ]
+                ]);
+
+                $sheet->getColumnDimension('A')->setWidth(25);
+                $sheet->getColumnDimension('B')->setWidth(30);
+                $sheet->getColumnDimension('C')->setWidth(22);
+                $sheet->getColumnDimension('D')->setWidth(35);
+
+                $writer = new Xlsx($spreadsheet);
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="supervisors_template.xlsx"',
                 'Cache-Control' => 'max-age=0',
             ]);
         }

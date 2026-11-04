@@ -103,7 +103,7 @@ export default function DashboardTab() {
             </span>
             <span>
               <ShieldCheck size={15} />
-              {text('مدارس أنوار العلا الأهلية النموذجية', 'Anwar Al-Ola International Model Schools')}
+              {text('رياض ومدارس أنوار العلى الدولية النموذجية', 'Anwar Al-Ola International Model Schools')}
             </span>
           </div>
         </div>

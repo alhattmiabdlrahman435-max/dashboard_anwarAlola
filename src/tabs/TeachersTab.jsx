@@ -6,7 +6,8 @@ import { useSubjects } from '../contexts/Subjects/useSubjects';
 import { teachersService } from '../services/teachers/teachers.service';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
-import { Plus, Search, X, Trash2, Edit3, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, X, Trash2, Edit3, Download, Upload, FileSpreadsheet, Printer } from 'lucide-react';
+import { SLOGAN_BASE64 } from '../assets/sloganBase64';
 
 export default function TeachersTab() {
   const {
@@ -62,9 +63,13 @@ export default function TeachersTab() {
 
   useEffect(() => {
     fetchTeachers(qs);
+  }, [fetchTeachers, qs]);
+
+  useEffect(() => {
     fetchClasses();
     fetchSubjects();
-  }, [fetchTeachers, fetchClasses, fetchSubjects, qs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Local UI states
   const [isSaving, setIsSaving] = useState(false);
@@ -94,6 +99,509 @@ export default function TeachersTab() {
   const [importSuccess, setImportSuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
+
+  // Print Roster Modal States for Teachers
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printRosterType, setPrintRosterType] = useState('with_job_id');
+  const [printClassId, setPrintClassId] = useState('all');
+  const [isPrintingRoster, setIsPrintingRoster] = useState(false);
+
+  const handlePrintRoster = async () => {
+    setIsPrintingRoster(true);
+    try {
+      let teachersToPrint = [];
+      const useClassFilter = printRosterType === 'with_full_assignments' && printClassId && printClassId !== 'all';
+      const numericClassId = useClassFilter ? String(printClassId).replace(/\D/g, '') : '';
+
+      try {
+        const query = numericClassId ? `?class_id=${numericClassId}&per_page=1000` : '?per_page=1000';
+        const res = await teachersService.getTeachers(query);
+        if (Array.isArray(res?.teachers)) {
+          teachersToPrint = res.teachers;
+        } else if (Array.isArray(res?.data?.teachers)) {
+          teachersToPrint = res.data.teachers;
+        } else if (Array.isArray(res?.data)) {
+          teachersToPrint = res.data;
+        } else if (Array.isArray(res)) {
+          teachersToPrint = res;
+        }
+      } catch (e) {
+        console.warn('API teachers fetch failed, falling back to local state:', e);
+      }
+
+      if (teachersToPrint.length === 0 && teachers.length > 0) {
+        teachersToPrint = [...teachers];
+      }
+
+      // Normalize teacher objects and group assignments per class/section
+      teachersToPrint = teachersToPrint.map((tObj) => {
+        const jobId = tObj.job_id || tObj.jobId || '';
+        const name = tObj.name_ar || tObj.name || tObj.name_en || '';
+        const phone = tObj.phone || '';
+        const classSubjectMap = new Map();
+
+        if (Array.isArray(tObj.assignments)) {
+          tObj.assignments.forEach((assign) => {
+            const sc = assign.school_class;
+            const cId = sc ? String(sc.id) : (assign.class_id ? String(assign.class_id) : '');
+            if (numericClassId && cId && cId !== String(numericClassId)) {
+              return;
+            }
+            const className = sc
+              ? (sc.name_ar || sc.name || `${sc.grade_ar || ''} - ${sc.section_ar || ''}`.trim())
+              : '';
+            const sub = assign.subject;
+            const subjectName = sub ? (sub.name_ar || sub.name || '') : '';
+            if (className) {
+              if (!classSubjectMap.has(className)) {
+                classSubjectMap.set(className, []);
+              }
+              if (subjectName && !classSubjectMap.get(className).includes(subjectName)) {
+                classSubjectMap.get(className).push(subjectName);
+              }
+            }
+          });
+        } else if (Array.isArray(tObj.teachingAssignments)) {
+          tObj.teachingAssignments.forEach((assign) => {
+            const cId = assign.classId ? String(assign.classId).replace(/\D/g, '') : '';
+            if (numericClassId && cId && cId !== String(numericClassId)) {
+              return;
+            }
+            const className = assign.class || '';
+            const subjectName = assign.subject || '';
+            if (className) {
+              if (!classSubjectMap.has(className)) {
+                classSubjectMap.set(className, []);
+              }
+              if (subjectName && !classSubjectMap.get(className).includes(subjectName)) {
+                classSubjectMap.get(className).push(subjectName);
+              }
+            }
+          });
+        }
+
+        const classGroups = Array.from(classSubjectMap.entries()).map(([clsName, subs]) => ({
+          className: clsName,
+          subjects: subs
+        }));
+
+        return {
+          id: tObj.id,
+          jobId,
+          name,
+          phone,
+          classGroups
+        };
+      });
+
+      if (numericClassId) {
+        const selectedClassObj = classes.find((c) => {
+          const cNum = typeof c.id === 'string' && c.id.startsWith('cls-') ? c.id.replace('cls-', '') : (c.numericId || c.id);
+          return String(cNum) === String(numericClassId);
+        });
+        const targetClassName = selectedClassObj ? selectedClassObj.name : '';
+        if (targetClassName) {
+          teachersToPrint = teachersToPrint
+            .map((tObj) => ({
+              ...tObj,
+              classGroups: tObj.classGroups.filter((cg) => cg.className === targetClassName)
+            }))
+            .filter((tObj) => tObj.classGroups.length > 0);
+        }
+      }
+
+      const normalizeArabic = (text) => {
+        if (!text) return '';
+        return text
+          .replace(/[\u064B-\u065F\u0670]/g, '')
+          .replace(/[إأآٱ]/g, 'ا')
+          .replace(/ة/g, 'ه')
+          .replace(/ى/g, 'ي')
+          .trim();
+      };
+
+      teachersToPrint.sort((a, b) => {
+        const normA = normalizeArabic(a.name || '');
+        const normB = normalizeArabic(b.name || '');
+        const cmp = normA.localeCompare(normB, 'ar');
+        return cmp !== 0 ? cmp : (a.name || '').localeCompare(b.name || '', 'ar');
+      });
+
+      const selectedClassObj = classes.find((c) => {
+        const cNum = typeof c.id === 'string' && c.id.startsWith('cls-') ? c.id.replace('cls-', '') : (c.numericId || c.id);
+        return String(cNum) === String(numericClassId);
+      });
+      const classLabel = selectedClassObj ? selectedClassObj.name : 'جميع الفصول والشعب';
+
+      const todayStr = new Date().toLocaleDateString('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+      });
+
+      let theadHtml = '';
+      if (printRosterType === 'with_job_id') {
+        theadHtml = `
+          <tr>
+            <th style="width: 38px;">م</th>
+            <th style="width: 135px; text-align: center;">الرقم الوظيفي</th>
+            <th style="text-align: right;">اسم المعلم</th>
+            <th style="width: 220px; text-align: right;">الملاحظات</th>
+          </tr>
+        `;
+      } else if (printRosterType === 'with_phone') {
+        theadHtml = `
+          <tr>
+            <th style="width: 38px;">م</th>
+            <th style="text-align: right;">اسم المعلم</th>
+            <th style="width: 145px; text-align: center;">رقم التلفون</th>
+            <th style="width: 220px; text-align: right;">الملاحظات</th>
+          </tr>
+        `;
+      } else if (printRosterType === 'with_job_id_phone') {
+        theadHtml = `
+          <tr>
+            <th style="width: 38px;">م</th>
+            <th style="width: 130px; text-align: center;">الرقم الوظيفي</th>
+            <th style="text-align: right;">اسم المعلم</th>
+            <th style="width: 135px; text-align: center;">رقم التلفون</th>
+            <th style="width: 195px; text-align: right;">الملاحظات</th>
+          </tr>
+        `;
+      } else {
+        theadHtml = `
+          <tr>
+            <th style="width: 34px;">م</th>
+            <th style="width: 105px; text-align: center;">الرقم الوظيفي</th>
+            <th style="width: 165px; text-align: right;">اسم المعلم</th>
+            <th style="width: 110px; text-align: center;">رقم التلفون</th>
+            <th style="width: 130px; text-align: center;">الصف والشعبة</th>
+            <th style="text-align: right;">المواد المسندة</th>
+            <th style="width: 135px; text-align: right;">الملاحظات</th>
+          </tr>
+        `;
+      }
+
+      let rowsHtml = '';
+      if (teachersToPrint.length === 0) {
+        const colSpanMap = {
+          with_job_id: 4,
+          with_phone: 4,
+          with_job_id_phone: 5,
+          with_full_assignments: 7
+        };
+        rowsHtml = `
+          <tr>
+            <td colspan="${colSpanMap[printRosterType] || 4}" style="text-align:center;padding:24px;color:#64748b;font-weight:700;">
+              لا توجد بيانات معلمين مسجلة لهذا النطاق
+            </td>
+          </tr>
+        `;
+      } else {
+        rowsHtml = teachersToPrint.map((tch, idx) => {
+          if (printRosterType === 'with_job_id') {
+            return `
+              <tr>
+                <td class="col-num">${idx + 1}</td>
+                <td class="col-code">${tch.jobId}</td>
+                <td class="col-name">${tch.name}</td>
+                <td class="col-notes">&nbsp;</td>
+              </tr>
+            `;
+          } else if (printRosterType === 'with_phone') {
+            return `
+              <tr>
+                <td class="col-num">${idx + 1}</td>
+                <td class="col-name">${tch.name}</td>
+                <td class="col-phone">${tch.phone}</td>
+                <td class="col-notes">&nbsp;</td>
+              </tr>
+            `;
+          } else if (printRosterType === 'with_job_id_phone') {
+            return `
+              <tr>
+                <td class="col-num">${idx + 1}</td>
+                <td class="col-code">${tch.jobId}</td>
+                <td class="col-name">${tch.name}</td>
+                <td class="col-phone">${tch.phone}</td>
+                <td class="col-notes">&nbsp;</td>
+              </tr>
+            `;
+          } else {
+            const groups = tch.classGroups && tch.classGroups.length > 0
+              ? tch.classGroups
+              : [{ className: 'غير مكلف بفصول', subjects: [] }];
+            const rowSpan = groups.length;
+
+            return groups.map((grp, gIdx) => {
+              const subjectsText = grp.subjects && grp.subjects.length > 0
+                ? grp.subjects.join('، ')
+                : '—';
+              if (gIdx === 0) {
+                return `
+                  <tr>
+                    <td class="col-num" rowspan="${rowSpan}">${idx + 1}</td>
+                    <td class="col-code" rowspan="${rowSpan}">${tch.jobId}</td>
+                    <td class="col-name" rowspan="${rowSpan}">${tch.name}</td>
+                    <td class="col-phone" rowspan="${rowSpan}">${tch.phone}</td>
+                    <td style="text-align:center;font-weight:700;font-size:11px;">${grp.className}</td>
+                    <td style="text-align:right;font-weight:600;font-size:11px;">${subjectsText}</td>
+                    <td class="col-notes">&nbsp;</td>
+                  </tr>
+                `;
+              } else {
+                return `
+                  <tr>
+                    <td style="text-align:center;font-weight:700;font-size:11px;">${grp.className}</td>
+                    <td style="text-align:right;font-weight:600;font-size:11px;">${subjectsText}</td>
+                    <td class="col-notes">&nbsp;</td>
+                  </tr>
+                `;
+              }
+            }).join('');
+          }
+        }).join('');
+      }
+
+      const html = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>كشف المعلمين</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    direction: rtl;
+    font-family: 'Tajawal', 'Almarai', 'Segoe UI', Tahoma, Arial, sans-serif;
+    color: #0f172a;
+    background: #fff;
+    font-size: 11px;
+    line-height: 1.4;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-page-wrapper {
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    min-height: 275mm;
+  }
+  .sr-official-header {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1.3fr;
+    align-items: center;
+    width: 100%;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #1e3a8a;
+    margin-bottom: 10px;
+  }
+  .sr-header-ar {
+    text-align: right;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1e3a8a;
+    line-height: 1.5;
+  }
+  .sr-header-school-ar {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #0f2e5a;
+  }
+  .sr-header-logo {
+    text-align: center;
+  }
+  .sr-header-logo img {
+    height: 62px;
+    width: auto;
+    object-fit: contain;
+  }
+  .sr-header-en {
+    text-align: left;
+    direction: ltr;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1e3a8a;
+    line-height: 1.5;
+  }
+  .sr-header-school-en {
+    font-size: 11px;
+    font-weight: 800;
+    color: #0f2e5a;
+  }
+  .sr-title-bar {
+    text-align: center;
+    margin: 4px 0 10px;
+  }
+  .sr-meta-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 14px;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+  .sr-meta-item strong {
+    color: #1e3a8a;
+  }
+  table.roster-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    border: 1.5px solid #1e3a8a;
+    font-size: 11px;
+  }
+  table.roster-table thead th {
+    background-color: #f1f5f9;
+    color: #0f2e5a;
+    font-weight: 800;
+    padding: 8px 10px;
+    border: 1px solid #94a3b8;
+    border-bottom: 2px solid #1e3a8a;
+  }
+  table.roster-table tbody td {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    vertical-align: middle;
+  }
+  table.roster-table tbody tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+  .col-num {
+    width: 36px;
+    text-align: center;
+    font-weight: 700;
+    background-color: #f1f5f9;
+  }
+  .col-code {
+    text-align: center;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 11.5px;
+  }
+  .col-name {
+    text-align: right;
+    font-weight: 700;
+    font-size: 11.5px;
+  }
+  .col-phone {
+    text-align: center;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 11.5px;
+    direction: ltr;
+  }
+  .col-notes {
+    text-align: right;
+    background-color: #ffffff;
+  }
+  .sr-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #cbd5e1;
+    padding-top: 6px;
+    font-size: 9px;
+    color: #64748b;
+    margin-top: 16px;
+    page-break-inside: avoid;
+  }
+</style>
+</head>
+<body>
+  <div class="print-page-wrapper">
+    <div class="sr-official-header">
+      <div class="sr-header-ar">
+        <div>الجمهورية اليمنية</div>
+        <div>وزارة التربية والتعليم والبحث العلمي</div>
+        <div class="sr-header-school-ar">رياض ومدارس أنوار العلى الدولية النموذجية</div>
+      </div>
+      <div class="sr-header-logo">
+        <img src="${SLOGAN_BASE64}" alt="Logo" />
+      </div>
+      <div class="sr-header-en">
+        <div>Republic of Yemen</div>
+        <div>Min. of Education & Scientific Research</div>
+        <div class="sr-header-school-en">Riyadh & Anwar Al-Ola Int. Model Schools</div>
+      </div>
+    </div>
+
+    <div class="sr-title-bar">
+      <div class="sr-meta-bar">
+        ${useClassFilter ? `<div class="sr-meta-item">الصف والشعبة: <strong>${classLabel}</strong></div>` : ''}
+        <div class="sr-meta-item">العام الدراسي: <strong>1447-1448هـ (2025-2026م)</strong></div>
+        <div class="sr-meta-item">إجمالي المعلمين: <strong>${teachersToPrint.length} معلم</strong></div>
+        <div class="sr-meta-item">التاريخ: <strong>${todayStr}</strong></div>
+      </div>
+    </div>
+
+    <table class="roster-table">
+      <thead>
+        ${theadHtml}
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+
+    <div class="sr-footer">
+      <span>تم إصدار الكشف آلياً عبر نظام إدارة رياض ومدارس أنوار العلى الدولية النموذجية</span>
+      <span>صفحة 1 من 1</span>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      let iframe = document.getElementById('teachers-print-frame');
+      if (iframe) iframe.remove();
+      iframe = document.createElement('iframe');
+      iframe.id = 'teachers-print-frame';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const frameDoc = iframe.contentWindow || iframe.contentDocument;
+      const doc = frameDoc.document || frameDoc;
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (err) {
+          console.error('Print trigger error:', err);
+        }
+      }, 350);
+
+      setShowPrintModal(false);
+    } catch (err) {
+      console.error('Roster generation failed:', err);
+      alert('حدث خطأ أثناء إعداد كشف الطباعة');
+    } finally {
+      setIsPrintingRoster(false);
+    }
+  };
 
   const onAddSubmit = (e) => {
     e.preventDefault();
@@ -386,6 +894,24 @@ export default function TeachersTab() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <button
+            className="btn-secondary"
+            onClick={() => setShowPrintModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: '700',
+              color: '#d97706',
+              borderColor: '#fcd34d',
+              backgroundColor: '#fffbeb'
+            }}
+          >
+            <Printer size={16} />
+            {lang === 'ar' ? 'طباعة كشف' : 'Print Roster'}
+          </button>
           {(canAction('teachers', 'export') || canAction('teachers', 'import')) && (
             <button 
               className="btn-elevated" 
@@ -437,8 +963,8 @@ export default function TeachersTab() {
         <table className="students-table" style={{ width: '100%', minWidth: '100%' }}>
           <thead>
             <tr>
-              <th style={{ width: '95px', whiteSpace: 'nowrap' }}>{lang === 'ar' ? 'الرقم الوظيفي' : 'Job ID'}</th>
-              <th style={{ minWidth: '140px' }}>{t.teacherName}</th>
+              <th className="sticky-col-1" style={{ width: '95px', whiteSpace: 'nowrap' }}>{lang === 'ar' ? 'الرقم الوظيفي' : 'Job ID'}</th>
+              <th className="sticky-col-2" style={{ minWidth: '140px' }}>{t.teacherName}</th>
               <th style={{ maxWidth: '170px' }}>{t.subject}</th>
               <th style={{ maxWidth: '160px' }}>{t.assignedClasses}</th>
               <th style={{ width: '100px' }}>{lang === 'ar' ? 'رقم الجوال' : 'Phone Number'}</th>
@@ -452,8 +978,8 @@ export default function TeachersTab() {
             {teachers.length > 0 ? (
               teachers.map((teacher) => (
                 <tr key={teacher.id}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', fontSize: '12px' }}>{teacher.jobId || `T${teacher.id}`}</td>
-                  <td style={{ fontWeight: '600', fontSize: '13px' }}>
+                  <td className="sticky-col-1" style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', fontSize: '12px' }}>{teacher.jobId || `T${teacher.id}`}</td>
+                  <td className="sticky-col-2" style={{ fontWeight: '600', fontSize: '13px' }}>
                     {renderAvatar(teacher.photo, "👨‍🏫")}
                     {lang === 'ar' ? teacher.name : teacher.nameEn}
                   </td>
@@ -1435,6 +1961,146 @@ export default function TeachersTab() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPrintModal && (
+        <div className="modal-overlay no-print">
+          <div className="modal-container" style={{ maxWidth: '600px', width: '92%' }}>
+            <header className="modal-header">
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Printer size={20} color="#d97706" />
+                <span>{lang === 'ar' ? 'طباعة كشوفات المعلمين الجاهزة' : 'Print Teachers Rosters'}</span>
+              </h3>
+              <button
+                className="modal-close-btn"
+                onClick={() => setShowPrintModal(false)}
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </header>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: '700', marginBottom: '10px', display: 'block' }}>
+                  {lang === 'ar' ? 'اختر نوع الكشف المطلوب للطباعة:' : 'Select Roster Template:'}
+                </label>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[
+                    {
+                      id: 'with_job_id',
+                      title: '1. كشف بأسماء المعلمين مع الأرقام الوظيفية وعمود الملاحظات',
+                      desc: 'يحتوي على: الرقم التسلسلي (م)، الرقم الوظيفي، اسم المعلم، وعمود الملاحظات'
+                    },
+                    {
+                      id: 'with_phone',
+                      title: '2. كشف بأسماء المعلمين مع أرقام التلفونات وعمود الملاحظات',
+                      desc: 'يحتوي على: الرقم التسلسلي (م)، اسم المعلم، رقم التلفون، وعمود الملاحظات'
+                    },
+                    {
+                      id: 'with_job_id_phone',
+                      title: '3. كشف بأسماء المعلمين مع أرقام التلفونات والأرقام الوظيفية مع عمود الملاحظات',
+                      desc: 'يحتوي على: الرقم التسلسلي (م)، الرقم الوظيفي، اسم المعلم، رقم التلفون، وعمود الملاحظات'
+                    },
+                    {
+                      id: 'with_full_assignments',
+                      title: '4. كشف بأسماء المعلمين مع أرقام التلفونات والأرقام الوظيفية والفصول والشعب المكلفون بها مع المواد وعمود الملاحظات لكل صف وشعبة',
+                      desc: 'يحتوي على: الرقم التسلسلي (م)، الرقم الوظيفي، اسم المعلم، رقم التلفون، الصف والشعبة، المواد المسندة، وعمود الملاحظات لكل صف وشعبة'
+                    }
+                  ].map((opt) => {
+                    const isSelected = printRosterType === opt.id;
+                    return (
+                      <label
+                        key={opt.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          padding: '12px 14px',
+                          borderRadius: '10px',
+                          border: isSelected ? '2px solid #d97706' : '1px solid var(--color-border, #cbd5e1)',
+                          backgroundColor: isSelected ? '#fffbeb' : 'var(--color-bg-secondary, #f8fafc)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="teacher_print_roster_type"
+                          value={opt.id}
+                          checked={isSelected}
+                          onChange={(e) => setPrintRosterType(e.target.value)}
+                          style={{ marginTop: '4px', accentColor: '#d97706', width: '16px', height: '16px' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: '700', fontSize: '13.5px', color: isSelected ? '#92400e' : 'var(--color-text-primary, #0f172a)' }}>
+                            {opt.title}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #64748b)', marginTop: '4px' }}>
+                            {opt.desc}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {printRosterType === 'with_full_assignments' && (
+                <div className="form-group" style={{ marginBottom: 0, padding: '12px 14px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
+                  <label className="form-label" style={{ fontWeight: '700', marginBottom: '6px', display: 'block' }}>
+                    {lang === 'ar' ? 'تحديد الصف والشعبة (اختياري):' : 'Filter by Class & Section (Optional):'}
+                  </label>
+                  <select
+                    className="select-field"
+                    value={printClassId}
+                    onChange={(e) => setPrintClassId(e.target.value)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="all">{lang === 'ar' ? '-- جميع الصفوف والشعب --' : '-- All Classes & Sections --'}</option>
+                    {classes.map((cls) => {
+                      const numId = typeof cls.id === 'string' && cls.id.startsWith('cls-') ? cls.id.replace('cls-', '') : (cls.numericId || cls.id);
+                      return (
+                        <option key={cls.id} value={String(numId)}>
+                          {lang === 'ar' ? cls.name : (cls.nameEn || cls.name)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <footer className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-start', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn-filled"
+                onClick={handlePrintRoster}
+                disabled={isPrintingRoster}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#d97706',
+                  borderColor: '#d97706',
+                  color: '#fff',
+                  padding: '8px 20px'
+                }}
+              >
+                <Printer size={16} />
+                <span>{isPrintingRoster ? (lang === 'ar' ? 'جاري تجهيز الكشف...' : 'Preparing...') : (lang === 'ar' ? 'طباعة' : 'Print')}</span>
+              </button>
+              <button
+                type="button"
+                className="btn-elevated"
+                onClick={() => setShowPrintModal(false)}
+                disabled={isPrintingRoster}
+              >
+                {t.cancel}
+              </button>
+            </footer>
           </div>
         </div>
       )}

@@ -20,6 +20,11 @@ import {
   ArrowLeft,
   Check,
   ShieldCheck,
+  GraduationCap,
+  X,
+  FileText,
+  Laptop,
+  FileSpreadsheet,
 } from 'lucide-react';
 import './BackupsTab.css';
 
@@ -37,8 +42,8 @@ export default function BackupsTab() {
     disk_name: 'local',
     schedule_time: 'يومياً 02:00 صباحاً',
     cleanup_time: 'يومياً 02:30 صباحاً',
-    retention_days: 7,
-    keep_daily_days: 16,
+    retention_days: 365,
+    keep_daily_days: 365,
     db_connection: 'mysql',
   });
 
@@ -47,6 +52,12 @@ export default function BackupsTab() {
   const [isCleaning, setIsCleaning] = useState(false);
   const [backupType, setBackupType] = useState('db'); // 'db' = Database only | 'full' = Full (DB + Uploads)
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Academic Year Offline Archive Modal States
+  const [showYearModal, setShowYearModal] = useState(false);
+  const [academicYearInput, setAcademicYearInput] = useState('2026-2027م');
+  const [archiveFormat, setArchiveFormat] = useState('excel'); // 'excel' | 'zip' | 'html'
+  const [isExportingYear, setIsExportingYear] = useState(false);
 
   // Fetch backups from API
   const fetchBackups = async (silent = false) => {
@@ -123,28 +134,50 @@ export default function BackupsTab() {
     }
   };
 
-  // Trigger cleanup
-  const handleCleanBackups = async () => {
-    setIsCleaning(true);
+  // Trigger Academic Year Archive Export (Excel / ZIP / HTML)
+  const handleExportYearArchive = async (overrideFormat = null) => {
+    setIsExportingYear(true);
+    const formatToUse = (typeof overrideFormat === 'string' && overrideFormat) ? overrideFormat : archiveFormat;
     try {
-      const res = await backupsService.cleanBackups();
+      const res = await backupsService.exportAcademicYearArchive(academicYearInput, formatToUse);
       if (res && res.success) {
+        const formatLabel =
+          formatToUse === 'excel'
+            ? 'ملف إكسل (.xlsx)'
+            : formatToUse === 'html'
+            ? 'تطبيق الأرشيف (.html)'
+            : 'حزمة الأرشيف الكاملة (.zip)';
+
         setToastMessage(
-          res.message ||
-            (lang === 'ar'
-              ? 'تم تنظيف النسخ القديمة بنجاح وفق سياسة الاحتفاظ.'
-              : 'Old backups cleaned successfully.')
+          lang === 'ar'
+            ? `تم تصدير وتجهيز ${formatLabel} بنجاح! جاري التنزيل تلقائياً...`
+            : 'Archive exported successfully! Downloading...'
         );
+        setShowYearModal(false);
         await fetchBackups(true);
+
+        // Trigger immediate browser download
+        if (res.file_name) {
+          await backupsService.downloadBackup(res.file_name);
+        }
+      } else {
+        setToastMessage(
+          res?.message ||
+            (lang === 'ar'
+              ? 'حدث خطأ أثناء تصدير أرشيف العام الدراسي.'
+              : 'Failed to export academic year archive.')
+        );
       }
     } catch (err) {
-      console.error('Clean backups error:', err);
+      console.error('Export year archive error:', err);
       setToastMessage(
         err.message ||
-          (lang === 'ar' ? 'فشل تنظيف النسخ القديمة.' : 'Failed to clean old backups.')
+          (lang === 'ar'
+            ? 'فشل تصدير أرشيف العام الدراسي.'
+            : 'Archive export failed.')
       );
     } finally {
-      setIsCleaning(false);
+      setIsExportingYear(false);
     }
   };
 
@@ -197,6 +230,7 @@ export default function BackupsTab() {
       },
     });
   };
+
   return (
     <div className="backups-container no-print">
       {/* 1. Header Section */}
@@ -293,11 +327,11 @@ export default function BackupsTab() {
           </div>
         </div>
 
-        {/* Metric 4: Automated Schedule */}
+        {/* Metric 4: Automated Schedule & Retention */}
         <div className="backup-stat-card">
           <div className="backup-stat-top">
             <span className="backup-stat-label">
-              {lang === 'ar' ? 'الجدولة التلقائية اليومية' : 'Automated Schedule'}
+              {lang === 'ar' ? 'سياسة الاحتفاظ بالنسخ' : 'Retention Policy'}
             </span>
             <div className="backup-stat-icon-wrap warning">
               <Clock size={18} />
@@ -307,14 +341,139 @@ export default function BackupsTab() {
             className="backup-stat-value"
             style={{ fontSize: '18px', fontWeight: '800' }}
           >
-            {stats.schedule_time}
+            {stats.retention_days} {lang === 'ar' ? 'يوماً (عام كامل)' : 'days'}
           </div>
           <div className="backup-stat-subtext">
             <span className="status-pulse-dot" />
             <span style={{ fontWeight: 700, color: '#10b981' }}>
-              {lang === 'ar' ? 'مجدول ونشط تلقائياً' : 'Active & Running'}
+              {lang === 'ar' ? 'حفظ تلقائي لجميع السنوات' : 'Year-round retention'}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* 2.5 Academic Year Offline Archive Special Banner */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.08) 0%, rgba(15, 118, 110, 0.08) 100%)',
+          border: '2px solid rgba(59, 130, 246, 0.3)',
+          borderRadius: '16px',
+          padding: '24px 28px',
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '20px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', maxWidth: '780px' }}>
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 6px 16px rgba(30, 58, 138, 0.25)',
+            }}
+          >
+            <GraduationCap size={24} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--color-text-primary)', margin: 0 }}>
+                {lang === 'ar'
+                  ? 'نسخة نهاية العام الدراسي الشاملة (تعمل بدون إنترنت)'
+                  : 'Academic Year Comprehensive Offline Archive'}
+              </h3>
+              <span
+                style={{
+                  background: '#dcfce7',
+                  color: '#15803d',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  border: '1px solid #86efac',
+                }}
+              >
+                ✔ مرجع أساسي للكمبيوتر والفلاشة
+              </span>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '6px 0 0 0', lineHeight: 1.6 }}>
+              {lang === 'ar'
+                ? 'تتيح هذه النافذة تصدير نسخة أرشيفية كاملة ومستقلة لكل ما يخص العام الدراسي (الطلاب، الدرجات، الكنترول، أولياء الأمور، المعلمين، الفصول، السجل المالي، والحضور). يمكن فتحها وتصفحها والبحث والطباعة منها في أي كمبيوتر أو فلاشة أو هارد خارجي بدون الحاجة إلى إنترنت نهائياً.'
+                : 'Export a complete standalone offline archive for the entire academic year (students, grades, control sheet, parents, teachers, finance, and attendance) that opens and runs on any PC/USB flash drive without internet.'}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => handleExportYearArchive('excel')}
+            disabled={isExportingYear}
+            style={{
+              background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '12px 20px',
+              borderRadius: '10px',
+              fontSize: '13.5px',
+              fontWeight: '800',
+              cursor: isExportingYear ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 6px 18px rgba(22, 163, 74, 0.25)',
+              transition: 'transform 0.2s',
+            }}
+            onMouseEnter={(e) => !isExportingYear && (e.currentTarget.style.transform = 'translateY(-2px)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+          >
+            <FileSpreadsheet size={18} />
+            <span>
+              {isExportingYear && archiveFormat === 'excel'
+                ? (lang === 'ar' ? 'جاري تجهيز الإكسل...' : 'Generating Excel...')
+                : (lang === 'ar' ? 'تصدير إكسل فوري (.xlsx)' : 'Export Instant Excel (.xlsx)')}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowYearModal(true)}
+            disabled={isExportingYear}
+            style={{
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '12px 20px',
+              borderRadius: '10px',
+              fontSize: '13.5px',
+              fontWeight: '800',
+              cursor: isExportingYear ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 6px 18px rgba(30, 58, 138, 0.25)',
+              transition: 'transform 0.2s',
+            }}
+            onMouseEnter={(e) => !isExportingYear && (e.currentTarget.style.transform = 'translateY(-2px)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+          >
+            <Laptop size={18} />
+            <span>
+              {lang === 'ar'
+                ? 'خيارات الأرشيف الكامل (ZIP / HTML)'
+                : 'All Archive Options (ZIP/HTML)'}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -337,8 +496,8 @@ export default function BackupsTab() {
             </h3>
             <p>
               {lang === 'ar'
-                ? 'يقوم النظام تلقائياً بأخذ نسخة احتياطية لقاعدة البيانات كل ليلة عند الساعة 02:00 صباحاً ويحتفظ بها لمدة 7 أيام. يمكنك في أي وقت إنشاء نسخة يدوية فورية لحفظ أحدث التعديلات والبيانات.'
-                : 'The system automatically creates a daily database backup at 02:00 AM and keeps records for 7 days. You can also trigger an immediate manual snapshot anytime.'}
+                ? 'يقوم النظام تلقائياً بأخذ نسخة احتياطية لقاعدة البيانات كل ليلة عند الساعة 02:00 صباحاً ويحتفظ بها لمدة عام دراسي كامل (365 يوماً). يمكنك في أي وقت إنشاء نسخة يدوية فورية لحفظ أحدث التعديلات والبيانات.'
+                : 'The system automatically creates a daily database backup at 02:00 AM and keeps records for 365 days. You can also trigger an immediate manual snapshot anytime.'}
             </p>
 
             {/* Selectable Backup Types: 2 Clear Cards */}
@@ -468,7 +627,7 @@ export default function BackupsTab() {
           <div className="backups-table-title">
             <FileArchive size={18} className="text-primary-ui" />
             <span>
-              {lang === 'ar' ? 'سجل ملفات النسخ الاحتياطي' : 'Backup Archives Archive'}
+              {lang === 'ar' ? 'سجل ملفات النسخ الاحتياطي والأرشيف' : 'Backup Archives Archive'}
             </span>
             <span
               style={{
@@ -508,76 +667,159 @@ export default function BackupsTab() {
                   </td>
                 </tr>
               ) : filteredBackups.length > 0 ? (
-                filteredBackups.map((backup) => (
-                  <tr key={backup.file_name}>
-                    <td>
-                      <div className="backup-file-cell">
-                        <div className="backup-file-icon">
-                          <FileArchive size={18} />
+                filteredBackups.map((backup) => {
+                  const isExcel = backup.format === 'excel' || backup.file_name.toLowerCase().endsWith('.xlsx');
+                  const isHtml = backup.format === 'html' || backup.file_name.toLowerCase().endsWith('.html');
+                  const isYearZip = backup.is_year_archive && !isExcel && !isHtml;
+
+                  return (
+                    <tr key={backup.file_name}>
+                      <td>
+                        <div className="backup-file-cell">
+                          <div
+                            className="backup-file-icon"
+                            style={{
+                              background: isExcel
+                                ? 'rgba(22, 163, 74, 0.15)'
+                                : isHtml
+                                ? 'rgba(3, 105, 161, 0.15)'
+                                : isYearZip
+                                ? 'rgba(15, 118, 110, 0.15)'
+                                : undefined,
+                              color: isExcel
+                                ? '#16a34a'
+                                : isHtml
+                                ? '#0369a1'
+                                : isYearZip
+                                ? '#0f766e'
+                                : undefined,
+                            }}
+                          >
+                            {isExcel ? (
+                              <FileSpreadsheet size={18} />
+                            ) : isHtml ? (
+                              <FileText size={18} />
+                            ) : backup.is_year_archive ? (
+                              <GraduationCap size={18} />
+                            ) : (
+                              <FileArchive size={18} />
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span className="backup-file-name">{backup.file_name}</span>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                color: isExcel
+                                  ? '#16a34a'
+                                  : isHtml
+                                  ? '#0369a1'
+                                  : backup.is_year_archive
+                                  ? '#0f766e'
+                                  : '#10b981',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {isExcel ? (
+                                <>
+                                  <Check size={11} />
+                                  <span>{lang === 'ar' ? 'مصنف إكسل شامل ومبوب (7 أوراق عمل)' : 'Multi-Tab Excel Workbook'}</span>
+                                </>
+                              ) : isHtml ? (
+                                <>
+                                  <Check size={11} />
+                                  <span>{lang === 'ar' ? 'تطبيق ويب مستقل أوفلاين (HTML)' : 'Offline Interactive Viewer'}</span>
+                                </>
+                              ) : isYearZip ? (
+                                <>
+                                  <Check size={11} />
+                                  <span>{lang === 'ar' ? 'حزمة أرشيف شاملة (إكسل + HTML + SQL)' : 'Complete Archive Package'}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Lock size={11} />
+                                  <span>{lang === 'ar' ? 'مشفر بكلمة سر (AES-256)' : 'AES-256 Protected'}</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                          <span className="backup-file-name">{backup.file_name}</span>
-                          <span style={{ fontSize: '11px', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                            <Lock size={11} />
-                            <span>{lang === 'ar' ? 'مشفر بكلمة سر (AES-256)' : 'AES-256 Protected'}</span>
-                          </span>
+                      </td>
+
+                      <td>
+                        <span
+                          className={`backup-type-badge ${
+                            backup.is_year_archive ? 'full' : backup.is_db_only ? 'db' : 'full'
+                          }`}
+                          style={{
+                            background: isExcel
+                              ? '#dcfce7'
+                              : isHtml
+                              ? '#e0f2fe'
+                              : isYearZip
+                              ? '#ccfbf1'
+                              : undefined,
+                            color: isExcel
+                              ? '#15803d'
+                              : isHtml
+                              ? '#0369a1'
+                              : isYearZip
+                              ? '#0f766e'
+                              : undefined,
+                            border: isExcel
+                              ? '1px solid #86efac'
+                              : isHtml
+                              ? '1px solid #7dd3fc'
+                              : isYearZip
+                              ? '1px solid #99f6e4'
+                              : undefined,
+                          }}
+                        >
+                          {backup.type_label}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="backup-size-badge">{backup.size_formatted}</span>
+                      </td>
+
+                      <td style={{ fontFamily: 'monospace' }}>
+                        {backup.created_at_formatted}
+                      </td>
+
+                      <td style={{ color: 'var(--color-text-secondary)' }}>
+                        {backup.created_at_human}
+                      </td>
+
+                      <td>
+                        <div className="backup-actions-group">
+                          <button
+                            type="button"
+                            className="btn-action-download"
+                            onClick={() => handleDownload(backup.file_name)}
+                            title={lang === 'ar' ? 'تنزيل وحفظ الملف' : 'Download File'}
+                          >
+                            <Download size={13} />
+                            <span>{lang === 'ar' ? 'تنزيل' : 'Download'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-action-delete"
+                            onClick={() => handleDelete(backup)}
+                            title={lang === 'ar' ? 'حذف من السيرفر' : 'Delete'}
+                          >
+                            <Trash2 size={13} />
+                            <span>{lang === 'ar' ? 'حذف' : 'Delete'}</span>
+                          </button>
                         </div>
-                      </div>
-                    </td>
-
-                    <td>
-                      <span
-                        className={`backup-type-badge ${
-                          backup.is_db_only ? 'db' : 'full'
-                        }`}
-                      >
-                        {backup.is_db_only
-                          ? lang === 'ar'
-                            ? 'قاعدة بيانات'
-                            : 'Database'
-                          : lang === 'ar'
-                          ? 'شامل'
-                          : 'Full'}
-                      </span>
-                    </td>
-
-                    <td>
-                      <span className="backup-size-badge">{backup.size_formatted}</span>
-                    </td>
-
-                    <td style={{ fontFamily: 'monospace' }}>
-                      {backup.created_at_formatted}
-                    </td>
-
-                    <td style={{ color: 'var(--color-text-secondary)' }}>
-                      {backup.created_at_human}
-                    </td>
-
-                    <td>
-                      <div className="backup-actions-group">
-                        <button
-                          type="button"
-                          className="btn-action-download"
-                          onClick={() => handleDownload(backup.file_name)}
-                          title={lang === 'ar' ? 'تنزيل الأرشيف' : 'Download Archive'}
-                        >
-                          <Download size={13} />
-                          <span>{lang === 'ar' ? 'تنزيل' : 'Download'}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-action-delete"
-                          onClick={() => handleDelete(backup)}
-                          title={lang === 'ar' ? 'حذف من السيرفر' : 'Delete'}
-                        >
-                          <Trash2 size={13} />
-                          <span>{lang === 'ar' ? 'حذف' : 'Delete'}</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={6}>
@@ -611,6 +853,280 @@ export default function BackupsTab() {
           </table>
         </div>
       </div>
+
+      {/* 6. Academic Year Offline Archive Modal Window */}
+      {showYearModal && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div
+            className="modal-container"
+            style={{
+              maxWidth: '620px',
+              width: '95%',
+              background: 'var(--color-surface)',
+              borderRadius: '18px',
+              overflow: 'hidden',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+              border: '1.5px solid var(--color-border)',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%)',
+                color: 'white',
+                padding: '20px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <GraduationCap size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>
+                    {lang === 'ar'
+                      ? 'أرشيف نهاية العام الدراسي المرجعي'
+                      : 'End-of-Year Reference Archive'}
+                  </h3>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#bfdbfe' }}>
+                    {lang === 'ar'
+                      ? 'نسخة مرجعية شاملة يمكن فتحها والتعامل معها بدون إنترنت'
+                      : 'Comprehensive reference copy that works completely offline'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isExportingYear && setShowYearModal(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  color: 'white',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Year Input */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>
+                  {lang === 'ar' ? 'العام الدراسي المرجعي:' : 'Academic Year Reference:'}
+                </label>
+                <input
+                  type="text"
+                  value={academicYearInput}
+                  onChange={(e) => setAcademicYearInput(e.target.value)}
+                  className="text-field"
+                  style={{
+                    width: '100%',
+                    height: '42px',
+                    padding: '0 14px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--color-border)',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                  }}
+                  placeholder="مثال: 2026-2027م"
+                />
+              </div>
+
+              {/* Format Choice */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>
+                  {lang === 'ar' ? 'نوع وتنسيق النسخة المحفوظة:' : 'Archive Package Format:'}
+                </label>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Option 1: Excel */}
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: archiveFormat === 'excel' ? '2px solid #16a34a' : '1px solid var(--color-border)',
+                      background: archiveFormat === 'excel' ? 'rgba(22, 163, 74, 0.06)' : 'var(--color-surface)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="archive_format"
+                      checked={archiveFormat === 'excel'}
+                      onChange={() => setArchiveFormat('excel')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div>
+                      <strong style={{ fontSize: '13.5px', color: '#15803d', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        📊 {lang === 'ar' ? 'مصنف إكسل كامل ومبوب (.xlsx) — مستحسن للبيانات' : 'Multi-Tab Excel Workbook (.xlsx) — Recommended'}
+                      </strong>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                        {lang === 'ar'
+                          ? 'ملف إكسل منظم ومنسق باللغة العربية (RTL) يحتوي على 7 أوراق عمل: الملخص العام، سجل الطلاب، أولياء الأمور، المعلمين، الشعب والفصول، كشف الدرجات والكنترول، والسجل المالي.'
+                          : 'Complete RTL Excel spreadsheet with 7 distinct worksheets: Summary, Students, Parents, Teachers, Classes, Grades, and Finance.'}
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Option 2: Full ZIP */}
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: archiveFormat === 'zip' ? '2px solid var(--color-primary-ui)' : '1px solid var(--color-border)',
+                      background: archiveFormat === 'zip' ? 'rgba(37, 99, 235, 0.05)' : 'var(--color-surface)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="archive_format"
+                      checked={archiveFormat === 'zip'}
+                      onChange={() => setArchiveFormat('zip')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div>
+                      <strong style={{ fontSize: '13.5px', color: 'var(--color-text-primary)' }}>
+                        📦 {lang === 'ar' ? 'حزمة الأرشيف الشاملة المتكاملة (.zip)' : 'Complete Archive Package (.zip)'}
+                      </strong>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                        {lang === 'ar'
+                          ? 'الحزمة القصوى المتكاملة: تحتوي على ملف الإكسل المبوب + تطبيق الأرشيف التفاعلي المستقل (HTML) + قاعدة بيانات SQL الخام + ملفات JSON الشاملة.'
+                          : 'All-in-one archive bundle: Excel workbook + Offline interactive HTML viewer + raw MySQL database backup + JSON data.'}
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Option 3: Standalone HTML */}
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: archiveFormat === 'html' ? '2px solid #0284c7' : '1px solid var(--color-border)',
+                      background: archiveFormat === 'html' ? 'rgba(2, 132, 199, 0.05)' : 'var(--color-surface)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="archive_format"
+                      checked={archiveFormat === 'html'}
+                      onChange={() => setArchiveFormat('html')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div>
+                      <strong style={{ fontSize: '13.5px', color: 'var(--color-text-primary)' }}>
+                        🌐 {lang === 'ar' ? 'ملف تطبيق أرشيف مستقل (.html) مباشر' : 'Single Standalone HTML Application (.html)'}
+                      </strong>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                        {lang === 'ar'
+                          ? 'ملف ويب واحد مستقل بنقرة زر يفتح مباشرة في أي كمبيوتر بدون فك ضغط ويعمل بدون إنترنت نهائياً مع إمكانية البحث والفرز والطباعة.'
+                          : 'A single interactive file that opens directly in any browser without extraction and 100% offline capability.'}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Instructions Notice */}
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  fontSize: '12px',
+                  color: '#475569',
+                  lineHeight: 1.6,
+                }}
+              >
+                💡 <strong>{lang === 'ar' ? 'أين يمكنك حفظ هذه النسخة؟' : 'Where can you store this?'}</strong>
+                <br />
+                {lang === 'ar'
+                  ? 'بمجرد النقر على الزر بالأسفل سيقوم المتصفح بتحميل النسخة مباشرة إلى جهازك، ويمكنك نقلها والاحتفاظ بها في أي قرص في اللابتوب أو فلاشة USB أو هارد ديسك خارجي كمرجع دائم للسنوات القادمة.'
+                  : 'The file will be downloaded directly by your browser. You can save or copy it to any laptop drive, USB flash stick, or external hard drive.'}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: '16px 24px',
+                borderTop: '1px solid var(--color-border)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                background: 'var(--color-surface-alt)',
+              }}
+            >
+              <button
+                type="button"
+                className="btn-elevated"
+                onClick={() => setShowYearModal(false)}
+                disabled={isExportingYear}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+
+              <button
+                type="button"
+                className="btn-filled"
+                onClick={handleExportYearArchive}
+                disabled={isExportingYear}
+                style={{
+                  background: 'linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%)',
+                  padding: '10px 22px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: '700',
+                }}
+              >
+                {isExportingYear ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    <span>{lang === 'ar' ? 'جاري تجهيز وتصدير الأرشيف...' : 'Exporting Archive...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} />
+                    <span>{lang === 'ar' ? 'تصدير وحفظ النسخة المرجعية الآن' : 'Export & Save Archive Now'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

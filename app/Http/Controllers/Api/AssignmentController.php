@@ -37,8 +37,13 @@ class AssignmentController extends Controller implements HasMiddleware
         if ($user && $user->role === 'teacher') {
             $query->where('teacher_id', $user->id);
         } elseif ($user && $user->role === 'parent') {
-            $classIds = Student::where('parent_id', $user->id)->pluck('class_id')->filter()->unique();
-            $query->whereIn('class_id', $classIds);
+            $parentStudents = Student::where('parent_id', $user->id)->get(['id', 'class_id']);
+            $parentStudentIds = $parentStudents->pluck('id');
+            $classIds = $parentStudents->pluck('class_id')->filter()->unique();
+            $query->whereIn('class_id', $classIds)
+                  ->with(['submissions' => function ($q) use ($parentStudentIds) {
+                      $q->whereIn('student_id', $parentStudentIds)->with('student');
+                  }]);
         } else {
             $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
             if ($scopedClassIds !== null) {
@@ -99,6 +104,37 @@ class AssignmentController extends Controller implements HasMiddleware
 
     public function store(Request $request)
     {
+        // Sanitize class_id and subject_id (support 'cls-3', 'sub-1', or grade_ar + section_ar)
+        $rawClassId = $request->input('class_id');
+        if (is_string($rawClassId) && !is_numeric($rawClassId)) {
+            $cleanedClassId = preg_replace('/\D/', '', $rawClassId);
+            if ($cleanedClassId !== '') {
+                $request->merge(['class_id' => (int) $cleanedClassId]);
+            }
+        } elseif (is_numeric($rawClassId)) {
+            $request->merge(['class_id' => (int) $rawClassId]);
+        }
+
+        if (!$request->filled('class_id') && $request->filled('grade_ar') && $request->filled('section_ar')) {
+            $gradeAr = trim($request->input('grade_ar'));
+            $sectionAr = trim($request->input('section_ar'));
+            $schoolClass = \App\Models\SchoolClass::firstOrCreate(
+                ['grade_ar' => $gradeAr, 'section_ar' => $sectionAr],
+                ['grade_en' => $gradeAr, 'section_en' => $sectionAr]
+            );
+            $request->merge(['class_id' => (int) $schoolClass->id]);
+        }
+
+        $rawSubjectId = $request->input('subject_id');
+        if (is_string($rawSubjectId) && !is_numeric($rawSubjectId)) {
+            $cleanedSubId = preg_replace('/\D/', '', $rawSubjectId);
+            if ($cleanedSubId !== '') {
+                $request->merge(['subject_id' => (int) $cleanedSubId]);
+            }
+        } elseif (is_numeric($rawSubjectId)) {
+            $request->merge(['subject_id' => (int) $rawSubjectId]);
+        }
+
         $request->validate([
             'class_id' => 'required|integer',
             'subject_id' => 'required|integer',
@@ -110,7 +146,7 @@ class AssignmentController extends Controller implements HasMiddleware
 
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
-        if ($scopedClassIds !== null && !in_array($request->input('class_id'), $scopedClassIds)) {
+        if ($scopedClassIds !== null && !in_array((int) $request->input('class_id'), $scopedClassIds)) {
             return response()->json([
                 'success' => false,
                 'message' => 'غير مصرح لك بنشر واجب لهذا الفصل الدراسي.',
@@ -118,7 +154,7 @@ class AssignmentController extends Controller implements HasMiddleware
         }
 
         $teacherId     = $request->input('teacher_id') ?: $request->user()->id;
-        $attachmentUrl = null;
+        $attachmentUrl = $request->input('attachment_url') ?: null;
         $newPath       = null;
 
         if ($request->hasFile('attachment')) {
@@ -141,7 +177,7 @@ class AssignmentController extends Controller implements HasMiddleware
                 'title'          => $request->input('title'),
                 'content'        => $request->input('content'),
                 'due_date'       => $request->input('due_date'),
-                'date_created'   => now()->toDateString(),
+                'date_created'   => $request->input('date_created') ?: now()->toDateString(),
                 'attachment_url' => $attachmentUrl,
             ]);
 
@@ -354,15 +390,50 @@ class AssignmentController extends Controller implements HasMiddleware
         ]);
 
         foreach ($request->submissions as $sub) {
+            $studentId = $sub['student_id'] ?? $sub['studentId'] ?? null;
+            if (!$studentId) continue;
+
+            $rawStatus = $sub['status'] ?? 'pending';
+            if ($rawStatus === 'notSubmitted') {
+                $status = 'not_submitted';
+            } elseif ($rawStatus === 'submittedLate') {
+                $status = 'submitted_late';
+            } else {
+                $status = $rawStatus ?: 'pending';
+            }
+
+            $existing = AssignmentSubmission::where('assignment_id', $id)
+                ->where('student_id', $studentId)
+                ->first();
+
+            $hasNoteKey = array_key_exists('teacher_note', $sub) || array_key_exists('teacherNote', $sub) || array_key_exists('note', $sub);
+            $rawNote = $sub['teacher_note'] ?? $sub['teacherNote'] ?? $sub['note'] ?? null;
+
+            if ($hasNoteKey) {
+                $trimmedNote = is_string($rawNote) ? trim($rawNote) : '';
+                if ($trimmedNote !== '') {
+                    $noteToSave = $trimmedNote;
+                } elseif ($existing && !empty($existing->teacher_note) && $existing->status !== $status && $rawNote === '') {
+                    // Preserve existing teacher note when status is toggled without note controller sync
+                    $noteToSave = $existing->teacher_note;
+                } else {
+                    $noteToSave = null;
+                }
+            } else {
+                $noteToSave = $existing ? $existing->teacher_note : null;
+            }
+
+            $isSubmitted = in_array($status, ['submitted', 'submitted_late'], true);
+
             AssignmentSubmission::updateOrCreate(
                 [
                     'assignment_id' => $id,
-                    'student_id' => $sub['student_id'],
+                    'student_id' => $studentId,
                 ],
                 [
-                    'status' => $sub['status'] ?: 'pending',
-                    'teacher_note' => $sub['teacher_note'] ?: null,
-                    'submitted_at' => $sub['status'] === 'submitted' ? now() : null,
+                    'status' => $status,
+                    'teacher_note' => $noteToSave,
+                    'submitted_at' => $isSubmitted ? ($existing && $existing->submitted_at ? $existing->submitted_at : now()) : null,
                 ]
             );
         }

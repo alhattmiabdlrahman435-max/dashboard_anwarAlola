@@ -65,7 +65,7 @@ const SubjectView = memo(function SubjectView() {
         <table className="control-grade-table">
           <thead>
             <tr>
-              <th>{lang === 'ar' ? 'الفترة التقييمية' : 'Evaluation Period'}</th>
+              <th className="sticky-col-name" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'الفترة التقييمية' : 'Evaluation Period'}</th>
               <th>{t.hwLabel}</th>
               <th>{t.attLabel}</th>
               <th>{t.behLabel}</th>
@@ -77,7 +77,7 @@ const SubjectView = memo(function SubjectView() {
           <tbody>
             {/* Month 1 */}
             <tr>
-              <td style={{ fontWeight: 'bold' }}>{t.m1Label}</td>
+              <td className="sticky-col-name" style={{ fontWeight: 'bold', textAlign: 'right' }}>{t.m1Label}</td>
               <td>
                 <GradeInput 
                   min="0" max="15" 
@@ -123,7 +123,7 @@ const SubjectView = memo(function SubjectView() {
             
             {/* Month 2 */}
             <tr>
-              <td style={{ fontWeight: 'bold' }}>{t.m2Label}</td>
+              <td className="sticky-col-name" style={{ fontWeight: 'bold', textAlign: 'right' }}>{t.m2Label}</td>
               <td>
                 <GradeInput 
                   min="0" max="15" 
@@ -169,7 +169,7 @@ const SubjectView = memo(function SubjectView() {
 
             {/* Month 3 */}
             <tr>
-              <td style={{ fontWeight: 'bold' }}>{t.m3Label}</td>
+              <td className="sticky-col-name" style={{ fontWeight: 'bold', textAlign: 'right' }}>{t.m3Label}</td>
               <td>
                 <GradeInput 
                   min="0" max="15" 

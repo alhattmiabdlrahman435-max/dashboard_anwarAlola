@@ -14,6 +14,8 @@ export default function ClassesProvider({ children }) {
   const [isStale, setIsStale] = useState(true);
 
   const fetchRequestRef = useRef(0);
+  const stateRef = useRef({ isStale: true, count: 0 });
+  stateRef.current = { isStale, count: classes.length };
 
   // ─── Available grades & sections configuration ────────────────────
   const [availableGrades, setAvailableGrades] = useState([
@@ -43,7 +45,7 @@ export default function ClassesProvider({ children }) {
   // ─── Fetch Classes ────────────────────────────────────────────────
   const fetchClasses = useCallback((...args) => {
     const force = args.find(a => typeof a === 'boolean') || false;
-    if (!force && !isStale && classes.length > 0) {
+    if (!force && !stateRef.current.isStale && stateRef.current.count > 0) {
       return;
     }
     const reqId = ++fetchRequestRef.current;
@@ -64,18 +66,32 @@ export default function ClassesProvider({ children }) {
               name: `${cls.grade_ar} - ${cls.section_ar}`,
               nameEn: `${cls.grade_en} - ${cls.section_en}`,
               grade: cls.grade_ar,
+              grade_ar: cls.grade_ar,
               gradeEn: cls.grade_en,
+              grade_en: cls.grade_en,
               section: cls.section_ar,
+              section_ar: cls.section_ar,
               sectionEn: cls.section_en,
+              section_en: cls.section_en,
               subjects: classSubjects,
+              subjectTeachers: cls.subject_teachers || {},
               studentsCount: cls.students_count ?? 0,
             };
           });
           setClasses(mapped);
           setIsStale(false);
 
+          // Merge DB grades into availableGrades so all DB grades are selectable
+          const dbGrades = data.classes.map((c) => c.grade_ar).filter(Boolean);
+          if (dbGrades.length > 0) {
+            setAvailableGrades((prev) => {
+              const merged = new Set([...dbGrades, ...prev]);
+              return Array.from(merged);
+            });
+          }
+
           // Merge DB sections into availableSections to prevent deletion
-          const dbSections = data.classes.map((c) => c.section_ar);
+          const dbSections = data.classes.map((c) => c.section_ar).filter(Boolean);
           if (dbSections.length > 0) {
             setAvailableSections((prev) => {
               const merged = new Set([...prev, ...dbSections]);
@@ -94,7 +110,7 @@ export default function ClassesProvider({ children }) {
           setLoading(false);
         }
       });
-  }, [isStale, classes.length]);
+  }, []);
 
   // ─── Auto-fetch on auth ───────────────────────────────────────────
   useEffect(() => {

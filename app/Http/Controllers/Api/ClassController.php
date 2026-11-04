@@ -38,7 +38,7 @@ class ClassController extends Controller implements HasMiddleware
             $query->whereIn('id', $scopedClassIds);
         }
 
-        $classes = $query->with(['gradeLevel', 'subjects'])->withCount('students')->get();
+        $classes = $query->with(['gradeLevel', 'subjects', 'teacherSubjects.teacher', 'teacherSubjects.subject'])->withCount('students')->get();
         
         foreach ($classes as $class) {
             // جلب معرفات المواد المسجلة في جدول الحصص الأسبوعي لهذا الفصل
@@ -52,6 +52,19 @@ class ClassController extends Controller implements HasMiddleware
             
             // تعيين القائمة المدمجة كعلاقة المواد المقررة للفصل
             $class->setRelation('subjects', $mergedSubjects);
+
+            // بناء خريطة المادة -> اسم المعلم لهذا الفصل
+            $subjectTeachers = [];
+            foreach ($class->teacherSubjects as $ts) {
+                if ($ts->subject && $ts->teacher) {
+                    $subName = $ts->subject->name_ar ?? $ts->subject->name;
+                    $tName = $ts->teacher->name_ar ?? $ts->teacher->name;
+                    if ($subName && $tName) {
+                        $subjectTeachers[$subName] = $tName;
+                    }
+                }
+            }
+            $class->setAttribute('subject_teachers', $subjectTeachers);
         }
 
         return response()->json([

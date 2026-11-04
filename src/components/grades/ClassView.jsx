@@ -124,13 +124,58 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
         </div>
       </div>
 
+      {/* Quick Stats Header for Subject Teacher View (placed outside scroll container so sticky columns work) */}
+      {classSubject !== 'all' && classSubject !== 'detailed' && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          padding: '12px 16px',
+          backgroundColor: 'var(--color-bg-container, #f8fafc)',
+          borderRadius: '8px',
+          border: '1px solid var(--color-border)',
+          marginBottom: '4px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
+              📖 {lang === 'ar' ? 'كشف رصد مادة:' : 'Subject Grading Sheet:'} {classSubject}
+            </span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>|</span>
+            <span style={{ fontSize: '13px' }}>
+              🏫 {selectedClass}
+            </span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>|</span>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: '#0f766e' }}>
+              🎯 {classPeriod === 'm1' ? 'المحصلة الأولى (١٠٠)' : classPeriod === 'm2' ? 'المحصلة الثانية (١٠٠)' : classPeriod === 'm3' ? 'المحصلة الثالثة (١٠٠)' : classPeriod === 'termTotal' ? 'مجموع الترم (٥٠)' : 'المجموع السنوي (١٠٠)'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{
+              fontSize: '12px',
+              backgroundColor: '#dcfce7',
+              color: '#15803d',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              fontWeight: 'bold',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              🟢 {lang === 'ar' ? 'الرصد والحفظ التلقائي نشط' : 'Auto-save active'}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="control-grade-table-container">
         {classSubject === 'all' ? (
           <table className="control-grade-table">
             <thead>
               <tr>
-                <th>#</th>
-                <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
+                <th className="sticky-col-1">#</th>
+                <th className="sticky-col-2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                 {classSubjectsList.map((subj, idx) => (
                   <th key={idx}>{subj}</th>
                 ))}
@@ -206,8 +251,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                   return (
                     <tr key={s.id}>
-                      <td>{index + 1}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
+                      <td className="sticky-col-1">{index + 1}</td>
+                      <td className="sticky-col-2" style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                       {subjectVals.map((val, vIdx) => (
                         <td key={vIdx} style={{ color: val < passThreshold ? '#b91c1c' : 'inherit' }}>{val}</td>
                       ))}
@@ -231,7 +276,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                     {rows}
                     {/* Row 1: مجموع درجات الفصل */}
                     <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold', borderTop: '2px solid var(--color-border)' }}>
-                      <td colSpan="2" style={{ textAlign: 'right' }}>
+                      <td className="sticky-col-1">📊</td>
+                      <td className="sticky-col-2" style={{ textAlign: 'right' }}>
                         {lang === 'ar' ? 'مجموع درجات الفصل:' : 'Class Total Sum:'}
                       </td>
                       {classSubjectsList.map((subj, idx) => (
@@ -245,7 +291,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                     {/* Row 2: متوسط درجات الفصل */}
                     <tr style={{ backgroundColor: 'var(--color-surface, #ffffff)', fontWeight: 'bold' }}>
-                      <td colSpan="2" style={{ textAlign: 'right' }}>
+                      <td className="sticky-col-1">📈</td>
+                      <td className="sticky-col-2" style={{ textAlign: 'right' }}>
                         {lang === 'ar' ? `متوسط درجات الفصل (من ${maxPerSubj}):` : 'Class Average:'}
                       </td>
                       {classSubjectsList.map((subj, idx) => {
@@ -262,7 +309,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                     {/* Row 3: نسبة النجاح بالمادة */}
                     <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                      <td colSpan="2" style={{ textAlign: 'right' }}>
+                      <td className="sticky-col-1">✅</td>
+                      <td className="sticky-col-2" style={{ textAlign: 'right' }}>
                         {lang === 'ar' ? 'نسبة النجاح بالمادة (≥ ٥٠%):' : 'Subject Pass Rate %:'}
                       </td>
                       {classSubjectsList.map((subj, idx) => {
@@ -286,8 +334,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
             <thead>
               {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
                 <tr>
-                  <th>#</th>
-                  <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
+                  <th className="sticky-col-1">#</th>
+                  <th className="sticky-col-2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                   <th>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
                   <th>{t.hwLabel}</th>
                   <th>{t.attLabel}</th>
@@ -298,8 +346,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 </tr>
               ) : classPeriod === 'termTotal' ? (
                 <tr>
-                  <th>#</th>
-                  <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
+                  <th className="sticky-col-1">#</th>
+                  <th className="sticky-col-2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                   <th>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
                   <th>{t.termAverageLabel}</th>
                   <th>{t.finalExamLabel}</th>
@@ -307,8 +355,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 </tr>
               ) : (
                 <tr>
-                  <th>#</th>
-                  <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
+                  <th className="sticky-col-1">#</th>
+                  <th className="sticky-col-2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                   <th>{lang === 'ar' ? 'المادة' : 'Subject'}</th>
                   <th>{lang === 'ar' ? 'الفصل الدراسي الأول (٥٠)' : 'Term 1 (50)'}</th>
                   <th>{lang === 'ar' ? 'الفصل الدراسي الثاني (٥٠)' : 'Term 2 (50)'}</th>
@@ -339,12 +387,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                       return (
                         <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === classSubjectsList.length - 1 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
-                          {subIdx === 0 && (
-                            <>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
-                            </>
-                          )}
+                          <td className="sticky-col-1" style={{ verticalAlign: 'middle', fontWeight: 'bold' }}>{sIdx + 1}</td>
+                          <td className="sticky-col-2" style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
                           <td>
                             <GradeInput 
@@ -402,12 +446,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                       return (
                         <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === classSubjectsList.length - 1 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
-                          {subIdx === 0 && (
-                            <>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
-                            </>
-                          )}
+                          <td className="sticky-col-1" style={{ verticalAlign: 'middle', fontWeight: 'bold' }}>{sIdx + 1}</td>
+                          <td className="sticky-col-2" style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
                           <td style={{ fontWeight: 'bold' }}>{avg} / 20</td>
                           <td>
@@ -430,12 +470,8 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                       return (
                         <tr key={`${s.id}-${subj}`} style={{ borderBottom: subIdx === classSubjectsList.length - 1 ? '2px solid var(--color-border)' : '1px solid var(--color-border-light)' }}>
-                          {subIdx === 0 && (
-                            <>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-border)' }}>{sIdx + 1}</td>
-                              <td rowSpan={classSubjectsList.length} style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right', backgroundColor: 'var(--color-surface, #ffffff)' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
-                            </>
-                          )}
+                          <td className="sticky-col-1" style={{ verticalAlign: 'middle', fontWeight: 'bold' }}>{sIdx + 1}</td>
+                          <td className="sticky-col-2" style={{ verticalAlign: 'middle', fontWeight: 'bold', textAlign: 'right' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td style={{ fontWeight: '600', backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
                           <td style={{ fontWeight: 'bold' }}>{t1Val} / 50</td>
                           <td style={{ fontWeight: 'bold' }}>{t2Val} / 50</td>
@@ -449,7 +485,7 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 });
 
                 const count = classStudents.length;
-                const averageRows = classSubjectsList.map((subj, subIdx) => {
+                const averageRows = classSubjectsList.map((subj) => {
                   const subjectLabel = subj;
                   let hwSum = 0, attSum = 0, behSum = 0, oralSum = 0, wrtSum = 0, monthTotSum = 0;
                   let avgSum = 0, finalSum = 0, termTotSum = 0;
@@ -489,11 +525,10 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                   if (classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3') {
                     return (
                       <tr key={`avg-${subj}`} style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                        {subIdx === 0 && (
-                          <td rowSpan={classSubjectsList.length} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
-                            {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
-                          </td>
-                        )}
+                        <td className="sticky-col-1" style={{ verticalAlign: 'middle', textAlign: 'center' }}>📈</td>
+                        <td className="sticky-col-2" style={{ verticalAlign: 'middle', textAlign: 'right' }}>
+                          {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
+                        </td>
                         <td style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
                         <td>{parseFloat((hwSum / count).toFixed(2))}</td>
                         <td>{parseFloat((attSum / count).toFixed(2))}</td>
@@ -508,11 +543,10 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                   } else if (classPeriod === 'termTotal') {
                     return (
                       <tr key={`avg-${subj}`} style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                        {subIdx === 0 && (
-                          <td rowSpan={classSubjectsList.length} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
-                            {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
-                          </td>
-                        )}
+                        <td className="sticky-col-1" style={{ verticalAlign: 'middle', textAlign: 'center' }}>📈</td>
+                        <td className="sticky-col-2" style={{ verticalAlign: 'middle', textAlign: 'right' }}>
+                          {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
+                        </td>
                         <td style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
                         <td>{parseFloat((avgSum / count).toFixed(2))}</td>
                         <td>{parseFloat((finalSum / count).toFixed(2))}</td>
@@ -524,11 +558,10 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                   } else {
                     return (
                       <tr key={`avg-${subj}`} style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                        {subIdx === 0 && (
-                          <td rowSpan={classSubjectsList.length} colSpan={2} style={{ verticalAlign: 'middle', textAlign: 'center', borderRight: '1px solid var(--color-border)' }}>
-                            {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
-                          </td>
-                        )}
+                        <td className="sticky-col-1" style={{ verticalAlign: 'middle', textAlign: 'center' }}>📈</td>
+                        <td className="sticky-col-2" style={{ verticalAlign: 'middle', textAlign: 'right' }}>
+                          {lang === 'ar' ? 'متوسطات درجات الفصل:' : 'Class Averages:'}
+                        </td>
                         <td style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)' }}>{subjectLabel}</td>
                         <td>{parseFloat((t1Sum / count).toFixed(2))}</td>
                         <td>{parseFloat((t2Sum / count).toFixed(2))}</td>
@@ -550,57 +583,13 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
             </tbody>
           </table>
         ) : (
-          <div>
-            {/* Quick Stats Header for Subject Teacher View */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '12px',
-              padding: '12px 16px',
-              backgroundColor: 'var(--color-bg-container, #f8fafc)',
-              borderRadius: '8px',
-              border: '1px solid var(--color-border)',
-              marginBottom: '12px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                  📖 {lang === 'ar' ? 'كشف رصد مادة:' : 'Subject Grading Sheet:'} {classSubject}
-                </span>
-                <span style={{ color: 'var(--color-text-secondary)' }}>|</span>
-                <span style={{ fontSize: '13px' }}>
-                  🏫 {selectedClass}
-                </span>
-                <span style={{ color: 'var(--color-text-secondary)' }}>|</span>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0f766e' }}>
-                  🎯 {classPeriod === 'm1' ? 'المحصلة الأولى (١٠٠)' : classPeriod === 'm2' ? 'المحصلة الثانية (١٠٠)' : classPeriod === 'm3' ? 'المحصلة الثالثة (١٠٠)' : classPeriod === 'termTotal' ? 'مجموع الترم (٥٠)' : 'المجموع السنوي (١٠٠)'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  fontSize: '12px',
-                  backgroundColor: '#dcfce7',
-                  color: '#15803d',
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  fontWeight: 'bold',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  🟢 {lang === 'ar' ? 'الرصد والحفظ التلقائي نشط' : 'Auto-save active'}
-                </span>
-              </div>
-            </div>
-
             <table className="control-grade-table">
               <thead>
                 {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
                   <tr>
-                    <th>#</th>
+                    <th className="sticky-col-1">#</th>
+                    <th className="sticky-col-2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                     <th>{lang === 'ar' ? 'رقم القيد' : 'Code'}</th>
-                    <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                     <th>{t.hwLabel}</th>
                     <th>{t.attLabel}</th>
                     <th>{t.behLabel}</th>
@@ -611,9 +600,9 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                   </tr>
                 ) : classPeriod === 'termTotal' ? (
                   <tr>
-                    <th>#</th>
+                    <th className="sticky-col-1">#</th>
+                    <th className="sticky-col-2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                     <th>{lang === 'ar' ? 'رقم القيد' : 'Code'}</th>
-                    <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                     <th>{t.termAverageLabel}</th>
                     <th>{t.finalExamLabel}</th>
                     <th style={{ backgroundColor: 'var(--color-bg-container, #f1f5f9)' }}>{t.termTotalLabel}</th>
@@ -621,9 +610,9 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                   </tr>
                 ) : (
                   <tr>
-                    <th>#</th>
+                    <th className="sticky-col-1">#</th>
+                    <th className="sticky-col-2" style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                     <th>{lang === 'ar' ? 'رقم القيد' : 'Code'}</th>
-                    <th style={{ textAlign: 'right' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
                     <th>{lang === 'ar' ? 'الفصل الدراسي الأول (٥٠)' : 'Term 1 (50)'}</th>
                     <th>{lang === 'ar' ? 'الفصل الدراسي الثاني (٥٠)' : 'Term 2 (50)'}</th>
                     <th style={{ backgroundColor: 'var(--color-bg-container, #f1f5f9)' }}>{t.yearlyTotalLabel}</th>
@@ -666,9 +655,9 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                       return (
                         <tr key={s.id}>
-                          <td>{index + 1}</td>
+                          <td className="sticky-col-1">{index + 1}</td>
+                          <td className="sticky-col-2" style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{s.student_code || s.id}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td>
                             <GradeInput 
                               min="0" max="15" 
@@ -733,9 +722,9 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                       return (
                         <tr key={s.id}>
-                          <td>{index + 1}</td>
+                          <td className="sticky-col-1">{index + 1}</td>
+                          <td className="sticky-col-2" style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{s.student_code || s.id}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td style={{ fontWeight: 'bold' }}>{avg} / 20</td>
                           <td>
                             <GradeInput 
@@ -765,9 +754,9 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                       return (
                         <tr key={s.id}>
-                          <td>{index + 1}</td>
+                          <td className="sticky-col-1">{index + 1}</td>
+                          <td className="sticky-col-2" style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{s.student_code || s.id}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{lang === 'ar' ? s.name : (s.nameEn || s.name)}</td>
                           <td style={{ fontWeight: 'bold' }}>{t1Val} / 50</td>
                           <td style={{ fontWeight: 'bold' }}>{t2Val} / 50</td>
                           <td style={{ fontWeight: 'bold', color: 'var(--color-primary)', backgroundColor: 'var(--color-bg-container, #f8fafc)', fontSize: '15px' }}>
@@ -789,9 +778,11 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                       {rows}
                       {/* Row 1: مجموع درجات الفصل */}
                       <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold', borderTop: '2px solid var(--color-border)' }}>
-                        <td colSpan="3" style={{ textAlign: 'right' }}>
+                        <td className="sticky-col-1">📊</td>
+                        <td className="sticky-col-2" style={{ textAlign: 'right' }}>
                           {lang === 'ar' ? 'مجموع درجات الفصل:' : 'Class Total Sum:'}
                         </td>
+                        <td>-</td>
                         {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
                           <>
                             <td>{parseFloat(hwSum.toFixed(1))}</td>
@@ -821,9 +812,11 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                       {/* Row 2: متوسط درجات الفصل */}
                       <tr style={{ backgroundColor: 'var(--color-surface, #ffffff)', fontWeight: 'bold' }}>
-                        <td colSpan="3" style={{ textAlign: 'right' }}>
+                        <td className="sticky-col-1">📈</td>
+                        <td className="sticky-col-2" style={{ textAlign: 'right' }}>
                           {lang === 'ar' ? 'متوسط درجات الفصل:' : 'Class Average:'}
                         </td>
+                        <td>-</td>
                         {classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? (
                           <>
                             <td>{parseFloat((hwSum / count).toFixed(2))}</td>
@@ -853,9 +846,11 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
 
                       {/* Row 3: نسبة النجاح في المادة */}
                       <tr style={{ backgroundColor: 'var(--color-bg-container, #f8fafc)', fontWeight: 'bold' }}>
-                        <td colSpan="3" style={{ textAlign: 'right' }}>
+                        <td className="sticky-col-1">✅</td>
+                        <td className="sticky-col-2" style={{ textAlign: 'right' }}>
                           {lang === 'ar' ? 'نسبة النجاح في المادة (≥ ٥٠%):' : 'Pass Rate %:'}
                         </td>
+                        <td>-</td>
                         <td colSpan={classPeriod === 'm1' || classPeriod === 'm2' || classPeriod === 'm3' ? 6 : 3} style={{ textAlign: 'center', color: passRate >= 70 ? 'var(--color-success)' : passRate >= 50 ? '#d97706' : '#b91c1c', fontSize: '14px' }}>
                           {passRate}% ({passCount} من {count} طلاب)
                         </td>
@@ -866,7 +861,6 @@ const ClassView = memo(function ClassView({ selectedClass, classPeriod, classSub
                 })()}
               </tbody>
             </table>
-          </div>
         )}
       </div>
     </>

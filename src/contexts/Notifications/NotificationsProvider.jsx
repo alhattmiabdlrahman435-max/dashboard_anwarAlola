@@ -19,10 +19,13 @@ export default function NotificationsProvider({ children }) {
 
   const fetchRequestRef = useRef(0);
   const notificationsAbortRef = useRef(null);
+  // Remember the last query (page / date / filters) so refreshes keep the same view (e.g. today's date)
+  const lastQueryRef = useRef('?page=1&per_page=20');
 
   const fetchNotifications = useCallback((arg) => {
     const isToken = typeof arg === 'string' && !arg.startsWith('?');
-    const queryString = (!isToken && typeof arg === 'string') ? arg : '?page=1&per_page=20';
+    const queryString = (!isToken && typeof arg === 'string') ? arg : lastQueryRef.current;
+    if (!isToken && typeof arg === 'string') lastQueryRef.current = arg;
 
     const activeToken = isToken ? arg : localStorage.getItem("auth_token");
     if (!activeToken) return;
@@ -55,6 +58,15 @@ export default function NotificationsProvider({ children }) {
             const teacherNameEn = notif.teacher_name_en || null;
             const gradeName = notif.class_name || null;
 
+            const isSystemAlertForAdmin = Boolean(
+              notif.title && (
+                notif.title.includes("جاهزة للمراجعة") ||
+                notif.title.includes("طلب غياب") ||
+                notif.title.includes("استئذان") ||
+                notif.title.includes("تقرير")
+              )
+            );
+
             return {
               id: notif.id,
               title: notif.title,
@@ -64,6 +76,7 @@ export default function NotificationsProvider({ children }) {
                 : "",
               type: type,
               isRead: !!notif.is_read,
+              isOutbound: !isSystemAlertForAdmin,
               studentId: notif.student_id || (notif.target_type === "by_student" ? notif.target_id : null),
               studentName: studentName,
               studentNameEn: studentNameEn,
@@ -108,6 +121,11 @@ export default function NotificationsProvider({ children }) {
     if (newNotification.type === "student") {
       targetType = "by_student";
       targetId = newNotification.studentId;
+    } else if (newNotification.type === "class") {
+      targetType = "by_class";
+      targetId = newNotification.classId;
+    } else if (newNotification.type === "all_users") {
+      targetType = "all_users";
     } else if (newNotification.type === "teacher") {
       targetType = "specific_teacher";
       targetId = newNotification.teacherId;
@@ -116,6 +134,14 @@ export default function NotificationsProvider({ children }) {
     }
 
     if (token) {
+      // Safety net: a targeted notification must never be sent without its exact target id
+      if (['by_student', 'by_class', 'specific_teacher'].includes(targetType) && !targetId) {
+        setToastMessage(lang === 'ar'
+          ? 'تعذر الإرسال: لم يتم تحديد الجهة المستهدفة بدقة.'
+          : 'Send aborted: the exact recipient was not specified.');
+        setTimeout(() => setToastMessage(''), 4000);
+        return;
+      }
       notificationsService.sendNotification({
           title: newNotification.title,
           content: newNotification.content,
@@ -144,7 +170,7 @@ export default function NotificationsProvider({ children }) {
     if (extraLogs.length > 0) {
       setSmsLogs((logs) => [...extraLogs, ...logs]);
     }
-  }, [t, setToastMessage, fetchNotifications]);
+  }, [t, lang, setToastMessage, fetchNotifications]);
 
   const handleMarkNotificationAsRead = useCallback((id) => {
     const token = localStorage.getItem("auth_token");
@@ -233,7 +259,7 @@ export default function NotificationsProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const notificationCount = notifications.filter((n) => !n.isRead).length;
+  const notificationCount = notifications.filter((n) => !n.isRead && !n.isOutbound).length;
 
   const notificationsContextValue = useMemo(() => ({
     notifications,

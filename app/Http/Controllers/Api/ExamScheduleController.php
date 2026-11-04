@@ -88,17 +88,22 @@ class ExamScheduleController extends Controller implements HasMiddleware
         $paginator = $query->paginate($perPage);
 
         $schedules = $paginator->getCollection()->map(function($sch) {
-            $subjectsArray = $sch->examSubjects->map(function($item) {
-                return [
-                    'id' => $item->id,
-                    'subject_id' => $item->subject_id,
-                    'name_ar' => $item->subject ? $item->subject->name_ar : '',
-                    'name_en' => $item->subject ? $item->subject->name_en : '',
-                    'exam_date' => $item->exam_date,
-                    'exam_time' => $item->exam_time,
-                    'note' => $item->note,
-                ];
-            });
+            $subjectsArray = $sch->examSubjects
+                ->sortBy(function($item) {
+                    return ($item->exam_date ?? '9999-99-99') . '_' . str_pad((string)$item->id, 10, '0', STR_PAD_LEFT);
+                })
+                ->values()
+                ->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'subject_id' => $item->subject_id,
+                        'name_ar' => $item->subject ? $item->subject->name_ar : '',
+                        'name_en' => $item->subject ? $item->subject->name_en : '',
+                        'exam_date' => $item->exam_date,
+                        'exam_time' => $item->exam_time,
+                        'note' => $item->note,
+                    ];
+                });
 
             $grade = $sch->schoolClass ? ($sch->schoolClass->grade_ar ?? $sch->schoolClass->grade_en ?? '') : '';
             $gradeEn = $sch->schoolClass ? ($sch->schoolClass->grade_en ?? '') : '';
@@ -177,7 +182,11 @@ class ExamScheduleController extends Controller implements HasMiddleware
                     'created_by' => auth()->id()
                 ]);
 
-                foreach ($request->subjects as $sub) {
+                $sortedSubjects = collect($request->subjects)->sortBy(function($sub) {
+                    return $sub['exam_date'] ?? '9999-99-99';
+                })->values()->all();
+
+                foreach ($sortedSubjects as $sub) {
                     $resolvedSubId = $this->resolveSubjectId($sub);
                     ExamSubject::create([
                         'exam_schedule_id' => $schedule->id,
@@ -319,17 +328,22 @@ class ExamScheduleController extends Controller implements HasMiddleware
             return response()->json(['success' => false, 'message' => 'الجدول غير موجود'], 404);
         }
 
-        $subjectsArray = $schedule->examSubjects->map(function($item) {
-            return [
-                'id' => $item->id,
-                'subject_id' => $item->subject_id,
-                'name_ar' => $item->subject ? $item->subject->name_ar : '',
-                'name_en' => $item->subject ? $item->subject->name_en : '',
-                'exam_date' => $item->exam_date,
-                'exam_time' => $item->exam_time,
-                'note' => $item->note,
-            ];
-        });
+        $subjectsArray = $schedule->examSubjects
+            ->sortBy(function($item) {
+                return ($item->exam_date ?? '9999-99-99') . '_' . str_pad((string)$item->id, 10, '0', STR_PAD_LEFT);
+            })
+            ->values()
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'subject_id' => $item->subject_id,
+                    'name_ar' => $item->subject ? $item->subject->name_ar : '',
+                    'name_en' => $item->subject ? $item->subject->name_en : '',
+                    'exam_date' => $item->exam_date,
+                    'exam_time' => $item->exam_time,
+                    'note' => $item->note,
+                ];
+            });
 
         $mappedSchedule = [
             'id' => $schedule->id,
@@ -380,7 +394,11 @@ class ExamScheduleController extends Controller implements HasMiddleware
             // Clear old entries
             ExamSubject::where('exam_schedule_id', $schedule->id)->delete();
 
-            foreach ($request->subjects as $sub) {
+            $sortedSubjects = collect($request->subjects)->sortBy(function($sub) {
+                return $sub['exam_date'] ?? '9999-99-99';
+            })->values()->all();
+
+            foreach ($sortedSubjects as $sub) {
                 $resolvedSubId = $this->resolveSubjectId($sub);
                 ExamSubject::create([
                     'exam_schedule_id' => $schedule->id,
