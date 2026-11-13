@@ -5,6 +5,15 @@ import { useAuth } from '../Auth/useAuth';
 import { notificationsService } from '../../services/notifications/notifications.service';
 import { smsBus } from '../../utils/smsBus';
 
+// "YYYY-MM-DD HH:mm" بالتوقيت المحلي للجهاز من تاريخ ISO
+function toLocalDateTimeString(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso).substring(0, 16).replace("T", " ");
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export default function NotificationsProvider({ children }) {
   const { lang, t, setToastMessage } = useApp();
   const { isAuthenticated } = useAuth();
@@ -71,9 +80,10 @@ export default function NotificationsProvider({ children }) {
               id: notif.id,
               title: notif.title,
               content: notif.content,
-              date: notif.created_at
-                ? notif.created_at.substring(0, 16).replace("T", " ")
-                : "",
+              // created_at يصل من الخادم بتوقيت UTC (مثل 2026-11-11T20:46:00Z)،
+              // فنحوّله للتوقيت المحلي قبل العرض حتى لا يظهر متأخراً 3 ساعات
+              date: toLocalDateTimeString(notif.created_at),
+              editedAt: notif.edited_at || null,
               type: type,
               isRead: !!notif.is_read,
               isOutbound: !isSystemAlertForAdmin,
@@ -218,6 +228,32 @@ export default function NotificationsProvider({ children }) {
     }
   }, [lang, setToastMessage]);
 
+  // تعديل عنوان ونص إشعار بعد إرساله. يُرجع true عند النجاح.
+  const handleUpdateNotification = useCallback(async (id, { title, content }) => {
+    try {
+      const data = await notificationsService.updateNotification(id, { title, content });
+      if (data.success) {
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === id
+              ? { ...n, title, content, editedAt: data.notification?.edited_at || new Date().toISOString() }
+              : n
+          )
+        );
+        setToastMessage(lang === "ar" ? "تم تعديل الإشعار وإرسال التعديل للجهة المستهدفة." : "Notification updated and resent to its recipients.");
+        setTimeout(() => setToastMessage(""), 3000);
+        return true;
+      }
+      setToastMessage(lang === "ar" ? `فشل التعديل: ${data.message}` : `Update failed: ${data.message}`);
+      setTimeout(() => setToastMessage(""), 4000);
+    } catch (err) {
+      console.error("Error updating notification:", err);
+      setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
+      setTimeout(() => setToastMessage(""), 4000);
+    }
+    return false;
+  }, [lang, setToastMessage]);
+
   const handleDeleteAllNotifications = useCallback(() => {
     const token = localStorage.getItem("auth_token");
 
@@ -274,6 +310,7 @@ export default function NotificationsProvider({ children }) {
     handleSendNotification,
     handleMarkNotificationAsRead,
     handleDeleteNotification,
+    handleUpdateNotification,
     handleDeleteAllNotifications,
   }), [
     notifications,
@@ -285,6 +322,7 @@ export default function NotificationsProvider({ children }) {
     handleSendNotification,
     handleMarkNotificationAsRead,
     handleDeleteNotification,
+    handleUpdateNotification,
     handleDeleteAllNotifications,
   ]);
 

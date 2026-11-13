@@ -43,7 +43,7 @@ export const dictionary = {
     // Actions & Buttons
     requestCardBtn: "تسجيل طالب جديد",
     addTeacherBtn: "إضافة معلم",
-    generateSecretCodes: "توليد الأرقام السرية وتشفير الأسماء",
+    generateSecretCodes: "تشفير الأسماء",
     decryptNames: "فك التشفير وإظهار الأسماء",
     printSheet: "طباعة كشف الكنترول",
     scanCardSimulator: "محاكاة مسح بطاقة QR",
@@ -341,7 +341,7 @@ export const dictionary = {
     // Actions & Buttons
     requestCardBtn: "Register New Student",
     addTeacherBtn: "Add Teacher",
-    generateSecretCodes: "Generate Secret Codes & Mask Names",
+    generateSecretCodes: "Mask Names",
     decryptNames: "Reveal Names & Decrypt",
     printSheet: "Print Control Sheet",
     scanCardSimulator: "Simulate QR Scan",

@@ -80,13 +80,14 @@ class ClassController extends Controller implements HasMiddleware
             'grade_en' => 'required|string',
             'section_ar' => 'required|string',
             'section_en' => 'required|string',
-            'grade_level_id' => 'nullable|integer'
+            'grade_level_id' => 'nullable|integer',
+            'branch' => 'nullable|in:boys,girls',
         ]);
 
         $class = SchoolClass::create($request->only([
             'grade_ar', 'grade_en',
             'section_ar', 'section_en',
-            'grade_level_id'
+            'grade_level_id', 'branch'
         ]));
 
         return response()->json([
@@ -131,13 +132,14 @@ class ClassController extends Controller implements HasMiddleware
             'grade_en' => 'nullable|string',
             'section_ar' => 'nullable|string',
             'section_en' => 'nullable|string',
-            'grade_level_id' => 'nullable|integer'
+            'grade_level_id' => 'nullable|integer',
+            'branch' => 'nullable|in:boys,girls',
         ]);
 
         $class->update($request->only([
             'grade_ar', 'grade_en',
             'section_ar', 'section_en',
-            'grade_level_id'
+            'grade_level_id', 'branch'
         ]));
 
         return response()->json([

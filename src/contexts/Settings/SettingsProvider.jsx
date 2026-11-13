@@ -440,54 +440,18 @@ export default function SettingsProvider({ children }) {
     });
   }, []);
 
-  // Calculate secret codes cryptography
+  // تشفير الأسماء فقط: يخفي أسماء الطلاب في كشف الرصد ويُظهر الأرقام السرية الموجودة،
+  // بدون تغيير أي رقم سري (الأرقام تُنشأ وتُعدَّل من نافذة «الارقام السرية» في الكنترول).
   const handleCalculateSecretCodes = useCallback(() => {
-    const token = localStorage.getItem("auth_token");
-
-    if (token) {
-      settingsService.generateControlCodes({
-          prefix: controlPrefix,
-          multiplier: Number(controlMultiplier),
-          offset: Number(controlOffset),
-          modulo: Number(controlModulo),
-        })
-        .then((data) => {
-          if (data.success) {
-            fetchControlGrades(token);
-            setIsGradesEncrypted(true);
-            setToastMessage(
-              lang === "ar"
-                ? "تم توليد الأرقام السرية وتشفير الكشف بنجاح!"
-                : "Secret codes generated and grading sheet encrypted successfully!"
-            );
-            setTimeout(() => setToastMessage(""), 4000);
-          } else {
-            setToastMessage(lang === "ar" ? `فشل توليد الأرقام السرية: ${data.message}` : `Failed to generate secret codes: ${data.message}`);
-            setTimeout(() => setToastMessage(""), 6000);
-          }
-        })
-        .catch((err) => {
-          console.error("Error generating secret codes:", err);
-          setToastMessage(lang === "ar" ? `خطأ: ${err.message}` : `Error: ${err.message}`);
-          setTimeout(() => setToastMessage(""), 6000);
-        });
-    } else {
-      setGrades((prev) =>
-        prev.map((row) => {
-          const calculatedCode =
-            row.studentId * Number(controlMultiplier) + Number(controlOffset);
-          return { ...row, secretCode: calculatedCode.toString() };
-        })
-      );
-      setIsGradesEncrypted(true);
-      setToastMessage(
-        lang === "ar"
-          ? "تم توليد الأرقام السرية وتشفير الكشف بنجاح!"
-          : "Secret codes generated and grading sheet encrypted successfully!"
-      );
-      setTimeout(() => setToastMessage(""), 3000);
-    }
-  }, [controlPrefix, controlMultiplier, controlOffset, controlModulo, lang, setToastMessage, fetchControlGrades, setGrades]);
+    fetchControlGrades(true);
+    setIsGradesEncrypted(true);
+    setToastMessage(
+      lang === "ar"
+        ? "تم تشفير الأسماء — الكشف يعرض الأرقام السرية فقط"
+        : "Names masked — the sheet shows secret codes only"
+    );
+    setTimeout(() => setToastMessage(""), 4000);
+  }, [lang, setToastMessage, fetchControlGrades]);
 
   // Enter grade by secret code
   const handleEnterGradeBySecretCode = useCallback(async (

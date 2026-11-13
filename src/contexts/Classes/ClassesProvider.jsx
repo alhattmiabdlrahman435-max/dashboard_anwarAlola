@@ -76,6 +76,7 @@ export default function ClassesProvider({ children }) {
               subjects: classSubjects,
               subjectTeachers: cls.subject_teachers || {},
               studentsCount: cls.students_count ?? 0,
+              branch: cls.branch || '',
             };
           });
           setClasses(mapped);

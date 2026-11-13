@@ -6,6 +6,7 @@ import { useStudents } from "../contexts/Students/useStudents";
 import { useTeachers } from "../contexts/Teachers/useTeachers";
 import { usePagination } from "../hooks/usePagination";
 import PaginationBar from "../components/PaginationBar";
+import { useReverbChannel } from "../hooks/useReverbChannel";
 import {
   X,
   Search,
@@ -30,6 +31,7 @@ import {
   FileText,
   Check,
   AlertCircle,
+  Pencil,
 } from "lucide-react";
 
 export default function CommunicationsTab() {
@@ -43,10 +45,15 @@ export default function CommunicationsTab() {
     handleSendNotification,
     handleMarkNotificationAsRead,
     handleDeleteNotification,
+    handleUpdateNotification,
     handleDeleteAllNotifications,
     fetchNotifications,
     loading,
   } = useNotifications();
+
+  // تعديل إشعار بعد إرساله
+  const [editingNotif, setEditingNotif] = useState(null); // { id, title, content }
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const { students, fetchStudents } = useStudents();
   const { teachers, fetchTeachers } = useTeachers();
@@ -92,6 +99,9 @@ export default function CommunicationsTab() {
   useEffect(() => {
     fetchNotifications(qs);
   }, [fetchNotifications, qs]);
+
+  // تحديث فوري للسجل عند إرسال إشعار أو تعديله أو حذفه (WebSocket / Reverb)
+  useReverbChannel('public-notifications', 'notifications_changed', () => fetchNotifications(qs));
 
   useEffect(() => {
     fetchClasses();
@@ -212,6 +222,24 @@ export default function CommunicationsTab() {
         handleDeleteAllNotifications();
       },
     });
+  };
+
+  // Edit handlers
+  const onEditNotificationClick = (e, notif) => {
+    e.stopPropagation();
+    setEditingNotif({ id: notif.id, title: notif.title, content: notif.content });
+  };
+
+  const onSubmitEdit = async (e) => {
+    e.preventDefault();
+    if (!editingNotif || savingEdit) return;
+    const title = editingNotif.title.trim();
+    const content = editingNotif.content.trim();
+    if (!title || !content) return;
+    setSavingEdit(true);
+    const ok = await handleUpdateNotification(editingNotif.id, { title, content });
+    setSavingEdit(false);
+    if (ok) setEditingNotif(null);
   };
 
   // Copy helper
@@ -1414,56 +1442,50 @@ export default function CommunicationsTab() {
                   title={lang === "ar" ? "تصفية حسب التاريخ" : "Filter by Date"}
                 />
               </div>
-              {filterDate !== getTodayLocalISO() && (
+              {/* اختيار الفترة: إشعارات اليوم فقط، أو كل الأيام (منفصل عن تبويب "الكل" الخاص بنوع الجهة) */}
+              {[
+                {
+                  key: "today",
+                  label: lang === "ar" ? "اليوم" : "Today",
+                  title: lang === "ar" ? "إشعارات اليوم فقط" : "Today's notifications only",
+                  active: filterDate === getTodayLocalISO(),
+                  value: getTodayLocalISO(),
+                },
+                {
+                  key: "all-days",
+                  label: lang === "ar" ? "كل الأيام" : "All days",
+                  title: lang === "ar" ? "الإشعارات المرسلة في كل الأيام" : "Notifications from all days",
+                  active: filterDate === "",
+                  value: "",
+                },
+              ].map((opt) => (
                 <button
+                  key={opt.key}
                   type="button"
+                  aria-pressed={opt.active}
                   onClick={() => {
-                    setFilterDate(getTodayLocalISO());
+                    setFilterDate(opt.value);
                     setPage(1);
                   }}
-                  title={lang === "ar" ? "العودة إلى تاريخ اليوم" : "Back to today"}
+                  title={opt.title}
                   style={{
                     height: "42px",
-                    padding: "0 12px",
+                    padding: "0 14px",
                     borderRadius: "12px",
-                    border: "1.5px solid var(--color-primary-ui)",
-                    background: "rgba(30, 80, 142, 0.08)",
-                    color: "var(--color-primary-ui)",
+                    border: opt.active
+                      ? "1.5px solid var(--color-primary-ui)"
+                      : "1.5px solid var(--color-border)",
+                    background: opt.active ? "var(--color-primary-ui)" : "var(--color-surface)",
+                    color: opt.active ? "#fff" : "var(--color-text-secondary)",
                     fontSize: "12px",
                     fontWeight: "800",
                     cursor: "pointer",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {lang === "ar" ? "اليوم" : "Today"}
+                  {opt.label}
                 </button>
-              )}
-              {filterDate && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilterDate("");
-                    setPage(1);
-                  }}
-                  title={lang === "ar" ? "عرض كل التواريخ" : "Show all dates"}
-                  style={{
-                    height: "42px",
-                    padding: "0 12px",
-                    borderRadius: "12px",
-                    border: "1.5px solid var(--color-border)",
-                    background: "var(--color-surface)",
-                    color: "var(--color-text-secondary)",
-                    fontSize: "12px",
-                    fontWeight: "800",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
-                >
-                  <X size={14} />
-                  {lang === "ar" ? "الكل" : "All"}
-                </button>
-              )}
+              ))}
             </div>
 
             {canAction("communications", "delete") &&
@@ -2568,6 +2590,95 @@ export default function CommunicationsTab() {
           </div>
         </div>
       )}
+
+      {editingNotif && (
+        <div
+          className="modal-overlay no-print"
+          style={{ backdropFilter: "blur(8px)" }}
+        >
+          <div
+            className="modal-container"
+            style={{ maxWidth: "560px", borderRadius: "24px", overflow: "hidden" }}
+          >
+            <header
+              className="modal-header"
+              style={{ padding: "20px 24px", borderBottom: "1px solid var(--color-border)" }}
+            >
+              <h3
+                className="modal-title"
+                style={{ fontSize: "16px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                <Pencil size={18} style={{ color: "var(--color-primary-ui)" }} />
+                <span>{lang === "ar" ? "تعديل الإشعار" : "Edit notification"}</span>
+              </h3>
+            </header>
+            <form onSubmit={onSubmitEdit}>
+              <div style={{ padding: "18px 24px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", margin: 0 }}>
+                  {lang === "ar"
+                    ? "سيصل التعديل لنفس الجهة التي أُرسل إليها الإشعار، مع تنبيه على الجوال."
+                    : "The change goes to the same recipients, with a phone alert."}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <label style={{ fontSize: "12px", fontWeight: "800", color: "var(--color-text-primary)" }}>
+                    📝 {t.notificationTitleLabel}
+                  </label>
+                  <input
+                    type="text"
+                    value={editingNotif.title}
+                    onChange={(e) => setEditingNotif((p) => ({ ...p, title: e.target.value }))}
+                    className="text-field"
+                    style={{ height: "38px", fontSize: "12px", padding: "0 12px" }}
+                    required
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <label style={{ fontSize: "12px", fontWeight: "800", color: "var(--color-text-primary)" }}>
+                    💬 {t.notificationContentLabel}
+                  </label>
+                  <textarea
+                    value={editingNotif.content}
+                    onChange={(e) => setEditingNotif((p) => ({ ...p, content: e.target.value }))}
+                    className="text-field"
+                    style={{ minHeight: "110px", fontSize: "12px", padding: "10px 12px", resize: "vertical" }}
+                    required
+                  />
+                </div>
+              </div>
+              <footer
+                className="modal-footer"
+                style={{ padding: "14px 24px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end", gap: "10px" }}
+              >
+                <button
+                  type="button"
+                  className="btn-elevated"
+                  onClick={() => setEditingNotif(null)}
+                  style={{ height: "36px", padding: "0 16px", borderRadius: "8px", fontSize: "12px", cursor: "pointer" }}
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  style={{
+                    height: "36px", padding: "0 20px", borderRadius: "8px", fontSize: "12px", fontWeight: "800",
+                    background: "var(--gradient-brand)", color: "white", border: "none",
+                    cursor: savingEdit ? "wait" : "pointer", display: "flex", alignItems: "center", gap: "6px",
+                    opacity: savingEdit ? 0.7 : 1,
+                  }}
+                >
+                  <Check size={14} />
+                  <span>
+                    {savingEdit
+                      ? (lang === "ar" ? "جارٍ الحفظ..." : "Saving...")
+                      : (lang === "ar" ? "حفظ التعديل وإرساله" : "Save and resend")}
+                  </span>
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -2675,6 +2786,11 @@ export default function CommunicationsTab() {
                   <span>
                     {timeAgo} ({time12hFormatted})
                   </span>
+                  {notif.editedAt && (
+                    <span style={{ color: "var(--color-warning, #d97706)", fontWeight: 700 }}>
+                      · {lang === "ar" ? "معدَّل" : "Edited"}
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
@@ -2700,6 +2816,16 @@ export default function CommunicationsTab() {
                 <Copy size={14} />
               )}
             </button>
+
+            {canAction("communications", "update") && (
+              <button
+                className="notif-icon-btn"
+                onClick={(e) => onEditNotificationClick(e, notif)}
+                title={lang === "ar" ? "تعديل الإشعار" : "Edit notification"}
+              >
+                <Pencil size={14} />
+              </button>
+            )}
 
             {canAction("communications", "delete") && (
               <button
@@ -2749,8 +2875,8 @@ export default function CommunicationsTab() {
             <CheckCircle2 size={13} />
             <span>
               {lang === "ar"
-                ? "تم النشر كإشعار فوري وتنبيه SMS"
-                : "Sent via Push & SMS"}
+                ? "تم النشر كإشعار فوري"
+                : "Sent as push notification"}
             </span>
           </div>
         </div>

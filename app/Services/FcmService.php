@@ -110,6 +110,59 @@ class FcmService
     }
 
     /**
+     * رسالة صامتة (بيانات فقط، بدون تنبيه ظاهر) لتحديث التطبيق، مثل حذف إشعار.
+     */
+    public static function sendDataMessage($fcmToken, array $data)
+    {
+        if (empty($fcmToken)) {
+            return false;
+        }
+
+        $credentialsPath = storage_path('app/firebase-service-account.json');
+        if (!file_exists($credentialsPath)) {
+            Log::warning("FCM Warning: Firebase credentials file not found at [{$credentialsPath}].");
+            return false;
+        }
+
+        try {
+            $credentials = json_decode(file_get_contents($credentialsPath), true);
+            if (!$credentials || !isset($credentials['project_id'], $credentials['private_key'], $credentials['client_email'])) {
+                Log::error("FCM Error: Invalid structure in firebase-service-account.json.");
+                return false;
+            }
+
+            $accessToken = self::getAccessToken($credentials);
+            if (!$accessToken) {
+                return false;
+            }
+
+            $dataPayload = array_map(fn($v) => (string) $v, $data);
+
+            $response = Http::withToken($accessToken)
+                ->post("https://fcm.googleapis.com/v1/projects/{$credentials['project_id']}/messages:send", [
+                    'message' => [
+                        'token' => $fcmToken,
+                        'data' => $dataPayload,
+                        'android' => ['priority' => 'HIGH'],
+                        'apns' => [
+                            'headers' => ['apns-priority' => '5', 'apns-push-type' => 'background'],
+                            'payload' => ['aps' => ['content-available' => 1]],
+                        ],
+                    ],
+                ]);
+
+            if ($response->successful()) {
+                return true;
+            }
+            Log::error("FCM Data Send Error: " . $response->body());
+            return false;
+        } catch (\Exception $e) {
+            Log::error("FCM Data Exception: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Send push notification to all active devices of a user
      */
     public static function sendToUser($user, $title, $body, array $data = [])

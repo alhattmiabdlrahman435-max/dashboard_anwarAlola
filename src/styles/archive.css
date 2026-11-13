@@ -1,0 +1,182 @@
+/* ===== قسم الأرشيف (ملف «احصائية قسم الارشيف») ===== */
+.cb-tiles-4 .cb-tile { flex-basis: calc((100% - 48px) / 4); }
+@media (max-width: 900px) { .cb-tiles-4 .cb-tile { flex-basis: calc((100% - 16px) / 2); } }
+
+.ar-view { display: flex; flex-direction: column; gap: 14px; }
+.ar-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+
+.ar-sheet {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+/* اسم المدرسة أعلى يسار الصفحة كما في الملف */
+.ar-school { font-weight: 800; font-size: 14px; margin-bottom: 10px; text-align: left; }
+
+/* شعار المدرسة كعلامة مائية خلف المحتوى كما في صفحات الملف */
+.ar-watermark { position: relative; isolation: isolate; }
+.ar-watermark::before {
+  content: '';
+  position: absolute;
+  inset: 60px 8% 40px;
+  background: var(--ar-logo) center / contain no-repeat;
+  opacity: 0.12;
+  z-index: -1;
+  pointer-events: none;
+}
+.ar-title-box {
+  display: inline-block;
+  padding: 10px 22px;
+  margin: 0 0 16px;
+  border-radius: 6px;
+  border: 1px solid #8fb4d9;
+  background: linear-gradient(180deg, #c9dcf0 0%, #9fc1e3 55%, #86afd8 100%);
+  color: #0f2747;
+  font-weight: 800;
+  font-size: 17px;
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.18);
+}
+
+.ar-tables { display: grid; gap: 24px; align-items: start; }
+.ar-two { grid-template-columns: 1fr 1fr; }
+/* فرع واحد: الجدول يميناً والمربعات يساراً عند أسفل الجدول */
+.ar-one { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: end; }
+.ar-side { display: flex; justify-content: flex-start; }
+@media (max-width: 760px) { .ar-two, .ar-one { grid-template-columns: 1fr; } }
+.ar-table thead th, .ar-table tfoot th, .ar-table tfoot td { background-color: rgba(0, 0, 0, 0.04); }
+.ar-table tbody td, .ar-table tbody th { background: transparent; }
+
+.ar-branch { margin: 0 0 8px; font-size: 17px; font-weight: 800; }
+
+.ar-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ar-table th, .ar-table td {
+  border: 1px solid #333;
+  padding: 5px 8px;
+  text-align: center;
+}
+.ar-table thead th { font-weight: 800; background: rgba(0, 0, 0, 0.04); }
+.ar-table .ar-cls { text-align: right; font-weight: 700; white-space: nowrap; }
+.ar-table tfoot th, .ar-table tfoot td { font-weight: 800; background: rgba(0, 0, 0, 0.08); }
+.ar-table .ar-empty { color: var(--color-text-secondary); }
+/* الخانة القطرية أعلى عمود الشعب كما في الملف */
+.ar-diag {
+  min-width: 70px;
+  background: linear-gradient(to top left, transparent calc(50% - 1px), #333 50%, transparent calc(50% + 1px)) !important;
+}
+
+.ar-totals { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; width: 100%; max-width: 280px; margin-inline-start: auto; }
+.ar-side .ar-totals { margin-inline-start: 0; margin-inline-end: auto; }
+.ar-total { display: grid; grid-template-columns: 1fr 80px; gap: 8px; }
+.ar-total span, .ar-total strong {
+  border: 1px solid #333;
+  padding: 5px 10px;
+  font-weight: 800;
+  text-align: center;
+}
+.ar-total strong { background: rgba(0, 0, 0, 0.06); }
+
+.ar-sign { margin-top: 28px; font-weight: 800; text-align: center; }
+
+/* ===== بيانات الطلاب ===== */
+.ar-print-only { display: none; }
+.ar-data-wrap { border: 0; }
+.ar-data { width: 100%; min-width: 1200px; border-collapse: collapse; font-size: 13px; }
+.ar-data th, .ar-data td { border: 1px solid var(--color-border); padding: 4px 6px; text-align: center; vertical-align: middle; }
+.ar-data thead th { font-weight: 800; background: rgba(0, 0, 0, 0.04); line-height: 1.35; }
+.ar-data .ar-c-idx { width: 34px; }
+.ar-data .ar-c-name { text-align: right; white-space: nowrap; font-weight: 700; min-width: 180px; }
+.ar-data .ar-c-date { min-width: 130px; }
+.ar-data .ar-c-mid { min-width: 100px; }
+.ar-data .ar-c-phone { min-width: 120px; }
+.ar-data .ar-c-wide { min-width: 160px; }
+.ar-data tr.ar-dirty td { background: rgba(224, 161, 0, 0.06); }
+
+.ar-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 6px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: center;
+}
+.ar-input:hover { border-color: var(--color-border); }
+.ar-input:focus { outline: none; border-color: var(--color-primary-ui); background: var(--color-surface); }
+.ar-input.ar-prefilled { background: rgba(33, 150, 243, 0.10); }
+
+/* ===== الطباعة ===== */
+@page ar-portrait { size: A4 portrait; margin: 10mm; }
+@page ar-landscape { size: A4 landscape; margin: 8mm; }
+
+@media print {
+  .sidebar, .app-header, .no-print { display: none !important; }
+  .ar-print-only { display: block; }
+  .ar-data .ar-print-only { display: inline; }
+  .ar-sheet { page: ar-portrait; border: 0; padding: 0; background: #fff; color: #000; }
+  .ar-sheet.ar-landscape { page: ar-landscape; }
+  .ar-two { grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ar-one { grid-template-columns: 1.25fr 1fr; }
+  .ar-watermark::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ar-table { font-size: 11pt; }
+  .ar-table th, .ar-table td { padding: 3px 6px; }
+  .ar-title-box, .ar-table thead th, .ar-table tfoot th, .ar-table tfoot td, .ar-total strong {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .ar-sheet-head { display: flex; justify-content: space-between; font-weight: 800; margin-bottom: 8px; }
+  .ar-data-wrap { overflow: visible; }
+  .ar-data { min-width: 0; font-size: 9pt; }
+  .ar-data th, .ar-data td { border: 1px solid #000; padding: 3px 4px; }
+  .ar-data .ar-c-name { min-width: 0; }
+  .ar-data tr { break-inside: avoid; }
+  .ar-data tr.ar-dirty td { background: none; }
+}
+
+/* ===== اكتمال البيانات ===== */
+.ar-note-error {
+  border: 1px solid #d32f2f;
+  border-style: solid;
+  background: rgba(211, 47, 47, 0.07);
+  color: var(--color-text-primary);
+}
+.ar-fix-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ar-fix-btn { padding: 4px 10px; font-size: 13px; border-color: #d32f2f; color: #b71c1c; }
+.ar-table tr.ar-row-incomplete td, .ar-table tr.ar-row-incomplete th,
+.cb-table tr.ar-row-incomplete td { background: rgba(211, 47, 47, 0.10) !important; }
+.ar-miss { color: #b71c1c; font-size: 11px; font-weight: 700; }
+.ar-gender { display: inline-flex; gap: 6px; }
+.ar-gender-opt {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 12px; border: 1px solid var(--color-border); border-radius: 999px; cursor: pointer;
+}
+.ar-gender-opt.is-on { border-color: var(--color-primary-ui); background: rgba(33, 150, 243, 0.12); font-weight: 700; }
+.ar-gender-opt input { margin: 0; }
+
+.ar-sug { font-size: 11px; color: #1565c0; background: rgba(33,150,243,.12); border-radius: 6px; padding: 0 6px; margin-inline-start: 6px; }
+
+/* ===== مسار نافذة بيانات الطلاب كما في الملف ===== */
+.ar-path { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ar-path-tile { min-height: 0; padding: 10px 18px; cursor: default; display: inline-flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.ar-path-tile:hover { transform: none; }
+.ar-path-select select { min-width: 190px; background: #fff; color: #0f2747; }
+.ar-path-arrow { font-size: 26px; font-weight: 900; color: var(--color-text-primary); }
+.ar-data .ar-empty-row td { height: 30px; }
+.ar-print-tile { border: 1px solid #000; padding: 4px 12px; }
+@media print {
+  .ar-blank-print .ar-print-val { display: none !important; }
+}
+
+/* مجموعات تحديد الجنس (عرض فقط) */
+.cb-table tr.ar-group-head th { text-align: right; font-weight: 800; padding: 8px 10px; }
+.cb-table tr.ar-group-manual th { background: rgba(211, 47, 47, 0.14); color: #b71c1c; }
+.cb-table tr.ar-group-branch th { background: rgba(230, 140, 0, 0.16); color: #8a5300; }
+.cb-table tr.ar-group-name th { background: rgba(33, 150, 243, 0.10); }
+.ar-sug-branch { color: #8a5300; background: rgba(230, 140, 0, 0.16); }
+
+.ar-branch-opt { padding: 6px 10px; border: 1px dashed var(--color-border); border-radius: 8px; font-size: 13px; }
+.ar-branch-opt input:disabled + * { opacity: .6; }

@@ -104,6 +104,7 @@ export default function StudentsProvider({ children }) {
             parentPhoto: '🧔',
             tuitionFee: st.tuition_fee,
             isActive: st.is_active,
+            gender: st.gender || "",
           }));
           setRawStudents(mapped);
           setIsStale(false);
@@ -234,6 +235,7 @@ export default function StudentsProvider({ children }) {
             qr_code: newStudent.qrCode,
             secret_code: newGradeRow.secretCode,
             tuition_fee: Number(newStudent.tuitionFee ?? 0),
+            gender: newStudent.gender || null,
           })
           .then((data) => {
             if (data.success) {
@@ -342,6 +344,9 @@ export default function StudentsProvider({ children }) {
       };
       if (updatedData.parentId) {
         payload.parent_id = updatedData.parentId;
+      }
+      if (updatedData.gender !== undefined) {
+        payload.gender = updatedData.gender || null;
       }
       if (updatedData.parentNationalId) {
         payload.parent_national_id = updatedData.parentNationalId;

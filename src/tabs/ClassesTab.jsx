@@ -63,6 +63,7 @@ export default function ClassesTab() {
   const [modalClassSection, setModalClassSection] = useState('أ');
   const [modalClassSectionEn, setModalClassSectionEn] = useState('A');
   const [modalClassSubjects, setModalClassSubjects] = useState([]);
+  const [modalClassBranch, setModalClassBranch] = useState("");
 
   // Print Roster Modal States
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -656,7 +657,8 @@ export default function ClassesTab() {
         grade_ar: modalClassGrade,
         grade_en: modalClassGradeEn,
         section_ar: modalClassSection,
-        section_en: modalClassSectionEn
+        section_en: modalClassSectionEn,
+        branch: modalClassBranch || null
       })
       .then(data => {
         if (data.success) {
@@ -671,7 +673,8 @@ export default function ClassesTab() {
               gradeEn: data.class.grade_en,
               section: data.class.section_ar,
               sectionEn: data.class.section_en,
-              subjects: modalClassSubjects
+              subjects: modalClassSubjects,
+              branch: modalClassBranch
             };
             setClasses(prev => [...prev, addedClass]);
             fetchTeachers(token);
@@ -689,7 +692,8 @@ export default function ClassesTab() {
               gradeEn: data.class.grade_en,
               section: data.class.section_ar,
               sectionEn: data.class.section_en,
-              subjects: modalClassSubjects
+              subjects: modalClassSubjects,
+              branch: modalClassBranch
             };
             setClasses(prev => [...prev, addedClass]);
             setShowClassModal(false);
@@ -714,7 +718,8 @@ export default function ClassesTab() {
         gradeEn: modalClassGradeEn,
         section: modalClassSection,
         sectionEn: modalClassSectionEn,
-        subjects: modalClassSubjects
+        subjects: modalClassSubjects,
+        branch: modalClassBranch
       };
       setClasses(prev => [...prev, newClass]);
       setShowClassModal(false);
@@ -744,7 +749,8 @@ export default function ClassesTab() {
         grade_ar: modalClassGrade,
         grade_en: modalClassGradeEn,
         section_ar: modalClassSection,
-        section_en: modalClassSectionEn
+        section_en: modalClassSectionEn,
+        branch: modalClassBranch || null
       })
       .then(data => {
         if (data.success) {
@@ -760,7 +766,8 @@ export default function ClassesTab() {
                   gradeEn: modalClassGradeEn,
                   section: modalClassSection,
                   sectionEn: modalClassSectionEn,
-                  subjects: modalClassSubjects
+                  subjects: modalClassSubjects,
+                  branch: modalClassBranch
                 };
               }
               return c;
@@ -783,7 +790,8 @@ export default function ClassesTab() {
                   gradeEn: modalClassGradeEn,
                   section: modalClassSection,
                   sectionEn: modalClassSectionEn,
-                  subjects: modalClassSubjects
+                  subjects: modalClassSubjects,
+                  branch: modalClassBranch
                 };
               }
               return c;
@@ -812,7 +820,8 @@ export default function ClassesTab() {
             gradeEn: modalClassGradeEn,
             section: modalClassSection,
             sectionEn: modalClassSectionEn,
-            subjects: modalClassSubjects
+            subjects: modalClassSubjects,
+            branch: modalClassBranch
           };
         }
         return c;
@@ -913,6 +922,7 @@ export default function ClassesTab() {
                 setModalClassSection('أ');
                 setModalClassSectionEn('A');
                 setModalClassSubjects([]);
+                setModalClassBranch("");
                 setShowClassModal(true);
               }}
             >
@@ -1001,6 +1011,13 @@ export default function ClassesTab() {
                   <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                     {lang === 'ar' ? `المرحلة: ${cls.grade}` : `Grade: ${cls.gradeEn || cls.grade}`}
                   </span>
+                  {(cls.branch === 'boys' || cls.branch === 'girls') && (
+                    <span className="chip" style={{ fontSize: '11px', padding: '2px 8px', marginInlineStart: '6px', background: 'rgba(30, 80, 142, 0.05)', color: 'var(--color-primary-ui)', cursor: 'default', border: '1px solid rgba(30, 80, 142, 0.1)' }}>
+                      {cls.branch === 'boys'
+                        ? (lang === 'ar' ? 'فرع البنين' : 'Boys Branch')
+                        : (lang === 'ar' ? 'فرع البنات' : 'Girls Branch')}
+                    </span>
+                  )}
                 </div>
                 
                 <div className="class-card-body" style={{ marginTop: '8px' }}>
@@ -1086,6 +1103,7 @@ export default function ClassesTab() {
                         setModalClassSection(cls.section);
                         setModalClassSectionEn(cls.sectionEn || '');
                         setModalClassSubjects(cls.subjects || []);
+                        setModalClassBranch(cls.branch || "");
                         setShowEditClassModal(true);
                       }}
                     >
@@ -1186,6 +1204,18 @@ export default function ClassesTab() {
                       })}
                     </select>
                   </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{lang === 'ar' ? 'الفرع' : 'Branch'}</label>
+                  <select
+                    className="text-field"
+                    value={modalClassBranch}
+                    onChange={(e) => setModalClassBranch(e.target.value)}
+                  >
+                    <option value="">{lang === 'ar' ? '— اختر —' : '— Select —'}</option>
+                    <option value="boys">{lang === 'ar' ? 'فرع البنين' : 'Boys Branch'}</option>
+                    <option value="girls">{lang === 'ar' ? 'فرع البنات' : 'Girls Branch'}</option>
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'المواد المقررة للفصل' : 'Assigned Subjects'}</label>
@@ -1299,6 +1329,18 @@ export default function ClassesTab() {
                       })}
                     </select>
                   </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{lang === 'ar' ? 'الفرع' : 'Branch'}</label>
+                  <select
+                    className="text-field"
+                    value={modalClassBranch}
+                    onChange={(e) => setModalClassBranch(e.target.value)}
+                  >
+                    <option value="">{lang === 'ar' ? '— اختر —' : '— Select —'}</option>
+                    <option value="boys">{lang === 'ar' ? 'فرع البنين' : 'Boys Branch'}</option>
+                    <option value="girls">{lang === 'ar' ? 'فرع البنات' : 'Girls Branch'}</option>
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">{lang === 'ar' ? 'المواد المقررة للفصل' : 'Assigned Subjects'}</label>

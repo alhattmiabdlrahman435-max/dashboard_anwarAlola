@@ -63,6 +63,8 @@ class ScheduleController extends Controller implements HasMiddleware
         $direction = strtolower($request->input('direction', 'asc'));
         if (in_array($sortBy, $this->sortableColumns)) {
             $classQuery->orderBy($sortBy, $direction);
+            // ترتيب ثابت عند تساوي القيم (منع تكرار/اختفاء صفوف بين الصفحات)
+            if ($sortBy !== 'id') $classQuery->orderBy($classQuery->getModel()->getQualifiedKeyName(), $direction);
         } else {
             $classQuery->orderBy('id', 'asc');
         }

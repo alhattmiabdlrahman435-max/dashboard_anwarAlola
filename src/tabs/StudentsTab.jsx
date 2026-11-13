@@ -535,6 +535,7 @@ export default function StudentsTab() {
   const [editClassId, setEditClassId] = useState('');
   const [editStudentPhoto, setEditStudentPhoto] = useState('');
   const [editTuitionFee, setEditTuitionFee] = useState('0');
+  const [editGender, setEditGender] = useState('');
   const [editFormError, setEditFormError] = useState('');
   const [editParentNationalId, setEditParentNationalId] = useState('');
   const [editParentSearchText, setEditParentSearchText] = useState('');
@@ -544,6 +545,7 @@ export default function StudentsTab() {
   const [modalStudentPhoto, setModalStudentPhoto] = useState('');
   const [modalParentPhoto, setModalParentPhoto] = useState('');
   const [modalTuitionFee, setModalTuitionFee] = useState('0');
+  const [modalGender, setModalGender] = useState('');
   const [formError, setFormError] = useState('');
   const [selectedParentLinkOption, setSelectedParentLinkOption] = useState('');
   const [parentSearchText, setParentSearchText] = useState('');
@@ -592,6 +594,11 @@ export default function StudentsTab() {
       return;
     }
 
+    if (!modalGender) {
+      setFormError(lang === 'ar' ? 'الرجاء اختيار الجنس' : 'Please select gender');
+      return;
+    }
+
     const getStageIndex = (className) => {
       if (className.includes("تمهيدي أول") || className.includes("KG1") || className.includes("الروضة الأولى")) return "1";
       if (className.includes("تمهيدي ثاني") || className.includes("KG2") || className.includes("الروضة الثانية")) return "2";
@@ -637,7 +644,8 @@ export default function StudentsTab() {
       qrCode: generatedStudentCode,
       photo: modalStudentPhoto,
       parentPhoto: parentPhotoVal,
-      tuitionFee: Number(modalTuitionFee || 0)
+      tuitionFee: Number(modalTuitionFee || 0),
+      gender: modalGender
     };
 
     const calculatedNumericPart = newId * Number(controlMultiplier) + Number(controlOffset);
@@ -679,6 +687,7 @@ export default function StudentsTab() {
     setEditClassId(studentClass ? studentClass.id : '');
     setEditStudentPhoto(student.photo || '');
     setEditTuitionFee(String(student.tuitionFee ?? student.tuition_fee ?? 0));
+    setEditGender(student.gender || '');
     setEditParentNationalId(student.parentNationalId || '');
     setEditParentSearchText('');
     setEditFormError('');
@@ -716,6 +725,7 @@ export default function StudentsTab() {
       sectionEn: classObj.sectionEn || classObj.section,
       photo: editStudentPhoto,
       tuitionFee: Number(editTuitionFee || 0),
+      gender: editGender || null,
       parentId: selectedParent ? selectedParent.id : null,
       parentNationalId: editParentNationalId || null,
       parentName: selectedParent ? selectedParent.name : undefined,
@@ -1053,6 +1063,7 @@ export default function StudentsTab() {
                   setModalPhone('');
                   setModalStudentPhoto('');
                   setModalParentPhoto('');
+                  setModalGender('');
                   setSelectedParentLinkOption('');
                   setParentSearchText('');
                   if (allowedClasses.length > 0) {
@@ -1372,6 +1383,21 @@ export default function StudentsTab() {
                         {lang === 'ar' ? c.name : c.nameEn}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="add-student-gender" className="form-label">{lang === 'ar' ? 'الجنس' : 'Gender'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <select
+                    id="add-student-gender"
+                    name="gender"
+                    className="text-field"
+                    value={modalGender}
+                    onChange={(e) => setModalGender(e.target.value)}
+                  >
+                    <option value="">{lang === 'ar' ? '— اختر —' : '— Select —'}</option>
+                    <option value="male">{lang === 'ar' ? 'ذكر' : 'Male'}</option>
+                    <option value="female">{lang === 'ar' ? 'أنثى' : 'Female'}</option>
                   </select>
                 </div>
 
@@ -1744,6 +1770,21 @@ export default function StudentsTab() {
                         {lang === 'ar' ? c.name : c.nameEn}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-student-gender" className="form-label">{lang === 'ar' ? 'الجنس' : 'Gender'}</label>
+                  <select
+                    id="edit-student-gender"
+                    name="gender"
+                    className="text-field"
+                    value={editGender}
+                    onChange={(e) => setEditGender(e.target.value)}
+                  >
+                    <option value="">{lang === 'ar' ? '— اختر —' : '— Select —'}</option>
+                    <option value="male">{lang === 'ar' ? 'ذكر' : 'Male'}</option>
+                    <option value="female">{lang === 'ar' ? 'أنثى' : 'Female'}</option>
                   </select>
                 </div>
 

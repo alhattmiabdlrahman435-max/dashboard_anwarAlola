@@ -13,6 +13,10 @@ export const notificationsService = {
     return api.put(`/api/notifications/${id}/read`);
   },
   
+  updateNotification: (id, payload) => {
+    return api.put(`/api/notifications/${id}`, payload);
+  },
+
   deleteNotification: (id) => {
     return api.delete(`/api/notifications/${id}`);
   },

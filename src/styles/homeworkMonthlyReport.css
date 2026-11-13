@@ -1,0 +1,268 @@
+/* التقرير الشهري لمتابعة إرسال الواجبات */
+.hw-report-page {
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hw-report-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.hw-report-page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  flex: 1 1 100%;
+}
+
+.hw-report-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 200px;
+}
+
+.hw-report-field select,
+.hw-report-field input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-alt);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.hw-report-print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+}
+
+.hw-report-error {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.hw-report-status {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: 24px;
+}
+
+.hw-report-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hw-report-school {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.hw-report-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-primary-ui);
+}
+
+.hw-report-meta {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.hw-report-table-wrap {
+  overflow-x: auto;
+}
+
+.hw-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  direction: rtl;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.hw-report-table th,
+.hw-report-table td {
+  border: 1px solid var(--color-border);
+  padding: 6px 4px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.hw-report-table thead th {
+  background: var(--color-surface);
+  font-weight: 700;
+}
+
+.hw-report-table .hw-week-head {
+  font-size: 12px;
+}
+
+.hw-report-table .hw-day-head,
+.hw-report-table .hw-day-num,
+.hw-report-table .hw-cell {
+  min-width: 26px;
+  width: 26px;
+}
+
+.hw-report-table .hw-week-start {
+  border-right: 2px solid var(--color-text-secondary);
+}
+
+.hw-report-table .hw-col-subject {
+  min-width: 120px;
+  text-align: right;
+  font-weight: 700;
+  padding-inline: 8px;
+}
+
+.hw-report-table .hw-col-teacher {
+  min-width: 130px;
+  text-align: right;
+  font-size: 12px;
+  padding-inline: 8px;
+}
+
+.hw-report-table .hw-col-notes {
+  min-width: 140px;
+}
+
+.hw-report-table .hw-cell-done {
+  color: var(--color-success);
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.hw-report-table .hw-count {
+  font-size: 9px;
+  margin-inline-start: 1px;
+}
+
+.hw-report-table .hw-empty {
+  padding: 24px;
+  color: var(--color-text-secondary);
+}
+
+.hw-report-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+/* ===== الطباعة: A4 أفقي ===== */
+@page hw-monthly {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  body:has(.hw-report-page) .sidebar,
+  body:has(.hw-report-page) .app-header,
+  body:has(.hw-report-page) .mobile-drawer-backdrop,
+  .hw-report-page .no-print {
+    display: none !important;
+  }
+
+  .hw-report-page {
+    page: hw-monthly;
+    display: block !important;
+    color: #000 !important;
+  }
+
+  .hw-report-sheet {
+    display: block !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+  }
+
+  .hw-report-header {
+    margin-bottom: 8px;
+  }
+
+  .hw-report-school,
+  .hw-report-title,
+  .hw-report-meta {
+    color: #000 !important;
+  }
+
+  .hw-report-school { font-size: 16pt; }
+  .hw-report-title { font-size: 13pt; }
+  .hw-report-meta { font-size: 11pt; }
+
+  .hw-report-table-wrap {
+    overflow: visible !important;
+  }
+
+  .hw-report-table {
+    font-size: 9pt;
+    color: #000 !important;
+    table-layout: auto;
+  }
+
+  .hw-report-table th,
+  .hw-report-table td {
+    border: 1px solid #000 !important;
+    padding: 3px 2px;
+    color: #000 !important;
+  }
+
+  .hw-report-table thead th {
+    background: #eee !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .hw-report-table .hw-week-start {
+    border-right: 2px solid #000 !important;
+  }
+
+  .hw-report-table .hw-day-head,
+  .hw-report-table .hw-day-num,
+  .hw-report-table .hw-cell {
+    min-width: 0;
+    width: auto;
+  }
+
+  .hw-report-table .hw-col-subject { min-width: 0; width: 11%; }
+  .hw-report-table .hw-col-teacher { min-width: 0; width: 13%; }
+  .hw-report-table .hw-col-notes { min-width: 0; width: 14%; }
+
+  .hw-report-table .hw-cell-done {
+    font-size: 12pt;
+  }
+
+  .hw-report-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .hw-report-footer {
+    margin-top: 8px;
+    font-size: 10pt;
+    color: #000 !important;
+  }
+}

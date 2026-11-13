@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/Auth/useAuth';
 import { useNotifications } from '../contexts/Notifications/useNotifications';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, Globe, Sun, Moon, Bell, Mail, Settings, LogOut } from 'lucide-react';
+import InstallAppButton from './InstallAppButton';
 
 import sloganLogo from '../assets/slogan.jpeg';
 
@@ -84,6 +85,9 @@ export default function Navbar() {
       </div>
 
       <div className="header-actions">
+        {/* تثبيت لوحة التحكم كأيقونة على الجهاز */}
+        <InstallAppButton lang={lang} />
+
         {/* Language toggle */}
         <button 
           className="lang-btn"

@@ -353,8 +353,14 @@ export const AppProvider = ({ children }) => {
               title:         ass.title,
               content:       ass.content         || '',
               dateCreated:   ass.date_created    || (ass.created_at ? ass.created_at.split('T')[0] : ''),
+              // وقت إرسال المعلم للواجب بالتوقيت المحلي (created_at يصل بتوقيت UTC)
+              sentAt:        ass.created_at      || null,
+              // عدّله المعلم بعد إرساله
+              editedAt:      ass.edited_at       || null,
               dueDate:       ass.due_date,
-              attachments:   ass.attachment_url  ? [ass.attachment_url] : [],
+              attachments:   Array.isArray(ass.attachment_urls) && ass.attachment_urls.length
+                               ? ass.attachment_urls
+                               : (ass.attachment_url ? [ass.attachment_url] : []),
               submissions:   subs,
             };
           });

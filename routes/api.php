@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AbsenceRequestController;
 use App\Http\Controllers\Api\AssignmentController;
+use App\Http\Controllers\Api\HomeworkReportController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\ExamScheduleController;
 use App\Http\Controllers\Api\FinanceController;
@@ -100,6 +101,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/assignments-delete-all', [AssignmentController::class, 'deleteAll']);
     Route::get('/assignments/{id}/submissions', [AssignmentController::class, 'submissions']);
     Route::put('/assignments/{id}/submissions', [AssignmentController::class, 'updateSubmissions']);
+    // التقرير الشهري لمتابعة إرسال الواجبات (قبل apiResource('reports') لتفادي التعارض مع reports/{id})
+    Route::get('/reports/homework-monthly', [HomeworkReportController::class, 'monthly']);
 
     // Grades - الدرجات
     Route::get('/grades/detailed/{studentId}', [GradeController::class, 'detailed']);
@@ -108,8 +111,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/grades/class/{classId}/subject/{subjectId}', [GradeController::class, 'getByClassAndSubject']);
     Route::get('/grades/class/{classId}', [GradeController::class, 'getByClass']);
     Route::get('/grades/control', [GradeController::class, 'control']);
+    // الكنترول حسب ملحق المدرسة: أرقام الجلوس، الأرقام السرية، اللجان، التوزيع
+    Route::get('/control/board/students', [\App\Http\Controllers\Api\ControlBoardController::class, 'students']);
+    Route::post('/control/board/number', [\App\Http\Controllers\Api\ControlBoardController::class, 'autoNumber']);
+    Route::put('/control/board/students/{id}', [\App\Http\Controllers\Api\ControlBoardController::class, 'updateStudent'])->whereNumber('id');
+    Route::get('/control/board/committees', [\App\Http\Controllers\Api\ControlBoardController::class, 'committees']);
+    Route::post('/control/board/committees', [\App\Http\Controllers\Api\ControlBoardController::class, 'saveCommittees']);
+    Route::put('/control/board/committee-assignments', [\App\Http\Controllers\Api\ControlBoardController::class, 'saveAssignments']);
     Route::put('/grades/control/{studentId}', [GradeController::class, 'updateControl']);
-    Route::post('/grades/generate-codes', [GradeController::class, 'generateSecretCodes']);
+    // أُلغي مسار /grades/generate-codes: كان يكتب فوق الأرقام السرية لكل الطلاب بمعادلة ثابتة.
+    // الأرقام السرية تُنشأ وتُعدَّل من نافذة «الارقام السرية» فقط (/control/board/number).
     Route::get('/grades/excel/template', [GradeExcelController::class, 'exportTemplate']);
     Route::post('/grades/excel/preview', [GradeExcelController::class, 'previewImport']);
     Route::post('/grades/excel/confirm', [GradeExcelController::class, 'confirmImport']);
@@ -118,6 +129,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/grades/excel/map-columns', [GradeExcelController::class, 'mapColumns']);
     Route::post('/grades/excel/reconcile', [GradeExcelController::class, 'reconcileData']);
     Route::post('/grades/excel/commit', [GradeExcelController::class, 'commitReconciliation']);
+
+    // قسم الأرشيف: الاحصائية + بيانات الطلاب
+    Route::get('/archive/statistics', [\App\Http\Controllers\Api\ArchiveController::class, 'statistics']);
+    Route::get('/archive/students', [\App\Http\Controllers\Api\ArchiveController::class, 'students']);
+    Route::put('/archive/students', [\App\Http\Controllers\Api\ArchiveController::class, 'saveStudents']);
+    Route::put('/archive/genders', [\App\Http\Controllers\Api\ArchiveController::class, 'saveGenders']);
 
     // Reports - البلاغات والتقارير
     Route::apiResource('reports', ReportController::class);
@@ -144,6 +161,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/send', [NotificationController::class, 'send']);
     Route::put('/notifications/read-all', [NotificationController::class, 'readAll']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'read']);
+    Route::put('/notifications/{id}', [NotificationController::class, 'update'])->whereNumber('id');
     Route::delete('/notifications-delete-all', [NotificationController::class, 'deleteAll']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::delete('/reports-delete-all', [ReportController::class, 'deleteAll']);

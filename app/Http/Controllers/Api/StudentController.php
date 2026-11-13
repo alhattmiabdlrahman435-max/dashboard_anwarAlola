@@ -87,6 +87,8 @@ class StudentController extends Controller implements HasMiddleware
         $sortBy = $request->input('sort', 'created_at');
         $direction = strtolower($request->input('direction', 'desc'));
         $query->orderBy($sortBy, $direction);
+        // ترتيب ثابت عند تساوي القيم (منع تكرار/اختفاء صفوف بين الصفحات)
+        if ($sortBy !== 'id') $query->orderBy($query->getModel()->getQualifiedKeyName(), $direction);
 
         // Safe column selection
         $query->select([
@@ -94,6 +96,7 @@ class StudentController extends Controller implements HasMiddleware
             'student_code',
             'name_ar',
             'name_en',
+            'gender',
             'class_id',
             'parent_id',
             'photo_url',
@@ -141,6 +144,7 @@ class StudentController extends Controller implements HasMiddleware
                 'secret_code' => $student->secret_code,
                 'tuition_fee' => (float)($student->tuition_fee ?? 0.00),
                 'is_active' => $student->is_active,
+                'gender' => $student->gender,
             ];
         });
 
@@ -166,6 +170,7 @@ class StudentController extends Controller implements HasMiddleware
             'qr_code' => 'nullable|string',
             'secret_code' => 'nullable|string',
             'tuition_fee' => 'nullable|numeric',
+            'gender' => 'nullable|in:male,female',
         ]);
 
         $user = $request->user();
@@ -218,6 +223,7 @@ class StudentController extends Controller implements HasMiddleware
             'qr_code' => $qrCode,
             'secret_code' => $request->secret_code,
             'tuition_fee' => $request->tuition_fee ?? 0.00,
+            'gender' => $request->gender ?: null,
             'is_active' => true,
         ]);
 
@@ -286,7 +292,9 @@ class StudentController extends Controller implements HasMiddleware
             'secret_code',
             'tuition_fee',
             'is_active',
+            'gender',
         ];
+        $request->validate(['gender' => 'nullable|in:male,female']);
         $updateData = $request->only($allowedFields);
 
         if ($request->filled('class_id') && !PermissionService::isClassAllowed($user, 'students', (int)$request->class_id)) {

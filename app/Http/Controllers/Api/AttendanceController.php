@@ -69,6 +69,8 @@ class AttendanceController extends Controller implements HasMiddleware
         $sortBy = $request->input('sort', 'created_at');
         $direction = strtolower($request->input('direction', 'desc'));
         $query->orderBy($sortBy, $direction);
+        // ترتيب ثابت عند تساوي القيم (منع تكرار/اختفاء صفوف بين الصفحات)
+        if ($sortBy !== 'id') $query->orderBy($query->getModel()->getQualifiedKeyName(), $direction);
 
         // Safe Column Selection
         $query->select([

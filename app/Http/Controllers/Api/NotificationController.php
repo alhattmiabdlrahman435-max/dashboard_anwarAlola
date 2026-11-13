@@ -22,6 +22,7 @@ class NotificationController extends Controller implements HasMiddleware
         return [
             new Middleware('check.permission:communications,view', only: ['index', 'markAllRead']),
             new Middleware('check.permission:communications,create', only: ['send']),
+            new Middleware('check.permission:communications,update', only: ['update']),
             new Middleware('check.permission:communications,delete', only: ['destroy', 'deleteAll']),
         ];
     }
@@ -129,6 +130,8 @@ class NotificationController extends Controller implements HasMiddleware
         $sortBy = $request->input('sort', 'created_at');
         $direction = strtolower($request->input('direction', 'desc'));
         $query->orderBy($sortBy, $direction);
+        // ترتيب ثابت عند تساوي القيم (منع تكرار/اختفاء صفوف بين الصفحات)
+        if ($sortBy !== 'id') $query->orderBy($query->getModel()->getQualifiedKeyName(), $direction);
 
         $query->with([
             'student:id,name_ar,name_en',
@@ -138,13 +141,19 @@ class NotificationController extends Controller implements HasMiddleware
 
         // Safe Column Selection
         $query->select([
-            'id', 'title', 'content', 'type', 'is_read', 'student_id', 'class_id', 'teacher_id', 'attachment_url', 'created_at'
+            'id', 'title', 'content', 'type', 'source', 'is_read', 'student_id', 'class_id', 'teacher_id', 'assignment_id', 'attachment_url', 'edited_at', 'created_at'
         ]);
+
+        // ولي الأمر والمعلم: "مقروء" خاص بكل شخص (قراءة أحدهم لا تؤثر على غيره)
+        $perUserRead = Notification::tracksReadPerUser($user);
+        if ($perUserRead) {
+            $query->withExists(['reads as read_by_me' => fn($q) => $q->where('user_id', $user->id)]);
+        }
 
         $perPage = (int) $request->input('per_page', 20);
         $paginator = $query->paginate($perPage);
 
-        $notifications = $paginator->getCollection()->map(function($notif) use ($request) {
+        $notifications = $paginator->getCollection()->map(function($notif) use ($request, $perUserRead) {
             // Map back to legacy target_type format to support frontend if it inspects them
             $targetType = 'all_parents';
             $targetId = null;
@@ -181,7 +190,11 @@ class NotificationController extends Controller implements HasMiddleware
                 'title' => $notif->title,
                 'content' => $notif->content,
                 'type' => $notif->type ?: 'general',
-                'is_read' => $notif->is_read,
+                'source' => $notif->source ?: 'other',
+                // is_read القديم (قبل القراءة لكل شخص) يبقى محترماً للإشعارات السابقة
+                'is_read' => $perUserRead
+                    ? ((bool) $notif->is_read || (bool) $notif->read_by_me)
+                    : (bool) $notif->is_read,
                 'target_type' => $targetType,
                 'target_id' => $targetId,
                 'student_id' => $notif->student_id,
@@ -193,6 +206,9 @@ class NotificationController extends Controller implements HasMiddleware
                 'class_id' => $notif->class_id,
                 'class_name' => $className,
                 'attachment_url' => $attachmentUrl,
+                'edited_at' => $notif->edited_at,
+                // إشعار الواجب: رقم الواجب لفتحه مباشرة في صفحة الواجبات
+                'assignment_id' => $notif->assignment_id,
                 'created_at' => $notif->created_at,
             ];
         });
@@ -269,80 +285,17 @@ class NotificationController extends Controller implements HasMiddleware
             'title' => $request->input('title'),
             'content' => $request->input('content'),
             'type' => $type,
+            'source' => Notification::SOURCE_ADMIN,
             'is_read' => false,
             'student_id' => $studentId,
             'class_id' => $classId,
             'teacher_id' => $teacherId,
         ]);
 
-        // Collect target FCM tokens
-        $tokens = [];
-        if ($request->target_type === 'all_users') {
-            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
-                    $q->whereIn('role', ['parent', 'teacher']);
-                })
-                ->pluck('fcm_token')
-                ->toArray();
-            
-            $oldTokens = \App\Models\User::whereIn('role', ['parent', 'teacher'])
-                ->whereNotNull('fcm_token')
-                ->where('fcm_token', '!=', '')
-                ->pluck('fcm_token')
-                ->toArray();
-            $tokens = array_unique(array_merge($tokens, $oldTokens));
-        } elseif ($request->target_type === 'all_parents') {
-            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
-                    $q->where('role', 'parent');
-                })
-                ->pluck('fcm_token')
-                ->toArray();
-            
-            $oldTokens = \App\Models\User::where('role', 'parent')
-                ->whereNotNull('fcm_token')
-                ->where('fcm_token', '!=', '')
-                ->pluck('fcm_token')
-                ->toArray();
-            $tokens = array_unique(array_merge($tokens, $oldTokens));
-        } elseif ($request->target_type === 'all_teachers') {
-            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
-                    $q->where('role', 'teacher');
-                })
-                ->pluck('fcm_token')
-                ->toArray();
+        // تحديث فوري للتطبيقات المفتوحة عبر WebSocket
+        \App\Events\NotificationsChanged::safeDispatch('created', $notification->id);
 
-            $oldTokens = \App\Models\User::where('role', 'teacher')
-                ->whereNotNull('fcm_token')
-                ->where('fcm_token', '!=', '')
-                ->pluck('fcm_token')
-                ->toArray();
-            $tokens = array_unique(array_merge($tokens, $oldTokens));
-        } elseif ($request->target_type === 'specific_teacher') {
-            $teacher = \App\Models\User::find($teacherId);
-            if ($teacher) {
-                $teacherTokens = \App\Models\UserFcmToken::where('user_id', $teacher->id)->pluck('fcm_token')->toArray();
-                if ($teacher->fcm_token) $teacherTokens[] = $teacher->fcm_token;
-                $tokens = array_unique($teacherTokens);
-            }
-        } elseif ($request->target_type === 'by_student') {
-            $student = \App\Models\Student::with('parentUser')->find($studentId);
-            if ($student && $student->parentUser) {
-                $parentUser = $student->parentUser;
-                $parentTokens = \App\Models\UserFcmToken::where('user_id', $parentUser->id)->pluck('fcm_token')->toArray();
-                if ($parentUser->fcm_token) $parentTokens[] = $parentUser->fcm_token;
-                $tokens = array_unique($parentTokens);
-            }
-        } elseif ($request->target_type === 'by_class') {
-            $students = \App\Models\Student::with('parentUser')->where('class_id', $classId)->get();
-            $parentIds = $students->pluck('parentUser')->filter()->pluck('id')->unique()->toArray();
-            $tokens = \App\Models\UserFcmToken::whereIn('user_id', $parentIds)->pluck('fcm_token')->toArray();
-            
-            $oldTokens = \App\Models\User::whereIn('id', $parentIds)
-                ->whereNotNull('fcm_token')
-                ->where('fcm_token', '!=', '')
-                ->pluck('fcm_token')
-                ->toArray();
-            $tokens = array_unique(array_merge($tokens, $oldTokens));
-        }
+        $tokens = $this->collectTargetTokens($request->target_type, $studentId, $classId, $teacherId);
 
         // Send FCM push notifications
         foreach ($tokens as $token) {
@@ -371,10 +324,191 @@ class NotificationController extends Controller implements HasMiddleware
         ], 201);
     }
 
-    public function read($id)
+    /**
+     * تعديل عنوان ونص إشعار بعد إرساله، وإرسال تنبيه للجوال لنفس الجهة المستهدفة.
+     * الجهة المستهدفة لا تتغير (تغييرها يعني إشعاراً جديداً).
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'content' => 'required|string',
+        ]);
+
+        $notif = Notification::findOrFail($id);
+
+        $denied = $this->scopeDeniedMessage($request->user(), $notif, 'تعديل');
+        if ($denied) {
+            return response()->json(['success' => false, 'message' => $denied], 403);
+        }
+
+        $notif->update([
+            'title' => $request->input('title'),
+            'content' => $request->input('content'),
+            'edited_at' => now(),
+            // الإشعار المعدَّل يظهر كجديد غير مقروء لدى المستلم
+            'is_read' => false,
+        ]);
+
+        // الإشعار المعدَّل يعود "جديداً" عند كل المستلمين
+        $notif->reads()->delete();
+
+        \App\Events\NotificationsChanged::safeDispatch('updated', $notif->id);
+
+        $tokens = $this->collectTargetTokens(
+            $this->targetTypeOf($notif),
+            $notif->student_id,
+            $notif->class_id,
+            $notif->teacher_id
+        );
+
+        foreach ($tokens as $token) {
+            \App\Services\FcmService::sendNotification(
+                $token,
+                'تم تعديل إشعار: ' . $notif->title,
+                $notif->content,
+                [
+                    'type' => 'notifications',
+                    'id' => (string)$notif->id,
+                    'action' => 'updated',
+                ]
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تعديل الإشعار وإرسال التعديل للجهة المستهدفة',
+            'notification' => [
+                'id' => $notif->id,
+                'title' => $notif->title,
+                'content' => $notif->content,
+                'edited_at' => $notif->edited_at,
+                'created_at' => $notif->created_at,
+            ],
+        ]);
+    }
+
+    /** نوع الجهة المستهدفة لإشعار محفوظ (نفس منطق send) */
+    private function targetTypeOf(Notification $notif): string
+    {
+        if ($notif->student_id) return 'by_student';
+        if ($notif->class_id) return 'by_class';
+        if ($notif->teacher_id) return 'specific_teacher';
+        if ($notif->type === 'general') return 'all_users';
+        if ($notif->type === 'broadcast_teachers') return 'all_teachers';
+        return 'all_parents';
+    }
+
+    /** رسالة الرفض إذا كان الإشعار خارج صلاحية المستخدم المقيّدة بصفوف، وإلا null */
+    private function scopeDeniedMessage($user, Notification $notif, string $actionAr): ?string
+    {
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'communications');
+        if ($scopedClassIds === null) {
+            return null;
+        }
+        if ($notif->class_id && !in_array($notif->class_id, $scopedClassIds)) {
+            return "غير مصرح لك ب{$actionAr} هذا الإشعار.";
+        }
+        if ($notif->student_id) {
+            $student = Student::find($notif->student_id);
+            if ($student && !in_array($student->class_id, $scopedClassIds)) {
+                return "غير مصرح لك ب{$actionAr} هذا الإشعار.";
+            }
+        }
+        if (!$notif->class_id && !$notif->student_id) {
+            return "غير مصرح لك ب{$actionAr} الإشعارات العامة.";
+        }
+        return null;
+    }
+
+    /** رموز FCM لأجهزة الجهة المستهدفة */
+    private function collectTargetTokens(string $targetType, $studentId, $classId, $teacherId): array
+    {
+        $tokens = [];
+        if ($targetType === 'all_users') {
+            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
+                    $q->whereIn('role', ['parent', 'teacher']);
+                })
+                ->pluck('fcm_token')
+                ->toArray();
+            
+            $oldTokens = \App\Models\User::whereIn('role', ['parent', 'teacher'])
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->toArray();
+            $tokens = array_unique(array_merge($tokens, $oldTokens));
+        } elseif ($targetType === 'all_parents') {
+            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
+                    $q->where('role', 'parent');
+                })
+                ->pluck('fcm_token')
+                ->toArray();
+            
+            $oldTokens = \App\Models\User::where('role', 'parent')
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->toArray();
+            $tokens = array_unique(array_merge($tokens, $oldTokens));
+        } elseif ($targetType === 'all_teachers') {
+            $tokens = \App\Models\UserFcmToken::whereHas('user', function($q) {
+                    $q->where('role', 'teacher');
+                })
+                ->pluck('fcm_token')
+                ->toArray();
+
+            $oldTokens = \App\Models\User::where('role', 'teacher')
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->toArray();
+            $tokens = array_unique(array_merge($tokens, $oldTokens));
+        } elseif ($targetType === 'specific_teacher') {
+            $teacher = \App\Models\User::find($teacherId);
+            if ($teacher) {
+                $teacherTokens = \App\Models\UserFcmToken::where('user_id', $teacher->id)->pluck('fcm_token')->toArray();
+                if ($teacher->fcm_token) $teacherTokens[] = $teacher->fcm_token;
+                $tokens = array_unique($teacherTokens);
+            }
+        } elseif ($targetType === 'by_student') {
+            $student = \App\Models\Student::with('parentUser')->find($studentId);
+            if ($student && $student->parentUser) {
+                $parentUser = $student->parentUser;
+                $parentTokens = \App\Models\UserFcmToken::where('user_id', $parentUser->id)->pluck('fcm_token')->toArray();
+                if ($parentUser->fcm_token) $parentTokens[] = $parentUser->fcm_token;
+                $tokens = array_unique($parentTokens);
+            }
+        } elseif ($targetType === 'by_class') {
+            $students = \App\Models\Student::with('parentUser')->where('class_id', $classId)->get();
+            $parentIds = $students->pluck('parentUser')->filter()->pluck('id')->unique()->toArray();
+            $tokens = \App\Models\UserFcmToken::whereIn('user_id', $parentIds)->pluck('fcm_token')->toArray();
+            
+            $oldTokens = \App\Models\User::whereIn('id', $parentIds)
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->toArray();
+            $tokens = array_unique(array_merge($tokens, $oldTokens));
+        }
+
+        return array_values($tokens);
+    }
+
+    public function read(Request $request, $id)
     {
         $notif = Notification::findOrFail($id);
-        $notif->update(['is_read' => true]);
+        $user = $request->user();
+
+        if (Notification::tracksReadPerUser($user)) {
+            // يُسجَّل لهذا المستخدم فقط
+            \App\Models\NotificationRead::firstOrCreate(
+                ['notification_id' => $notif->id, 'user_id' => $user->id],
+                ['read_at' => now()]
+            );
+        } else {
+            $notif->update(['is_read' => true]);
+        }
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث حالة قراءة الإشعار'
@@ -384,7 +518,7 @@ class NotificationController extends Controller implements HasMiddleware
     public function readAll(Request $request)
     {
         $user = $request->user() ?? Auth::user();
-        $query = Notification::where('is_read', false);
+        $query = Notification::query();
 
         if ($user->role === 'parent') {
             $studentIds = Student::where('parent_id', $user->id)->pluck('id')->toArray();
@@ -396,7 +530,8 @@ class NotificationController extends Controller implements HasMiddleware
                   ->orWhere(function($subQ) {
                       $subQ->whereNull('student_id')
                            ->whereNull('class_id')
-                           ->whereNull('teacher_id');
+                           ->whereNull('teacher_id')
+                           ->whereIn('type', ['broadcast_parents', 'general']);
                   });
             });
         } elseif ($user->role === 'teacher') {
@@ -405,14 +540,28 @@ class NotificationController extends Controller implements HasMiddleware
                   ->orWhere(function($subQ) {
                       $subQ->whereNull('student_id')
                            ->whereNull('class_id')
-                           ->whereNull('teacher_id');
+                           ->whereNull('teacher_id')
+                           ->whereIn('type', ['broadcast_teachers', 'general']);
                   });
             });
         } else {
             $query->whereNotIn('type', ['alert', 'attendance', 'excuse_status']);
         }
 
-        $query->update(['is_read' => true]);
+        if (Notification::tracksReadPerUser($user)) {
+            // نسجّل القراءة لهذا المستخدم فقط، دون تغيير حالة بقية المستلمين
+            $ids = $query->whereDoesntHave('reads', fn($q) => $q->where('user_id', $user->id))->pluck('id');
+            $now = now();
+            foreach ($ids->chunk(500) as $chunk) {
+                \App\Models\NotificationRead::insertOrIgnore($chunk->map(fn($id) => [
+                    'notification_id' => $id,
+                    'user_id' => $user->id,
+                    'read_at' => $now,
+                ])->values()->all());
+            }
+        } else {
+            $query->where('is_read', false)->update(['is_read' => true]);
+        }
 
         return response()->json([
             'success' => true,
@@ -441,7 +590,26 @@ class NotificationController extends Controller implements HasMiddleware
             }
         }
 
+        // نحدد المستلمين قبل الحذف، ثم نرسل رسالة صامتة ليُزيل التطبيق الإشعار فوراً
+        $tokens = $this->collectTargetTokens(
+            $this->targetTypeOf($notif),
+            $notif->student_id,
+            $notif->class_id,
+            $notif->teacher_id
+        );
+        $deletedId = (string) $notif->id;
+
         $notif->delete();
+
+        \App\Events\NotificationsChanged::safeDispatch('deleted', (int) $deletedId);
+
+        foreach ($tokens as $token) {
+            \App\Services\FcmService::sendDataMessage($token, [
+                'type' => 'notifications',
+                'action' => 'deleted',
+                'id' => $deletedId,
+            ]);
+        }
         return response()->json([
             'success' => true,
             'message' => 'تم حذف الإشعار بنجاح.'

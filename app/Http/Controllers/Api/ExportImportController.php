@@ -56,7 +56,7 @@ class ExportImportController extends Controller
         $query = DB::table('students')
             ->leftJoin('classes', 'students.class_id', '=', 'classes.id')
             ->leftJoin('users as parents', 'students.parent_id', '=', 'parents.id')
-            ->select('students.id', 'students.name_ar', 'parents.name_ar as parent_name', 'parents.national_id as parent_national_id', 'classes.grade_ar', 'classes.section_ar');
+            ->select('students.id', 'students.name_ar', 'students.gender', 'parents.name_ar as parent_name', 'parents.national_id as parent_national_id', 'classes.grade_ar', 'classes.section_ar');
 
         if ($scopedClassIds !== null) {
             $query->whereIn('students.class_id', $scopedClassIds);
@@ -83,7 +83,7 @@ class ExportImportController extends Controller
 
             // Title banner text
             $titleText = "كشف بأسماء أولياء أمور طلاب الصف ( {$classNameStr} ) وأرقام بطائقهم الشخصية للعام 2026 - 2027م";
-            $sheet->mergeCells('A1:E1');
+            $sheet->mergeCells('A1:F1');
             $sheet->setCellValue('A1', $titleText);
 
             // Styling the Banner
@@ -106,12 +106,12 @@ class ExportImportController extends Controller
             ]);
 
             // Headers
-            $headers = ['م', 'اسم ولي الأمر', 'رقم البطاقة', 'اسم الطالب', 'ملاحظات'];
+            $headers = ['م', 'اسم ولي الأمر', 'رقم البطاقة', 'اسم الطالب', 'الجنس', 'ملاحظات'];
             $sheet->fromArray([$headers], null, 'A2');
             $sheet->getRowDimension(2)->setRowHeight(30);
 
             // Header Styling
-            $sheet->getStyle('A2:E2')->applyFromArray([
+            $sheet->getStyle('A2:F2')->applyFromArray([
                 'font' => [
                     'bold' => true,
                     'color' => ['argb' => 'FF000000'],
@@ -141,7 +141,8 @@ class ExportImportController extends Controller
                 $sheet->setCellValue('B' . $rowIndex, $row->parent_name ?: ('ولي أمر ' . $row->name_ar));
                 $sheet->setCellValueExplicit('C' . $rowIndex, $row->parent_national_id, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                 $sheet->setCellValue('D' . $rowIndex, $row->name_ar);
-                $sheet->setCellValue('E' . $rowIndex, '');
+                $sheet->setCellValue('E' . $rowIndex, $row->gender === 'male' ? 'ذكر' : ($row->gender === 'female' ? 'أنثى' : ''));
+                $sheet->setCellValue('F' . $rowIndex, '');
 
                 $sheet->getRowDimension($rowIndex)->setRowHeight(25);
                 $rowIndex++;
@@ -149,7 +150,7 @@ class ExportImportController extends Controller
 
             // Apply gridline border and alignment to data rows
             if ($rowIndex > 3) {
-                $sheet->getStyle('A3:E' . ($rowIndex - 1))->applyFromArray([
+                $sheet->getStyle('A3:F' . ($rowIndex - 1))->applyFromArray([
                     'font' => [
                         'size' => 11,
                         'name' => 'Segoe UI'
@@ -172,7 +173,9 @@ class ExportImportController extends Controller
             $sheet->getColumnDimension('B')->setWidth(25);
             $sheet->getColumnDimension('C')->setWidth(20);
             $sheet->getColumnDimension('D')->setWidth(25);
-            $sheet->getColumnDimension('E')->setWidth(25);
+            $sheet->getColumnDimension('E')->setWidth(12);
+            $sheet->getColumnDimension('F')->setWidth(25);
+            $this->addGenderDropdown($sheet, 'E', max(3, $rowIndex - 1) + 300);
 
             $writer = new Xlsx($spreadsheet);
             $writer->save('php://output');
@@ -488,6 +491,9 @@ class ExportImportController extends Controller
         $parentNameIdx = $findIdx(['اسم ولي الأمر', 'ولي الأمر', 'الاب', 'الأب'], 1);
         $parentNationalIdIdx = $findIdx(['رقم البطاقة', 'الهوية', 'الرقم الوطني', 'national_id'], 2);
         $studentNameIdx = $findIdx(['اسم الطالب', 'الطالب', 'الابن', 'الاسم'], 3);
+        // عمود «الجنس» اختياري (لحساب عدد الذكور/الإناث في احصائية الأرشيف)
+        $genderIdx = $findIdx(['الجنس', 'النوع', 'gender'], null);
+        $updatedGender = 0;
 
         $imported = 0;
         $errors = [];
@@ -516,6 +522,10 @@ class ExportImportController extends Controller
             $studentName = isset($row[$studentNameIdx]) ? trim($row[$studentNameIdx]) : '';
             $parentNationalId = isset($row[$parentNationalIdIdx]) ? trim($row[$parentNationalIdIdx]) : '';
             $parentName = isset($row[$parentNameIdx]) ? trim($row[$parentNameIdx]) : '';
+            $gender = $genderIdx !== null && isset($row[$genderIdx]) ? self::parseGender($row[$genderIdx]) : null;
+            if ($genderIdx !== null && $gender === null && isset($row[$genderIdx]) && trim((string) $row[$genderIdx]) !== '') {
+                $warnings[] = "سطر {$lineNum}: قيمة «الجنس» غير معروفة (" . trim((string) $row[$genderIdx]) . ") — اكتب ذكر أو أنثى.";
+            }
 
             // Check if row is completely empty (all cells empty or null)
             $isEmptyRow = true;
@@ -611,12 +621,18 @@ class ExportImportController extends Controller
             }
 
             // Check if student with same name is already linked to this parent
-            $studentExists = Student::where('name_ar', $studentName)
+            $existingStudent = Student::where('name_ar', $studentName)
                 ->where('parent_id', $parent->id)
-                ->exists();
+                ->first();
 
-            if ($studentExists) {
-                $errors[] = "سطر {$lineNum}: الطالب {$studentName} مسجل مسبقاً لولي الأمر.";
+            if ($existingStudent) {
+                // طالب مسجل مسبقاً: نحدّث «الجنس» فقط إذا كان مكتوباً في الملف
+                if ($gender !== null && $existingStudent->gender !== $gender) {
+                    $existingStudent->update(['gender' => $gender]);
+                    $updatedGender++;
+                } elseif ($gender === null) {
+                    $errors[] = "سطر {$lineNum}: الطالب {$studentName} مسجل مسبقاً لولي الأمر.";
+                }
                 continue;
             }
 
@@ -637,6 +653,7 @@ class ExportImportController extends Controller
                 'class_id' => $classId,
                 'parent_id' => $parent->id,
                 'qr_code' => $studentCode,
+                'gender' => $gender,
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -646,6 +663,9 @@ class ExportImportController extends Controller
         }
 
         $msg = "تم استيراد {$imported} طالب بنجاح.";
+        if ($updatedGender > 0) {
+            $msg .= " وتم تحديث «الجنس» لـ {$updatedGender} طالب مسجل مسبقاً.";
+        }
 
         return response()->json([
             'success' => true,
@@ -654,6 +674,32 @@ class ExportImportController extends Controller
             'errors' => $errors,
             'warnings' => $warnings,
         ]);
+    }
+
+    /** ذكر / أنثى (وما يشابهها) → male / female */
+    private static function parseGender($value): ?string
+    {
+        $v = mb_strtolower(trim((string) $value));
+        $v = str_replace(['أ', 'إ', 'آ'], 'ا', $v);
+        if ($v === '') return null;
+        if (in_array($v, ['ذكر', 'ولد', 'طالب', 'male', 'm', 'boy'], true)) return 'male';
+        if (in_array($v, ['انثى', 'انثي', 'بنت', 'طالبة', 'female', 'f', 'girl'], true)) return 'female';
+        return null;
+    }
+
+    /** قائمة منسدلة «ذكر / أنثى» في عمود الجنس */
+    private function addGenderDropdown($sheet, string $col, int $lastRow): void
+    {
+        $validation = $sheet->getCell($col . '3')->getDataValidation();
+        $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST)
+            ->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP)
+            ->setAllowBlank(true)
+            ->setShowDropDown(true)
+            ->setShowErrorMessage(true)
+            ->setErrorTitle('الجنس')
+            ->setError('اختر ذكر أو أنثى')
+            ->setFormula1('"ذكر,أنثى"');
+        $sheet->setDataValidation($col . '3:' . $col . $lastRow, $validation);
     }
 
     private function importTeachers(string $path, string $extension = 'csv')
@@ -1281,7 +1327,7 @@ class ExportImportController extends Controller
 
                 // Title banner text
                 $titleText = "كشف بأسماء أولياء أمور طلاب الصف ( {$classNameStr} ) وأرقام بطائقهم الشخصية للعام 2026 - 2027م";
-                $sheet->mergeCells('A1:E1');
+                $sheet->mergeCells('A1:F1');
                 $sheet->setCellValue('A1', $titleText);
 
                 // Styling the Banner
@@ -1304,12 +1350,12 @@ class ExportImportController extends Controller
                 ]);
 
                 // Headers
-                $headers = ['م', 'اسم ولي الأمر', 'رقم البطاقة', 'اسم الطالب', 'ملاحظات'];
+                $headers = ['م', 'اسم ولي الأمر', 'رقم البطاقة', 'اسم الطالب', 'الجنس', 'ملاحظات'];
                 $sheet->fromArray([$headers], null, 'A2');
                 $sheet->getRowDimension(2)->setRowHeight(30);
 
                 // Header Styling
-                $sheet->getStyle('A2:E2')->applyFromArray([
+                $sheet->getStyle('A2:F2')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'color' => ['argb' => 'FF000000'],
@@ -1339,7 +1385,9 @@ class ExportImportController extends Controller
                 $sheet->getColumnDimension('B')->setWidth(25);
                 $sheet->getColumnDimension('C')->setWidth(20);
                 $sheet->getColumnDimension('D')->setWidth(25);
-                $sheet->getColumnDimension('E')->setWidth(25);
+                $sheet->getColumnDimension('E')->setWidth(12);
+                $sheet->getColumnDimension('F')->setWidth(25);
+                $this->addGenderDropdown($sheet, 'E', 300);
 
                 $writer = new Xlsx($spreadsheet);
                 $writer->save('php://output');

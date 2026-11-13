@@ -31,9 +31,11 @@ const SettingsPage = safeLazy(() => import('../../pages/SettingsPage'));
 const PrepSupervisorsPage = safeLazy(() => import('../../pages/PrepSupervisorsPage'));
 const SupervisorsPage = safeLazy(() => import('../../pages/SupervisorsPage'));
 const ControlPage = safeLazy(() => import('../../pages/ControlPage'));
+const ArchivePage = safeLazy(() => import('../../pages/ArchivePage'));
 const TeacherReportsPage = safeLazy(() => import('../../pages/TeacherReportsPage'));
 const AbsenceRequestsPage = safeLazy(() => import('../../pages/AbsenceRequestsPage'));
 const AssignmentsPage = safeLazy(() => import('../../pages/AssignmentsPage'));
+const HomeworkMonthlyReportPage = safeLazy(() => import('../../pages/HomeworkMonthlyReportPage'));
 const DetailedGradesPage = safeLazy(() => import('../../pages/DetailedGradesPage'));
 const ExamSchedulesPage = safeLazy(() => import('../../pages/ExamSchedulesPage'));
 const SchedulePage = safeLazy(() => import('../../pages/SchedulePage'));
@@ -139,9 +141,11 @@ export default function AppRouter() {
         <Route path="prep-supervisors" element={<ProtectedRoute module="prepSupervisors">{withSuspense(PrepSupervisorsPage)}</ProtectedRoute>} />
         <Route path="supervisors" element={<ProtectedRoute adminOnly>{withSuspense(SupervisorsPage)}</ProtectedRoute>} />
         <Route path="control" element={<ProtectedRoute module="control">{withSuspense(ControlPage)}</ProtectedRoute>} />
+        <Route path="archive" element={<ProtectedRoute module="students">{withSuspense(ArchivePage)}</ProtectedRoute>} />
         <Route path="teacher-reports" element={<ProtectedRoute module="teacherReports">{withSuspense(TeacherReportsPage)}</ProtectedRoute>} />
         <Route path="absence-requests" element={<ProtectedRoute module="absenceRequests">{withSuspense(AbsenceRequestsPage)}</ProtectedRoute>} />
         <Route path="assignments" element={<ProtectedRoute module="assignments">{withSuspense(AssignmentsPage)}</ProtectedRoute>} />
+        <Route path="homework-monthly-report" element={<ProtectedRoute module="assignments">{withSuspense(HomeworkMonthlyReportPage)}</ProtectedRoute>} />
         <Route path="detailed-grades" element={<ProtectedRoute module="detailedGrades">{withSuspense(DetailedGradesPage)}</ProtectedRoute>} />
         <Route path="exam-schedules" element={<ProtectedRoute module="examSchedules">{withSuspense(ExamSchedulesPage)}</ProtectedRoute>} />
         <Route path="schedule" element={<ProtectedRoute module="schedule">{withSuspense(SchedulePage)}</ProtectedRoute>} />

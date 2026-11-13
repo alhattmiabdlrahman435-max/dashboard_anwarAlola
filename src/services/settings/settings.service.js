@@ -18,10 +18,6 @@ export const settingsService = {
     return api.put(`/api/grades/control/${studentId}`, payload);
   },
   
-  generateControlCodes: (payload) => {
-    return api.post("/api/grades/generate-codes", payload);
-  },
-  
   getAssignments: (queryString = '') => {
     return api.get(`/api/assignments${queryString}`);
   },

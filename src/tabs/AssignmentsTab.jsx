@@ -9,7 +9,19 @@ import { useNotifications } from '../contexts/Notifications/useNotifications';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 import { api } from '../services/api';
+import { useReverbChannel } from '../hooks/useReverbChannel';
 import { X, Filter, Calendar, User, BookOpen, Trash2, Search } from 'lucide-react';
+
+// تاريخ ووقت إرسال الواجب بالتوقيت المحلي: "2026-11-12 08:45 ص"
+function formatSentAt(iso, lang) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  const h = d.getHours();
+  const period = h >= 12 ? (lang === 'ar' ? 'م' : 'PM') : (lang === 'ar' ? 'ص' : 'AM');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(h % 12 || 12)}:${p(d.getMinutes())} ${period}`;
+}
 
 export default function AssignmentsTab() {
   const {
@@ -65,7 +77,9 @@ export default function AssignmentsTab() {
     goToPrevIfEmpty,
   } = usePagination({
     moduleKey: 'assignments',
-    defaultFilters: { teacher_id: '', subject_id: '', class_id: '', date: getLocalTodayStr() }
+    // التاريخ الافتراضي فارغ حتى يبقى زر «الكل» فعّالاً (عند فراغ الرابط كان يرجع لتاريخ اليوم)؛
+    // فتح الصفحة على تاريخ اليوم يتم مرة واحدة في التأثير أدناه
+    defaultFilters: { teacher_id: '', subject_id: '', class_id: '', date: '' }
   });
 
   // Auto-activate today's date upon opening Assignments Platform
@@ -84,6 +98,9 @@ export default function AssignmentsTab() {
   useEffect(() => {
     fetchAssignments(qs);
   }, [fetchAssignments, qs]);
+
+  // تحديث فوري عند إضافة المعلم واجباً أو تعديله أو حذفه (WebSocket / Reverb)
+  useReverbChannel('public-assignments', 'assignments_changed', () => fetchAssignments(qs));
 
   // ── Helper data: use stale-while-revalidate from each provider ────────────
   // fetchClasses/fetchSubjects/fetchTeachers/fetchStudents already guard
@@ -291,6 +308,7 @@ export default function AssignmentsTab() {
           teacherName: matchingTeacher ? matchingTeacher.name : (lang === 'ar' ? 'غير محدد' : 'N/A'),
           teacherNameEn: matchingTeacher ? matchingTeacher.nameEn : (lang === 'ar' ? 'غير محدد' : 'N/A'),
           teacherId: matchingTeacher ? matchingTeacher.id : null,
+          sentAt: res.assignment?.created_at || new Date().toISOString(),
           title: modalAssignmentTitle,
           content: modalAssignmentContent,
           dateCreated: createdDateStr,
@@ -711,7 +729,7 @@ export default function AssignmentsTab() {
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-border)', paddingTop: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
-                    <span>📅 {lang === 'ar' ? 'تاريخ النشر:' : 'Published:'} {assign.dateCreated}</span>
+                    <span>📅 {lang === 'ar' ? 'تاريخ النشر:' : 'Published:'} {formatSentAt(assign.sentAt, lang) || assign.dateCreated}{assign.editedAt ? (lang === 'ar' ? ' · معدَّل' : ' · Edited') : ''}</span>
                     <span>⌛ {t.dueDateLabel}: {assign.dueDate}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>

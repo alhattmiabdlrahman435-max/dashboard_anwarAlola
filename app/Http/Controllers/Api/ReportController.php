@@ -74,6 +74,8 @@ class ReportController extends Controller implements HasMiddleware
         $direction = strtolower($request->input('direction', 'desc'));
         if (in_array($sortBy, ['id', 'status', 'type', 'created_at'])) {
             $query->orderBy($sortBy, $direction);
+            // ترتيب ثابت عند تساوي القيم (منع تكرار/اختفاء صفوف بين الصفحات)
+            if ($sortBy !== 'id') $query->orderBy($query->getModel()->getQualifiedKeyName(), $direction);
         } else {
             $query->orderBy('created_at', 'desc');
         }

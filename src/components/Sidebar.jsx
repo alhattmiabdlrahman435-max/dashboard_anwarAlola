@@ -7,7 +7,7 @@ import { useNotifications } from '../contexts/Notifications/useNotifications';
 import { 
   LayoutDashboard, GraduationCap, Users, BookOpen, School, Book, 
   Calendar, QrCode, ClipboardCheck, FileText, CalendarCheck, Award, 
-  DollarSign, Bell, ShieldAlert, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X, UserCheck, UserCog, Database
+  DollarSign, Bell, ShieldAlert, Archive, BarChart3, FileWarning, Settings, ChevronLeft, ChevronRight, X, UserCheck, UserCog, Database
 } from 'lucide-react';
 import sloganLogo from '../assets/slogan.jpeg';
 
@@ -211,6 +211,18 @@ export default function Sidebar() {
               </NavLink>
             )}
 
+            {hasPermission('assignments') && (
+              <NavLink 
+                to="/homework-monthly-report"
+                className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
+                onClick={() => setIsMobileMenuOpen(false)}
+                data-tooltip={lang === 'ar' ? 'التقرير الشهري للواجبات' : 'Monthly Homework Report'}
+              >
+                <ClipboardCheck />
+                <span>{lang === 'ar' ? 'التقرير الشهري للواجبات' : 'Monthly Homework Report'}</span>
+              </NavLink>
+            )}
+
             {hasPermission('examSchedules') && (
               <NavLink 
                 to="/exam-schedules"
@@ -271,6 +283,18 @@ export default function Sidebar() {
                     {notifications.filter(n => !n.isRead && !n.isOutbound).length}
                   </span>
                 )}
+              </NavLink>
+            )}
+
+            {hasPermission('students') && (
+              <NavLink 
+                to="/archive"
+                className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
+                onClick={() => setIsMobileMenuOpen(false)}
+                data-tooltip={lang === 'ar' ? 'الأرشيف' : 'Archive'}
+              >
+                <Archive />
+                <span>{lang === 'ar' ? 'الأرشيف' : 'Archive'}</span>
               </NavLink>
             )}
 

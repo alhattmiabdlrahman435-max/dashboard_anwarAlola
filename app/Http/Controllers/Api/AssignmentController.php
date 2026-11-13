@@ -32,7 +32,7 @@ class AssignmentController extends Controller implements HasMiddleware
     public function index(ListRequest $request)
     {
         $user = $request->user();
-        $query = Assignment::with(['teacher', 'schoolClass', 'subject', 'submissions.student']);
+        $query = Assignment::with(['teacher', 'schoolClass', 'subject', 'submissions.student', 'attachments']);
         
         if ($user && $user->role === 'teacher') {
             $query->where('teacher_id', $user->id);
@@ -82,10 +82,12 @@ class AssignmentController extends Controller implements HasMiddleware
         $sortBy = $request->input('sort', 'created_at');
         $direction = strtolower($request->input('direction', 'desc'));
         $query->orderBy($sortBy, $direction);
+        // ترتيب ثابت عند تساوي القيم (منع تكرار/اختفاء صفوف بين الصفحات)
+        if ($sortBy !== 'id') $query->orderBy($query->getModel()->getQualifiedKeyName(), $direction);
 
         // Safe Column Selection
         $query->select([
-            'id', 'teacher_id', 'class_id', 'subject_id', 'title', 'content', 'date_created', 'due_date', 'attachment_url', 'created_at'
+            'id', 'teacher_id', 'class_id', 'subject_id', 'title', 'content', 'date_created', 'due_date', 'attachment_url', 'edited_at', 'created_at'
         ]);
 
         $perPage = (int) $request->input('per_page', 20);
@@ -142,6 +144,9 @@ class AssignmentController extends Controller implements HasMiddleware
             'content' => 'nullable|string',
             'due_date' => 'required|date',
             'attachment' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,zip,rar,txt|max:10240', // max 10MB
+            // أكثر من مرفق للواجب الواحد (حتى 10، كل واحد حتى 10MB)
+            'attachments' => 'nullable|array|max:10',
+            'attachments.*' => 'file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,webp,zip,rar,txt|max:10240',
         ]);
 
         $user = $request->user();
@@ -155,17 +160,31 @@ class AssignmentController extends Controller implements HasMiddleware
 
         $teacherId     = $request->input('teacher_id') ?: $request->user()->id;
         $attachmentUrl = $request->input('attachment_url') ?: null;
-        $newPath       = null;
+        $newPaths      = [];   // لحذف الملفات إذا فشل الحفظ
+        $savedFiles    = [];   // [url, original_name, mime] بالترتيب
 
+        // المرفق الواحد (التطبيقات القديمة) + المرفقات المتعددة الجديدة
+        $files = [];
         if ($request->hasFile('attachment')) {
-            $file        = $request->file('attachment');
-            $ext         = strtolower($file->getClientOriginalExtension());
-            $filename    = Str::uuid() . '.' . $ext;
-            $destination = public_path('uploads/assignments');
+            $files[] = $request->file('attachment');
+        }
+        foreach ((array) $request->file('attachments', []) as $f) {
+            if ($f) $files[] = $f;
+        }
+
+        $destination = public_path('uploads/assignments');
+        foreach ($files as $file) {
             File::ensureDirectoryExists($destination);
-            $newPath     = $destination . DIRECTORY_SEPARATOR . $filename;
+            $ext      = strtolower($file->getClientOriginalExtension());
+            $filename = Str::uuid() . '.' . $ext;
+            $original = $file->getClientOriginalName();
+            $mime     = $file->getClientMimeType();
             $file->move($destination, $filename);
-            $attachmentUrl = url('uploads/assignments/' . $filename);
+            $newPaths[]   = $destination . DIRECTORY_SEPARATOR . $filename;
+            $savedFiles[] = [url('uploads/assignments/' . $filename), $original, $mime];
+        }
+        if (!empty($savedFiles)) {
+            $attachmentUrl = $savedFiles[0][0];
         }
 
         // Save to DB — rollback file on failure
@@ -181,6 +200,16 @@ class AssignmentController extends Controller implements HasMiddleware
                 'attachment_url' => $attachmentUrl,
             ]);
 
+            foreach ($savedFiles as $i => [$url, $original, $mime]) {
+                \App\Models\AssignmentAttachment::create([
+                    'assignment_id' => $assignment->id,
+                    'url'           => $url,
+                    'original_name' => $original,
+                    'mime'          => $mime,
+                    'sort_order'    => $i,
+                ]);
+            }
+
             // Auto-populate submissions for all students in the class
             $students = \App\Models\Student::with('parentUser')->where('class_id', $request->input('class_id'))->get();
             foreach ($students as $student) {
@@ -193,33 +222,47 @@ class AssignmentController extends Controller implements HasMiddleware
 
             // Send notifications to parents of the class (catch non-fatal notification errors)
             try {
-                \App\Models\Notification::create([
-                    'title'    => 'واجب مدرسي جديد',
-                    'content'  => 'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
-                    'type'     => 'general',
-                    'is_read'  => false,
-                    'class_id' => $assignment->class_id,
+                $notification = \App\Models\Notification::create([
+                    'title'         => 'واجب مدرسي جديد',
+                    'content'       => 'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
+                    'type'          => 'general',
+                    'source'        => \App\Models\Notification::SOURCE_ASSIGNMENTS,
+                    'is_read'       => false,
+                    'class_id'      => $assignment->class_id,
+                    // لفتح الواجب نفسه عند النقر على الإشعار في التطبيق
+                    'assignment_id' => $assignment->id,
                 ]);
+                \App\Events\NotificationsChanged::safeDispatch('created', $notification->id);
+                \App\Events\AssignmentsChanged::safeDispatch('created', $assignment->id, $assignment->class_id);
 
-                $parentUsers = $students->pluck('parentUser')->filter()->unique('id');
-                foreach ($parentUsers as $parentUser) {
-                    \App\Services\FcmService::sendToUser(
-                        $parentUser,
-                        'واجب مدرسي جديد 📝',
-                        'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title,
-                        [
-                            'type'     => 'assignment',
-                            'class_id' => (string)$assignment->class_id
-                        ]
-                    );
-                }
+                // يوم نشر الواجب بتوقيت المدرسة: التطبيق يفتح صفحة الواجبات على هذا اليوم
+                $publishDate = $assignment->created_at
+                    ? $assignment->created_at->copy()->timezone(config('app.timezone'))->toDateString()
+                    : now()->toDateString();
+
+                $parentUsers = $students->pluck('parentUser')->filter()->unique('id')->values();
+                $pushTitle = 'تم إضافة واجب جديد لصف ابنكم: ' . $assignment->title;
+                $pushData = [
+                    'type'          => 'assignment',
+                    'class_id'      => (string)$assignment->class_id,
+                    'assignment_id' => (string)$assignment->id,
+                    'date'          => $publishDate,
+                ];
+                // تنبيهات الجوال تُرسل بعد إرجاع الرد للمعلم، حتى لا ينتظر (أو تنتهي مهلة الطلب) مع صف كبير
+                dispatch(function () use ($parentUsers, $pushTitle, $pushData) {
+                    foreach ($parentUsers as $parentUser) {
+                        \App\Services\FcmService::sendToUser($parentUser, 'واجب مدرسي جديد 📝', $pushTitle, $pushData);
+                    }
+                })->afterResponse();
             } catch (\Throwable $ne) {
                 \Illuminate\Support\Facades\Log::warning("Notification failure on assignment create: " . $ne->getMessage());
             }
 
         } catch (\Throwable $e) {
-            if ($newPath && File::exists($newPath)) {
-                File::delete($newPath);
+            foreach ($newPaths as $path) {
+                if (File::exists($path)) {
+                    File::delete($path);
+                }
             }
             \Illuminate\Support\Facades\Log::error("Assignment store error: " . $e->getMessage());
             return response()->json([
@@ -231,14 +274,14 @@ class AssignmentController extends Controller implements HasMiddleware
         return response()->json([
             'success' => true,
             'message' => 'تم إضافة الواجب بنجاح',
-            'assignment' => $assignment->load(['teacher', 'schoolClass', 'subject', 'submissions.student'])
+            'assignment' => $assignment->load(['teacher', 'schoolClass', 'subject', 'submissions.student', 'attachments'])
         ], 201);
 
     }
 
     public function show(Request $request, string $id)
     {
-        $assignment = Assignment::with(['teacher', 'schoolClass', 'subject', 'submissions.student'])->find($id);
+        $assignment = Assignment::with(['teacher', 'schoolClass', 'subject', 'submissions.student', 'attachments'])->find($id);
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
         }
@@ -255,9 +298,14 @@ class AssignmentController extends Controller implements HasMiddleware
         return response()->json(['success' => true, 'assignment' => $assignment]);
     }
 
+    /**
+     * تعديل الواجب بعد إرساله (تصحيح خطأ في الكتابة): العنوان، النص، موعد التسليم، والمرفقات.
+     * الصف والمادة لا يتغيران (تغييرهما يغيّر من يستلم الواجب).
+     * بعد الحفظ: يُبث التعديل فوراً للوحة التحكم ولأولياء الأمور، ويصلهم إشعار بالتعديل.
+     */
     public function update(Request $request, string $id)
     {
-        $assignment = Assignment::find($id);
+        $assignment = Assignment::with('attachments')->find($id);
         if (!$assignment) {
             return response()->json(['success' => false, 'message' => 'الواجب غير موجود'], 404);
         }
@@ -270,13 +318,138 @@ class AssignmentController extends Controller implements HasMiddleware
                 'message' => 'غير مصرح لك بتعديل واجب في هذا الفصل الدراسي.',
             ], 403);
         }
+        // المعلم يعدّل واجباته فقط
+        if ($user && $user->role === 'teacher' && (int) $assignment->teacher_id !== (int) $user->id) {
+            return response()->json(['success' => false, 'message' => 'يمكنك تعديل واجباتك فقط.'], 403);
+        }
 
-        $assignment->update($request->all());
+        $request->validate([
+            'title'                    => 'required|string',
+            'content'                  => 'nullable|string',
+            'due_date'                 => 'required|date',
+            'attachments'              => 'nullable|array|max:10',
+            'attachments.*'            => 'file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,webp,zip,rar,txt|max:10240',
+            'remove_attachment_urls'   => 'nullable|array',
+            'remove_attachment_urls.*' => 'string',
+        ]);
+
+        // المرفقات الحالية بعد حذف ما طلب المعلم إزالته
+        $removeUrls = array_values(array_filter((array) $request->input('remove_attachment_urls', [])));
+        $kept = $assignment->attachments->reject(fn($att) => in_array($att->url, $removeUrls, true))->values();
+        $legacyOnly = $assignment->attachments->isEmpty() && $assignment->attachment_url
+            && !in_array($assignment->attachment_url, $removeUrls, true);
+        $keptCount = $kept->count() + ($legacyOnly ? 1 : 0);
+
+        $newFiles = array_values(array_filter((array) $request->file('attachments', [])));
+        if ($keptCount + count($newFiles) > 10) {
+            return response()->json(['success' => false, 'message' => 'الحد الأقصى 10 مرفقات للواجب الواحد.'], 422);
+        }
+
+        // حفظ الملفات الجديدة
+        $destination = public_path('uploads/assignments');
+        $newSaved = [];
+        foreach ($newFiles as $file) {
+            File::ensureDirectoryExists($destination);
+            $filename = Str::uuid() . '.' . strtolower($file->getClientOriginalExtension());
+            $original = $file->getClientOriginalName();
+            $mime = $file->getClientMimeType();
+            $file->move($destination, $filename);
+            $newSaved[] = [url('uploads/assignments/' . $filename), $original, $mime];
+        }
+
+        // حذف ملفات المرفقات المُزالة من الخادم
+        $deleteFile = function (string $attUrl) {
+            $relative = parse_url($attUrl, PHP_URL_PATH) ?: '';
+            $absolute = public_path(ltrim($relative, '/'));
+            if ($relative && File::exists($absolute)) {
+                File::delete($absolute);
+            }
+        };
+        foreach ($assignment->attachments as $att) {
+            if (in_array($att->url, $removeUrls, true)) {
+                $deleteFile($att->url);
+                $att->delete();
+            }
+        }
+        if ($assignment->attachments->isEmpty() && $assignment->attachment_url && in_array($assignment->attachment_url, $removeUrls, true)) {
+            $deleteFile($assignment->attachment_url);
+        }
+
+        // الواجب القديم بمرفق واحد (بدون جدول المرفقات): ننقله للجدول حتى يبقى الترتيب صحيحاً
+        $order = 0;
+        if ($legacyOnly) {
+            \App\Models\AssignmentAttachment::create([
+                'assignment_id' => $assignment->id,
+                'url'           => $assignment->attachment_url,
+                'sort_order'    => $order++,
+            ]);
+        } else {
+            foreach ($kept as $att) {
+                $att->update(['sort_order' => $order++]);
+            }
+        }
+        foreach ($newSaved as [$attUrl, $original, $mime]) {
+            \App\Models\AssignmentAttachment::create([
+                'assignment_id' => $assignment->id,
+                'url'           => $attUrl,
+                'original_name' => $original,
+                'mime'          => $mime,
+                'sort_order'    => $order++,
+            ]);
+        }
+
+        $firstUrl = \App\Models\AssignmentAttachment::where('assignment_id', $assignment->id)->orderBy('sort_order')->value('url');
+        $assignment->update([
+            'title'          => $request->input('title'),
+            'content'        => $request->input('content'),
+            'due_date'       => $request->input('due_date'),
+            'attachment_url' => $firstUrl,
+            'edited_at'      => now(),
+        ]);
+
+        // تحديث فوري للوحة التحكم وتطبيق ولي الأمر
+        \App\Events\AssignmentsChanged::safeDispatch('updated', $assignment->id, $assignment->class_id);
+
+        // إشعار أولياء أمور الصف بالتعديل (يفتح الواجب نفسه عند النقر)
+        try {
+            $notification = \App\Models\Notification::create([
+                'title'         => 'تعديل واجب مدرسي',
+                'content'       => 'تم تعديل الواجب: ' . $assignment->title,
+                'type'          => 'general',
+                'source'        => \App\Models\Notification::SOURCE_ASSIGNMENTS,
+                'is_read'       => false,
+                'class_id'      => $assignment->class_id,
+                'assignment_id' => $assignment->id,
+            ]);
+            \App\Events\NotificationsChanged::safeDispatch('created', $notification->id);
+
+            $publishDate = $assignment->created_at
+                ? $assignment->created_at->copy()->timezone(config('app.timezone'))->toDateString()
+                : now()->toDateString();
+            $parents = \App\Models\Student::with('parentUser')->where('class_id', $assignment->class_id)
+                ->get()->pluck('parentUser')->filter()->unique('id');
+            $parents = $parents->values();
+            $pushBody = 'تم تعديل الواجب: ' . $assignment->title;
+            $pushData = [
+                'type'          => 'assignment',
+                'class_id'      => (string) $assignment->class_id,
+                'assignment_id' => (string) $assignment->id,
+                'date'          => $publishDate,
+            ];
+            // تنبيهات الجوال بعد إرجاع الرد للمعلم (لا ينتظر الإرسال لكل ولي أمر)
+            dispatch(function () use ($parents, $pushBody, $pushData) {
+                foreach ($parents as $parentUser) {
+                    \App\Services\FcmService::sendToUser($parentUser, 'تعديل واجب مدرسي ✏️', $pushBody, $pushData);
+                }
+            })->afterResponse();
+        } catch (\Throwable $ne) {
+            \Illuminate\Support\Facades\Log::warning('Notification failure on assignment update: ' . $ne->getMessage());
+        }
 
         return response()->json([
-            'success' => true,
-            'message' => 'تم تحديث الواجب بنجاح',
-            'assignment' => $assignment
+            'success'    => true,
+            'message'    => 'تم تعديل الواجب وإبلاغ أولياء الأمور',
+            'assignment' => $assignment->fresh()->load(['teacher', 'schoolClass', 'subject', 'submissions.student', 'attachments']),
         ]);
     }
 
@@ -297,8 +470,9 @@ class AssignmentController extends Controller implements HasMiddleware
         }
 
         // Delete attachment file from storage
-        if ($assignment->attachment_url) {
-            $relative = str_replace(url('/'), '', $assignment->attachment_url);
+        // كل مرفقات الواجب (المتعددة + القديم)
+        foreach (array_unique(array_merge($assignment->attachment_urls, array_filter([$assignment->attachment_url]))) as $attUrl) {
+            $relative = str_replace(url('/'), '', $attUrl);
             $absolute = public_path(ltrim($relative, '/'));
             if (File::exists($absolute)) {
                 File::delete($absolute);
@@ -308,7 +482,10 @@ class AssignmentController extends Controller implements HasMiddleware
         // Safely delete associated submissions from database
         AssignmentSubmission::where('assignment_id', $assignment->id)->delete();
         
+        $deletedId = $assignment->id;
+        $deletedClass = $assignment->class_id;
         $assignment->delete();
+        \App\Events\AssignmentsChanged::safeDispatch('deleted', $deletedId, $deletedClass);
         return response()->json(['success' => true, 'message' => 'تم حذف الواجب بنجاح']);
     }
 
@@ -347,6 +524,8 @@ class AssignmentController extends Controller implements HasMiddleware
         $sortBy = $request->input('sort', 'created_at');
         $direction = strtolower($request->input('direction', 'desc'));
         $query->orderBy($sortBy, $direction);
+        // ترتيب ثابت عند تساوي القيم (منع تكرار/اختفاء صفوف بين الصفحات)
+        if ($sortBy !== 'id') $query->orderBy($query->getModel()->getQualifiedKeyName(), $direction);
 
         // Safe Column Selection
         $query->select([
@@ -454,10 +633,10 @@ class AssignmentController extends Controller implements HasMiddleware
             $query->whereIn('class_id', $scopedClassIds);
         }
 
-        $assignments = $query->get();
+        $assignments = $query->with('attachments')->get();
         foreach ($assignments as $assignment) {
-            if ($assignment->attachment_url) {
-                $relative = str_replace(url('/'), '', $assignment->attachment_url);
+            foreach (array_unique(array_merge($assignment->attachment_urls, array_filter([$assignment->attachment_url]))) as $attUrl) {
+                $relative = str_replace(url('/'), '', $attUrl);
                 $absolute = public_path(ltrim($relative, '/'));
                 if (File::exists($absolute)) {
                     File::delete($absolute);
