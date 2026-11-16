@@ -1,0 +1,1 @@
+import{i as e,n as t}from"./jsx-runtime-bzQ4Vb5N.js";import{q as n}from"./index-RCN43kMN.js";var r=e(t(),1);function i(){let e=(0,r.useContext)(n);if(!e)throw Error(`useReports must be used within a ReportsProvider`);return e}export{i as t};
