@@ -1,3 +1,5 @@
+import { openHtmlPrintPreview } from '../../utils/printPreview';
+
 export const REPORTS = [
   { key: 'finance', group: 'finance', ar: 'كشف الرسوم والمدفوعات', en: 'Fees and payments', description: 'أرصدة طلاب الصف أو الشعبة من الحسابات الموجودة.' },
   { key: 'month', group: 'academic', ar: 'كشف المحصلات', en: 'Monthly assessment', description: 'المحصلة الأولى أو الثانية أو الثالثة حسب مواد الشعبة.' },
@@ -61,14 +63,10 @@ export function reportCsv(report, columns, lang) {
 }
 
 export function printReport(reportElement, title, landscape) {
-  // An isolated document prevents existing global print styles from affecting other pages.
-  const frame = document.createElement('iframe');
-  frame.title = title;
-  frame.style.cssText = 'position:absolute;width:1px;height:1px;border:0;inset-inline-start:-10000px';
-  document.body.appendChild(frame);
-  const doc = frame.contentDocument;
-  doc.open();
-  doc.write(`<!doctype html><html><head><meta charset="utf-8">
+  if (!reportElement) return;
+  const dir = reportElement.dir || document.documentElement.dir || 'rtl';
+  const clone = reportElement.cloneNode(true);
+  const fullHtml = `<!doctype html><html dir="${dir}"><head><meta charset="utf-8"><title>${String(title || '').replace(/</g, '&lt;')}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
@@ -304,13 +302,7 @@ export function printReport(reportElement, title, landscape) {
       color: #0f172a;
       display: inline-block;
     }
-  </style></head><body></body></html>`);
-  doc.close();
-  doc.title = title;
-  doc.documentElement.dir = reportElement.dir || document.documentElement.dir || 'rtl';
-  doc.body.appendChild(reportElement.cloneNode(true));
-  const cleanup = () => { if (frame.isConnected) frame.remove(); };
-  frame.contentWindow.addEventListener('afterprint', cleanup, { once: true });
-  const images = [...doc.images].map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = resolve; img.onerror = resolve; }));
-  Promise.all(images).then(() => { frame.contentWindow.focus(); frame.contentWindow.print(); setTimeout(cleanup, 60000); });
+  </style></head><body>${clone.outerHTML}</body></html>`;
+
+  openHtmlPrintPreview(fullHtml, { title, landscape });
 }

@@ -32,7 +32,7 @@ class AssignmentController extends Controller implements HasMiddleware
     public function index(ListRequest $request)
     {
         $user = $request->user();
-        $query = Assignment::with(['teacher', 'schoolClass', 'subject', 'submissions.student', 'attachments']);
+        $query = Assignment::with(['teacher', 'schoolClass', 'subject', 'submissions.student', 'attachments'])->forAcademicYear();
         
         if ($user && $user->role === 'teacher') {
             $query->where('teacher_id', $user->id);
@@ -628,7 +628,7 @@ class AssignmentController extends Controller implements HasMiddleware
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'assignments');
 
-        $query = Assignment::query();
+        $query = Assignment::forAcademicYear();
         if ($scopedClassIds !== null) {
             $query->whereIn('class_id', $scopedClassIds);
         }

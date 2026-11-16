@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useSubjects } from '../contexts/Subjects/useSubjects';
@@ -7,6 +7,7 @@ import { useSettings } from '../contexts/Settings/useSettings';
 import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 import PrintHeader from '../components/PrintHeader';
+import { openElementPrintPreview } from '../utils/printPreview';
 
 export default function ControlTab() {
   const {
@@ -49,6 +50,7 @@ export default function ControlTab() {
     defaultFilters: { class_id: 'all' },
   });
 
+  const sheetRef = useRef(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Local UI state for search to keep typing responsive (debounced backend sync)
@@ -106,7 +108,8 @@ export default function ControlTab() {
   };
 
   const handlePrint = () => {
-    window.print();
+    // معاينة كاملة قبل الطباعة (مع التكبير) بدل الطباعة المباشرة
+    openElementPrintPreview(sheetRef.current, { title: 'كشف رصد الدرجات بالرقم السري', landscape: false });
   };
 
   const handleSortChange = (column) => {
@@ -119,7 +122,7 @@ export default function ControlTab() {
   };
 
   return (
-    <div className="section-card">
+    <div className="section-card" ref={sheetRef}>
       <div className="section-card-header no-print">
         <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
           {t.controlTitle}

@@ -1,6 +1,7 @@
 import { BrowserRouter } from 'react-router-dom';
 import AppProviders from './app/providers/AppProviders';
 import AppRouter from './app/router/AppRouter';
+import GlobalPrintPreviewModal from './components/GlobalPrintPreviewModal';
 import './App.css';
 
 export default function App() {
@@ -8,6 +9,7 @@ export default function App() {
     <AppProviders>
       <BrowserRouter>
         <AppRouter />
+        <GlobalPrintPreviewModal />
       </BrowserRouter>
     </AppProviders>
   );

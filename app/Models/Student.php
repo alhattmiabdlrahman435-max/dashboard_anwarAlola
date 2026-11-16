@@ -32,4 +32,9 @@ class Student extends Model
     {
         return $this->hasMany(Payment::class, 'student_id');
     }
+
+    public function enrollments()
+    {
+        return $this->hasMany(StudentEnrollment::class, 'student_id');
+    }
 }

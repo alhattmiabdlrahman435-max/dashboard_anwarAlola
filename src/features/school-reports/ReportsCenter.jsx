@@ -1117,7 +1117,7 @@ export default function ReportsCenter() {
                           {pageNumberText}
                         </span>
                         <span>
-                          {text('مدارس أنوار العلا الأهلية النموذجية', 'Anwar Al-Ola Schools')}
+                          {text('رياض ومدارس أنوار العلى الدولية النموذجية', 'Anwar Al-Ola International Model Schools')}
                         </span>
                       </div>
                     </div>

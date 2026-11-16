@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Printer } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { archiveService } from '../../services/archive/archive.service';
+import { openElementPrintPreview } from '../../utils/printPreview';
 import sloganLogo from '../../assets/slogan.jpeg';
 import '../../styles/archive.css';
 
@@ -18,6 +19,7 @@ export default function StatisticsView({ model, title }) {
   const { setToastMessage } = useApp();
   const [, setParams] = useSearchParams();
   const [state, setState] = useState({ loading: true, rows: [] });
+  const printAreaRef = useRef(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -76,17 +78,17 @@ export default function StatisticsView({ model, title }) {
   );
 
   return (
-    <div className="ar-view">
+    <div ref={printAreaRef} className="ar-view">
       <div className="cb-controls no-print ar-controls">
         <button
           type="button"
           className="btn-filled cb-print-btn"
-          onClick={() => window.print()}
+          onClick={() => openElementPrintPreview(printAreaRef.current, { title: title || 'معاينة الإحصائية', landscape: false })}
           disabled={state.loading || !complete || broken.length > 0}
           title={complete ? '' : 'لا يمكن الطباعة قبل اكتمال البيانات'}
         >
-          <Printer size={18} />
-          <span>طباعة</span>
+          <Eye size={18} />
+          <span>معاينة وطباعة</span>
         </button>
       </div>
 

@@ -1401,9 +1401,77 @@ body[dir="rtl"] .search-box .text-field {
   text-align: start;
 }
 
-/* Sticky Columns for Students & Parents Tables (Desktop, Desktop-Mode on Mobile, & Phone) */
-.students-table th.sticky-col-1,
-.students-table td.sticky-col-1 {
+/* Sticky Columns for All Tables with Names — Flexible: activated on demand via body.freeze-columns */
+.students-table th.sticky-col-2,
+.students-table th.sticky-col-name,
+.control-grade-table th.sticky-col-2,
+.control-grade-table th.sticky-col-name,
+.cb-table th.sticky-col-name,
+.sr-table th.sticky-col-name,
+.hw-report-table th.sticky-col-name,
+.ar-data th.sticky-col-name,
+.schedule-table th.sticky-student-name {
+  cursor: pointer;
+  user-select: none;
+}
+
+.students-table th.sticky-col-2::after,
+.students-table th.sticky-col-name::after,
+.control-grade-table th.sticky-col-2::after,
+.control-grade-table th.sticky-col-name::after,
+.cb-table th.sticky-col-name::after,
+.sr-table th.sticky-col-name::after,
+.hw-report-table th.sticky-col-name::after,
+.ar-data th.sticky-col-name::after,
+.schedule-table th.sticky-student-name::after {
+  content: ' 📌';
+  font-size: 11px;
+  opacity: 0.45;
+  margin-inline-start: 4px;
+}
+
+body.freeze-columns .students-table th.sticky-col-2::after,
+body.freeze-columns .students-table th.sticky-col-name::after,
+body.freeze-columns .control-grade-table th.sticky-col-2::after,
+body.freeze-columns .control-grade-table th.sticky-col-name::after,
+body.freeze-columns .cb-table th.sticky-col-name::after,
+body.freeze-columns .sr-table th.sticky-col-name::after,
+body.freeze-columns .hw-report-table th.sticky-col-name::after,
+body.freeze-columns .ar-data th.sticky-col-name::after,
+body.freeze-columns .schedule-table th.sticky-student-name::after {
+  opacity: 1;
+}
+
+/* Global freeze support for Control, Reports, Attendance, Homework, Archive tables */
+body.freeze-columns .cb-table th.sticky-col-name,
+body.freeze-columns .cb-table td.sticky-col-name,
+body.freeze-columns .sr-table th.sticky-col-name,
+body.freeze-columns .sr-table td.sticky-col-name,
+body.freeze-columns .hw-report-table th.sticky-col-name,
+body.freeze-columns .hw-report-table td.sticky-col-name,
+body.freeze-columns .ar-data th.sticky-col-name,
+body.freeze-columns .ar-data td.sticky-col-name,
+body.freeze-columns .schedule-table th.sticky-student-name,
+body.freeze-columns .schedule-table td.sticky-student-name {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 20 !important;
+  background-color: #ffffff !important;
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.09) !important;
+}
+
+body.freeze-columns .cb-table th.sticky-col-name,
+body.freeze-columns .sr-table th.sticky-col-name,
+body.freeze-columns .hw-report-table th.sticky-col-name,
+body.freeze-columns .ar-data th.sticky-col-name,
+body.freeze-columns .schedule-table th.sticky-student-name {
+  background-color: #f8fafc !important;
+  z-index: 30 !important;
+}
+
+body.freeze-columns .students-table th.sticky-col-1,
+body.freeze-columns .students-table td.sticky-col-1 {
   position: -webkit-sticky !important;
   position: sticky !important;
   right: 0 !important;
@@ -1414,8 +1482,8 @@ body[dir="rtl"] .search-box .text-field {
   box-sizing: border-box !important;
 }
 
-.students-table th.sticky-col-2,
-.students-table td.sticky-col-2 {
+body.freeze-columns .students-table th.sticky-col-2,
+body.freeze-columns .students-table td.sticky-col-2 {
   position: -webkit-sticky !important;
   position: sticky !important;
   right: 110px !important;
@@ -1431,47 +1499,47 @@ body[dir="rtl"] .search-box .text-field {
   border-left: 1px solid var(--color-border) !important;
 }
 
-.students-table th.sticky-col-1,
-.students-table th.sticky-col-2 {
+body.freeze-columns .students-table th.sticky-col-1,
+body.freeze-columns .students-table th.sticky-col-2 {
   background-color: #f8fafc !important;
   z-index: 30 !important;
 }
 
-.students-table td.sticky-col-1,
-.students-table td.sticky-col-2 {
+body.freeze-columns .students-table td.sticky-col-1,
+body.freeze-columns .students-table td.sticky-col-2 {
   background-color: #ffffff !important;
   z-index: 20 !important;
 }
 
-.students-table tr:hover td.sticky-col-1,
-.students-table tr:hover td.sticky-col-2 {
+body.freeze-columns .students-table tr:hover td.sticky-col-1,
+body.freeze-columns .students-table tr:hover td.sticky-col-2 {
   background-color: #f1f5f9 !important;
 }
 
-body.dark-mode .students-table th.sticky-col-1,
-body.dark-mode .students-table th.sticky-col-2,
-:root.dark .students-table th.sticky-col-1,
-:root.dark .students-table th.sticky-col-2 {
+body.dark-mode.freeze-columns .students-table th.sticky-col-1,
+body.dark-mode.freeze-columns .students-table th.sticky-col-2,
+:root.dark body.freeze-columns .students-table th.sticky-col-1,
+:root.dark body.freeze-columns .students-table th.sticky-col-2 {
   background-color: #1e293b !important;
 }
 
-body.dark-mode .students-table td.sticky-col-1,
-body.dark-mode .students-table td.sticky-col-2,
-:root.dark .students-table td.sticky-col-1,
-:root.dark .students-table td.sticky-col-2 {
+body.dark-mode.freeze-columns .students-table td.sticky-col-1,
+body.dark-mode.freeze-columns .students-table td.sticky-col-2,
+:root.dark body.freeze-columns .students-table td.sticky-col-1,
+:root.dark body.freeze-columns .students-table td.sticky-col-2 {
   background-color: #0f172a !important;
 }
 
-body.dark-mode .students-table tr:hover td.sticky-col-1,
-body.dark-mode .students-table tr:hover td.sticky-col-2,
-:root.dark .students-table tr:hover td.sticky-col-1,
-:root.dark .students-table tr:hover td.sticky-col-2 {
+body.dark-mode.freeze-columns .students-table tr:hover td.sticky-col-1,
+body.dark-mode.freeze-columns .students-table tr:hover td.sticky-col-2,
+:root.dark body.freeze-columns .students-table tr:hover td.sticky-col-1,
+:root.dark body.freeze-columns .students-table tr:hover td.sticky-col-2 {
   background-color: #1e293b !important;
 }
 
 /* Single Sticky Name Column (e.g. Attendance Stats & Grades Tables) */
-.students-table th.sticky-col-name,
-.students-table td.sticky-col-name {
+body.freeze-columns .students-table th.sticky-col-name,
+body.freeze-columns .students-table td.sticky-col-name {
   position: -webkit-sticky !important;
   position: sticky !important;
   right: 0 !important;
@@ -1487,38 +1555,38 @@ body.dark-mode .students-table tr:hover td.sticky-col-2,
   border-left: 1px solid var(--color-border) !important;
 }
 
-.students-table th.sticky-col-name {
+body.freeze-columns .students-table th.sticky-col-name {
   background-color: #f8fafc !important;
   z-index: 30 !important;
 }
 
-.students-table td.sticky-col-name {
+body.freeze-columns .students-table td.sticky-col-name {
   background-color: #ffffff !important;
   z-index: 20 !important;
 }
 
-.students-table tr:hover td.sticky-col-name {
+body.freeze-columns .students-table tr:hover td.sticky-col-name {
   background-color: #f1f5f9 !important;
 }
 
-body.dark-mode .students-table th.sticky-col-name,
-:root.dark .students-table th.sticky-col-name {
+body.dark-mode.freeze-columns .students-table th.sticky-col-name,
+:root.dark body.freeze-columns .students-table th.sticky-col-name {
   background-color: #1e293b !important;
 }
 
-body.dark-mode .students-table td.sticky-col-name,
-:root.dark .students-table td.sticky-col-name {
+body.dark-mode.freeze-columns .students-table td.sticky-col-name,
+:root.dark body.freeze-columns .students-table td.sticky-col-name {
   background-color: #0f172a !important;
 }
 
-body.dark-mode .students-table tr:hover td.sticky-col-name,
-:root.dark .students-table tr:hover td.sticky-col-name {
+body.dark-mode.freeze-columns .students-table tr:hover td.sticky-col-name,
+:root.dark body.freeze-columns .students-table tr:hover td.sticky-col-name {
   background-color: #1e293b !important;
 }
 
 @media (max-width: 768px) {
-  .students-table th.sticky-col-1,
-  .students-table td.sticky-col-1 {
+  body.freeze-columns .students-table th.sticky-col-1,
+  body.freeze-columns .students-table td.sticky-col-1 {
     right: 0 !important;
     width: 78px !important;
     min-width: 78px !important;
@@ -1527,8 +1595,8 @@ body.dark-mode .students-table tr:hover td.sticky-col-name,
     font-size: 10.5px !important;
   }
 
-  .students-table th.sticky-col-2,
-  .students-table td.sticky-col-2 {
+  body.freeze-columns .students-table th.sticky-col-2,
+  body.freeze-columns .students-table td.sticky-col-2 {
     right: 78px !important;
     width: 115px !important;
     min-width: 115px !important;
@@ -1539,8 +1607,8 @@ body.dark-mode .students-table tr:hover td.sticky-col-name,
     line-height: 1.35 !important;
   }
 
-  .students-table th.sticky-col-name,
-  .students-table td.sticky-col-name {
+  body.freeze-columns .students-table th.sticky-col-name,
+  body.freeze-columns .students-table td.sticky-col-name {
     right: 0 !important;
     width: 135px !important;
     min-width: 135px !important;
@@ -1846,9 +1914,9 @@ body.dark-mode .students-table tr:hover td.sticky-col-name,
   vertical-align: middle;
 }
 
-/* Sticky Columns for Grades Table (Desktop & Mobile) */
-.control-grade-table th.sticky-col-1,
-.control-grade-table td.sticky-col-1 {
+/* Sticky Columns for Grades Table (Desktop & Mobile) — Activated on demand via body.freeze-columns */
+body.freeze-columns .control-grade-table th.sticky-col-1,
+body.freeze-columns .control-grade-table td.sticky-col-1 {
   position: -webkit-sticky !important;
   position: sticky !important;
   right: 0 !important;
@@ -1861,8 +1929,8 @@ body.dark-mode .students-table tr:hover td.sticky-col-name,
   padding-right: 6px !important;
 }
 
-.control-grade-table th.sticky-col-2,
-.control-grade-table td.sticky-col-2 {
+body.freeze-columns .control-grade-table th.sticky-col-2,
+body.freeze-columns .control-grade-table td.sticky-col-2 {
   position: -webkit-sticky !important;
   position: sticky !important;
   right: 48px !important;
@@ -1878,8 +1946,8 @@ body.dark-mode .students-table tr:hover td.sticky-col-name,
   border-left: 1px solid var(--color-border) !important;
 }
 
-.control-grade-table th.sticky-col-name,
-.control-grade-table td.sticky-col-name {
+body.freeze-columns .control-grade-table th.sticky-col-name,
+body.freeze-columns .control-grade-table td.sticky-col-name {
   position: -webkit-sticky !important;
   position: sticky !important;
   right: 0 !important;
@@ -1895,56 +1963,56 @@ body.dark-mode .students-table tr:hover td.sticky-col-name,
   border-left: 1px solid var(--color-border) !important;
 }
 
-.control-grade-table th.sticky-col-1,
-.control-grade-table th.sticky-col-2,
-.control-grade-table th.sticky-col-name {
+body.freeze-columns .control-grade-table th.sticky-col-1,
+body.freeze-columns .control-grade-table th.sticky-col-2,
+body.freeze-columns .control-grade-table th.sticky-col-name {
   background-color: #f8fafc !important;
   z-index: 30 !important;
 }
 
-.control-grade-table td.sticky-col-1,
-.control-grade-table td.sticky-col-2,
-.control-grade-table td.sticky-col-name {
+body.freeze-columns .control-grade-table td.sticky-col-1,
+body.freeze-columns .control-grade-table td.sticky-col-2,
+body.freeze-columns .control-grade-table td.sticky-col-name {
   background-color: #ffffff !important;
   z-index: 20 !important;
 }
 
-.control-grade-table tr:hover td.sticky-col-1,
-.control-grade-table tr:hover td.sticky-col-2,
-.control-grade-table tr:hover td.sticky-col-name {
+body.freeze-columns .control-grade-table tr:hover td.sticky-col-1,
+body.freeze-columns .control-grade-table tr:hover td.sticky-col-2,
+body.freeze-columns .control-grade-table tr:hover td.sticky-col-name {
   background-color: #f1f5f9 !important;
 }
 
-body.dark-mode .control-grade-table th.sticky-col-1,
-body.dark-mode .control-grade-table th.sticky-col-2,
-body.dark-mode .control-grade-table th.sticky-col-name,
-:root.dark .control-grade-table th.sticky-col-1,
-:root.dark .control-grade-table th.sticky-col-2,
-:root.dark .control-grade-table th.sticky-col-name {
+body.dark-mode.freeze-columns .control-grade-table th.sticky-col-1,
+body.dark-mode.freeze-columns .control-grade-table th.sticky-col-2,
+body.dark-mode.freeze-columns .control-grade-table th.sticky-col-name,
+:root.dark body.freeze-columns .control-grade-table th.sticky-col-1,
+:root.dark body.freeze-columns .control-grade-table th.sticky-col-2,
+:root.dark body.freeze-columns .control-grade-table th.sticky-col-name {
   background-color: #1e293b !important;
 }
 
-body.dark-mode .control-grade-table td.sticky-col-1,
-body.dark-mode .control-grade-table td.sticky-col-2,
-body.dark-mode .control-grade-table td.sticky-col-name,
-:root.dark .control-grade-table td.sticky-col-1,
-:root.dark .control-grade-table td.sticky-col-2,
-:root.dark .control-grade-table td.sticky-col-name {
+body.dark-mode.freeze-columns .control-grade-table td.sticky-col-1,
+body.dark-mode.freeze-columns .control-grade-table td.sticky-col-2,
+body.dark-mode.freeze-columns .control-grade-table td.sticky-col-name,
+:root.dark body.freeze-columns .control-grade-table td.sticky-col-1,
+:root.dark body.freeze-columns .control-grade-table td.sticky-col-2,
+:root.dark body.freeze-columns .control-grade-table td.sticky-col-name {
   background-color: #0f172a !important;
 }
 
-body.dark-mode .control-grade-table tr:hover td.sticky-col-1,
-body.dark-mode .control-grade-table tr:hover td.sticky-col-2,
-body.dark-mode .control-grade-table tr:hover td.sticky-col-name,
-:root.dark .control-grade-table tr:hover td.sticky-col-1,
-:root.dark .control-grade-table tr:hover td.sticky-col-2,
-:root.dark .control-grade-table tr:hover td.sticky-col-name {
+body.dark-mode.freeze-columns .control-grade-table tr:hover td.sticky-col-1,
+body.dark-mode.freeze-columns .control-grade-table tr:hover td.sticky-col-2,
+body.dark-mode.freeze-columns .control-grade-table tr:hover td.sticky-col-name,
+:root.dark body.freeze-columns .control-grade-table tr:hover td.sticky-col-1,
+:root.dark body.freeze-columns .control-grade-table tr:hover td.sticky-col-2,
+:root.dark body.freeze-columns .control-grade-table tr:hover td.sticky-col-name {
   background-color: #1e293b !important;
 }
 
 @media (max-width: 768px) {
-  .control-grade-table th.sticky-col-1,
-  .control-grade-table td.sticky-col-1 {
+  body.freeze-columns .control-grade-table th.sticky-col-1,
+  body.freeze-columns .control-grade-table td.sticky-col-1 {
     right: 0 !important;
     width: 36px !important;
     min-width: 36px !important;
@@ -1953,8 +2021,8 @@ body.dark-mode .control-grade-table tr:hover td.sticky-col-name,
     font-size: 11px !important;
   }
 
-  .control-grade-table th.sticky-col-2,
-  .control-grade-table td.sticky-col-2 {
+  body.freeze-columns .control-grade-table th.sticky-col-2,
+  body.freeze-columns .control-grade-table td.sticky-col-2 {
     right: 36px !important;
     width: 130px !important;
     min-width: 130px !important;
@@ -1965,8 +2033,8 @@ body.dark-mode .control-grade-table tr:hover td.sticky-col-name,
     line-height: 1.35 !important;
   }
 
-  .control-grade-table th.sticky-col-name,
-  .control-grade-table td.sticky-col-name {
+  body.freeze-columns .control-grade-table th.sticky-col-name,
+  body.freeze-columns .control-grade-table td.sticky-col-name {
     right: 0 !important;
     width: 135px !important;
     min-width: 135px !important;
@@ -2637,8 +2705,8 @@ body:has(.modal-overlay) {
   min-width: 28px !important;
 }
 
-.monthly-attendance-table th.sticky-student-name,
-.monthly-attendance-table td.sticky-student-name {
+body.freeze-columns .monthly-attendance-table th.sticky-student-name,
+body.freeze-columns .monthly-attendance-table td.sticky-student-name {
   position: -webkit-sticky !important;
   position: sticky !important;
   right: 0 !important;
@@ -2650,38 +2718,38 @@ body:has(.modal-overlay) {
   border-left: 1px solid var(--color-border) !important;
 }
 
-.monthly-attendance-table th.sticky-student-name {
+body.freeze-columns .monthly-attendance-table th.sticky-student-name {
   background-color: #f8fafc !important;
   z-index: 30 !important;
 }
 
-.monthly-attendance-table td.sticky-student-name {
+body.freeze-columns .monthly-attendance-table td.sticky-student-name {
   background-color: #ffffff !important;
   z-index: 20 !important;
 }
 
-.monthly-attendance-table tr:hover td.sticky-student-name {
+body.freeze-columns .monthly-attendance-table tr:hover td.sticky-student-name {
   background-color: #f1f5f9 !important;
 }
 
-body.dark-mode .monthly-attendance-table th.sticky-student-name,
-:root.dark .monthly-attendance-table th.sticky-student-name {
+body.dark-mode.freeze-columns .monthly-attendance-table th.sticky-student-name,
+:root.dark body.freeze-columns .monthly-attendance-table th.sticky-student-name {
   background-color: #1e293b !important;
 }
 
-body.dark-mode .monthly-attendance-table td.sticky-student-name,
-:root.dark .monthly-attendance-table td.sticky-student-name {
+body.dark-mode.freeze-columns .monthly-attendance-table td.sticky-student-name,
+:root.dark body.freeze-columns .monthly-attendance-table td.sticky-student-name {
   background-color: #0f172a !important;
 }
 
-body.dark-mode .monthly-attendance-table tr:hover td.sticky-student-name,
-:root.dark .monthly-attendance-table tr:hover td.sticky-student-name {
+body.dark-mode.freeze-columns .monthly-attendance-table tr:hover td.sticky-student-name,
+:root.dark body.freeze-columns .monthly-attendance-table tr:hover td.sticky-student-name {
   background-color: #1e293b !important;
 }
 
 @media (max-width: 768px) {
-  .monthly-attendance-table th.sticky-student-name,
-  .monthly-attendance-table td.sticky-student-name {
+  body.freeze-columns .monthly-attendance-table th.sticky-student-name,
+  body.freeze-columns .monthly-attendance-table td.sticky-student-name {
     right: 0 !important;
     width: 130px !important;
     min-width: 130px !important;

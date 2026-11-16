@@ -28,7 +28,7 @@ class ReportController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $query = Report::with(['student.schoolClass', 'teacher']);
+        $query = Report::with(['student.schoolClass', 'teacher'])->forAcademicYear();
 
         // المعلم يرى بلاغاته فقط، الإدارة والمشرف يرون الكل
         if ($user->role === 'teacher') {

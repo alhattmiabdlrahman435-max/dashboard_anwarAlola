@@ -35,7 +35,7 @@ class DashboardController extends Controller
         $scopedStudentIds = $scopedClassIds !== null ? (clone $studentQuery)->pluck('id')->toArray() : null;
 
         // Attendance stats
-        $attendanceQuery = Attendance::where('record_date', $today);
+        $attendanceQuery = Attendance::forAcademicYear()->where('record_date', $today);
         if ($scopedStudentIds !== null) {
             $attendanceQuery->whereIn('student_id', $scopedStudentIds);
         }
@@ -52,7 +52,7 @@ class DashboardController extends Controller
 
         // Finance stats
         $totalRequired = (float)(clone $studentQuery)->sum('tuition_fee');
-        $paymentsQuery = \App\Models\Payment::query();
+        $paymentsQuery = \App\Models\Payment::forAcademicYear();
         if ($scopedStudentIds !== null) {
             $paymentsQuery->whereIn('student_id', $scopedStudentIds);
         }
@@ -69,7 +69,8 @@ class DashboardController extends Controller
             'english' => 4,
         ];
         foreach ($subjects as $name => $id) {
-            $gradesQ = \App\Models\Grade::where('is_control', true)
+            $gradesQ = \App\Models\Grade::forAcademicYear()
+                ->where('is_control', true)
                 ->where('month', 0)
                 ->where('subject_id', $id);
             if ($scopedStudentIds !== null) {
@@ -81,7 +82,7 @@ class DashboardController extends Controller
 
         // Top 3 performing students in control grades
         $topStudentsQuery = Student::with(['schoolClass', 'grades' => function($q) {
-            $q->where('is_control', true)->where('month', 0);
+            $q->forAcademicYear()->where('is_control', true)->where('month', 0);
         }]);
         if ($scopedClassIds !== null) {
             $topStudentsQuery->whereIn('class_id', $scopedClassIds);

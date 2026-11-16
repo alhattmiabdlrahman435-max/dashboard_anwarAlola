@@ -17,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'check.permission' => \App\Http\Middleware\CheckPermission::class,
+            'year.writable' => \App\Http\Middleware\PreventArchivedYearMutation::class,
+        ]);
+        $middleware->api(append: [
+            \App\Http\Middleware\PreventArchivedYearMutation::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

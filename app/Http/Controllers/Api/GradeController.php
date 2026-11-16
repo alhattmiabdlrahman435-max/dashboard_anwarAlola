@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Grade;
 use App\Models\Student;
+use App\Models\StudentEnrollment;
+use App\Services\AcademicYearService;
 use Illuminate\Http\Request;
 
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -60,7 +62,10 @@ class GradeController extends Controller implements HasMiddleware
             }
         }
 
-        $gradesQuery = Grade::with('subject')->where('student_id', $studentId)->where('is_control', false);
+        $gradesQuery = Grade::with('subject')
+            ->forAcademicYear()
+            ->where('student_id', $studentId)
+            ->where('is_control', false);
         $grades = $gradesQuery->get();
 
         if ($user && $user->role === 'parent') {
@@ -126,6 +131,7 @@ class GradeController extends Controller implements HasMiddleware
             'oral_grade' => 'numeric|between:0,10',
             'wrt_grade' => 'numeric|between:0,50',
             'final_exam' => 'nullable|numeric|between:0,30',
+            'coursework' => 'nullable|numeric|between:0,20',
         ]);
 
         $student = Student::findOrFail($request->student_id);
@@ -151,22 +157,32 @@ class GradeController extends Controller implements HasMiddleware
             default => 1,
         };
 
+        $yearId = AcademicYearService::resolveId($request);
+
+        $updatePayload = [
+            'homework' => $request->hw_grade ?: 0,
+            'attendance' => $request->att_grade ?: 0,
+            'behavior' => $request->beh_grade ?: 0,
+            'oral' => $request->oral_grade ?: 0,
+            'written' => $request->wrt_grade ?: 0,
+        ];
+        if ($request->has('final_exam')) {
+            $updatePayload['final_exam'] = $request->final_exam;
+        }
+        if ($request->has('coursework')) {
+            $updatePayload['coursework'] = $request->coursework;
+        }
+
         $grade = Grade::updateOrCreate(
             [
+                'academic_year_id' => $yearId,
                 'student_id' => $request->student_id,
                 'subject_id' => $request->subject_id,
                 'term' => $termVal,
                 'month' => $monthVal,
                 'is_control' => false,
             ],
-            [
-                'homework' => $request->hw_grade ?: 0,
-                'attendance' => $request->att_grade ?: 0,
-                'behavior' => $request->beh_grade ?: 0,
-                'oral' => $request->oral_grade ?: 0,
-                'written' => $request->wrt_grade ?: 0,
-                'final_exam' => $request->final_exam,
-            ]
+            $updatePayload
         );
 
         $grade->load(['student.schoolClass', 'subject']);
@@ -188,7 +204,8 @@ class GradeController extends Controller implements HasMiddleware
             $totalSubjectsInClass = count($subjectIds);
 
             // 3. Count existing grade records for these students and subjects for this term/month
-            $gradesCount = Grade::whereIn('student_id', $studentIds)
+            $gradesCount = Grade::forAcademicYear($yearId)
+                ->whereIn('student_id', $studentIds)
                 ->whereIn('subject_id', $subjectIds)
                 ->where('term', $termVal)
                 ->where('month', $monthVal)
@@ -357,7 +374,7 @@ class GradeController extends Controller implements HasMiddleware
         ]);
 
         $query->with(['grades' => function($q) {
-            $q->where('is_control', true)->where('month', 0);
+            $q->forAcademicYear()->where('is_control', true)->where('month', 0);
         }, 'schoolClass']);
 
         $perPage = (int) $request->input('per_page', 20);
@@ -436,10 +453,13 @@ class GradeController extends Controller implements HasMiddleware
             'english' => 4
         ];
 
+        $yearId = AcademicYearService::resolveId($request);
+
         foreach ($subjectsMapping as $inputName => $subId) {
             if ($request->has($inputName)) {
                 Grade::updateOrCreate(
                     [
+                        'academic_year_id' => $yearId,
                         'student_id' => $student->id,
                         'subject_id' => $subId,
                         'term' => 1, // Default to Term 1
@@ -472,7 +492,8 @@ class GradeController extends Controller implements HasMiddleware
             $totalSubjectsInClass = count($subjectIds);
 
             // 3. Count existing control grade records
-            $gradesCount = Grade::whereIn('student_id', $studentIds)
+            $gradesCount = Grade::forAcademicYear($yearId)
+                ->whereIn('student_id', $studentIds)
                 ->whereIn('subject_id', $subjectIds)
                 ->where('term', 1) // Default to term 1
                 ->where('month', 0) // Month 0 for control final exam
@@ -561,13 +582,27 @@ class GradeController extends Controller implements HasMiddleware
             ], 403);
         }
 
-        $students = Student::where('class_id', $classId)->get();
+        $yearId = AcademicYearService::resolveId($request);
+        $enrolledIds = null;
+        if ($yearId) {
+            $enrolledIds = StudentEnrollment::where('academic_year_id', $yearId)
+                ->where('class_id', $classId)
+                ->pluck('student_id');
+        }
+
+        if ($enrolledIds !== null && $enrolledIds->isNotEmpty()) {
+            $students = Student::whereIn('id', $enrolledIds)->get();
+        } else {
+            $students = Student::where('class_id', $classId)->get();
+        }
+
         $subjects = \App\Models\Subject::all();
 
         $result = [];
 
         foreach ($students as $student) {
             $dbGrades = Grade::with('subject')
+                ->forAcademicYear($yearId)
                 ->where('student_id', $student->id)
                 ->where('is_control', false)
                 ->get();
@@ -634,10 +669,23 @@ class GradeController extends Controller implements HasMiddleware
             ], 403);
         }
 
-        $students = Student::where('class_id', $classId)->get();
+        $yearId = AcademicYearService::resolveId($request);
+        $enrolledIds = null;
+        if ($yearId) {
+            $enrolledIds = StudentEnrollment::where('academic_year_id', $yearId)
+                ->where('class_id', $classId)
+                ->pluck('student_id');
+        }
 
-        $grades = $students->map(function($student) use ($subjectId) {
-            $dbGrades = Grade::where('student_id', $student->id)
+        if ($enrolledIds !== null && $enrolledIds->isNotEmpty()) {
+            $students = Student::whereIn('id', $enrolledIds)->get();
+        } else {
+            $students = Student::where('class_id', $classId)->get();
+        }
+
+        $grades = $students->map(function($student) use ($subjectId, $yearId) {
+            $dbGrades = Grade::forAcademicYear($yearId)
+                ->where('student_id', $student->id)
                 ->where('subject_id', $subjectId)
                 ->where('is_control', false)
                 ->get();
@@ -685,6 +733,214 @@ class GradeController extends Controller implements HasMiddleware
             'classId' => (string) $classId,
             'subjectId' => (string) $subjectId,
             'grades' => $grades,
+        ]);
+    }
+
+    /**
+     * ترحيل المحصلة الشهرية (م1 + م2 + م3 ÷ 15 = من 20) إلى سجل المحصلة النهائية للفصل
+     */
+    public function transferCoursework(Request $request)
+    {
+        $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'term' => 'required|string|in:term1,term2,1,2',
+            'subject_id' => 'nullable|integer|exists:subjects,id',
+        ]);
+
+        $user = $request->user();
+        $classId = (int) $request->class_id;
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'detailedGrades');
+        if ($scopedClassIds !== null && !in_array($classId, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بترحيل درجات هذا الفصل.',
+            ], 403);
+        }
+
+        $termVal = ($request->term === 'term2' || $request->term === '2') ? 2 : 1;
+        $yearId = AcademicYearService::resolveId($request);
+
+        $students = Student::where('class_id', $classId)->get(['id']);
+        $subjectIds = $request->filled('subject_id')
+            ? [(int) $request->subject_id]
+            : \App\Models\TeacherSubject::where('class_id', $classId)->pluck('subject_id')->unique()->toArray();
+
+        if (empty($subjectIds)) {
+            $subjectIds = \App\Models\Subject::pluck('id')->toArray();
+        }
+
+        $transferredCount = 0;
+
+        foreach ($students as $student) {
+            foreach ($subjectIds as $subId) {
+                $monthlyGrades = Grade::forAcademicYear($yearId)
+                    ->where('student_id', $student->id)
+                    ->where('subject_id', $subId)
+                    ->where('term', $termVal)
+                    ->where('is_control', false)
+                    ->whereIn('month', [1, 2, 3])
+                    ->get();
+
+                $sum300 = $monthlyGrades->sum(function ($g) {
+                    return (float)$g->homework + (float)$g->attendance + (float)$g->behavior + (float)$g->oral + (float)$g->written;
+                });
+
+                $coursework = min(20, max(0, round($sum300 / 15, 2)));
+
+                $existingFinal = Grade::forAcademicYear($yearId)
+                    ->where('student_id', $student->id)
+                    ->where('subject_id', $subId)
+                    ->where('term', $termVal)
+                    ->where('month', 0)
+                    ->where('is_control', false)
+                    ->first();
+
+                if ($existingFinal) {
+                    $existingFinal->update(['coursework' => $coursework]);
+                } else {
+                    Grade::create([
+                        'academic_year_id' => $yearId,
+                        'student_id' => $student->id,
+                        'subject_id' => $subId,
+                        'term' => $termVal,
+                        'month' => 0,
+                        'is_control' => false,
+                        'homework' => 0,
+                        'attendance' => 0,
+                        'behavior' => 0,
+                        'oral' => 0,
+                        'written' => 0,
+                        'coursework' => $coursework,
+                        'final_exam' => 0,
+                    ]);
+                }
+
+                $transferredCount++;
+            }
+        }
+
+        $termLabel = $termVal === 1 ? 'الترم الأول' : 'الترم الثاني';
+        return response()->json([
+            'success' => true,
+            'transferred_count' => $transferredCount,
+            'message' => "تم ترحيل المحصلة (من 20) لـ {$transferredCount} سجل في {$termLabel} بنجاح.",
+        ]);
+    }
+
+    /**
+     * إرسال النتائج النهائية / الفصلية إلى أولياء الأمور
+     */
+    public function sendResultsToParents(Request $request)
+    {
+        $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'scope' => 'required|string|in:term1,term2,yearly',
+            'passing_score' => 'nullable|numeric|between:1,100',
+        ]);
+
+        $user = $request->user();
+        $classId = (int) $request->class_id;
+        $scopedClassIds = PermissionService::getScopedClassIds($user, 'detailedGrades');
+        if ($scopedClassIds !== null && !in_array($classId, $scopedClassIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بإرسال نتائج هذا الفصل.',
+            ], 403);
+        }
+
+        $yearId = AcademicYearService::resolveId($request);
+        $scope = $request->scope;
+        $passingPct = (float) ($request->input('passing_score', 50));
+
+        $schoolClass = \App\Models\SchoolClass::find($classId);
+        $classLabel = $schoolClass ? "{$schoolClass->grade_ar} - {$schoolClass->section_ar}" : '';
+
+        $students = Student::where('class_id', $classId)->get();
+        $subjectIds = \App\Models\TeacherSubject::where('class_id', $classId)->pluck('subject_id')->unique()->toArray();
+        if (empty($subjectIds)) {
+            $subjectIds = \App\Models\Subject::pluck('id')->toArray();
+        }
+        $subjectsCount = max(1, count($subjectIds));
+        $maxPerSubject = $scope === 'yearly' ? 100 : 50;
+        $maxTotal = $subjectsCount * $maxPerSubject;
+
+        $rankedList = [];
+        foreach ($students as $student) {
+            $grades = Grade::forAcademicYear($yearId)
+                ->where('student_id', $student->id)
+                ->whereIn('subject_id', $subjectIds)
+                ->where('is_control', false)
+                ->get();
+
+            $sumTotal = 0.0;
+            $termsToCalc = $scope === 'yearly' ? [1, 2] : [$scope === 'term1' ? 1 : 2];
+
+            foreach ($subjectIds as $subId) {
+                foreach ($termsToCalc as $tVal) {
+                    $subGrades = $grades->where('subject_id', $subId)->where('term', $tVal);
+                    $finalRec = $subGrades->where('month', 0)->first();
+                    if ($finalRec && $finalRec->coursework !== null) {
+                        $cw = (float) $finalRec->coursework;
+                    } else {
+                        $mSum = $subGrades->whereIn('month', [1, 2, 3])->sum(function ($g) {
+                            return (float)$g->homework + (float)$g->attendance + (float)$g->behavior + (float)$g->oral + (float)$g->written;
+                        });
+                        $cw = round($mSum / 15, 2);
+                    }
+                    $fe = $finalRec ? (float) ($finalRec->final_exam ?? 0) : 0.0;
+                    $sumTotal += ($cw + $fe);
+                }
+            }
+
+            $sumTotal = round($sumTotal, 2);
+            $pct = $maxTotal > 0 ? round(($sumTotal / $maxTotal) * 100, 2) : 0;
+            $rankedList[] = [
+                'student' => $student,
+                'total' => $sumTotal,
+                'percentage' => $pct,
+                'passed' => $pct >= $passingPct,
+            ];
+        }
+
+        usort($rankedList, fn($a, $b) => $b['total'] <=> $a['total']);
+
+        $scopeLabel = match ($scope) {
+            'term1' => 'نصف العام (الترم الأول)',
+            'term2' => 'الترم الثاني',
+            default => 'نهاية العام الدراسي',
+        };
+
+        $sentCount = 0;
+        foreach ($rankedList as $idx => $entry) {
+            $student = $entry['student'];
+            if (!$student->parent_id) {
+                continue;
+            }
+            $rank = $idx + 1;
+            $pct = $entry['percentage'];
+            $estimate = $pct >= 90 ? 'ممتاز' : ($pct >= 80 ? 'جيد جداً' : ($pct >= 65 ? 'جيد' : ($pct >= 50 ? 'مقبول' : 'ضعيف')));
+            $statusAr = $entry['passed'] ? 'ناجح' : 'راسب';
+
+            \App\Models\Notification::create([
+                'user_id' => $student->parent_id,
+                'student_id' => $student->id,
+                'sender_id' => $user ? $user->id : null,
+                'type' => 'grade',
+                'title' => "إشعار نتيجة {$scopeLabel} — {$student->name_ar}",
+                'body' => "السيد ولي أمر الطالب/ـة {$student->name_ar} ({$classLabel}):\n"
+                        . "المجموع: {$entry['total']} / {$maxTotal} | النسبة: {$pct}% | التقدير: {$estimate} | الترتيب: {$rank} | الحالة: {$statusAr}.",
+                'is_read' => false,
+                'sent_at' => now(),
+            ]);
+            $sentCount++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'sent_count' => $sentCount,
+            'message' => $sentCount > 0
+                ? "تم إرسال نتائج {$scopeLabel} لـ {$sentCount} ولي أمر بنجاح."
+                : 'لا يوجد أولياء أمور مرتبطون بطلاب هذا الفصل.',
         ]);
     }
 }

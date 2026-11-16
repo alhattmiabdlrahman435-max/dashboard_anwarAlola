@@ -1,4 +1,5 @@
 import { AuthProvider } from '../../contexts/Auth/AuthProvider';
+import { AcademicYearProvider } from '../../contexts/AcademicYear/AcademicYearContext';
 import { AppProvider } from '../../context/AppContext';
 import SubjectsProvider from '../../contexts/Subjects/SubjectsProvider';
 import ParentsProvider from '../../contexts/Parents/ParentsProvider';
@@ -14,7 +15,8 @@ import ClassesProvider from '../../contexts/Classes/ClassesProvider';
 export default function AppProviders({ children }) {
   return (
     <AuthProvider>
-      <AppProvider>
+      <AcademicYearProvider>
+        <AppProvider>
         <SubjectsProvider>
           <ClassesProvider>
             <ParentsProvider>
@@ -37,6 +39,7 @@ export default function AppProviders({ children }) {
           </ClassesProvider>
         </SubjectsProvider>
       </AppProvider>
+      </AcademicYearProvider>
     </AuthProvider>
   );
 }

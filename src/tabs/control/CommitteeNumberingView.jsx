@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { controlBoardService } from '../../services/control/controlBoard.service';
+import { openHtmlPrintPreview } from '../../utils/printPreview';
 import { errorText, isAbort, useControlToast } from './controlShared';
 import '../../styles/controlBoardPrint.css';
 
@@ -20,7 +21,6 @@ export default function CommitteeNumberingView() {
   const [printScope, setPrintScope] = useState('all'); // all | one
   const [printNumber, setPrintNumber] = useState('');
   const [copies, setCopies] = useState('1');
-  const [printPages, setPrintPages] = useState(null);
 
   const applyCommittees = useCallback((list) => {
     setCommittees(list);
@@ -44,18 +44,6 @@ export default function CommitteeNumberingView() {
       alive = false;
     };
   }, [applyCommittees, toast]);
-
-  // الطباعة بعد رسم الصفحات
-  useEffect(() => {
-    if (!printPages) return undefined;
-    const done = () => setPrintPages(null);
-    window.addEventListener('afterprint', done);
-    const t = setTimeout(() => window.print(), 50);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener('afterprint', done);
-    };
-  }, [printPages]);
 
   const handleSave = async () => {
     const n = Number(count);
@@ -95,11 +83,23 @@ export default function CommitteeNumberingView() {
     } else {
       numbers = committees.map((c) => c.number);
     }
-    const pages = [];
+    // صفحات A4 أفقية: «اللجنة رقم ( N )» بخط كبير في الوسط — تُعرض في معاينة كاملة قبل الطباعة
+    const pagesHtml = [];
     numbers.forEach((num) => {
-      for (let i = 0; i < nCopies; i += 1) pages.push({ key: `${num}-${i}`, num });
+      for (let i = 0; i < nCopies; i += 1) {
+        pagesHtml.push(`<div class="cb-committee-print-page"><div class="cb-committee-print-title">اللجنة رقم ( ${num} )</div></div>`);
+      }
     });
-    setPrintPages(pages);
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>أرقام اللجان</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  html, body { margin: 0; padding: 0; background: #fff; direction: rtl; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: Arial, sans-serif; }
+  .cb-committee-print-page { width: 100%; height: 185mm; display: flex; align-items: center; justify-content: center;
+    box-sizing: border-box; border: 3px solid #000; break-after: page; page-break-after: always; }
+  .cb-committee-print-page:last-child { break-after: auto; page-break-after: auto; }
+  .cb-committee-print-title { font-size: 110pt; font-weight: 900; line-height: 1.2; color: #b00000; text-align: center; }
+</style></head><body>${pagesHtml.join('')}</body></html>`;
+    openHtmlPrintPreview(html, { title: 'معاينة أرقام اللجان', landscape: true });
   };
 
   return (
@@ -183,15 +183,6 @@ export default function CommitteeNumberingView() {
         </button>
       </fieldset>
 
-      {printPages && (
-        <div className="cb-print-only cb-committee-print">
-          {printPages.map((p) => (
-            <div key={p.key} className="cb-committee-print-page">
-              <div className="cb-committee-print-title">اللجنة رقم ( {p.num} )</div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

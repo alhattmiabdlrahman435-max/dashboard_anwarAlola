@@ -31,7 +31,7 @@ class AttendanceController extends Controller implements HasMiddleware
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'scanner');
 
-        $query = Attendance::with('student');
+        $query = Attendance::with('student')->forAcademicYear();
 
         if ($scopedClassIds !== null) {
             $query->whereHas('student', function($q) use ($scopedClassIds) {
@@ -146,6 +146,7 @@ class AttendanceController extends Controller implements HasMiddleware
             }
 
             $isLocked = \Illuminate\Support\Facades\DB::table('attendance_submissions')
+                ->where('academic_year_id', \App\Services\AcademicYearService::resolveId($request))
                 ->where('class_id', $student->class_id)
                 ->where('record_date', $date)
                 ->exists();
@@ -159,7 +160,8 @@ class AttendanceController extends Controller implements HasMiddleware
 
         // Click 3: If status is unmarked, delete existing record from database
         if ($request->status === 'unmarked') {
-            Attendance::where('student_id', $request->student_id)
+            Attendance::forAcademicYear()
+                ->where('student_id', $request->student_id)
                 ->where('record_date', $date)
                 ->delete();
 
@@ -172,6 +174,7 @@ class AttendanceController extends Controller implements HasMiddleware
 
         $attendance = Attendance::updateOrCreate(
             [
+                'academic_year_id' => \App\Services\AcademicYearService::resolveId($request),
                 'student_id' => $request->student_id,
                 'record_date' => $date,
             ],
@@ -260,6 +263,7 @@ class AttendanceController extends Controller implements HasMiddleware
             }
 
             $isLocked = \Illuminate\Support\Facades\DB::table('attendance_submissions')
+                ->where('academic_year_id', \App\Services\AcademicYearService::resolveId($request))
                 ->where('class_id', $student->class_id)
                 ->where('record_date', $date)
                 ->exists();
@@ -321,6 +325,7 @@ class AttendanceController extends Controller implements HasMiddleware
     {
         $today = now()->format('Y-m-d');
         $records = Attendance::with('student')
+                             ->forAcademicYear()
                              ->where('record_date', $today)
                              ->get();
 
@@ -333,7 +338,8 @@ class AttendanceController extends Controller implements HasMiddleware
 
     public function byStudent(string $studentId)
     {
-        $records = Attendance::where('student_id', $studentId)
+        $records = Attendance::forAcademicYear()
+                             ->where('student_id', $studentId)
                              ->orderBy('record_date', 'desc')
                              ->get();
 

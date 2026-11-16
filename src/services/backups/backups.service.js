@@ -21,7 +21,7 @@ export const backupsService = {
    * @param {string} academicYear
    * @param {string|boolean} formatOrAsZip - 'excel' | 'zip' | 'html' or boolean
    */
-  async exportAcademicYearArchive(academicYear = '2026-2027م', formatOrAsZip = 'excel') {
+  async exportAcademicYearArchive(academicYear = '2026-2027م', formatOrAsZip = 'excel', academicYearId = null) {
     let format = 'excel';
     if (typeof formatOrAsZip === 'boolean') {
       format = formatOrAsZip ? 'zip' : 'html';
@@ -31,6 +31,7 @@ export const backupsService = {
 
     return api.post('/api/backups/academic-year-archive', {
       academic_year: academicYear,
+      ...(academicYearId ? { academic_year_id: Number(academicYearId) } : {}),
       format: format,
       as_zip: format === 'zip',
     });
@@ -82,5 +83,17 @@ export const backupsService = {
       // Fallback: direct window download via query token link
       window.open(url, '_blank');
     }
+  },
+
+  /**
+   * Restore database from an uploaded .zip/.sql file or an existing server backup
+   */
+  async restoreBackup({ file = null, fileName = null }) {
+    if (file) {
+      const formData = new FormData();
+      formData.append('backup_file', file);
+      return api.post('/api/backups/restore', formData);
+    }
+    return api.post('/api/backups/restore', { file_name: fileName });
   },
 };

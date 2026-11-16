@@ -207,6 +207,7 @@ export const AppProvider = ({ children }) => {
   const [toast, setToast] = useState({ message: "", type: "success" });
   const toastMessage = toast.message;
   const toastType = toast.type;
+  const toastTimerRef = useRef(null);
 
   const setToastMessage = useCallback((msg, type = "success") => {
     // Robustly ignore AbortError objects if passed directly
@@ -214,13 +215,34 @@ export const AppProvider = ({ children }) => {
       return;
     }
 
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+
     if (!msg) {
       setToast({ message: "", type: "success" });
-    } else if (typeof msg === "object") {
-      setToast({ message: msg.message || "", type: msg.type || "success" });
-    } else {
-      setToast({ message: msg, type: type });
+      return;
     }
+
+    const normalizedMsg = typeof msg === "object" ? (msg.message || "") : String(msg);
+    const normalizedType = typeof msg === "object" ? (msg.type || "success") : type;
+
+    setToast({ message: normalizedMsg, type: normalizedType });
+
+    if (normalizedMsg) {
+      const isLongOrError = normalizedType === "error" || normalizedMsg.includes("\n") || normalizedMsg.length > 90;
+      toastTimerRef.current = setTimeout(() => {
+        setToast({ message: "", type: "success" });
+        toastTimerRef.current = null;
+      }, isLongOrError ? 5000 : 3200);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   const [confirmState, setConfirmState] = useState({
@@ -745,6 +767,8 @@ export const AppProvider = ({ children }) => {
 
           if (monthKey === "finalExam") {
             subjectGrades.finalExam = num;
+          } else if (monthKey === "coursework") {
+            subjectGrades.coursework = num;
           } else {
             subjectGrades[monthKey] = {
               ...(subjectGrades[monthKey] || { homework: 0, attendance: 0, behavior: 0, oral: 0, written: 0 }),
@@ -781,11 +805,13 @@ export const AppProvider = ({ children }) => {
               student_id: Number(studentId),
               subject_id: subjectId,
               term: term === "term1" ? "1" : "2",
-              month: monthKey === "finalExam" ? "final" : monthKey,
+              month: (monthKey === "finalExam" || monthKey === "coursework") ? "final" : monthKey,
             };
 
             if (monthKey === "finalExam") {
               reqBody.final_exam = subjGrades.finalExam;
+            } else if (monthKey === "coursework") {
+              reqBody.coursework = subjGrades.coursework;
             } else {
               const mObj = subjGrades[monthKey] || {};
               reqBody.hw_grade = mObj.homework ?? 0;

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Printer, X, FileSpreadsheet, Calendar, Layers, Award, CheckCircle2, FileCheck2, Eye } from 'lucide-react';
 import SearchableSelect from '../SearchableSelect';
+import { useAcademicYear } from '../../contexts/AcademicYear/AcademicYearContext';
 import { SLOGAN_BASE64 } from '../../assets/sloganBase64';
 import { calculateMonthTotal } from '../../utils/gradesHelper';
 
@@ -37,29 +38,52 @@ export default function GradesDirectPrintModal({
   detailedGrades = [],
   fetchClassGrades,
   initialTemplate = 'template_1_blank_year',
+  initialMonthName = 'نوفمبر',
+  initialSubjectMode = 'all',
 }) {
+  const { selectedYear } = useAcademicYear();
   const [activeTemplate, setActiveTemplate] = useState(initialTemplate);
+  const [targetMonthName, setTargetMonthName] = useState(initialMonthName || 'نوفمبر');
+  const [targetSubjectMode, setTargetSubjectMode] = useState(initialSubjectMode || 'all'); // 'all' or specific subject name
   const [scopeType, setScopeType] = useState('section'); // 'section' | 'grade' | 'student'
   const [targetSection, setTargetSection] = useState(selectedClass || '');
   const [targetGrade, setTargetGrade] = useState('');
   const [targetStudentId, setTargetStudentId] = useState(selectedGradeStudentId || '');
+  const [viewportWidth, setViewportWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1280
+  );
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [targetTerm, setTargetTerm] = useState(selectedGradeTerm || 'term1'); // 'term1' | 'term2' | 'yearly'
   const [targetMonth, setTargetMonth] = useState(selectedMonth || 'm1'); // 'm1' | 'm2' | 'm3'
-  const [targetSubjectMode, setTargetSubjectMode] = useState('all'); // 'all' or specific subject name
   const [orientationMode, setOrientationMode] = useState('auto'); // 'auto' | 'landscape' | 'portrait'
   const [isPreparingPrint, setIsPreparingPrint] = useState(false);
   const [showLivePreview, setShowLivePreview] = useState(true);
+  const [isFullScreenPreview, setIsFullScreenPreview] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   // Sync defaults when modal opens
   useEffect(() => {
+    let ignore = false;
     if (isOpen) {
-      if (initialTemplate) setActiveTemplate(initialTemplate);
-      if (selectedClass) setTargetSection(selectedClass);
-      if (selectedGradeTerm) setTargetTerm(selectedGradeTerm);
-      if (selectedMonth) setTargetMonth(selectedMonth);
-      if (selectedGradeStudentId) setTargetStudentId(selectedGradeStudentId);
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          if (initialTemplate) setActiveTemplate(initialTemplate);
+          if (initialMonthName) setTargetMonthName(initialMonthName);
+          if (initialSubjectMode) setTargetSubjectMode(initialSubjectMode);
+          if (selectedClass) setTargetSection(selectedClass);
+          if (selectedGradeTerm) setTargetTerm(selectedGradeTerm);
+          if (selectedMonth) setTargetMonth(selectedMonth);
+          if (selectedGradeStudentId) setTargetStudentId(selectedGradeStudentId);
+        }
+      });
     }
-  }, [isOpen, initialTemplate, selectedClass, selectedGradeTerm, selectedMonth, selectedGradeStudentId]);
+    return () => { ignore = true; };
+  }, [isOpen, initialTemplate, initialMonthName, initialSubjectMode, selectedClass, selectedGradeTerm, selectedMonth, selectedGradeStudentId]);
 
   // Unique grades list
   const uniqueGradesList = useMemo(() => {
@@ -72,10 +96,16 @@ export default function GradesDirectPrintModal({
   }, [classes]);
 
   useEffect(() => {
+    let ignore = false;
     if (!targetGrade && uniqueGradesList.length > 0) {
-      const matchedClass = classes.find(c => `${c.grade} - ${c.section}` === targetSection || c.name === targetSection);
-      setTargetGrade(matchedClass ? (matchedClass.grade || matchedClass.grade_ar) : uniqueGradesList[0]);
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          const matchedClass = classes.find(c => `${c.grade} - ${c.section}` === targetSection || c.name === targetSection);
+          setTargetGrade(matchedClass ? (matchedClass.grade || matchedClass.grade_ar) : uniqueGradesList[0]);
+        }
+      });
     }
+    return () => { ignore = true; };
   }, [uniqueGradesList, targetGrade, targetSection, classes]);
 
   const sectionsList = useMemo(() => {
@@ -83,32 +113,50 @@ export default function GradesDirectPrintModal({
   }, [classes]);
 
   useEffect(() => {
+    let ignore = false;
     if (!targetSection && sectionsList.length > 0) {
-      setTargetSection(sectionsList[0]);
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          setTargetSection(sectionsList[0]);
+        }
+      });
     }
+    return () => { ignore = true; };
   }, [sectionsList, targetSection]);
 
   useEffect(() => {
+    let ignore = false;
     if (!targetStudentId && students.length > 0) {
-      setTargetStudentId(students[0].id);
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          setTargetStudentId(students[0].id);
+        }
+      });
     }
+    return () => { ignore = true; };
   }, [students, targetStudentId]);
 
   // Automatically adjust valid scope when switching templates
   useEffect(() => {
+    let ignore = false;
     if (
       activeTemplate === 'template_1_blank_year' ||
       activeTemplate === 'template_2_monthly_sheet' ||
       activeTemplate === 'template_3_three_months' ||
       activeTemplate === 'template_4_term_final'
     ) {
-      if (scopeType === 'student') {
-        setScopeType('section');
-      }
-      if (targetTerm === 'yearly') {
-        setTargetTerm(selectedGradeTerm || 'term1');
-      }
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          if (scopeType === 'student') {
+            setScopeType('section');
+          }
+          if (targetTerm === 'yearly') {
+            setTargetTerm(selectedGradeTerm || 'term1');
+          }
+        }
+      });
     }
+    return () => { ignore = true; };
   }, [activeTemplate, scopeType, targetTerm, selectedGradeTerm]);
 
   // Determine subjects list for the selected class/grade
@@ -139,9 +187,15 @@ export default function GradesDirectPrintModal({
   }, [scopeType, targetSection, targetGrade, targetStudentId, classes, students, subjects]);
 
   useEffect(() => {
+    let ignore = false;
     if (targetSubjectMode !== 'all' && !activeSubjectsList.includes(targetSubjectMode)) {
-      setTargetSubjectMode('all');
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          setTargetSubjectMode('all');
+        }
+      });
     }
+    return () => { ignore = true; };
   }, [activeSubjectsList, targetSubjectMode]);
 
   // Resolve target classes and students sorted alphabetically in Arabic
@@ -217,15 +271,15 @@ export default function GradesDirectPrintModal({
     {
       id: 'template_1_blank_year',
       number: '1',
-      title: 'كشف أسماء الطلاب عمودياً والمواد أفقياً (فارغ من الدرجات طوال العام)',
-      desc: 'قالب كشف فارغ متكامل جاهز للطباعة والكتابة اليدوية طوال العام الدراسي مع الترويسة والشعار وصفوف الخلاصة.',
+      title: 'كشف المحصلة الأولى .. شهر نوفمبر (فارغ طوال العام)',
+      desc: 'نموذج كشف المحصلة الأولى فارغ من الدرجات طوال العام الدراسي مع الترويسة والشعار وصفوف الخلاصة.',
       icon: <FileSpreadsheet size={18} />
     },
     {
       id: 'template_2_monthly_sheet',
       number: '2',
-      title: 'كشف درجات الشهر المحدد مع المجموع ومحصلة الشهر',
-      desc: 'يتضمن أسماء الطلاب عمودياً والمواد أفقياً وتظهر فيه درجات الشهر المحدد مع المجموع ومحصلة الشهر والإحصائيات.',
+      title: 'كشف المحصلة الأولى .. شهر نوفمبر (بالدرجات والمجموع والمحصلة)',
+      desc: 'نموذج كشف المحصلة الشهرية وتظهر فيه درجات الشهر مع المجموع والمحصلة حسب الإدخال والإحصائيات.',
       icon: <Calendar size={18} />
     },
     {
@@ -255,6 +309,13 @@ export default function GradesDirectPrintModal({
       title: 'طباعة نموذج شهادة معتمد جاهز للطباعة بالدرجات المرصودة',
       desc: 'شهادة مدرسية رسمية معتمدة بإطار رسمي تتضمن كافة الدرجات المرصودة مسبقاً والمجموع والتقدير والتوقيعات.',
       icon: <Award size={18} />
+    },
+    {
+      id: 'template_7_simple_blank',
+      number: '7',
+      title: 'كشف درجات فارغ لأي شعبة (م | اسم الطالب | الدرجة)',
+      desc: 'نموذج كشف درجات فارغ (م، اسم الطالب، الدرجة) جاهز للطباعة وقت الحاجة لأي صف أو شعبة.',
+      icon: <FileSpreadsheet size={18} />
     }
   ];
 
@@ -311,11 +372,14 @@ export default function GradesDirectPrintModal({
         ? 'الفصل الدراسي الثاني'
         : 'العام الدراسي الكامل (الفصلين الأول والثاني)';
 
-    const monthLabel = targetMonth === 'm1'
-      ? 'الشهر الأول'
+    const assessmentOrdinal = targetMonth === 'm1'
+      ? 'المحصلة الأولى'
       : targetMonth === 'm2'
-        ? 'الشهر الثاني'
-        : 'الشهر الثالث';
+        ? 'المحصلة الثانية'
+        : 'المحصلة الثالثة';
+    const monthLabel = targetMonthName
+      ? `${assessmentOrdinal} — شهر ${targetMonthName}`
+      : assessmentOrdinal;
 
     const scopeLabel = scopeType === 'section'
       ? `الفصل / الشعبة: ${targetSection}`
@@ -338,7 +402,7 @@ export default function GradesDirectPrintModal({
         </div>
         <div class="header-left">
           <div><strong>التاريخ:</strong> ${todayStr}</div>
-          <div><strong>العام الدراسي:</strong> 2025 / 2026 م</div>
+          <div><strong>العام الدراسي:</strong> ${selectedYear?.name ? selectedYear.name.replace('-', ' / ') : '2026 / 2027'} م</div>
           ${leftSubtitle1 ? `<div>${leftSubtitle1}</div>` : ''}
           ${leftSubtitle2 ? `<div>${leftSubtitle2}</div>` : ''}
         </div>
@@ -368,6 +432,7 @@ export default function GradesDirectPrintModal({
 
     // Smart orientation: all multi-column class rosters or yearly wide certificates use Landscape automatically unless overridden
     const autoIsLandscape = !(
+      activeTemplate === 'template_7_simple_blank' ||
       (activeTemplate === 'template_5_direct_result' && scopeType === 'student' && targetTerm !== 'yearly') ||
       (activeTemplate === 'template_6_official_certificate' && targetTerm !== 'yearly')
     );
@@ -470,10 +535,6 @@ export default function GradesDirectPrintModal({
           </div>
         `;
       } else {
-        const subjCount = Math.max(activeSubjectsList.length, 1);
-        const fixedColsPct = 2.8 + 5.2 + 16 + (scopeType === 'grade' ? 4 : 0) + 5 + 5 + 4.5 + 4.5 + 6;
-        const perSubjPct = ((100 - fixedColsPct) / subjCount).toFixed(2);
-
         const rowsHtml = sortedStudents.length > 0
           ? sortedStudents.map((st, idx) => `
               <tr>
@@ -616,11 +677,12 @@ export default function GradesDirectPrintModal({
         const avgTot = parseFloat((totSum / count).toFixed(1));
         const avgAss = parseFloat((assSum / count).toFixed(2));
 
+        const sheetPrefix = targetMonth === 'm1' ? 'المحصلة الأولى' : (targetMonth === 'm2' ? 'المحصلة الثانية' : 'المحصلة الثالثة');
         bodyContentHtml = `
           <div class="print-page fit-single-page">
-            ${renderOfficialHeader(`<strong>${termLabel}</strong>`, `<strong>الفترة:</strong> ${monthLabel} — ${subj}`)}
+            ${renderOfficialHeader(`<strong>${termLabel}</strong>`, `<strong>الشهر:</strong> ${targetMonthName} — ${subj}`)}
             <div class="meta-strip">
-              <span><strong>نوع الكشف:</strong> كشف درجات ومحصلة ${monthLabel} التفصيلي — مادة (${subj})</span>
+              <span><strong>نوع الكشف:</strong> كشف ${sheetPrefix} .. شهر ${targetMonthName} — مادة (${subj})</span>
               <span><strong>الفصل الدراسي:</strong> ${termLabel}</span>
               <span><strong>${scopeLabel}</strong></span>
               <span><strong>عدد الطلاب:</strong> ${sortedStudents.length} طالباً</span>
@@ -719,9 +781,6 @@ export default function GradesDirectPrintModal({
         let highestSum = 0;
         let lowestSum = sortedStudents.length > 0 ? maxSum : 0;
 
-        const fixedColsPct = 2.8 + 5.2 + 16 + (scopeType === 'grade' ? 4 : 0) + 5.8 + 5.8 + 5 + 5.4;
-        const perSubjPct = ((100 - fixedColsPct) / subjCount).toFixed(2);
-
         const rowsHtml = sortedStudents.length > 0
           ? sortedStudents.map((st, idx) => {
               let studentMonthSum = 0;
@@ -773,7 +832,7 @@ export default function GradesDirectPrintModal({
           <div class="print-page fit-single-page">
             ${renderOfficialHeader(`<strong>${termLabel}</strong>`, `<strong>الفترة:</strong> ${monthLabel}`)}
             <div class="meta-strip">
-              <span><strong>نوع الكشف:</strong> كشف درجات ومحصلة ${monthLabel} (${termLabel}) — جميع المواد</span>
+              <span><strong>نوع الكشف:</strong> كشف درجات ${monthLabel} (${termLabel}) — جميع المواد</span>
               <span><strong>${scopeLabel}</strong></span>
               <span><strong>عدد المواد:</strong> ${activeSubjectsList.length} مواد</span>
               <span><strong>عدد الطلاب:</strong> ${sortedStudents.length} طالباً</span>
@@ -986,9 +1045,6 @@ export default function GradesDirectPrintModal({
         const colSums = Array(totalDataCols).fill(0);
         const colPassCounts = Array(totalDataCols).fill(0);
 
-        const fixedNameAndNumPct = 2.0 + 11.5 + (scopeType === 'grade' ? 3.2 : 0);
-        const perDataColPct = ((100 - fixedNameAndNumPct) / totalDataCols).toFixed(3);
-
         const rowsHtml = sortedStudents.map((st, idx) => {
           let m1Sum = 0, m2Sum = 0, m3Sum = 0;
           let cPtr = 0;
@@ -1140,9 +1196,6 @@ export default function GradesDirectPrintModal({
       let grandTotalSumAll = 0;
       let grandPctSumAll = 0;
       let passStudentsCount = 0;
-
-      const fixedColsPct = 2.2 + 12.8 + (scopeType === 'grade' ? 3.5 : 0) + 4.5 + 4.0 + 4.2 + 3.2 + 4.6;
-      const perSubColPct = ((100 - fixedColsPct) / totalSubjCols).toFixed(3);
 
       const studentRecords = sortedStudents.map((st) => {
         let studentGrandTotal = 0;
@@ -1494,9 +1547,6 @@ export default function GradesDirectPrintModal({
         let grandTotalSumAll = 0;
         let grandPctSumAll = 0;
 
-        const fixedColsPct = 2.2 + 12.8 + (scopeType === 'grade' ? 3.5 : 0) + 4.5 + 4.0 + 4.2 + 3.2 + 4.6;
-        const perSubColPct = ((100 - fixedColsPct) / totalSubjSubCols).toFixed(3);
-
         const studentComputed = sortedStudents.map(st => {
           let grandTotal = 0;
           let failedCount = 0;
@@ -1790,7 +1840,7 @@ export default function GradesDirectPrintModal({
 
                   <div class="certificate-banner">
                     <div class="cert-main-title">شهادة تقييم ونتيجة الطالب المعتمدة</div>
-                    <div class="cert-sub-title">${termLabel} — للعام الدراسي 2025 / 2026 م</div>
+                    <div class="cert-sub-title">${termLabel} — للعام الدراسي ${selectedYear?.name || ''}</div>
                   </div>
 
                   <div class="student-info-grid cert-student-box">
@@ -1931,6 +1981,49 @@ export default function GradesDirectPrintModal({
           `;
         }).join('');
       }
+    }
+
+    // =========================================================================
+    // TEMPLATE 7: كشف درجات فارغ لأي شعبة (م | اسم الطالب | الدرجة)
+    // =========================================================================
+    else if (activeTemplate === 'template_7_simple_blank') {
+      const subjTitle = targetSubjectMode !== 'all' ? targetSubjectMode : '................................';
+      const rowsHtml = sortedStudents.length > 0
+        ? sortedStudents.map((st, idx) => `
+            <tr>
+              <td class="col-num sticky-print-col-1" style="width:10%;font-weight:800;">${idx + 1}</td>
+              <td class="col-name sticky-print-col-2" style="width:60%;text-align:right;font-weight:800;padding:7px 12px;">${st.name || ''}</td>
+              <td class="blank-cell" style="width:30%;">&nbsp;</td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="3" style="padding:18px;text-align:center;">لا يوجد طلاب مسجلين في هذا النطاق</td></tr>`;
+
+      bodyContentHtml = `
+        <div class="print-page fit-single-page" style="border:2px solid #1e3a8a;padding:12px;border-radius:6px;">
+          ${renderOfficialHeader(`<strong>${scopeLabel}</strong>`, `<strong>المادة:</strong> ${subjTitle}`)}
+          <div class="meta-strip">
+            <span><strong>نوع الكشف:</strong> كشف رصد درجات</span>
+            <span><strong>${scopeLabel}</strong></span>
+            <span><strong>اسم المادة:</strong> ( ${subjTitle} )</span>
+            <span><strong>عدد الطلاب:</strong> ${sortedStudents.length} طالباً</span>
+          </div>
+          <div class="preview-scroll-wrapper">
+            <table class="roster-table" style="min-width:100%;">
+              <thead>
+                <tr>
+                  <th class="sticky-print-col-1" style="width:10%;">م</th>
+                  <th class="sticky-print-col-2" style="width:60%;text-align:right;padding-right:12px;">اسم الطالب</th>
+                  <th style="width:30%;">الدرجة</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </div>
+          ${renderOfficialSignatures()}
+        </div>
+      `;
     }
 
     const sharedStyles = `
@@ -2104,9 +2197,11 @@ export default function GradesDirectPrintModal({
         padding-right: 6px !important;
         padding-left: 4px !important;
         font-weight: 800;
-        white-space: nowrap !important;
-        word-break: keep-all !important;
-        overflow-wrap: normal !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        overflow: hidden !important;
+        line-height: 1.25;
       }
       .roster-table td.blank-cell {
         height: 19px;
@@ -2390,9 +2485,323 @@ export default function GradesDirectPrintModal({
 
   const allowStudentScope = activeTemplate === 'template_5_direct_result' || activeTemplate === 'template_6_official_certificate';
   const allowYearlyTerm = activeTemplate === 'template_5_direct_result' || activeTemplate === 'template_6_official_certificate';
-  const allowSubjectModeFilter = activeTemplate === 'template_1_blank_year' || activeTemplate === 'template_2_monthly_sheet' || activeTemplate === 'template_3_three_months';
+  const allowSubjectModeFilter = activeTemplate === 'template_1_blank_year' || activeTemplate === 'template_2_monthly_sheet' || activeTemplate === 'template_3_three_months' || activeTemplate === 'template_7_simple_blank';
 
   const previewData = buildDocumentData();
+  const activeTemplateObj = templatesList.find(t => t.id === activeTemplate) || templatesList[0];
+
+  const previewStylesTag = `
+    ${previewData.sharedStyles}
+    .preview-scroll-wrapper {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 6px;
+    }
+    .preview-scroll-wrapper .roster-table {
+      min-width: 860px;
+      border-collapse: separate !important;
+      border-spacing: 0 !important;
+    }
+    .preview-scroll-wrapper .roster-table.ultra-compact-table {
+      min-width: 1100px;
+    }
+    .preview-scroll-wrapper .roster-table.dense-3months-table {
+      min-width: 1320px;
+    }
+    .preview-scroll-wrapper .roster-table th.sticky-print-col-2 {
+      cursor: pointer;
+    }
+    body.freeze-columns .preview-scroll-wrapper .roster-table th.sticky-print-col-1,
+    body.freeze-columns .preview-scroll-wrapper .roster-table td.sticky-print-col-1 {
+      position: -webkit-sticky !important;
+      position: sticky !important;
+      right: 0 !important;
+      width: 34px !important;
+      min-width: 34px !important;
+      max-width: 34px !important;
+      z-index: 15 !important;
+      background-color: #f8fafc !important;
+    }
+    body.freeze-columns .preview-scroll-wrapper .roster-table th.sticky-print-col-2,
+    body.freeze-columns .preview-scroll-wrapper .roster-table td.sticky-print-col-2 {
+      position: -webkit-sticky !important;
+      position: sticky !important;
+      right: 34px !important;
+      min-width: 155px !important;
+      max-width: 190px !important;
+      white-space: normal !important;
+      word-break: break-word !important;
+      overflow: hidden !important;
+      z-index: 15 !important;
+      background-color: #ffffff !important;
+      box-shadow: -3px 0 6px rgba(0,0,0,0.08) !important;
+    }
+    body.freeze-columns .preview-scroll-wrapper .roster-table thead th.sticky-print-col-1,
+    body.freeze-columns .preview-scroll-wrapper .roster-table thead th.sticky-print-col-2 {
+      background-color: #e2e8f0 !important;
+      z-index: 20 !important;
+    }
+    body.freeze-columns .preview-scroll-wrapper .roster-table tr.summary-row td.sticky-print-col-1,
+    body.freeze-columns .preview-scroll-wrapper .roster-table tr.summary-row td.sticky-print-col-2 {
+      background-color: #f1f5f9 !important;
+    }
+    @media print {
+      body:has(.fullscreen-print-preview-modal) > *:not(:has(.fullscreen-print-preview-modal)) {
+        display: none !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .fullscreen-print-preview-modal {
+        position: static !important;
+        background: #ffffff !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      .fullscreen-sheet-canvas {
+        zoom: 1 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+      }
+    }
+  `;
+
+  if (isFullScreenPreview) {
+    const naturalSheetWidth = previewData.isLandscape ? 1160 : 860;
+    const availablePreviewW = Math.max(260, viewportWidth - 32);
+    const fitScale = Math.min(1, availablePreviewW / naturalSheetWidth);
+    const appliedZoom = isZoomed ? 1.35 : fitScale;
+
+    return (
+      <div
+        className="modal-overlay fullscreen-print-preview-modal"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1300,
+          backgroundColor: '#e2e8f0',
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100vw',
+          height: '100vh',
+          direction: 'rtl'
+        }}
+      >
+        {/* شريط المعاينة العلوي ملء الشاشة مع رمز الطباعة والفلاتر والتكبير */}
+        <div
+          className="no-print"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 18px',
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
+            color: '#ffffff',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+            zIndex: 30
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setIsFullScreenPreview(false)}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.3)',
+                background: 'rgba(255,255,255,0.12)',
+                color: '#ffffff',
+                fontWeight: '800',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              ⬅ تغيير نوع الكشف
+            </button>
+            <span style={{ fontWeight: '900', fontSize: '14.5px', color: '#93c5fd' }}>
+              {activeTemplateObj.number}. {activeTemplateObj.title}
+            </span>
+          </div>
+
+          {/* فلاتر سريعة أعلى شاشة المعاينة */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {scopeType === 'section' && (
+              <select
+                value={targetSection}
+                onChange={(e) => setTargetSection(e.target.value)}
+                style={{ height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', fontWeight: '800', fontSize: '13px', color: '#0f172a' }}
+              >
+                {sectionsList.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+            {activeTemplate === 'template_2_monthly_sheet' && (
+              <>
+                <select
+                  value={targetMonth}
+                  onChange={(e) => setTargetMonth(e.target.value)}
+                  style={{ height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', fontWeight: '800', fontSize: '13px', color: '#0f172a' }}
+                >
+                  <option value="m1">المحصلة الأولى</option>
+                  <option value="m2">المحصلة الثانية</option>
+                  <option value="m3">المحصلة الثالثة</option>
+                </select>
+                <select
+                  value={targetMonthName}
+                  onChange={(e) => setTargetMonthName(e.target.value)}
+                  style={{ height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', fontWeight: '800', fontSize: '13px', color: '#0f172a' }}
+                >
+                  {['يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'].map(m => (
+                    <option key={m} value={m}>شهر {m}</option>
+                  ))}
+                </select>
+              </>
+            )}
+            {allowSubjectModeFilter && (
+              <select
+                value={targetSubjectMode}
+                onChange={(e) => setTargetSubjectMode(e.target.value)}
+                style={{ height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', fontWeight: '800', fontSize: '13px', color: '#0f172a' }}
+              >
+                <option value="all">جميع المواد</option>
+                {activeSubjectsList.map(subj => <option key={subj} value={subj}>مادة: {subj}</option>)}
+              </select>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsZoomed(z => !z)}
+              title="انقر هنا أو انقر مرتين على الكشف للتكبير والتصغير"
+              style={{
+                height: '36px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.35)',
+                background: isZoomed ? '#f59e0b' : 'rgba(255,255,255,0.14)',
+                color: '#ffffff',
+                fontWeight: '800',
+                fontSize: '12.5px',
+                cursor: 'pointer'
+              }}
+            >
+              🔍 {isZoomed ? 'تصغير الكشف (100%)' : 'تكبير الكشف (140%)'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const next = !document.body.classList.contains('freeze-columns');
+                if (next) {
+                  document.body.classList.add('freeze-columns');
+                  localStorage.setItem('freeze_columns', '1');
+                } else {
+                  document.body.classList.remove('freeze-columns');
+                  localStorage.setItem('freeze_columns', '0');
+                }
+                window.dispatchEvent(new CustomEvent('freeze_columns_changed', { detail: next }));
+              }}
+              style={{
+                height: '36px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.35)',
+                background: 'rgba(255,255,255,0.14)',
+                color: '#ffffff',
+                fontWeight: '800',
+                fontSize: '12.5px',
+                cursor: 'pointer'
+              }}
+            >
+              📌 تجميد الأسماء
+            </button>
+
+            {/* رمز الطباعة أعلى الصفحة */}
+            <button
+              type="button"
+              onClick={handleExecutePrint}
+              disabled={isPreparingPrint}
+              style={{
+                height: '38px',
+                padding: '0 18px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                color: '#ffffff',
+                fontWeight: '900',
+                fontSize: '13.5px',
+                cursor: isPreparingPrint ? 'wait' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                boxShadow: '0 4px 12px rgba(22, 163, 74, 0.35)'
+              }}
+            >
+              <Printer size={18} />
+              <span>{isPreparingPrint ? 'جاري الطباعة...' : 'طباعة الكشف'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                height: '36px',
+                width: '36px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'rgba(239, 68, 68, 0.85)',
+                color: '#ffffff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="إغلاق"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* مساحة معاينة الكشف ملء الشاشة (ملاءمة تلقائية لحجم الشاشة بدون قص) */}
+        <div
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: '14px',
+            WebkitOverflowScrolling: 'touch',
+            textAlign: 'center',
+          }}
+        >
+          <style>{previewStylesTag}</style>
+          <div
+            className="fullscreen-sheet-canvas"
+            onDoubleClick={() => setIsZoomed(z => !z)}
+            title="انقر مرتين لتكبير أو تصغير الكشف"
+            style={{
+              display: 'inline-block',
+              textAlign: 'right',
+              background: '#ffffff',
+              padding: '18px',
+              borderRadius: '10px',
+              boxShadow: '0 8px 30px rgba(15, 23, 42, 0.14)',
+              width: `${naturalSheetWidth}px`,
+              zoom: appliedZoom,
+              transition: 'zoom 0.15s ease',
+              cursor: isZoomed ? 'zoom-out' : 'zoom-in',
+              margin: '0 auto',
+            }}
+            dangerouslySetInnerHTML={{ __html: previewData.bodyContentHtml }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1200 }}>
@@ -2400,9 +2809,9 @@ export default function GradesDirectPrintModal({
         className="modal-container"
         onClick={(e) => e.stopPropagation()}
         style={{
-          maxWidth: '1120px',
-          width: '96%',
-          maxHeight: '94vh',
+          maxWidth: '1280px',
+          width: '98%',
+          maxHeight: '96vh',
           display: 'flex',
           flexDirection: 'column',
           borderRadius: '18px',
@@ -2426,8 +2835,8 @@ export default function GradesDirectPrintModal({
             <div>
               <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800' }}>
                 {lang === 'ar'
-                  ? 'الطباعة المباشرة للكشوفات والنتائج والشهادات المعتمدة'
-                  : 'Direct Print of Grade Sheets, Results & Accredited Certificates'}
+                  ? 'معاينة وطباعة الكشوفات والنتائج والشهادات المعتمدة (انقر على أي كشف لمعاينته ملء الشاشة)'
+                  : 'Preview & Print of Grade Sheets, Results & Accredited Certificates'}
               </h3>
             </div>
           </div>
@@ -2452,10 +2861,10 @@ export default function GradesDirectPrintModal({
 
         {/* Modal Body */}
         <div style={{ padding: '18px 22px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Step 1: Select Template (1 to 6) */}
+          {/* Step 1: Select Template (1 to 7) — Clicking opens Full-Screen Preview immediately */}
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: 'var(--color-text-primary)', marginBottom: '10px' }}>
-              📋 اختر القالب المطلوب للطباعة المباشرة:
+              📋 انقر على نوع الكشف لفتحه في معاينة واضحة ملء الشاشة قبل الطباعة:
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '10px' }}>
               {templatesList.map((tpl) => {
@@ -2463,7 +2872,11 @@ export default function GradesDirectPrintModal({
                 return (
                   <div
                     key={tpl.id}
-                    onClick={() => setActiveTemplate(tpl.id)}
+                    onClick={() => {
+                      setActiveTemplate(tpl.id);
+                      setIsZoomed(false);
+                      setIsFullScreenPreview(true);
+                    }}
                     style={{
                       padding: '11px 13px',
                       borderRadius: '12px',
@@ -2493,10 +2906,11 @@ export default function GradesDirectPrintModal({
                     >
                       {tpl.number}
                     </div>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                       <div style={{ fontWeight: '800', fontSize: '13px', color: isSelected ? '#1e3a8a' : 'var(--color-text-primary)', lineHeight: 1.4 }}>
                         {tpl.title}
                       </div>
+                      <span style={{ fontSize: '11px', fontWeight: '800', color: '#2563eb', whiteSpace: 'nowrap' }}>معاينة ⬅</span>
                     </div>
                   </div>
                 );
@@ -2588,7 +3002,7 @@ export default function GradesDirectPrintModal({
             )}
 
             {/* Term Selector (for templates 2..6) */}
-            {activeTemplate !== 'template_1_blank_year' && (
+            {activeTemplate !== 'template_1_blank_year' && activeTemplate !== 'template_7_simple_blank' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-secondary)' }}>
                   📅 الفصل الدراسي:
@@ -2641,7 +3055,7 @@ export default function GradesDirectPrintModal({
               </div>
             )}
 
-            {/* Subject Mode Selector (for Templates 1, 2, 3) */}
+            {/* Subject Mode Selector */}
             {allowSubjectModeFilter && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-secondary)' }}>
@@ -2695,13 +3109,15 @@ export default function GradesDirectPrintModal({
             </div>
           </div>
 
-          {/* Step 3: Live Complete Table Preview inside Modal (with Sticky Student Name on Horizontal Scroll) */}
+          {/* Step 3: Live Complete Table Preview inside Modal */}
           <div style={{ border: '1px solid var(--color-border, #cbd5e1)', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
                 padding: '10px 14px',
                 backgroundColor: '#f1f5f9',
                 borderBottom: '1px solid #cbd5e1'
@@ -2709,80 +3125,56 @@ export default function GradesDirectPrintModal({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '13px', color: '#1e3a8a' }}>
                 <Eye size={16} />
-                <span>معاينة حية ومكتملة للكشف قبل الطباعة (عمود اسم الطالب ثابت عند السحب يميناً ويساراً)</span>
+                <span>معاينة حية للكشف</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowLivePreview(prev => !prev)}
-                style={{
-                  padding: '4px 12px',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  borderRadius: '6px',
-                  border: '1px solid #94a3b8',
-                  background: '#ffffff',
-                  color: '#0f172a',
-                  cursor: 'pointer'
-                }}
-              >
-                {showLivePreview ? 'إخفاء المعاينة' : 'إظهار المعاينة'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsFullScreenPreview(true)}
+                  style={{
+                    padding: '5px 14px',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: '#1d4ed8',
+                    color: '#ffffff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔍 فتح المعاينة ملء الشاشة
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLivePreview(prev => !prev)}
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    borderRadius: '6px',
+                    border: '1px solid #94a3b8',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showLivePreview ? 'إخفاء المعاينة' : 'إظهار المعاينة'}
+                </button>
+              </div>
             </div>
 
             {showLivePreview && (
-              <div style={{ padding: '12px', maxHeight: '420px', overflowY: 'auto', backgroundColor: '#ffffff' }}>
-                <style>{`
-                  ${previewData.sharedStyles}
-                  .preview-scroll-wrapper {
-                    width: 100%;
-                    max-width: 100%;
-                    overflow-x: auto !important;
-                    -webkit-overflow-scrolling: touch;
-                    padding-bottom: 6px;
-                  }
-                  .preview-scroll-wrapper .roster-table {
-                    min-width: 860px;
-                    border-collapse: separate !important;
-                    border-spacing: 0 !important;
-                  }
-                  .preview-scroll-wrapper .roster-table.ultra-compact-table {
-                    min-width: 1100px;
-                  }
-                  .preview-scroll-wrapper .roster-table.dense-3months-table {
-                    min-width: 1320px;
-                  }
-                  .preview-scroll-wrapper .roster-table th.sticky-print-col-1,
-                  .preview-scroll-wrapper .roster-table td.sticky-print-col-1 {
-                    position: -webkit-sticky !important;
-                    position: sticky !important;
-                    right: 0 !important;
-                    width: 34px !important;
-                    min-width: 34px !important;
-                    max-width: 34px !important;
-                    z-index: 15 !important;
-                    background-color: #f8fafc !important;
-                  }
-                  .preview-scroll-wrapper .roster-table th.sticky-print-col-2,
-                  .preview-scroll-wrapper .roster-table td.sticky-print-col-2 {
-                    position: -webkit-sticky !important;
-                    position: sticky !important;
-                    right: 34px !important;
-                    min-width: 140px !important;
-                    max-width: 175px !important;
-                    z-index: 15 !important;
-                    background-color: #ffffff !important;
-                    box-shadow: -3px 0 6px rgba(0,0,0,0.08) !important;
-                  }
-                  .preview-scroll-wrapper .roster-table thead th.sticky-print-col-1,
-                  .preview-scroll-wrapper .roster-table thead th.sticky-print-col-2 {
-                    background-color: #e2e8f0 !important;
-                    z-index: 20 !important;
-                  }
-                  .preview-scroll-wrapper .roster-table tr.summary-row td.sticky-print-col-1,
-                  .preview-scroll-wrapper .roster-table tr.summary-row td.sticky-print-col-2 {
-                    background-color: #f1f5f9 !important;
-                  }
-                `}</style>
+              <div
+                onDoubleClick={() => setIsZoomed(z => !z)}
+                title="انقر مرتين لتكبير أو تصغير الكشف"
+                style={{
+                  padding: '16px',
+                  backgroundColor: '#ffffff',
+                  zoom: isZoomed ? 1.35 : 1,
+                  cursor: isZoomed ? 'zoom-out' : 'zoom-in'
+                }}
+              >
+                <style>{previewStylesTag}</style>
                 <div dangerouslySetInnerHTML={{ __html: previewData.bodyContentHtml }} />
               </div>
             )}
@@ -2796,11 +3188,27 @@ export default function GradesDirectPrintModal({
             borderTop: '1px solid var(--color-border, #e2e8f0)',
             backgroundColor: 'var(--color-surface, #ffffff)',
             display: 'flex',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
             alignItems: 'center',
+            flexWrap: 'wrap',
             gap: '12px'
           }}
         >
+          <button
+            type="button"
+            onClick={() => setIsFullScreenPreview(true)}
+            style={{
+              padding: '10px 18px',
+              borderRadius: '10px',
+              border: '1.5px solid #1d4ed8',
+              backgroundColor: '#eff6ff',
+              color: '#1e3a8a',
+              fontWeight: '800',
+              cursor: 'pointer'
+            }}
+          >
+            🔍 معاينة الكشف ملء الشاشة
+          </button>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               type="button"
@@ -2837,7 +3245,7 @@ export default function GradesDirectPrintModal({
               }}
             >
               <Printer size={18} />
-              {isPreparingPrint ? 'جاري تجهيز الكشف للطباعة...' : 'طباعة مباشرة الآن'}
+              {isPreparingPrint ? 'جاري تجهيز الكشف للطباعة...' : 'طباعة الكشف'}
             </button>
           </div>
         </div>

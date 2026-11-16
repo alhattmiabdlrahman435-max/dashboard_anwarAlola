@@ -8,6 +8,7 @@ import { usePagination } from '../hooks/usePagination';
 import PaginationBar from '../components/PaginationBar';
 import { Plus, Search, X, Trash2, Edit3, Download, Upload, FileSpreadsheet, Printer } from 'lucide-react';
 import { SLOGAN_BASE64 } from '../assets/sloganBase64';
+import { openHtmlPrintPreview } from '../utils/printPreview';
 
 export default function TeachersTab() {
   const {
@@ -567,32 +568,10 @@ export default function TeachersTab() {
 </body>
 </html>`;
 
-      let iframe = document.getElementById('teachers-print-frame');
-      if (iframe) iframe.remove();
-      iframe = document.createElement('iframe');
-      iframe.id = 'teachers-print-frame';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      document.body.appendChild(iframe);
-
-      const frameDoc = iframe.contentWindow || iframe.contentDocument;
-      const doc = frameDoc.document || frameDoc;
-      doc.open();
-      doc.write(html);
-      doc.close();
-
-      setTimeout(() => {
-        try {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        } catch (err) {
-          console.error('Print trigger error:', err);
-        }
-      }, 350);
+      openHtmlPrintPreview(html, {
+        title: lang === 'ar' ? 'معاينة كشف المعلمين' : 'Teachers Roster Print Preview',
+        landscape: html.includes('landscape'),
+      });
 
       setShowPrintModal(false);
     } catch (err) {

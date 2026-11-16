@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Printer } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Eye } from 'lucide-react';
 import { api } from '../services/api';
 import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { useClasses } from '../contexts/Classes/useClasses';
+import { openElementPrintPreview } from '../utils/printPreview';
 import '../styles/homeworkMonthlyReport.css';
 
 const SCHOOL_NAME = 'مدارس انوار العلى الدولية النموذجية';
@@ -23,6 +24,7 @@ export default function HomeworkMonthlyReportPage() {
   const { fetchClasses } = useClasses();
   const [classId, setClassId] = useState('');
   const [month, setMonth] = useState(currentMonthValue);
+  const sheetRef = useRef(null);
   // fetchClasses is guarded inside the provider (no refetch when already loaded)
   useEffect(() => { fetchClasses(); }, [fetchClasses]);
 
@@ -84,11 +86,11 @@ export default function HomeworkMonthlyReportPage() {
           <button
             type="button"
             className="btn-filled hw-report-print-btn"
-            onClick={() => window.print()}
+            onClick={() => openElementPrintPreview(sheetRef.current, { title: 'معاينة التقرير الشهري للواجبات', landscape: true })}
             disabled={!report || loading}
           >
-            <Printer size={18} />
-            <span>طباعة</span>
+            <Eye size={18} />
+            <span>معاينة وطباعة</span>
           </button>
         </div>
         {error && <div className="hw-report-error">{error}</div>}
@@ -97,7 +99,7 @@ export default function HomeworkMonthlyReportPage() {
       {loading && <div className="hw-report-status no-print">جاري تحميل التقرير...</div>}
 
       {report && !loading && (
-        <div className="section-card hw-report-sheet">
+        <div ref={sheetRef} className="section-card hw-report-sheet">
           <div className="hw-report-header">
             <div className="hw-report-school">{report.school_name || SCHOOL_NAME}</div>
             <div className="hw-report-title">نموذج تقرير شهري لمتابعة إرسال الواجبات</div>
@@ -112,7 +114,7 @@ export default function HomeworkMonthlyReportPage() {
               <thead>
                 <tr>
                   <th rowSpan={3} className="hw-col-subject">المادة</th>
-                  <th rowSpan={3} className="hw-col-teacher">المعلم</th>
+                  <th rowSpan={3} className="hw-col-teacher sticky-col-name">المعلم</th>
                   {weeks.map((w) => (
                     <th key={`w-${w.week}`} colSpan={w.days.length} className="hw-week-head">
                       {WEEK_NAMES[w.week - 1] || `الأسبوع ${w.week}`}
@@ -146,7 +148,7 @@ export default function HomeworkMonthlyReportPage() {
                 {(report.subjects || []).map((s) => (
                   <tr key={s.id}>
                     <td className="hw-col-subject">{s.name_ar}</td>
-                    <td className="hw-col-teacher">{s.teacher_name || ''}</td>
+                    <td className="hw-col-teacher sticky-col-name">{s.teacher_name || ''}</td>
                     {weeks.flatMap((w) => w.days.map((d, i) => {
                       const count = s.homework?.[d.date] || 0;
                       return (

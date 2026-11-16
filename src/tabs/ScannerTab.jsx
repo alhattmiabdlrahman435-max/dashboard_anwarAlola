@@ -7,6 +7,7 @@ import { useClasses } from '../contexts/Classes/useClasses';
 import { useAttendance } from '../contexts/Attendance/useAttendance';
 import PrintHeader from '../components/PrintHeader';
 import { SLOGAN_BASE64 } from '../assets/sloganBase64';
+import { openHtmlPrintPreview } from '../utils/printPreview';
 import { X, Calendar, BarChart3, Printer, Clock, Search } from 'lucide-react';
 
 export default function ScannerTab() {
@@ -227,29 +228,10 @@ export default function ScannerTab() {
 </body>
 </html>`;
 
-    let iframe = document.getElementById('student-attendance-print-frame');
-    if (iframe) {
-      document.body.removeChild(iframe);
-    }
-    iframe = document.createElement('iframe');
-    iframe.id = 'student-attendance-print-frame';
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(htmlContent);
-    doc.close();
-
-    setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    }, 350);
+    openHtmlPrintPreview(htmlContent, {
+      title: lang === 'ar' ? 'معاينة تقرير حضور الطالب' : 'Student Attendance Print Preview',
+      landscape: false,
+    });
   };
 
   const getTodayLocalParts = () => {

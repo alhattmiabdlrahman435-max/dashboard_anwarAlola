@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Student;
+use App\Models\StudentEnrollment;
+use App\Services\AcademicYearService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -63,14 +65,24 @@ class FinanceController extends Controller implements HasMiddleware
             'id', 'student_code', 'name_ar', 'name_en', 'class_id', 'tuition_fee', 'created_at'
         ]);
 
-        $query->with('payments');
+        $query->with(['payments' => fn($q) => $q->forAcademicYear()]);
 
         $perPage = (int) $request->input('per_page', 20);
         $paginator = $query->paginate($perPage);
         $students = $paginator->getCollection();
+        $yearId = AcademicYearService::resolveId($request);
+        $enrollments = $yearId
+            ? StudentEnrollment::where('academic_year_id', $yearId)
+                ->whereIn('student_id', $students->pluck('id'))
+                ->get()
+                ->keyBy('student_id')
+            : collect();
 
-        $records = $students->map(function($student) {
-            $totalFees = (float)($student->tuition_fee ?? 0.00);
+        $records = $students->map(function($student) use ($enrollments) {
+            $enr = $enrollments->get($student->id);
+            $tuitionFee = $enr ? (float)$enr->tuition_fee : (float)($student->tuition_fee ?? 0.00);
+            $previousBalance = $enr ? (float)($enr->previous_balance ?? 0.00) : 0.00;
+            $totalFees = $tuitionFee + $previousBalance;
             $paid = $student->payments->sum('amount');
             $remaining = $totalFees - $paid;
 
@@ -82,6 +94,8 @@ class FinanceController extends Controller implements HasMiddleware
                     'name_ar' => $student->name_ar,
                     'name_en' => $student->name_en,
                 ],
+                'tuition_fee' => $tuitionFee,
+                'previous_balance' => $previousBalance,
                 'total_fees' => $totalFees,
                 'paid_fees' => $paid,
                 'remaining_fees' => $remaining,
@@ -104,7 +118,7 @@ class FinanceController extends Controller implements HasMiddleware
      */
     public function show(Request $request, string $studentId)
     {
-        $student = Student::with('payments')->findOrFail($studentId);
+        $student = Student::with(['payments' => fn($q) => $q->forAcademicYear()])->findOrFail($studentId);
 
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'finance');
@@ -115,18 +129,26 @@ class FinanceController extends Controller implements HasMiddleware
             ], 403);
         }
 
-        $totalFees = (float)($student->tuition_fee ?? 0.00);
+        $yearId = AcademicYearService::resolveId($request);
+        $enr = $yearId
+            ? StudentEnrollment::where('academic_year_id', $yearId)->where('student_id', $student->id)->first()
+            : null;
+        $tuitionFee = $enr ? (float)$enr->tuition_fee : (float)($student->tuition_fee ?? 0.00);
+        $previousBalance = $enr ? (float)($enr->previous_balance ?? 0.00) : 0.00;
+        $totalFees = $tuitionFee + $previousBalance;
         $paid = $student->payments->sum('amount');
         $remaining = $totalFees - $paid;
 
         $tuition = [
             'student_id' => $student->id,
+            'tuition_fee' => $tuitionFee,
+            'previous_balance' => $previousBalance,
             'total_fees' => $totalFees,
             'paid_fees' => $paid,
             'remaining_fees' => $remaining,
         ];
 
-        $payments = Payment::where('student_id', $studentId)->orderBy('payment_date', 'desc')->get();
+        $payments = Payment::forAcademicYear()->where('student_id', $studentId)->orderBy('payment_date', 'desc')->get();
 
         return response()->json([
             'success' => true,
@@ -212,7 +234,7 @@ class FinanceController extends Controller implements HasMiddleware
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'finance');
 
         $studentQuery = Student::query();
-        $paymentQuery = Payment::query();
+        $paymentQuery = Payment::forAcademicYear();
         if ($scopedClassIds !== null) {
             $studentQuery->whereIn('class_id', $scopedClassIds);
             $paymentQuery->whereHas('student', function($q) use ($scopedClassIds) {
@@ -220,7 +242,17 @@ class FinanceController extends Controller implements HasMiddleware
             });
         }
 
-        $totalRequired = (float)$studentQuery->sum('tuition_fee');
+        $yearId = AcademicYearService::resolveId($request);
+        $enrollmentQuery = $yearId ? StudentEnrollment::where('academic_year_id', $yearId) : null;
+        if ($enrollmentQuery && $scopedClassIds !== null) {
+            $enrollmentQuery->whereIn('class_id', $scopedClassIds);
+        }
+
+        if ($enrollmentQuery && (clone $enrollmentQuery)->exists()) {
+            $totalRequired = (float) $enrollmentQuery->selectRaw('COALESCE(SUM(tuition_fee + previous_balance), 0) as total')->value('total');
+        } else {
+            $totalRequired = (float)$studentQuery->sum('tuition_fee');
+        }
         $totalPaid = (float)$paymentQuery->sum('amount');
         $totalRemaining = $totalRequired - $totalPaid;
 

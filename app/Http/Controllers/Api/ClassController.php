@@ -38,6 +38,11 @@ class ClassController extends Controller implements HasMiddleware
             $query->whereIn('id', $scopedClassIds);
         }
 
+        $orderedIds = ArchiveController::orderedClassIds();
+        if (!empty($orderedIds)) {
+            $query->orderByRaw('FIELD(id, ' . implode(',', array_map('intval', $orderedIds)) . ')');
+        }
+
         $classes = $query->with(['gradeLevel', 'subjects', 'teacherSubjects.teacher', 'teacherSubjects.subject'])->withCount('students')->get();
         
         foreach ($classes as $class) {

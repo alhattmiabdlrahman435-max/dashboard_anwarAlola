@@ -6,6 +6,7 @@ import { useStudents } from '../contexts/Students/useStudents';
 import { parentsService } from '../services/parents/parents.service';
 import { Search, X, Download, Upload, FileSpreadsheet, Edit3, Trash2, KeyRound, Printer } from 'lucide-react';
 import { SLOGAN_BASE64 } from '../assets/sloganBase64';
+import { openHtmlPrintPreview } from '../utils/printPreview';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useAllowedClasses } from '../hooks/useAllowedClasses';
 import { usePagination } from '../hooks/usePagination';
@@ -714,32 +715,10 @@ export default function ParentsTab() {
 </body>
 </html>`;
 
-      let iframe = document.getElementById('parents-print-frame');
-      if (iframe) iframe.remove();
-      iframe = document.createElement('iframe');
-      iframe.id = 'parents-print-frame';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      document.body.appendChild(iframe);
-
-      const frameDoc = iframe.contentWindow || iframe.contentDocument;
-      const doc = frameDoc.document || frameDoc;
-      doc.open();
-      doc.write(html);
-      doc.close();
-
-      setTimeout(() => {
-        try {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        } catch (err) {
-          console.error('Print trigger error:', err);
-        }
-      }, 350);
+      openHtmlPrintPreview(html, {
+        title: lang === 'ar' ? 'معاينة كشف أولياء الأمور' : 'Parents Roster Print Preview',
+        landscape: html.includes('landscape'),
+      });
 
       setShowPrintModal(false);
     } catch (err) {

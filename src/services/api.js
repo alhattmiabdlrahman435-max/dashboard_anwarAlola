@@ -43,6 +43,7 @@ async function request(endpoint, options = {}) {
 
   const fetchPromise = (async () => {
     const token = localStorage.getItem("auth_token");
+    const selectedAcademicYearId = localStorage.getItem("selected_academic_year_id");
     const headers = {
       "Accept": "application/json",
       ...options.headers,
@@ -50,6 +51,10 @@ async function request(endpoint, options = {}) {
 
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    if (selectedAcademicYearId && !headers["X-Academic-Year-Id"]) {
+      headers["X-Academic-Year-Id"] = selectedAcademicYearId;
     }
 
     // If body is not FormData or string, stringify it and set Content-Type to JSON

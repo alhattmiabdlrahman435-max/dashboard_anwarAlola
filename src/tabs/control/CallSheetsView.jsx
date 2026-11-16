@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Printer } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Eye, ZoomIn, ZoomOut } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { controlBoardService } from '../../services/control/controlBoard.service';
-import { SCHOOL_NAME, cell, groupByClass, useControlStudents } from './controlPrintShared';
+import PrintHeader from '../../components/PrintHeader';
+import { openElementPrintPreview } from '../../utils/printPreview';
+import { cell, groupByClass, useControlStudents } from './controlPrintShared';
 import '../../styles/controlBoardPrint.css';
 
 /**
  * كشوفات المناداة — صفحة لكل لجنة:
- * "اللجنة رقم N" (أحمر كبير) ثم الطلاب مجمّعين حسب الصف والشعبة:
+ * محاطة بكليشة المدرسة + "اللجنة رقم N" (أحمر كبير) ثم الطلاب مجمّعين حسب الصف والشعبة:
  * رأس المجموعة (الصف والشعبة + عدد الطلاب) ثم: م | رقم الجلوس | اسم الطالب
  */
 export default function CallSheetsView() {
@@ -15,6 +17,8 @@ export default function CallSheetsView() {
   const { students, loading, error } = useControlStudents('all');
   const [committees, setCommittees] = useState([]);
   const [selected, setSelected] = useState('all');
+  const [isZoomed, setIsZoomed] = useState(false);
+  const printAreaRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +59,7 @@ export default function CallSheetsView() {
   }, [selected, committeeNumbers, students]);
 
   return (
-    <div className="cb-print-view">
+    <div ref={printAreaRef} className={`cb-print-view${isZoomed ? ' cb-zoomed' : ''}`}>
       <div className="cb-controls no-print">
         <label className="cb-field">
           <span>اللجنة</span>
@@ -66,9 +70,23 @@ export default function CallSheetsView() {
             ))}
           </select>
         </label>
-        <button type="button" className="btn-filled cb-print-btn" onClick={() => window.print()} disabled={loading || pages.length === 0}>
-          <Printer size={18} />
-          <span>طباعة</span>
+        <button
+          type="button"
+          className="btn-outlined"
+          onClick={() => setIsZoomed((z) => !z)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        >
+          {isZoomed ? <ZoomOut size={16} /> : <ZoomIn size={16} />}
+          <span>{isZoomed ? 'تصغير الكشف' : 'تكبير الكشف'}</span>
+        </button>
+        <button
+          type="button"
+          className="btn-filled cb-print-btn"
+          onClick={() => openElementPrintPreview(printAreaRef.current, { title: 'معاينة كشوفات المناداة', landscape: false })}
+          disabled={loading || pages.length === 0}
+        >
+          <Eye size={18} />
+          <span>معاينة وطباعة</span>
         </button>
       </div>
 
@@ -82,8 +100,13 @@ export default function CallSheetsView() {
       {!loading && pages.length === 0 && <div className="cb-status">لا توجد لجان. ابدأ من «ترقيم اللجان» ثم «توزيع الطلاب في اللجان».</div>}
 
       {!loading && pages.map((page) => (
-        <section key={page.number} className="cb-sheet cb-portrait-page cb-call-page">
-          <div className="cb-call-school">{SCHOOL_NAME}</div>
+        <section
+          key={page.number}
+          className="cb-sheet cb-portrait-page cb-call-page cb-framed-sheet"
+          onDoubleClick={() => setIsZoomed((z) => !z)}
+          title="انقر نقراً مزدوجاً للتكبير أو التصغير"
+        >
+          <PrintHeader title="كشف مناداة اللجان" scopeRight={`اللجنة رقم: ( ${page.number} )`} />
           <h1 className="cb-call-title">اللجنة رقم {page.number}</h1>
           {page.groups.length === 0 ? (
             <div className="cb-status">لا يوجد طلاب في هذه اللجنة</div>

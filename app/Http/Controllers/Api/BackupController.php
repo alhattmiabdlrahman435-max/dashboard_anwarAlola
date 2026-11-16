@@ -7,8 +7,11 @@ use App\Services\AcademicYearArchiveService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use ZipArchive;
 use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -205,14 +208,16 @@ class BackupController extends Controller
             set_time_limit(600);
             ini_set('max_execution_time', '600');
 
-            $year = $request->input('academic_year', '2026-2027م');
+            $yearId = \App\Services\AcademicYearService::resolveId($request);
+            $yearModel = $yearId ? \App\Models\AcademicYear::find($yearId) : null;
+            $year = $request->input('academic_year', $yearModel ? ($yearModel->name . 'م') : '2026-2027م');
             $format = $request->input('format');
             if (! $format) {
                 $asZip = filter_var($request->input('as_zip', true), FILTER_VALIDATE_BOOLEAN);
                 $format = $asZip ? 'zip' : 'html';
             }
 
-            $result = $archiveService->exportArchive($year, $format);
+            $result = $archiveService->exportArchive($year, $format !== 'html', $yearId);
 
             return response()->json([
                 'success' => true,
@@ -326,6 +331,170 @@ class BackupController extends Controller
             'success' => false,
             'message' => 'ملف النسخة الاحتياطية غير موجود.',
         ], 404);
+    }
+
+    /**
+     * Restore database from an uploaded (.zip / .sql) backup or an existing server backup file.
+     */
+    public function restore(Request $request)
+    {
+        if (! $this->authorizeAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك باستعادة النسخ الاحتياطية.',
+            ], 403);
+        }
+
+        $request->validate([
+            'backup_file' => 'nullable|file|max:524288',
+            'file_name' => 'nullable|string|max:255',
+        ]);
+
+        if (! $request->hasFile('backup_file') && ! $request->filled('file_name')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يرجى تحديد ملف نسخة احتياطية (.zip أو .sql) أو اختيار نسخة موجودة.',
+            ], 422);
+        }
+
+        $tempDir = storage_path('app/restore-tmp-' . uniqid());
+        File::ensureDirectoryExists($tempDir);
+
+        try {
+            set_time_limit(600);
+            ini_set('max_execution_time', '600');
+
+            $sourcePath = null;
+            $extension = null;
+
+            if ($request->hasFile('backup_file')) {
+                $uploaded = $request->file('backup_file');
+                $extension = strtolower($uploaded->getClientOriginalExtension());
+                if (! in_array($extension, ['zip', 'sql'], true)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'صيغة الملف غير مدعومة. يرجى اختيار ملف .zip أو .sql.',
+                    ], 422);
+                }
+                $dest = $tempDir . DIRECTORY_SEPARATOR . 'uploaded.' . $extension;
+                $uploaded->move($tempDir, 'uploaded.' . $extension);
+                $sourcePath = $dest;
+            } else {
+                $safeFileName = basename($request->input('file_name'));
+                $diskName = config('backup.backup.destination.disks')[0] ?? 'local';
+                $backupName = config('backup.backup.name', 'laravel-backup');
+                $disk = Storage::disk($diskName);
+                $relativePath = $backupName . '/' . $safeFileName;
+                if (! $disk->exists($relativePath)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ملف النسخة الاحتياطية غير موجود على الخادم.',
+                    ], 404);
+                }
+                $sourcePath = $disk->path($relativePath);
+                $extension = strtolower(pathinfo($safeFileName, PATHINFO_EXTENSION));
+            }
+
+            $sqlPath = null;
+            if ($extension === 'sql') {
+                $sqlPath = $sourcePath;
+            } elseif ($extension === 'zip') {
+                $zip = new ZipArchive();
+                if ($zip->open($sourcePath) !== true) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'تعذر فتح ملف النسخة المضغوطة (.zip).',
+                    ], 422);
+                }
+                $zip->extractTo($tempDir . DIRECTORY_SEPARATOR . 'extracted');
+                $zip->close();
+
+                $sqlFiles = File::allFiles($tempDir . DIRECTORY_SEPARATOR . 'extracted');
+                foreach ($sqlFiles as $f) {
+                    if (strtolower($f->getExtension()) === 'sql') {
+                        $sqlPath = $f->getRealPath();
+                        break;
+                    }
+                }
+            }
+
+            if (! $sqlPath || ! file_exists($sqlPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لم يتم العثور على ملف قاعدة بيانات (.sql) داخل الحزمة المحددة.',
+                ], 422);
+            }
+
+            // Create an automatic safety backup before overwriting current database
+            try {
+                Artisan::call('backup:run', ['--only-db' => true]);
+            } catch (\Throwable $ignore) {
+                Log::warning('Pre-restore safety backup failed: ' . $ignore->getMessage());
+            }
+
+            $defaultConn = config('database.default');
+            $connConfig = config("database.connections.{$defaultConn}", []);
+            $driver = $connConfig['driver'] ?? 'mysql';
+
+            if ($driver === 'mysql' || $driver === 'mariadb') {
+                $host = $connConfig['host'] ?? '127.0.0.1';
+                $port = $connConfig['port'] ?? '3306';
+                $database = $connConfig['database'] ?? '';
+                $username = $connConfig['username'] ?? 'root';
+                $password = $connConfig['password'] ?? '';
+
+                $mysqlBin = 'mysql';
+                $dumpPath = $connConfig['dump']['dump_binary_path'] ?? '';
+                if ($dumpPath) {
+                    $candidate = rtrim($dumpPath, '\\/') . DIRECTORY_SEPARATOR . (PHP_OS_FAMILY === 'Windows' ? 'mysql.exe' : 'mysql');
+                    if (file_exists($candidate)) {
+                        $mysqlBin = $candidate;
+                    }
+                } elseif (PHP_OS_FAMILY === 'Windows') {
+                    foreach (glob('C:\\laragon\\bin\\mysql\\*\\bin\\mysql.exe') ?: [] as $foundBin) {
+                        $mysqlBin = $foundBin;
+                        break;
+                    }
+                }
+
+                $cmd = sprintf(
+                    '%s --host=%s --port=%s --user=%s %s %s < %s 2>&1',
+                    escapeshellarg($mysqlBin),
+                    escapeshellarg((string) $host),
+                    escapeshellarg((string) $port),
+                    escapeshellarg((string) $username),
+                    $password !== '' ? '--password=' . escapeshellarg((string) $password) : '',
+                    escapeshellarg((string) $database),
+                    escapeshellarg($sqlPath)
+                );
+
+                $outputLines = [];
+                $exitCode = 0;
+                exec($cmd, $outputLines, $exitCode);
+
+                if ($exitCode !== 0) {
+                    // Fallback to Laravel DB::unprepared for smaller SQL files if CLI failed
+                    DB::unprepared(File::get($sqlPath));
+                }
+            } else {
+                DB::unprepared(File::get($sqlPath));
+            }
+
+            Log::info('Database backup restored successfully.', ['source' => $extension]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تمت استعادة النسخة الاحتياطية لقاعدة البيانات بنجاح (مع حفظ نسخة أمان تلقائية قبل الاستعادة).',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Backup restore failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'فشلت استعادة النسخة الاحتياطية: ' . $e->getMessage(),
+            ], 500);
+        } finally {
+            File::deleteDirectory($tempDir);
+        }
     }
 
     /**

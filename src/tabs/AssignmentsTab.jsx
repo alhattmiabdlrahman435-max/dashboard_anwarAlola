@@ -216,11 +216,13 @@ export default function AssignmentsTab() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredAssignments.length]);
 
-  // Derive all grades & sections from allowedClasses + availableGrades/Sections so Admin has every grade & section
-  const allModalGrades = Array.from(new Set([
-    ...(allowedClasses || []).map(c => c.grade_ar || c.grade).filter(Boolean),
-    ...(availableGrades || []),
-  ]));
+  // Derive grades & sections strictly from actual allowedClasses (no extra appended grades at the bottom)
+  const allModalGrades = (() => {
+    const fromClasses = Array.from(new Set(
+      (allowedClasses || []).map(c => c.grade_ar || c.grade).filter(Boolean)
+    ));
+    return fromClasses.length > 0 ? fromClasses : (availableGrades || []);
+  })();
 
   const sectionsForSelectedGrade = Array.from(new Set(
     (allowedClasses || [])
@@ -229,10 +231,9 @@ export default function AssignmentsTab() {
       .filter(Boolean)
   ));
 
-  const allModalSections = Array.from(new Set([
-    ...sectionsForSelectedGrade,
-    ...(availableSections || []),
-  ]));
+  const allModalSections = sectionsForSelectedGrade.length > 0
+    ? sectionsForSelectedGrade
+    : (availableSections || []);
 
   // Keep modal grade & section synced with available options
   useEffect(() => {

@@ -8,6 +8,7 @@ import { classesService } from '../services/classes/classes.service';
 import { Plus, Search, X, Printer, Upload } from 'lucide-react';
 import { teachersService } from '../services/teachers/teachers.service';
 import { SLOGAN_BASE64 } from '../assets/sloganBase64';
+import { openHtmlPrintPreview } from '../utils/printPreview';
 
 export default function ClassesTab() {
   const {
@@ -600,32 +601,10 @@ export default function ClassesTab() {
 </body>
 </html>`;
 
-      let iframe = document.getElementById('classes-print-frame');
-      if (iframe) iframe.remove();
-      iframe = document.createElement('iframe');
-      iframe.id = 'classes-print-frame';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      document.body.appendChild(iframe);
-
-      const frameDoc = iframe.contentWindow || iframe.contentDocument;
-      const doc = frameDoc.document || frameDoc;
-      doc.open();
-      doc.write(html);
-      doc.close();
-
-      setTimeout(() => {
-        try {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        } catch (err) {
-          console.error('Print trigger error:', err);
-        }
-      }, 350);
+      openHtmlPrintPreview(html, {
+        title: lang === 'ar' ? 'معاينة كشف الصفوف والشعب' : 'Classes Roster Print Preview',
+        landscape: html.includes('landscape'),
+      });
 
       setShowPrintModal(false);
     } catch (err) {

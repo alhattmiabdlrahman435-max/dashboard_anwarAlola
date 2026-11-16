@@ -17,6 +17,7 @@ const CommitteeAssignmentView = safeLazy(() => import('../tabs/control/Committee
 const CallSheetsView = safeLazy(() => import('../tabs/control/CallSheetsView'));
 const CardsView = safeLazy(() => import('../tabs/control/CardsView'));
 const MirrorsView = safeLazy(() => import('../tabs/control/MirrorsView'));
+const TermSheetsView = safeLazy(() => import('../tabs/control/TermSheetsView'));
 
 /** الأزرار بنفس ترتيب صورة الملحق (صفحة 2) — 3 في كل صف، من اليمين لليسار */
 const CONTROL_WINDOWS = [
@@ -25,14 +26,17 @@ const CONTROL_WINDOWS = [
   { key: 'committees', label: 'ترقيم اللجان' },
   { key: 'call-sheets', label: 'كشوفات المناداة' },
   { key: 'cards', label: 'البطائق' },
-  { key: 'mirror-committees-envelopes', label: 'مرايا اللجان والظروف' },
-  { key: 'mirror-committees-subjects', label: 'مرايا اللجان و المواد للظروف' },
+  { key: 'mirror-committees-envelopes', label: 'مرايا اللجان للظروف الصغيرة' },
+  { key: 'mirror-committees-subjects', label: 'مرايا اللجان للظروف الكبيرة' },
   { key: 'mirror-names-seat', label: 'مرايا الاسماء مع ارقام الجلوس' },
+  { key: 'mirror-seat-grades', label: 'مرايا ارقام الجلوس والدرجات' },
   { key: 'mirror-names-secret', label: 'مرايا الاسماء مع الارقام السرية' },
-  { key: 'mirror-names-seat-secret', label: 'مرايا الاسماء مع ارقام الجلوس و الارقام السرية' },
-  { key: 'mirror-seat-secret', label: 'مرايا ارقام الجلوس مع الارقام السرية' },
+  { key: 'mirror-secret-grades', label: 'مرايا الارقام السرية والدرجات' },
+  { key: 'mirror-names-seat-secret', label: 'مرايا ارقام الجلوس والاسماء و الارقام السرية' },
+  { key: 'mirror-seat-secret', label: 'مرايا ارقام الجلوس و الارقام السرية' },
   // توزيع الطلاب (صفحة 4 من الملحق) + رصد الدرجات الموجود سابقاً — في صف مستقل تحت أزرار الصورة
   { key: 'assignment', label: 'توزيع الطلاب في اللجان', extra: true },
+  { key: 'term-sheets', label: 'ترحيل المحصلات ودرجات الاختبارات', extra: true },
   { key: 'grades', label: 'رصد الدرجات بالرقم السري', extra: true },
 ];
 
@@ -46,6 +50,8 @@ function renderWindow(key) {
       return <CommitteeNumberingView />;
     case 'assignment':
       return <CommitteeAssignmentView />;
+    case 'term-sheets':
+      return <TermSheetsView />;
     case 'call-sheets':
       return <CallSheetsView />;
     case 'cards':

@@ -46,9 +46,13 @@ const SearchableSelect = memo(function SearchableSelect({ options, value, onChan
       ...provided,
       color: 'var(--color-text-primary, #1e293b)',
     }),
+    menuPortal: (provided) => ({
+      ...provided,
+      zIndex: 99999,
+    }),
     menu: (provided) => ({
       ...provided,
-      zIndex: 9999,
+      zIndex: 99999,
       borderRadius: '8px',
       overflow: 'hidden',
       border: '1px solid var(--color-border, #e2e8f0)',
@@ -90,6 +94,8 @@ const SearchableSelect = memo(function SearchableSelect({ options, value, onChan
       placeholder={placeholder || (lang === 'ar' ? 'بحث...' : 'Search...')}
       isSearchable={true}
       isDisabled={isDisabled}
+      menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+      menuPosition="fixed"
       noOptionsMessage={() => lang === 'ar' ? 'لا يوجد نتائج' : 'No results found'}
       classNamePrefix="react-select"
     />

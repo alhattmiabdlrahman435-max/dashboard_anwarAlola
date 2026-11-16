@@ -32,7 +32,7 @@ class AbsenceRequestController extends Controller implements HasMiddleware
     public function index(ListRequest $request)
     {
         $user = $request->user();
-        $query = AbsenceRequest::with(['student', 'parentUser']);
+        $query = AbsenceRequest::with(['student', 'parentUser'])->forAcademicYear();
 
         if ($user && $user->role === 'parent') {
             $query->where('parent_id', $user->id);

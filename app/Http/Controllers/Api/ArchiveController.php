@@ -79,14 +79,30 @@ class ArchiveController extends Controller implements HasMiddleware
     {
         $scoped = $this->scoped($request);
 
-        $counts = Student::where('is_active', true)
-            ->when($scoped !== null, fn($q) => $q->whereIn('class_id', $scoped))
-            ->selectRaw("class_id,
-                SUM(CASE WHEN gender = 'male' THEN 1 ELSE 0 END) AS males,
-                SUM(CASE WHEN gender = 'female' THEN 1 ELSE 0 END) AS females,
-                SUM(CASE WHEN gender IS NULL OR gender NOT IN ('male','female') THEN 1 ELSE 0 END) AS unknown,
-                COUNT(*) AS total")
-            ->groupBy('class_id')->get()->keyBy('class_id');
+        // الاحصائية حسب العام المختار: لو للعام قيود طلاب تُحسب منها (الصف كما كان في ذلك العام)،
+        // وإلا من سجل الطلاب الحالي (العام الحالي قبل أي ترحيل).
+        $yearId = \App\Services\AcademicYearService::resolveId($request);
+        $useEnrollments = $yearId && \App\Models\StudentEnrollment::where('academic_year_id', $yearId)->exists();
+
+        $sums = "SUM(CASE WHEN students.gender = 'male' THEN 1 ELSE 0 END) AS males,
+                SUM(CASE WHEN students.gender = 'female' THEN 1 ELSE 0 END) AS females,
+                SUM(CASE WHEN students.gender IS NULL OR students.gender NOT IN ('male','female') THEN 1 ELSE 0 END) AS unknown,
+                COUNT(*) AS total";
+
+        if ($useEnrollments) {
+            $counts = DB::table('student_enrollments as e')
+                ->join('students', 'students.id', '=', 'e.student_id')
+                ->where('e.academic_year_id', $yearId)
+                ->where('e.status', '!=', 'withdrawn')
+                ->when($scoped !== null, fn($q) => $q->whereIn('e.class_id', $scoped))
+                ->selectRaw('e.class_id AS class_id, ' . $sums)
+                ->groupBy('e.class_id')->get()->keyBy('class_id');
+        } else {
+            $counts = DB::table('students')->where('students.is_active', true)
+                ->when($scoped !== null, fn($q) => $q->whereIn('students.class_id', $scoped))
+                ->selectRaw('students.class_id AS class_id, ' . $sums)
+                ->groupBy('students.class_id')->get()->keyBy('class_id');
+        }
 
         $order = array_keys(self::GRADES);
         $classes = SchoolClass::query()

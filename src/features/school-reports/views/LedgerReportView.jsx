@@ -31,7 +31,7 @@ export default function LedgerReportView({
                 scope="col"
                 key={column.key}
                 className={`sr-th-cell ${
-                  column.key === 'name' ? 'sr-col-start' : 'sr-col-center'
+                  column.key === 'name' ? 'sr-col-start sticky-col-name' : 'sr-col-center'
                 } ${column.numeric ? 'sr-numeric-col' : ''}`}
               >
                 {column[lang] || column.ar}
@@ -52,7 +52,7 @@ export default function LedgerReportView({
                 {columns.map((column) => (
                   <td
                     className={`sr-td-cell ${
-                      column.key === 'name' ? 'sr-col-start sr-col-name' : 'sr-col-center'
+                      column.key === 'name' ? 'sr-col-start sr-col-name sticky-col-name' : 'sr-col-center'
                     } ${column.numeric ? 'sr-numeric-col' : ''}`}
                     key={column.key}
                   >

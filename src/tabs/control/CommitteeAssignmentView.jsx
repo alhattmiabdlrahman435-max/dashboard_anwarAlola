@@ -216,7 +216,7 @@ export default function CommitteeAssignmentView() {
               <thead>
                 <tr>
                   <th scope="col" style={{ width: 120 }}>رقم الجلوس</th>
-                  <th scope="col">اسم الطالب</th>
+                  <th scope="col" className="sticky-col-name">اسم الطالب</th>
                   <th scope="col" style={{ width: 160 }}>رقم اللجنة</th>
                 </tr>
               </thead>
@@ -227,7 +227,7 @@ export default function CommitteeAssignmentView() {
                   return (
                     <tr key={s.id}>
                       <td>{s.seat_number ?? '—'}</td>
-                      <td className="cb-name">{s.name_ar}</td>
+                      <td className="cb-name sticky-col-name">{s.name_ar}</td>
                       <td>
                         <select
                           className="text-field"

@@ -1,39 +1,51 @@
-import { SLOGAN_BASE64 } from '../assets/sloganBase64';
+import { SLOGAN_BASE64 } from "../assets/sloganBase64";
+import { openHtmlPrintPreview } from "../utils/printPreview";
 import { studentsService } from "../services/students/students.service";
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { useApp } from '../context/AppContext';
-import { useAuth } from '../contexts/Auth/useAuth';
-import { useStudents } from '../contexts/Students/useStudents';
-import { useClasses } from '../contexts/Classes/useClasses';
-import { useAllowedClasses } from '../hooks/useAllowedClasses';
-import { useParents } from '../contexts/Parents/useParents';
-import { useSettings } from '../contexts/Settings/useSettings';
-import { usePagination } from '../hooks/usePagination';
-import PaginationBar from '../components/PaginationBar';
-import { Plus, Search, Eye, Edit2, Trash2, CreditCard, Download, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, RefreshCw, X, User, Camera, Printer } from 'lucide-react';
-import { processAndCompressFile } from '../utils/fileCompressor';
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useApp } from "../context/AppContext";
+import { useAuth } from "../contexts/Auth/useAuth";
+import { useStudents } from "../contexts/Students/useStudents";
+import { useClasses } from "../contexts/Classes/useClasses";
+import { useAllowedClasses } from "../hooks/useAllowedClasses";
+import { useParents } from "../contexts/Parents/useParents";
+import { useSettings } from "../contexts/Settings/useSettings";
+import { usePagination } from "../hooks/usePagination";
+import PaginationBar from "../components/PaginationBar";
+import StudentTranscriptModal from "../components/StudentTranscriptModal";
+import {
+  Plus,
+  Search,
+  Eye,
+  Edit2,
+  Trash2,
+  Upload,
+  RefreshCw,
+  X,
+  User,
+  Camera,
+  Printer,
+  GraduationCap,
+} from "lucide-react";
 
 export default function StudentsTab() {
-  const {
-    lang, t,
-    renderAvatar,
-    canAction, setToastMessage, triggerConfirm
-  } = useApp();
+  const { lang, t, renderAvatar, canAction, setToastMessage, triggerConfirm } =
+    useApp();
   const { controlMultiplier, controlOffset } = useSettings();
 
   const { classes, fetchClasses } = useClasses();
-  const { allowedClasses } = useAllowedClasses('students');
+  const { allowedClasses } = useAllowedClasses("students");
   const { parentUsers, fetchParents } = useParents();
   const {
     students,
     studentsPagination,
+    statusCounts,
     setSelectedStudentForCard,
     setShowCardVisualizerModal,
     handleAddStudent,
     handleEditStudent,
     handleDeleteStudent,
     fetchStudents,
-    loading
+    loading,
   } = useStudents();
   const { currentUser } = useAuth();
 
@@ -41,23 +53,25 @@ export default function StudentsTab() {
     page,
     perPage,
     search,
-    sort,
-    direction,
     filters,
     setPage,
     setPerPage,
-    setSort,
     setSearch,
     setFilters,
     buildQueryString,
     goToPrevIfEmpty,
   } = usePagination({
-    moduleKey: 'students',
-    defaultFilters: { status: 'all', class_id: 'all' },
+    moduleKey: "students",
+    defaultFilters: {
+      status: "all",
+      class_id: "all",
+      enrollment_status: "all",
+    },
   });
 
-  const classFilter = filters.class_id || 'all';
-  const statusFilter = filters.status || 'all';
+  const classFilter = filters.class_id || "all";
+  const statusFilter = filters.status || "all";
+  const enrollmentStatusFilter = filters.enrollment_status || "all";
 
   const qs = buildQueryString();
 
@@ -88,21 +102,30 @@ export default function StudentsTab() {
 
   // Sync search input with URL params on back/forward
   useEffect(() => {
-    setSearchQuery(search);
+    let ignore = false;
+    Promise.resolve().then(() => {
+      if (!ignore) {
+        setSearchQuery(search);
+      }
+    });
+    return () => {
+      ignore = true;
+    };
   }, [search]);
 
   const [showStudentModal, setShowStudentModal] = useState(false);
 
   // Excel Modal States
   const [showExcelModal, setShowExcelModal] = useState(false);
-  const [excelModalTab, setExcelModalTab] = useState('import'); // 'import' | 'export'
-  const [excelDefaultClassId, setExcelDefaultClassId] = useState('');
-  const [excelTemplateClassId, setExcelTemplateClassId] = useState('');
-  const [excelExportClassId, setExcelExportClassId] = useState('');
+  const [transcriptStudent, setTranscriptStudent] = useState(null);
+  const [excelModalTab, setExcelModalTab] = useState("import"); // 'import' | 'export'
+  const [excelDefaultClassId, setExcelDefaultClassId] = useState("");
+  const [excelTemplateClassId, setExcelTemplateClassId] = useState("");
+  const [excelExportClassId, setExcelExportClassId] = useState("");
   const [importFile, setImportFile] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
-  const [importStatus, setImportStatus] = useState('');
+  const [importStatus, setImportStatus] = useState("");
   const [importErrors, setImportErrors] = useState([]);
   const [importWarnings, setImportWarnings] = useState([]);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -110,98 +133,132 @@ export default function StudentsTab() {
   const [isExporting, setIsExporting] = useState(false);
   // Print Modal States
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printClassId, setPrintClassId] = useState('');
-  const [printRosterType, setPrintRosterType] = useState('without_code'); // 'without_code' | 'with_code'
+  const [printClassId, setPrintClassId] = useState("");
+  const [printRosterType, setPrintRosterType] = useState("without_code"); // 'without_code' | 'with_code'
   const [isPrintingRoster, setIsPrintingRoster] = useState(false);
 
   // ── Print Roster Handler (مع أكليشة المدرسة الرسمية وكافة التفاصيل) ────────
   const handlePrintRoster = async () => {
     if (!printClassId) {
-      if (setToastMessage) setToastMessage(lang === 'ar' ? 'الرجاء اختيار الصف والشعبة أولاً' : 'Please select class and section first');
+      if (setToastMessage)
+        setToastMessage(
+          lang === "ar"
+            ? "الرجاء اختيار الصف والشعبة أولاً"
+            : "Please select class and section first",
+        );
       return;
     }
 
     setIsPrintingRoster(true);
 
     try {
-      const selectedClass = (allowedClasses || []).find(c => {
-        const numId = typeof c.id === 'string' && c.id.startsWith('cls-') ? c.id.replace('cls-', '') : String(c.id);
-        return numId === String(printClassId) || String(c.id) === String(printClassId);
+      const selectedClass = (allowedClasses || []).find((c) => {
+        const numId =
+          typeof c.id === "string" && c.id.startsWith("cls-")
+            ? c.id.replace("cls-", "")
+            : String(c.id);
+        return (
+          numId === String(printClassId) ||
+          String(c.id) === String(printClassId)
+        );
       });
 
-      const className = selectedClass 
-        ? (lang === 'ar' ? selectedClass.name : (selectedClass.nameEn || selectedClass.name))
-        : '';
+      const className = selectedClass
+        ? lang === "ar"
+          ? selectedClass.name
+          : selectedClass.nameEn || selectedClass.name
+        : "";
 
-      const numericId = String(printClassId).replace(/\D/g, '');
+      const numericId = String(printClassId).replace(/\D/g, "");
 
       // جلب جميع طلاب الفصل المحدد من الخادم لضمان عدم اقتصار الكشف على الصفحة الحالية فقط
       let classStudents = [];
       try {
-        const response = await studentsService.getStudents(`?class_id=${numericId}&per_page=500`);
-        const rawList = response?.data?.students || response?.data?.data || response?.students || [];
-        classStudents = rawList.map(st => ({
+        const response = await studentsService.getStudents(
+          `?class_id=${numericId}&per_page=500`,
+        );
+        const rawList =
+          response?.data?.students ||
+          response?.data?.data ||
+          response?.students ||
+          [];
+        classStudents = rawList.map((st) => ({
           id: st.id,
-          name: st.name_ar || st.name || '',
-          nameEn: st.name_en || st.nameEn || '',
-          studentCode: st.student_code || st.qrCode || st.id || '',
+          name: st.name_ar || st.name || "",
+          nameEn: st.name_en || st.nameEn || "",
+          studentCode: st.student_code || st.qrCode || st.id || "",
         }));
       } catch (err) {
-        console.warn('Fallback to context students:', err);
+        console.warn("Fallback to context students:", err);
       }
 
       // في حال تعذر الاتصال أو كان الرد فارغاً، الاعتماد على بيانات الواجهة كخيار بديل
       if (!classStudents || classStudents.length === 0) {
         classStudents = (students || [])
-          .filter(s => {
-            const sClassId = String(s.class_id || s.classId || '').replace(/\D/g, '');
-            return sClassId === numericId || String(s.class_id) === String(printClassId);
+          .filter((s) => {
+            const sClassId = String(s.class_id || s.classId || "").replace(
+              /\D/g,
+              "",
+            );
+            return (
+              sClassId === numericId ||
+              String(s.class_id) === String(printClassId)
+            );
           })
-          .map(st => ({
+          .map((st) => ({
             id: st.id,
-            name: st.name || st.name_ar || '',
-            nameEn: st.nameEn || st.name_en || '',
-            studentCode: st.qrCode || st.student_code || st.id || '',
+            name: st.name || st.name_ar || "",
+            nameEn: st.nameEn || st.name_en || "",
+            studentCode: st.qrCode || st.student_code || st.id || "",
           }));
       }
 
       // الترتيب الأبجدي الدقيق للأسماء العربية (مع توحيد الهمزات والتشكيل)
-      const normalizeArabic = (str = '') => {
+      const normalizeArabic = (str = "") => {
         return str
-          .replace(/[ً-ٰٟ]/g, '') // إزالة التشكيل
-          .replace(/[إأآٱ]/g, 'ا')               // توحيد الألفات
-          .replace(/ة/g, 'ه')                    // توحيد التاء المربوطة
-          .replace(/ى/g, 'ي')                    // توحيد الياء
+          .replace(/[ً-ٰٟ]/g, "") // إزالة التشكيل
+          .replace(/[إأآٱ]/g, "ا") // توحيد الألفات
+          .replace(/ة/g, "ه") // توحيد التاء المربوطة
+          .replace(/ى/g, "ي") // توحيد الياء
           .trim();
       };
 
       classStudents.sort((a, b) => {
-        const normA = normalizeArabic(a.name || '');
-        const normB = normalizeArabic(b.name || '');
-        const cmp = normA.localeCompare(normB, 'ar');
-        return cmp !== 0 ? cmp : (a.name || '').localeCompare(b.name || '', 'ar');
+        const normA = normalizeArabic(a.name || "");
+        const normB = normalizeArabic(b.name || "");
+        const cmp = normA.localeCompare(normB, "ar");
+        return cmp !== 0
+          ? cmp
+          : (a.name || "").localeCompare(b.name || "", "ar");
       });
 
-      const withCode = printRosterType === 'with_code';
+      const withCode = printRosterType === "with_code";
       const rosterTitle = withCode
-        ? 'كشف أسماء الطلاب مع الرقم الأكاديمي'
-        : 'كشف بأسماء الطلاب بدون الرقم الأكاديمي';
+        ? "كشف أسماء الطلاب مع الرقم الأكاديمي"
+        : "كشف بأسماء الطلاب بدون الرقم الأكاديمي";
 
-      const todayStr = new Date().toLocaleDateString('ar-SA', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long'
+      const todayStr = new Date().toLocaleDateString("ar-SA", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long",
       });
 
-      const rowsHtml = classStudents.length > 0 ? classStudents.map((st, idx) => `
+      const rowsHtml =
+        classStudents.length > 0
+          ? classStudents
+              .map(
+                (st, idx) => `
         <tr>
           <td class="col-num">${idx + 1}</td>
-          ${withCode ? `<td class="col-code">${st.studentCode}</td>` : ''}
+          ${withCode ? `<td class="col-code">${st.studentCode}</td>` : ""}
           <td class="col-name">${st.name}</td>
           <td class="col-notes">&nbsp;</td>
         </tr>
-      `).join('') : `
+      `,
+              )
+              .join("")
+          : `
         <tr>
           <td colspan="${withCode ? 4 : 3}" style="text-align:center;padding:24px;color:#64748b;font-weight:700;">
             لا توجد بيانات طلاب مسجلة في هذا الفصل
@@ -442,7 +499,7 @@ export default function StudentsTab() {
       <thead>
         <tr>
           <th style="width: 36px;">م</th>
-          ${withCode ? '<th style="width: 110px;">الرقم الأكاديمي</th>' : ''}
+          ${withCode ? '<th style="width: 110px;">الرقم الأكاديمي</th>' : ""}
           <th style="text-align: right;">اسم الطالب</th>
           <th style="width: 220px; text-align: right;">الملاحظات</th>
         </tr>
@@ -480,102 +537,87 @@ export default function StudentsTab() {
 </body>
 </html>`;
 
-      const frame = document.createElement('iframe');
-      frame.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0;opacity:0;';
-      document.body.appendChild(frame);
-      const doc = frame.contentDocument;
-      doc.open();
-      doc.write(html);
-      doc.close();
-
-      const cleanup = () => {
-        try {
-          if (frame.parentNode) document.body.removeChild(frame);
-        } catch (e) {}
-        setIsPrintingRoster(false);
-      };
-
-      frame.contentWindow.addEventListener('afterprint', cleanup, { once: true });
-
-      const images = [...doc.images].map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
-        img.onload = resolve;
-        img.onerror = resolve;
-      }));
-
-      Promise.all(images).then(() => {
-        setTimeout(() => {
-          frame.contentWindow.focus();
-          frame.contentWindow.print();
-          setShowPrintModal(false);
-          setTimeout(cleanup, 60000);
-        }, 150);
-      }).catch(() => {
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
-        setShowPrintModal(false);
-        setTimeout(cleanup, 60000);
+      openHtmlPrintPreview(html, {
+        title:
+          lang === "ar" ? "معاينة كشف الطلاب" : "Students Roster Print Preview",
+        landscape: html.includes("landscape"),
       });
-
+      setShowPrintModal(false);
+      setIsPrintingRoster(false);
     } catch (err) {
-      console.error('Print Error:', err);
-      if (setToastMessage) setToastMessage(lang === 'ar' ? 'حدث خطأ أثناء إعداد كشف الطباعة' : 'Error generating print sheet');
+      console.error("Print Error:", err);
+      if (setToastMessage)
+        setToastMessage(
+          lang === "ar"
+            ? "حدث خطأ أثناء إعداد كشف الطباعة"
+            : "Error generating print sheet",
+        );
       setIsPrintingRoster(false);
     }
   };
 
-
   // Student Form states
-  const [modalStudentName, setModalStudentName] = useState('');
-  const [selectedClassId, setSelectedClassId] = useState('');
+  const [modalStudentName, setModalStudentName] = useState("");
+  const [selectedClassId, setSelectedClassId] = useState("");
 
   // Edit Student Form states
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState(null);
-  const [editStudentName, setEditStudentName] = useState('');
-  const [editClassId, setEditClassId] = useState('');
-  const [editStudentPhoto, setEditStudentPhoto] = useState('');
-  const [editTuitionFee, setEditTuitionFee] = useState('0');
-  const [editGender, setEditGender] = useState('');
-  const [editFormError, setEditFormError] = useState('');
-  const [editParentNationalId, setEditParentNationalId] = useState('');
-  const [editParentSearchText, setEditParentSearchText] = useState('');
-  const [modalParentNationalId, setModalParentNationalId] = useState('');
-  const [modalParentName, setModalParentName] = useState('');
-  const [modalPhone, setModalPhone] = useState('');
-  const [modalStudentPhoto, setModalStudentPhoto] = useState('');
-  const [modalParentPhoto, setModalParentPhoto] = useState('');
-  const [modalTuitionFee, setModalTuitionFee] = useState('0');
-  const [modalGender, setModalGender] = useState('');
-  const [formError, setFormError] = useState('');
-  const [selectedParentLinkOption, setSelectedParentLinkOption] = useState('');
-  const [parentSearchText, setParentSearchText] = useState('');
+  const [editStudentName, setEditStudentName] = useState("");
+  const [editClassId, setEditClassId] = useState("");
+  const [editStudentPhoto, setEditStudentPhoto] = useState("");
+  const [editTuitionFee, setEditTuitionFee] = useState("0");
+  const [editGender, setEditGender] = useState("");
+  const [editEnrollmentStatus, setEditEnrollmentStatus] = useState("active");
+  const [editFormError, setEditFormError] = useState("");
+  const [editParentNationalId, setEditParentNationalId] = useState("");
+  const [editParentSearchText, setEditParentSearchText] = useState("");
+  const [modalParentNationalId, setModalParentNationalId] = useState("");
+  const [modalParentName, setModalParentName] = useState("");
+  const [modalPhone, setModalPhone] = useState("");
+  const [modalStudentPhoto, setModalStudentPhoto] = useState("");
+  const [modalParentPhoto, setModalParentPhoto] = useState("");
+  const [modalTuitionFee, setModalTuitionFee] = useState("0");
+  const [modalGender, setModalGender] = useState("");
+  const [formError, setFormError] = useState("");
+  const [selectedParentLinkOption, setSelectedParentLinkOption] = useState("");
+  const [parentSearchText, setParentSearchText] = useState("");
 
   useEffect(() => {
     if (showStudentModal || showEditStudentModal) {
-      fetchParents('?per_page=1000');
+      fetchParents("?per_page=1000");
     }
   }, [showStudentModal, showEditStudentModal, fetchParents]);
 
-
   const onSubmit = (e) => {
     e.preventDefault();
-    setFormError('');
+    setFormError("");
 
     if (!selectedParentLinkOption) {
-      setFormError(lang === 'ar' ? 'الرجاء اختيار ولي أمر الطالب أولاً' : 'Please select the student\'s parent first');
+      setFormError(
+        lang === "ar"
+          ? "الرجاء اختيار ولي أمر الطالب أولاً"
+          : "Please select the student's parent first",
+      );
       return;
     }
 
-    const selectedParentObj = parentUsers.find(p => p.nationalId === selectedParentLinkOption);
+    const selectedParentObj = parentUsers.find(
+      (p) => p.nationalId === selectedParentLinkOption,
+    );
     if (!selectedParentObj) {
-      setFormError(lang === 'ar' ? 'فشل العثور على حساب ولي الأمر المحدد!' : 'Selected parent account not found!');
+      setFormError(
+        lang === "ar"
+          ? "فشل العثور على حساب ولي الأمر المحدد!"
+          : "Selected parent account not found!",
+      );
       return;
     }
 
     const parentNameVal = selectedParentObj.name;
     const parentPhoneVal = selectedParentObj.phone;
     const parentNationalIdVal = selectedParentObj.nationalId;
-    const parentPhotoVal = selectedParentObj.photo || '🧔';
+    const parentPhotoVal = selectedParentObj.photo || "🧔";
     const newParentObj = null;
 
     if (!modalStudentName.trim()) {
@@ -588,45 +630,88 @@ export default function StudentsTab() {
       return;
     }
 
-    const classObj = classes.find(c => c.id === selectedClassId);
+    const classObj = classes.find((c) => c.id === selectedClassId);
     if (!classObj) {
-      setFormError(lang === 'ar' ? 'الرجاء اختيار فصل دراسي صالح!' : 'Please select a valid class!');
+      setFormError(
+        lang === "ar"
+          ? "الرجاء اختيار فصل دراسي صالح!"
+          : "Please select a valid class!",
+      );
       return;
     }
 
     if (!modalGender) {
-      setFormError(lang === 'ar' ? 'الرجاء اختيار الجنس' : 'Please select gender');
+      setFormError(
+        lang === "ar" ? "الرجاء اختيار الجنس" : "Please select gender",
+      );
       return;
     }
 
     const getStageIndex = (className) => {
-      if (className.includes("تمهيدي أول") || className.includes("KG1") || className.includes("الروضة الأولى")) return "1";
-      if (className.includes("تمهيدي ثاني") || className.includes("KG2") || className.includes("الروضة الثانية")) return "2";
-      if (className.includes("الأول") && !className.includes("المتوسط") && !className.includes("الثانوي")) return "3";
-      if (className.includes("الثاني") && !className.includes("المتوسط") && !className.includes("الثانوي")) return "4";
-      if (className.includes("الثالث") && !className.includes("المتوسط") && !className.includes("الثانوي")) return "5";
+      if (
+        className.includes("تمهيدي أول") ||
+        className.includes("KG1") ||
+        className.includes("الروضة الأولى")
+      )
+        return "1";
+      if (
+        className.includes("تمهيدي ثاني") ||
+        className.includes("KG2") ||
+        className.includes("الروضة الثانية")
+      )
+        return "2";
+      if (
+        className.includes("الأول") &&
+        !className.includes("المتوسط") &&
+        !className.includes("الثانوي")
+      )
+        return "3";
+      if (
+        className.includes("الثاني") &&
+        !className.includes("المتوسط") &&
+        !className.includes("الثانوي")
+      )
+        return "4";
+      if (
+        className.includes("الثالث") &&
+        !className.includes("المتوسط") &&
+        !className.includes("الثانوي")
+      )
+        return "5";
       if (className.includes("الرابع")) return "6";
       if (className.includes("الخامس")) return "7";
       if (className.includes("السادس")) return "8";
-      if (className.includes("المتوسط") && className.includes("الأول")) return "9";
-      if (className.includes("المتوسط") && className.includes("الثاني")) return "10";
-      if (className.includes("المتوسط") && className.includes("الثالث")) return "11";
-      if (className.includes("الثانوي") && className.includes("الأول")) return "12";
-      if (className.includes("الثانوي") && className.includes("الثاني")) return "13";
-      if (className.includes("الثانوي") && className.includes("الثالث")) return "14";
+      if (className.includes("المتوسط") && className.includes("الأول"))
+        return "9";
+      if (className.includes("المتوسط") && className.includes("الثاني"))
+        return "10";
+      if (className.includes("المتوسط") && className.includes("الثالث"))
+        return "11";
+      if (className.includes("الثانوي") && className.includes("الأول"))
+        return "12";
+      if (className.includes("الثانوي") && className.includes("الثاني"))
+        return "13";
+      if (className.includes("الثانوي") && className.includes("الثالث"))
+        return "14";
       return "3";
     };
 
     const stageIndex = getStageIndex(classObj.grade);
-    const existingCodes = students.map(s => parseInt(s.qrCode || s.student_code || 0, 10)).filter(n => !isNaN(n));
-    const maxCode = existingCodes.length > 0 ? Math.max(...existingCodes) : 202630;
+    const existingCodes = students
+      .map((s) => parseInt(s.qrCode || s.student_code || 0, 10))
+      .filter((n) => !isNaN(n));
+    const maxCode =
+      existingCodes.length > 0 ? Math.max(...existingCodes) : 202630;
     const baseCode = parseInt(`2026${stageIndex}1`, 10);
     const nextCodeNum = Math.max(baseCode, maxCode + 1);
     const generatedStudentCode = String(nextCodeNum);
     const newId = Number(generatedStudentCode);
 
-    const nameEnFallback = modalStudentName.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
-    
+    const nameEnFallback = modalStudentName
+      .split(" ")
+      .map((n) => n.charAt(0).toUpperCase() + n.slice(1))
+      .join(" ");
+
     const newStudent = {
       id: newId,
       name: modalStudentName,
@@ -639,16 +724,17 @@ export default function StudentsTab() {
       parentNameEn: parentNameVal,
       parentNationalId: parentNationalIdVal,
       phone: parentPhoneVal,
-      status: 'absent', // registers as absent initially until scanned
-      time: '--:--',
+      status: "absent", // registers as absent initially until scanned
+      time: "--:--",
       qrCode: generatedStudentCode,
       photo: modalStudentPhoto,
       parentPhoto: parentPhotoVal,
       tuitionFee: Number(modalTuitionFee || 0),
-      gender: modalGender
+      gender: modalGender,
     };
 
-    const calculatedNumericPart = newId * Number(controlMultiplier) + Number(controlOffset);
+    const calculatedNumericPart =
+      newId * Number(controlMultiplier) + Number(controlOffset);
     const newGradeRow = {
       studentId: newId,
       name: modalStudentName,
@@ -657,7 +743,7 @@ export default function StudentsTab() {
       math: 0,
       science: 0,
       arabic: 0,
-      english: 0
+      english: 0,
     };
 
     // Save to global context
@@ -669,11 +755,14 @@ export default function StudentsTab() {
           setPage(1);
           fetchStudents(buildQueryString({ page: 1 }));
         } else {
-          setFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+          setFormError(
+            res?.message ||
+              (lang === "ar" ? "فشلت العملية" : "Operation failed"),
+          );
         }
       })
       .catch((err) => {
-        setFormError(err.message || 'Error occurred');
+        setFormError(err.message || "Error occurred");
       })
       .finally(() => {
         setIsSaving(false);
@@ -683,20 +772,26 @@ export default function StudentsTab() {
   const openEditModal = (student) => {
     setEditingStudentId(student.id);
     setEditStudentName(student.name);
-    const studentClass = classes.find(c => c.grade === student.grade && c.section === student.section);
-    setEditClassId(studentClass ? studentClass.id : '');
-    setEditStudentPhoto(student.photo || '');
+    const studentClass = classes.find(
+      (c) => c.grade === student.grade && c.section === student.section,
+    );
+    setEditClassId(studentClass ? studentClass.id : "");
+    setEditStudentPhoto(student.photo || "");
     setEditTuitionFee(String(student.tuitionFee ?? student.tuition_fee ?? 0));
-    setEditGender(student.gender || '');
-    setEditParentNationalId(student.parentNationalId || '');
-    setEditParentSearchText('');
-    setEditFormError('');
+    setEditGender(student.gender || "");
+    setEditEnrollmentStatus(
+      student.enrollment_status ||
+        (student.is_active === false ? "withdrawn" : "active"),
+    );
+    setEditParentNationalId(student.parentNationalId || "");
+    setEditParentSearchText("");
+    setEditFormError("");
     setShowEditStudentModal(true);
   };
 
   const onEditSubmit = (e) => {
     e.preventDefault();
-    setEditFormError('');
+    setEditFormError("");
 
     if (!editStudentName.trim()) {
       setEditFormError(t.emptyError);
@@ -708,13 +803,19 @@ export default function StudentsTab() {
       return;
     }
 
-    const classObj = classes.find(c => c.id === editClassId);
+    const classObj = classes.find((c) => c.id === editClassId);
     if (!classObj) {
-      setEditFormError(lang === 'ar' ? 'الرجاء اختيار فصل دراسي صالح!' : 'Please select a valid class!');
+      setEditFormError(
+        lang === "ar"
+          ? "الرجاء اختيار فصل دراسي صالح!"
+          : "Please select a valid class!",
+      );
       return;
     }
 
-    const selectedParent = parentUsers.find(p => p.nationalId === editParentNationalId);
+    const selectedParent = parentUsers.find(
+      (p) => p.nationalId === editParentNationalId,
+    );
 
     setIsSaving(true);
     handleEditStudent(editingStudentId, {
@@ -729,84 +830,95 @@ export default function StudentsTab() {
       parentId: selectedParent ? selectedParent.id : null,
       parentNationalId: editParentNationalId || null,
       parentName: selectedParent ? selectedParent.name : undefined,
-      phone: selectedParent ? selectedParent.phone : undefined
+      phone: selectedParent ? selectedParent.phone : undefined,
+      enrollment_status: editEnrollmentStatus,
+      is_active: editEnrollmentStatus !== "withdrawn",
     })
       .then((res) => {
         if (res && res.success) {
           setShowEditStudentModal(false);
           // Reset inputs on success only
-          setModalStudentName('');
+          setModalStudentName("");
           if (classes.length > 0) {
             setSelectedClassId(classes[0].id);
           } else {
-            setSelectedClassId('');
+            setSelectedClassId("");
           }
-          setModalParentNationalId('');
-          setModalParentName('');
-          setModalPhone('');
-          setModalStudentPhoto('');
-          setModalParentPhoto('');
-          setModalTuitionFee('0');
-          setSelectedParentLinkOption('');
-          setParentSearchText('');
+          setModalParentNationalId("");
+          setModalParentName("");
+          setModalPhone("");
+          setModalStudentPhoto("");
+          setModalParentPhoto("");
+          setModalTuitionFee("0");
+          setSelectedParentLinkOption("");
+          setParentSearchText("");
           fetchStudents(buildQueryString());
         } else {
-          setEditFormError(res?.message || (lang === 'ar' ? 'فشلت العملية' : 'Operation failed'));
+          setEditFormError(
+            res?.message ||
+              (lang === "ar" ? "فشلت العملية" : "Operation failed"),
+          );
         }
       })
       .catch((err) => {
-        setEditFormError(err.message || 'Error occurred');
+        setEditFormError(err.message || "Error occurred");
       })
       .finally(() => {
         setIsSaving(false);
       });
   };
 
-  const handleExportExcel = async (classId = '') => {
+  const handleExportExcel = async (classId = "") => {
     try {
       setIsExporting(true);
       const res = await studentsService.exportStudents(classId);
       if (!res.ok) {
-        alert(lang === 'ar' ? 'فشل تصدير البيانات' : 'Failed to export data');
+        alert(lang === "ar" ? "فشل تصدير البيانات" : "Failed to export data");
         setIsExporting(false);
         return;
       }
       const blob = await res.blob();
       const urlBlob = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = urlBlob;
-      a.download = 'students_export.xlsx';
+      a.download = "students_export.xlsx";
       document.body.appendChild(a);
       a.click();
       a.remove();
     } catch (err) {
       console.error(err);
-      alert(lang === 'ar' ? 'حدث خطأ أثناء التصدير' : 'Error exporting');
+      alert(lang === "ar" ? "حدث خطأ أثناء التصدير" : "Error exporting");
     } finally {
       setIsExporting(false);
     }
   };
 
-  const handleDownloadExcelTemplate = async (classId = '') => {
+  const handleDownloadExcelTemplate = async (classId = "") => {
     try {
       setIsLoadingTemplate(true);
       const res = await studentsService.downloadTemplate(classId);
       if (!res.ok) {
-        alert(lang === 'ar' ? 'فشل تحميل النموذج' : 'Failed to download template');
+        alert(
+          lang === "ar" ? "فشل تحميل النموذج" : "Failed to download template",
+        );
         setIsLoadingTemplate(false);
         return;
       }
       const blob = await res.blob();
       const urlBlob = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = urlBlob;
-      a.download = 'students_template.xlsx';
+      a.download = "students_template.xlsx";
       document.body.appendChild(a);
       a.click();
       a.remove();
     } catch (err) {
       console.error(err);
-      alert(lang === 'ar' ? 'حدث خطأ أثناء تحميل النموذج' : 'Error downloading template');
+      alert(
+        lang === "ar"
+          ? "حدث خطأ أثناء تحميل النموذج"
+          : "Error downloading template",
+      );
     } finally {
       setIsLoadingTemplate(false);
     }
@@ -815,21 +927,23 @@ export default function StudentsTab() {
   const handleImportExcel = async (e) => {
     e.preventDefault();
     if (!importFile) {
-      alert(lang === 'ar' ? 'يرجى اختيار ملف أولاً' : 'Please select a file first');
+      alert(
+        lang === "ar" ? "يرجى اختيار ملف أولاً" : "Please select a file first",
+      );
       return;
     }
 
     setIsImporting(true);
     setImportProgress(10);
-    setImportStatus(lang === 'ar' ? 'جاري رفع الملف...' : 'Uploading file...');
+    setImportStatus(lang === "ar" ? "جاري رفع الملف..." : "Uploading file...");
     setImportErrors([]);
     setImportWarnings([]);
     setImportSuccess(false);
 
     const formData = new FormData();
-    formData.append('file', importFile);
+    formData.append("file", importFile);
     if (excelDefaultClassId) {
-      formData.append('class_id', excelDefaultClassId);
+      formData.append("class_id", excelDefaultClassId);
     }
 
     // Mock progress animation
@@ -839,7 +953,7 @@ export default function StudentsTab() {
         importIntervalRef.current = null;
         return;
       }
-      setImportProgress(prev => {
+      setImportProgress((prev) => {
         if (prev >= 85) {
           if (importIntervalRef.current) {
             clearInterval(importIntervalRef.current);
@@ -869,13 +983,18 @@ export default function StudentsTab() {
           setImportWarnings(data.warnings);
         }
         setToastMessage(data.message);
-        fetchStudents(localStorage.getItem('auth_token'));
+        fetchStudents(localStorage.getItem("auth_token"));
       } else {
-        setImportStatus(lang === 'ar' ? 'فشل استيراد البيانات' : 'Import failed');
+        setImportStatus(
+          lang === "ar" ? "فشل استيراد البيانات" : "Import failed",
+        );
         if (data.errors && data.errors.length > 0) {
           setImportErrors(data.errors);
         } else {
-          setImportErrors([data.message || (lang === 'ar' ? 'فشل استيراد البيانات' : 'Import failed')]);
+          setImportErrors([
+            data.message ||
+              (lang === "ar" ? "فشل استيراد البيانات" : "Import failed"),
+          ]);
         }
       }
     } catch (err) {
@@ -885,8 +1004,12 @@ export default function StudentsTab() {
       }
       if (!isMountedRef.current) return;
       setImportProgress(100);
-      setImportStatus(lang === 'ar' ? 'حدث خطأ أثناء الاتصال بالخادم' : 'Error communicating with server');
-      setImportErrors([err.message || 'Error']);
+      setImportStatus(
+        lang === "ar"
+          ? "حدث خطأ أثناء الاتصال بالخادم"
+          : "Error communicating with server",
+      );
+      setImportErrors([err.message || "Error"]);
       console.error(err);
     } finally {
       if (isMountedRef.current) {
@@ -895,23 +1018,43 @@ export default function StudentsTab() {
     }
   };
 
+  const enrollmentStatusCounts = useMemo(() => ({
+    all: statusCounts?.all ?? studentsPagination?.total ?? 0,
+    active: statusCounts?.active ?? 0,
+    supplementary: statusCounts?.supplementary ?? 0,
+    graduated: statusCounts?.graduated ?? 0,
+    withdrawn: statusCounts?.withdrawn ?? 0,
+    retained: statusCounts?.retained ?? 0,
+  }), [statusCounts, studentsPagination?.total]);
+
   const filteredStudents = useMemo(() => {
-    return students.filter(student => {
-      if (currentUser?.role === 'parent' && student.parentNationalId !== currentUser.username) {
+    return students.filter((student) => {
+      if (
+        currentUser?.role === "parent" &&
+        student.parentNationalId !== currentUser.username
+      ) {
         return false;
       }
-      if (statusFilter === 'present') {
-        return student.status === 'present' || student.status === 'late';
+      if (statusFilter === "present") {
+        return student.status === "present" || student.status === "late";
       }
-      if (statusFilter === 'absent') {
-        return student.status !== 'present' && student.status !== 'late';
+      if (statusFilter === "absent") {
+        return student.status !== "present" && student.status !== "late";
+      }
+      if (enrollmentStatusFilter && enrollmentStatusFilter !== "all") {
+        const studentEnrollment =
+          student.enrollment_status ||
+          (student.is_active === false ? "withdrawn" : "active");
+        if (studentEnrollment !== enrollmentStatusFilter) {
+          return false;
+        }
       }
       return true;
     });
-  }, [students, currentUser, statusFilter]);
+  }, [students, currentUser, statusFilter, enrollmentStatusFilter]);
 
   const filteredParentUsers = useMemo(() => {
-    return parentUsers.filter(p => {
+    return parentUsers.filter((p) => {
       const term = parentSearchText.trim().toLowerCase();
       if (!term) return true;
       return p.name.toLowerCase().includes(term) || p.nationalId.includes(term);
@@ -919,15 +1062,18 @@ export default function StudentsTab() {
   }, [parentUsers, parentSearchText]);
 
   const filteredEditParentUsers = useMemo(() => {
-    return parentUsers.filter(p => {
+    return parentUsers.filter((p) => {
       const term = editParentSearchText.trim().toLowerCase();
       if (!term) return true;
-      return p.name.toLowerCase().includes(term) || (p.nationalId && p.nationalId.includes(term));
+      return (
+        p.name.toLowerCase().includes(term) ||
+        (p.nationalId && p.nationalId.includes(term))
+      );
     });
   }, [parentUsers, editParentSearchText]);
 
   const selectedEditParentObj = useMemo(() => {
-    return parentUsers.find(p => p.nationalId === editParentNationalId);
+    return parentUsers.find((p) => p.nationalId === editParentNationalId);
   }, [parentUsers, editParentNationalId]);
 
   const editParentNameMismatchInfo = useMemo(() => {
@@ -937,7 +1083,19 @@ export default function StudentsTab() {
     const fatherName = studentParts[1];
     const parentParts = selectedEditParentObj.name.trim().split(/\s+/);
     const parentFirstName = parentParts[0];
-    const isCompound = ['عبد', 'ابو', 'أبو', 'زين', 'شمس', 'مجيب', 'عماد', 'امير', 'آية', 'تالين', 'نوره'].some(p => fatherName.startsWith(p));
+    const isCompound = [
+      "عبد",
+      "ابو",
+      "أبو",
+      "زين",
+      "شمس",
+      "مجيب",
+      "عماد",
+      "امير",
+      "آية",
+      "تالين",
+      "نوره",
+    ].some((p) => fatherName.startsWith(p));
     if (fatherName !== parentFirstName && !isCompound) {
       return {
         fatherName,
@@ -952,8 +1110,8 @@ export default function StudentsTab() {
     if (!editStudentName.trim() || !parentUsers.length) return null;
     const parts = editStudentName.trim().split(/\s+/);
     if (parts.length < 3) return null;
-    const fatherFullName = parts.slice(1).join(' ');
-    const match = parentUsers.find(p => {
+    const fatherFullName = parts.slice(1).join(" ");
+    const match = parentUsers.find((p) => {
       if (p.nationalId === editParentNationalId) return false;
       const pName = p.name.trim();
       return pName.includes(fatherFullName) || fatherFullName.includes(pName);
@@ -962,7 +1120,7 @@ export default function StudentsTab() {
   }, [editStudentName, parentUsers, editParentNationalId]);
 
   const selectedAddParentObj = useMemo(() => {
-    return parentUsers.find(p => p.nationalId === selectedParentLinkOption);
+    return parentUsers.find((p) => p.nationalId === selectedParentLinkOption);
   }, [parentUsers, selectedParentLinkOption]);
 
   const addParentNameMismatchInfo = useMemo(() => {
@@ -972,7 +1130,19 @@ export default function StudentsTab() {
     const fatherName = studentParts[1];
     const parentParts = selectedAddParentObj.name.trim().split(/\s+/);
     const parentFirstName = parentParts[0];
-    const isCompound = ['عبد', 'ابو', 'أبو', 'زين', 'شمس', 'مجيب', 'عماد', 'امير', 'آية', 'تالين', 'نوره'].some(p => fatherName.startsWith(p));
+    const isCompound = [
+      "عبد",
+      "ابو",
+      "أبو",
+      "زين",
+      "شمس",
+      "مجيب",
+      "عماد",
+      "امير",
+      "آية",
+      "تالين",
+      "نوره",
+    ].some((p) => fatherName.startsWith(p));
     if (fatherName !== parentFirstName && !isCompound) {
       return {
         fatherName,
@@ -987,8 +1157,8 @@ export default function StudentsTab() {
     if (!modalStudentName.trim() || !parentUsers.length) return null;
     const parts = modalStudentName.trim().split(/\s+/);
     if (parts.length < 3) return null;
-    const fatherFullName = parts.slice(1).join(' ');
-    const match = parentUsers.find(p => {
+    const fatherFullName = parts.slice(1).join(" ");
+    const match = parentUsers.find((p) => {
       if (p.nationalId === selectedParentLinkOption) return false;
       const pName = p.name.trim();
       return pName.includes(fatherFullName) || fatherFullName.includes(pName);
@@ -996,85 +1166,169 @@ export default function StudentsTab() {
     return match || null;
   }, [modalStudentName, parentUsers, selectedParentLinkOption]);
 
+  const renderEnrollmentBadge = (student) => {
+    const status =
+      student.enrollment_status ||
+      (student.is_active === false ? "withdrawn" : "active");
+    const badgeConfigs = {
+      active: {
+        ar: "نشط",
+        en: "Active",
+        bg: "rgba(16, 185, 129, 0.12)",
+        color: "#059669",
+        border: "1px solid rgba(16, 185, 129, 0.3)",
+      },
+      supplementary: {
+        ar: "مكمل",
+        en: "Supplementary",
+        bg: "rgba(245, 158, 11, 0.15)",
+        color: "#b45309",
+        border: "1px solid rgba(245, 158, 11, 0.35)",
+      },
+      graduated: {
+        ar: "خريج",
+        en: "Graduated",
+        bg: "rgba(37, 99, 235, 0.12)",
+        color: "#1d4ed8",
+        border: "1px solid rgba(37, 99, 235, 0.3)",
+      },
+      withdrawn: {
+        ar: "منسحب",
+        en: "Withdrawn",
+        bg: "rgba(100, 116, 139, 0.14)",
+        color: "#475569",
+        border: "1px solid rgba(100, 116, 139, 0.3)",
+      },
+      retained: {
+        ar: "معيد",
+        en: "Retained",
+        bg: "rgba(239, 68, 68, 0.14)",
+        color: "#b91c1c",
+        border: "1px solid rgba(239, 68, 68, 0.3)",
+      },
+    };
+    const cfg = badgeConfigs[status] || badgeConfigs.active;
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "3px",
+          fontSize: "11px",
+          fontWeight: 700,
+          padding: "2px 8px",
+          borderRadius: "999px",
+          backgroundColor: cfg.bg,
+          color: cfg.color,
+          border: cfg.border,
+          whiteSpace: "nowrap",
+        }}
+        title={
+          lang === "ar"
+            ? `حالة القيد الأكاديمي: ${cfg.ar}`
+            : `Enrollment Status: ${cfg.en}`
+        }
+      >
+        {lang === "ar" ? cfg.ar : cfg.en}
+      </span>
+    );
+  };
+
   return (
     <>
       <div className="section-card">
         <div className="section-card-header no-print">
-          <h3 className="section-card-title headline-small" style={{ fontSize: '18px' }}>
-            {lang === 'ar' ? 'سجل شؤون الطلاب والبطاقات الذكية' : 'Student Registry & Smart Cards'}
+          <h3
+            className="section-card-title headline-small"
+            style={{ fontSize: "18px" }}
+          >
+            {lang === "ar"
+              ? "سجل شؤون الطلاب والبطاقات الذكية"
+              : "Student Registry & Smart Cards"}
           </h3>
-          
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             {/* Print Roster Button */}
             <button
               className="btn-elevated"
               onClick={() => {
-                const initialClassId = allowedClasses.length > 0
-                  ? (typeof allowedClasses[0].id === 'string' && allowedClasses[0].id.startsWith('cls-') ? allowedClasses[0].id.replace('cls-', '') : String(allowedClasses[0].id))
-                  : '';
+                const initialClassId =
+                  allowedClasses.length > 0
+                    ? typeof allowedClasses[0].id === "string" &&
+                      allowedClasses[0].id.startsWith("cls-")
+                      ? allowedClasses[0].id.replace("cls-", "")
+                      : String(allowedClasses[0].id)
+                    : "";
                 setPrintClassId(initialClassId);
-                setPrintRosterType('without_code');
+                setPrintRosterType("without_code");
                 setShowPrintModal(true);
               }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: 'rgba(234, 88, 12, 0.08)',
-                borderColor: 'rgba(234, 88, 12, 0.25)',
-                color: '#ea580c'
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                backgroundColor: "rgba(234, 88, 12, 0.08)",
+                borderColor: "rgba(234, 88, 12, 0.25)",
+                color: "#ea580c",
               }}
             >
-              <Printer size={16} />
-              {lang === 'ar' ? 'طباعة كشف' : 'Print Roster'}
+              <Eye size={16} />
+              {lang === "ar" ? "معاينة وطباعة كشف" : "Preview & Print Roster"}
             </button>
-            {(canAction('students', 'export') || canAction('students', 'import')) && (
-              <button 
-                className="btn-elevated" 
+            {(canAction("students", "export") ||
+              canAction("students", "import")) && (
+              <button
+                className="btn-elevated"
                 onClick={() => {
                   setImportFile(null);
                   setImportProgress(0);
-                  setImportStatus('');
+                  setImportStatus("");
                   setImportErrors([]);
                   setImportSuccess(false);
                   setShowExcelModal(true);
-                }} 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '6px', 
-                  backgroundColor: 'rgba(49, 133, 156, 0.08)', 
-                  borderColor: 'rgba(49, 133, 156, 0.25)', 
-                  color: '#31859C' 
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  backgroundColor: "rgba(49, 133, 156, 0.08)",
+                  borderColor: "rgba(49, 133, 156, 0.25)",
+                  color: "#31859C",
                 }}
               >
                 <Upload size={16} />
-                {lang === 'ar' ? 'الاستيراد والتصدير (Excel)' : 'Excel Import & Export'}
+                {lang === "ar"
+                  ? "الاستيراد والتصدير (Excel)"
+                  : "Excel Import & Export"}
               </button>
             )}
-            {canAction('students', 'create') && (
-              <button 
+            {canAction("students", "create") && (
+              <button
                 className="btn-accent"
                 onClick={() => {
-                  setFormError('');
-                  setModalStudentName('');
-                  setModalParentNationalId('');
-                  setModalParentName('');
-                  setModalPhone('');
-                  setModalStudentPhoto('');
-                  setModalParentPhoto('');
-                  setModalGender('');
-                  setSelectedParentLinkOption('');
-                  setParentSearchText('');
+                  setFormError("");
+                  setModalStudentName("");
+                  setModalParentNationalId("");
+                  setModalParentName("");
+                  setModalPhone("");
+                  setModalStudentPhoto("");
+                  setModalParentPhoto("");
+                  setModalGender("");
+                  setSelectedParentLinkOption("");
+                  setParentSearchText("");
                   if (allowedClasses.length > 0) {
                     setSelectedClassId(allowedClasses[0].id);
                   } else {
-                    setSelectedClassId('');
+                    setSelectedClassId("");
                   }
                   setShowStudentModal(true);
                 }}
               >
-                <Plus size={18} strokeWidth={2.5} style={{ marginInlineEnd: '4px' }} />
+                <Plus
+                  size={18}
+                  strokeWidth={2.5}
+                  style={{ marginInlineEnd: "4px" }}
+                />
                 {t.requestCardBtn}
               </button>
             )}
@@ -1082,18 +1336,44 @@ export default function StudentsTab() {
         </div>
 
         {/* Searching and Filter Chips */}
-        <div className="students-controls no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
-            <div className="search-box" style={{ margin: 0, minWidth: '280px' }}>
+        <div
+          className="students-controls no-print"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "16px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              flexWrap: "wrap",
+              alignItems: "center",
+              flex: 1,
+            }}
+          >
+            <div
+              className="search-box"
+              style={{ margin: 0, minWidth: "280px" }}
+            >
               <Search size={18} />
-              <input 
+              <input
                 id="search-students"
                 name="search"
                 type="text"
                 className="text-field"
-                placeholder={lang === 'ar' ? 'البحث باسم الطالب، الرقم الأكاديمي، أو هوية ولي الأمر...' : 'Search by student name, number, or parent national ID...'}
+                placeholder={
+                  lang === "ar"
+                    ? "البحث باسم الطالب، الرقم الأكاديمي، أو هوية ولي الأمر..."
+                    : "Search by student name, number, or parent national ID..."
+                }
                 value={searchQuery}
-                aria-label={lang === 'ar' ? 'البحث باسم الطالب' : 'Search students'}
+                aria-label={
+                  lang === "ar" ? "البحث باسم الطالب" : "Search students"
+                }
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setSearch(e.target.value);
@@ -1102,49 +1382,111 @@ export default function StudentsTab() {
             </div>
 
             {/* Class Filter Dropdown */}
-            <select 
+            <select
               id="filter-students-class"
               name="class_filter"
-              aria-label={lang === 'ar' ? 'تصفية حسب الفصل' : 'Filter by class'}
+              aria-label={lang === "ar" ? "تصفية حسب الفصل" : "Filter by class"}
               className="text-field"
               value={classFilter}
               onChange={(e) => setFilters({ class_id: e.target.value })}
-              style={{ fontSize: '13px', padding: '0 12px', height: '42px', width: 'auto', minWidth: '180px', borderRadius: '10px' }}
+              style={{
+                fontSize: "13px",
+                padding: "0 12px",
+                height: "42px",
+                width: "auto",
+                minWidth: "180px",
+                borderRadius: "10px",
+              }}
             >
-              <option value="all">{lang === 'ar' ? '🔍 كل الفصول' : '🔍 All Classes'}</option>
-              {(allowedClasses || []).map(cls => {
+              <option value="all">
+                {lang === "ar" ? "🔍 كل الفصول" : "🔍 All Classes"}
+              </option>
+              {(allowedClasses || []).map((cls) => {
                 // Ensure cls.id is clean numeric ID for the backend filter
-                const numericId = typeof cls.id === 'string' && cls.id.startsWith('cls-')
-                  ? cls.id.replace('cls-', '')
-                  : cls.id;
+                const numericId =
+                  typeof cls.id === "string" && cls.id.startsWith("cls-")
+                    ? cls.id.replace("cls-", "")
+                    : cls.id;
                 return (
                   <option key={cls.id} value={numericId}>
-                    🏫 {lang === 'ar' ? cls.name : cls.nameEn}
+                    🏫 {lang === "ar" ? cls.name : cls.nameEn}
                   </option>
                 );
               })}
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button 
-              className={`chip ${statusFilter === 'all' ? 'selected' : ''}`}
-              onClick={() => setFilters({ status: 'all' })}
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button
+              className={`chip ${statusFilter === "all" ? "selected" : ""}`}
+              onClick={() => setFilters({ status: "all" })}
             >
               {t.filterAll}
             </button>
-            <button 
-              className={`chip ${statusFilter === 'present' ? 'selected' : ''}`}
-              onClick={() => setFilters({ status: 'present' })}
+            <button
+              className={`chip ${statusFilter === "present" ? "selected" : ""}`}
+              onClick={() => setFilters({ status: "present" })}
             >
               {t.present}
             </button>
-            <button 
-              className={`chip ${statusFilter === 'absent' ? 'selected' : ''}`}
-              onClick={() => setFilters({ status: 'absent' })}
+            <button
+              className={`chip ${statusFilter === "absent" ? "selected" : ""}`}
+              onClick={() => setFilters({ status: "absent" })}
             >
               {t.absent}
             </button>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "6px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            {[
+              {
+                key: "all",
+                ar: `الكل (${enrollmentStatusCounts.all})`,
+                en: `All (${enrollmentStatusCounts.all})`,
+              },
+              {
+                key: "active",
+                ar: `النشطون (${enrollmentStatusCounts.active})`,
+                en: `Active (${enrollmentStatusCounts.active})`,
+              },
+              {
+                key: "supplementary",
+                ar: `المكملون (${enrollmentStatusCounts.supplementary})`,
+                en: `Supplementary (${enrollmentStatusCounts.supplementary})`,
+              },
+              {
+                key: "graduated",
+                ar: `الخريجون (${enrollmentStatusCounts.graduated})`,
+                en: `Graduated (${enrollmentStatusCounts.graduated})`,
+              },
+              {
+                key: "withdrawn",
+                ar: `المنسحبون (${enrollmentStatusCounts.withdrawn})`,
+                en: `Withdrawn (${enrollmentStatusCounts.withdrawn})`,
+              },
+              {
+                key: "retained",
+                ar: `المعيدون (${enrollmentStatusCounts.retained})`,
+                en: `Retained (${enrollmentStatusCounts.retained})`,
+              },
+            ].map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                className={`chip ${enrollmentStatusFilter === opt.key ? "selected" : ""}`}
+                onClick={() => setFilters({ enrollment_status: opt.key })}
+                style={{ fontSize: "12px" }}
+              >
+                {lang === "ar" ? opt.ar : opt.en}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -1166,31 +1508,95 @@ export default function StudentsTab() {
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
                   <tr key={student.id}>
-                    <td className="sticky-col-1" style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{student.qrCode || student.id}</td>
-                    <td className="sticky-col-2" style={{ fontWeight: '600', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.4' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ flexShrink: 0 }}>{renderAvatar(student.photo, "👨‍🎓")}</span>
-                        <span style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{lang === 'ar' ? student.name : student.nameEn}</span>
+                    <td
+                      className="sticky-col-1"
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {student.qrCode || student.id}
+                    </td>
+                    <td
+                      className="sticky-col-2"
+                      style={{
+                        fontWeight: "600",
+                        whiteSpace: "normal",
+                        wordBreak: "break-word",
+                        lineHeight: "1.4",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span style={{ flexShrink: 0 }}>
+                          {renderAvatar(student.photo, "👨‍🎓")}
+                        </span>
+                        <span
+                          style={{
+                            whiteSpace: "normal",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {lang === "ar" ? student.name : student.nameEn}
+                        </span>
+                        {renderEnrollmentBadge(student)}
                       </div>
                     </td>
-                    <td>{lang === 'ar' ? student.grade : student.gradeEn}</td>
-                    <td>{lang === 'ar' ? student.section : student.sectionEn}</td>
+                    <td>{lang === "ar" ? student.grade : student.gradeEn}</td>
                     <td>
-                      <span className={`badge-status ${student.status === 'present' || student.status === 'late' ? 'checked-in' : 'absent'}`}>
-                        {(student.status === 'present' || student.status === 'late') ? t.present : t.absent}
+                      {lang === "ar" ? student.section : student.sectionEn}
+                    </td>
+                    <td>
+                      <span
+                        className={`badge-status ${student.status === "present" || student.status === "late" ? "checked-in" : "absent"}`}
+                      >
+                        {student.status === "present" ||
+                        student.status === "late"
+                          ? t.present
+                          : t.absent}
                       </span>
                     </td>
                     <td>
-                      <div style={{ fontWeight: '600' }}>{renderAvatar(student.parentPhoto, "🧔")} {lang === 'ar' ? student.parentName : student.parentNameEn}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                        {lang === 'ar' ? 'الرقم الوطني: ' : 'National ID: '}{student.parentNationalId}
+                      <div style={{ fontWeight: "600" }}>
+                        {renderAvatar(student.parentPhoto, "🧔")}{" "}
+                        {lang === "ar"
+                          ? student.parentName
+                          : student.parentNameEn}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "var(--color-text-secondary)",
+                        }}
+                      >
+                        {lang === "ar" ? "الرقم الوطني: " : "National ID: "}
+                        {student.parentNationalId}
                       </div>
                     </td>
                     <td className="no-print">
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <button 
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <button
                           className="btn-elevated"
-                          style={{ padding: '6px 12px', fontSize: '12px', height: '32px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          style={{
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            height: "32px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
                           onClick={() => {
                             setSelectedStudentForCard(student);
                             setShowCardVisualizerModal(true);
@@ -1198,74 +1604,115 @@ export default function StudentsTab() {
                         >
                           🪪 {t.viewCard}
                         </button>
-                        
-                        {canAction('students', 'update', student.class_id) && (
-                          <button 
-                            onClick={() => openEditModal(student)} 
-                            title={lang === 'ar' ? 'تعديل' : 'Edit'}
+
+                        <button
+                          className="btn-elevated"
+                          style={{
+                            padding: "6px 10px",
+                            fontSize: "12px",
+                            height: "32px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            color: "#1e3a8a",
+                            borderColor: "rgba(30,58,138,0.25)",
+                          }}
+                          onClick={() => setTranscriptStudent(student)}
+                          title={
+                            lang === "ar"
+                              ? "عرض السجل الأكاديمي لجميع الأعوام والمدارس السابقة"
+                              : "Academic Transcript"
+                          }
+                        >
+                          <GraduationCap size={14} />
+                          <span>
+                            {lang === "ar" ? "السجل الأكاديمي" : "Transcript"}
+                          </span>
+                        </button>
+
+                        {canAction("students", "update", student.class_id) && (
+                          <button
+                            onClick={() => openEditModal(student)}
+                            title={lang === "ar" ? "تعديل" : "Edit"}
                             style={{
-                              background: 'rgba(37, 99, 235, 0.06)',
-                              border: '1px solid rgba(37, 99, 235, 0.15)',
-                              color: '#2563eb',
-                              borderRadius: '8px',
-                              width: '32px',
-                              height: '32px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease'
+                              background: "rgba(37, 99, 235, 0.06)",
+                              border: "1px solid rgba(37, 99, 235, 0.15)",
+                              color: "#2563eb",
+                              borderRadius: "8px",
+                              width: "32px",
+                              height: "32px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
                             }}
-                            onMouseOver={e => {
-                              e.currentTarget.style.background = 'rgba(37, 99, 235, 0.12)';
-                              e.currentTarget.style.borderColor = '#2563eb';
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background =
+                                "rgba(37, 99, 235, 0.12)";
+                              e.currentTarget.style.borderColor = "#2563eb";
                             }}
-                            onMouseOut={e => {
-                              e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
-                              e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.15)';
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background =
+                                "rgba(37, 99, 235, 0.06)";
+                              e.currentTarget.style.borderColor =
+                                "rgba(37, 99, 235, 0.15)";
                             }}
                           >
                             <Edit2 size={15} />
                           </button>
                         )}
 
-                        {canAction('students', 'delete', student.class_id) && (
-                          <button 
+                        {canAction("students", "delete", student.class_id) && (
+                          <button
                             onClick={() => {
                               triggerConfirm({
-                                title: lang === 'ar' ? 'حذف الطالب' : 'Delete Student',
-                                message: lang === 'ar' ? `هل أنت متأكد من حذف الطالب ${student.name}؟` : `Are you sure you want to delete ${student.name}?`,
+                                title:
+                                  lang === "ar"
+                                    ? "حذف الطالب"
+                                    : "Delete Student",
+                                message:
+                                  lang === "ar"
+                                    ? `هل أنت متأكد من حذف الطالب ${student.name}؟`
+                                    : `Are you sure you want to delete ${student.name}?`,
                                 onConfirm: () => {
-                                  handleDeleteStudent(student.id).then((res) => {
-                                    if (res && res.success) {
-                                      const nextQs = goToPrevIfEmpty(students.length - 1);
-                                      fetchStudents(nextQs);
-                                    }
-                                  });
-                                }
+                                  handleDeleteStudent(student.id).then(
+                                    (res) => {
+                                      if (res && res.success) {
+                                        const nextQs = goToPrevIfEmpty(
+                                          students.length - 1,
+                                        );
+                                        fetchStudents(nextQs);
+                                      }
+                                    },
+                                  );
+                                },
                               });
-                            }} 
-                            title={lang === 'ar' ? 'حذف' : 'Delete'}
+                            }}
+                            title={lang === "ar" ? "حذف" : "Delete"}
                             style={{
-                              background: 'rgba(220, 38, 38, 0.06)',
-                              border: '1px solid rgba(220, 38, 38, 0.15)',
-                              color: '#dc2626',
-                              borderRadius: '8px',
-                              width: '32px',
-                              height: '32px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease'
+                              background: "rgba(220, 38, 38, 0.06)",
+                              border: "1px solid rgba(220, 38, 38, 0.15)",
+                              color: "#dc2626",
+                              borderRadius: "8px",
+                              width: "32px",
+                              height: "32px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
                             }}
-                            onMouseOver={e => {
-                              e.currentTarget.style.background = 'rgba(220, 38, 38, 0.12)';
-                              e.currentTarget.style.borderColor = '#dc2626';
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background =
+                                "rgba(220, 38, 38, 0.12)";
+                              e.currentTarget.style.borderColor = "#dc2626";
                             }}
-                            onMouseOut={e => {
-                              e.currentTarget.style.background = 'rgba(220, 38, 38, 0.06)';
-                              e.currentTarget.style.borderColor = 'rgba(220, 38, 38, 0.15)';
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background =
+                                "rgba(220, 38, 38, 0.06)";
+                              e.currentTarget.style.borderColor =
+                                "rgba(220, 38, 38, 0.15)";
                             }}
                           >
                             <Trash2 size={15} />
@@ -1277,26 +1724,62 @@ export default function StudentsTab() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" style={{ padding: '48px 24px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '32px' }}>
-                        {search ? "🔍" : (filters.class_id && filters.class_id !== 'all') ? "ℹ️" : "📂"}
+                  <td
+                    colSpan="8"
+                    style={{ padding: "48px 24px", textAlign: "center" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span style={{ fontSize: "32px" }}>
+                        {search
+                          ? "🔍"
+                          : filters.class_id && filters.class_id !== "all"
+                            ? "ℹ️"
+                            : "📂"}
                       </span>
-                      <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>
-                        {search 
-                          ? (lang === 'ar' ? 'لا توجد نتائج تطابق بحثك' : 'No matching search results found')
-                          : (filters.class_id && filters.class_id !== 'all')
-                            ? (lang === 'ar' ? 'لا توجد نتائج تطابق التصفية المحددة' : 'No matching filter results found')
-                            : (lang === 'ar' ? 'لا يوجد طلاب مسجلين حالياً' : 'No students registered yet')
-                        }
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          fontSize: "15px",
+                          color: "var(--color-text-primary)",
+                        }}
+                      >
+                        {search
+                          ? lang === "ar"
+                            ? "لا توجد نتائج تطابق بحثك"
+                            : "No matching search results found"
+                          : filters.class_id && filters.class_id !== "all"
+                            ? lang === "ar"
+                              ? "لا توجد نتائج تطابق التصفية المحددة"
+                              : "No matching filter results found"
+                            : lang === "ar"
+                              ? "لا يوجد طلاب مسجلين حالياً"
+                              : "No students registered yet"}
                       </span>
-                      <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {search 
-                          ? (lang === 'ar' ? 'جرب البحث بكلمة مفتاحية مختلفة' : 'Try searching for a different keyword')
-                          : (filters.class_id && filters.class_id !== 'all')
-                            ? (lang === 'ar' ? 'جرب تغيير خيارات التصفية' : 'Try changing your filter selections')
-                            : (lang === 'ar' ? 'لم يتم إضافة أي بيانات بعد' : 'No records have been added yet')
-                        }
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          color: "var(--color-text-secondary)",
+                        }}
+                      >
+                        {search
+                          ? lang === "ar"
+                            ? "جرب البحث بكلمة مفتاحية مختلفة"
+                            : "Try searching for a different keyword"
+                          : filters.class_id && filters.class_id !== "all"
+                            ? lang === "ar"
+                              ? "جرب تغيير خيارات التصفية"
+                              : "Try changing your filter selections"
+                            : lang === "ar"
+                              ? "لم يتم إضافة أي بيانات بعد"
+                              : "No records have been added yet"}
                       </span>
                     </div>
                   </td>
@@ -1305,7 +1788,7 @@ export default function StudentsTab() {
             </tbody>
           </table>
         </div>
-        <div className="no-print" style={{ padding: '0 var(--space-md)' }}>
+        <div className="no-print" style={{ padding: "0 var(--space-md)" }}>
           <PaginationBar
             page={page}
             lastPage={studentsPagination.lastPage}
@@ -1327,8 +1810,8 @@ export default function StudentsTab() {
           <div className="modal-container">
             <header className="modal-header">
               <h3 className="modal-title">{t.addStudentTitle}</h3>
-              <button 
-                className="modal-close-btn" 
+              <button
+                className="modal-close-btn"
                 onClick={() => setShowStudentModal(false)}
                 aria-label="Close Registration Dialog"
               >
@@ -1339,25 +1822,30 @@ export default function StudentsTab() {
             <form onSubmit={onSubmit}>
               <div className="modal-body">
                 {formError && (
-                  <div style={{
-                    padding: 'var(--space-md)',
-                    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                    color: 'var(--color-error)',
-                    borderRadius: 'var(--radius-chip)',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    marginBottom: '12px'
-                  }}>
+                  <div
+                    style={{
+                      padding: "var(--space-md)",
+                      backgroundColor: "rgba(220, 38, 38, 0.1)",
+                      color: "var(--color-error)",
+                      borderRadius: "var(--radius-chip)",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      marginBottom: "12px",
+                    }}
+                  >
                     {formError}
                   </div>
                 )}
 
                 <div className="form-group">
-                  <label htmlFor="add-student-name" className="form-label">{t.formStudentName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input 
+                  <label htmlFor="add-student-name" className="form-label">
+                    {t.formStudentName}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  <input
                     id="add-student-name"
                     name="name"
-                    type="text" 
+                    type="text"
                     className="text-field"
                     placeholder="مثال: عبدالمجيد بن فهد العتيبي"
                     value={modalStudentName}
@@ -1368,8 +1856,13 @@ export default function StudentsTab() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="add-student-class" className="form-label">{lang === 'ar' ? 'الفصل الدراسي والشعبة' : 'Class & Section'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <select 
+                  <label htmlFor="add-student-class" className="form-label">
+                    {lang === "ar"
+                      ? "الفصل الدراسي والشعبة"
+                      : "Class & Section"}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  <select
                     id="add-student-class"
                     name="class_id"
                     className="text-field"
@@ -1377,17 +1870,24 @@ export default function StudentsTab() {
                     onChange={(e) => setSelectedClassId(e.target.value)}
                     required
                   >
-                    <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
-                    {allowedClasses.map(c => (
+                    <option value="">
+                      {lang === "ar"
+                        ? "-- اختر الفصل --"
+                        : "-- Select Class --"}
+                    </option>
+                    {allowedClasses.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {lang === 'ar' ? c.name : c.nameEn}
+                        {lang === "ar" ? c.name : c.nameEn}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="add-student-gender" className="form-label">{lang === 'ar' ? 'الجنس' : 'Gender'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                  <label htmlFor="add-student-gender" className="form-label">
+                    {lang === "ar" ? "الجنس" : "Gender"}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
                   <select
                     id="add-student-gender"
                     name="gender"
@@ -1395,18 +1895,29 @@ export default function StudentsTab() {
                     value={modalGender}
                     onChange={(e) => setModalGender(e.target.value)}
                   >
-                    <option value="">{lang === 'ar' ? '— اختر —' : '— Select —'}</option>
-                    <option value="male">{lang === 'ar' ? 'ذكر' : 'Male'}</option>
-                    <option value="female">{lang === 'ar' ? 'أنثى' : 'Female'}</option>
+                    <option value="">
+                      {lang === "ar" ? "— اختر —" : "— Select —"}
+                    </option>
+                    <option value="male">
+                      {lang === "ar" ? "ذكر" : "Male"}
+                    </option>
+                    <option value="female">
+                      {lang === "ar" ? "أنثى" : "Female"}
+                    </option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="add-student-tuition" className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.ي)' : 'Annual Tuition Fee (R.Y)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input 
+                  <label htmlFor="add-student-tuition" className="form-label">
+                    {lang === "ar"
+                      ? "الرسوم الدراسية السنوية (ر.ي)"
+                      : "Annual Tuition Fee (R.Y)"}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  <input
                     id="add-student-tuition"
                     name="tuition"
-                    type="number" 
+                    type="number"
                     className="text-field"
                     placeholder="0"
                     value={modalTuitionFee}
@@ -1415,20 +1926,41 @@ export default function StudentsTab() {
                   />
                 </div>
 
-                <div className="form-group" style={{ borderTop: '1px dashed var(--color-border)', paddingTop: 'var(--space-md)', marginTop: 'var(--space-md)' }}>
-                  <label htmlFor="add-student-parent-search" className="form-label">{lang === 'ar' ? 'ربط بحساب ولي أمر' : 'Link to Parent Account'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  
+                <div
+                  className="form-group"
+                  style={{
+                    borderTop: "1px dashed var(--color-border)",
+                    paddingTop: "var(--space-md)",
+                    marginTop: "var(--space-md)",
+                  }}
+                >
+                  <label
+                    htmlFor="add-student-parent-search"
+                    className="form-label"
+                  >
+                    {lang === "ar"
+                      ? "ربط بحساب ولي أمر"
+                      : "Link to Parent Account"}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+
                   {/* Parent Search Input */}
                   <input
                     id="add-student-parent-search"
                     name="parent_search"
                     type="text"
                     className="text-field"
-                    style={{ marginBottom: '8px' }}
-                    placeholder={lang === 'ar' ? '🔍 اكتب اسم ولي الأمر أو الرقم الوطني للبحث...' : '🔍 Type parent name or national ID to search...'}
+                    style={{ marginBottom: "8px" }}
+                    placeholder={
+                      lang === "ar"
+                        ? "🔍 اكتب اسم ولي الأمر أو الرقم الوطني للبحث..."
+                        : "🔍 Type parent name or national ID to search..."
+                    }
                     value={parentSearchText}
                     onChange={(e) => setParentSearchText(e.target.value)}
-                    aria-label={lang === 'ar' ? 'البحث عن ولي أمر' : 'Search parent'}
+                    aria-label={
+                      lang === "ar" ? "البحث عن ولي أمر" : "Search parent"
+                    }
                   />
 
                   <select
@@ -1439,23 +1971,29 @@ export default function StudentsTab() {
                     onChange={(e) => {
                       const opt = e.target.value;
                       setSelectedParentLinkOption(opt);
-                      const parent = parentUsers.find(p => p.nationalId === opt);
+                      const parent = parentUsers.find(
+                        (p) => p.nationalId === opt,
+                      );
                       if (parent) {
                         setModalParentNationalId(parent.nationalId);
                         setModalParentName(parent.name);
                         setModalPhone(parent.phone);
-                        setModalParentPhoto(parent.photo || '🧔');
+                        setModalParentPhoto(parent.photo || "🧔");
                       } else {
-                        setModalParentNationalId('');
-                        setModalParentName('');
-                        setModalPhone('');
-                        setModalParentPhoto('');
+                        setModalParentNationalId("");
+                        setModalParentName("");
+                        setModalPhone("");
+                        setModalParentPhoto("");
                       }
                     }}
                     required
                   >
-                    <option value="">{lang === 'ar' ? '-- اختر ولي الأمر --' : '-- Select Parent --'}</option>
-                    {filteredParentUsers.map(p => (
+                    <option value="">
+                      {lang === "ar"
+                        ? "-- اختر ولي الأمر --"
+                        : "-- Select Parent --"}
+                    </option>
+                    {filteredParentUsers.map((p) => (
                       <option key={p.nationalId} value={p.nationalId}>
                         {p.name} ({p.nationalId})
                       </option>
@@ -1464,56 +2002,106 @@ export default function StudentsTab() {
                 </div>
 
                 {selectedParentLinkOption && (
-                  <div style={{ 
-                    padding: '14px', 
-                    background: 'rgba(30, 80, 142, 0.03)', 
-                    border: '1px solid var(--color-border)', 
-                    borderRadius: '16px', 
-                    marginBottom: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      padding: "14px",
+                      background: "rgba(30, 80, 142, 0.03)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "16px",
+                      marginBottom: "16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
                       {renderAvatar(modalParentPhoto, "🧔")}
                       <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{modalParentName}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                          {lang === 'ar' ? 'الرقم الوطني لولي الأمر: ' : 'National ID: '}{modalParentNationalId}
+                        <div style={{ fontWeight: "bold", fontSize: "14px" }}>
+                          {modalParentName}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--color-text-secondary)",
+                          }}
+                        >
+                          {lang === "ar"
+                            ? "الرقم الوطني لولي الأمر: "
+                            : "National ID: "}
+                          {modalParentNationalId}
                         </div>
                       </div>
                     </div>
-                    <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      📞 {lang === 'ar' ? 'رقم الجوال: ' : 'Phone Number: '} {modalPhone}
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--color-text-secondary)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      📞 {lang === "ar" ? "رقم الجوال: " : "Phone Number: "}{" "}
+                      {modalPhone}
                     </div>
 
                     {/* Real-time Mismatch Advisory Note */}
                     {addParentNameMismatchInfo && (
-                      <div style={{
-                        marginTop: '8px',
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        backgroundColor: 'rgba(234, 179, 8, 0.08)',
-                        border: '1px solid rgba(234, 179, 8, 0.3)',
-                        color: '#854d0e',
-                        fontSize: '12px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '8px',
-                        lineHeight: '1.5'
-                      }}>
-                        <span style={{ fontSize: '14px', marginTop: '1px' }}>ℹ️</span>
+                      <div
+                        style={{
+                          marginTop: "8px",
+                          padding: "10px 14px",
+                          borderRadius: "10px",
+                          backgroundColor: "rgba(234, 179, 8, 0.08)",
+                          border: "1px solid rgba(234, 179, 8, 0.3)",
+                          color: "#854d0e",
+                          fontSize: "12px",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: "8px",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        <span style={{ fontSize: "14px", marginTop: "1px" }}>
+                          ℹ️
+                        </span>
                         <div>
-                          {lang === 'ar' ? (
+                          {lang === "ar" ? (
                             <>
-                              <strong>ملاحظة للتأكيد:</strong> اسم ولي الأمر المختار (<strong>{addParentNameMismatchInfo.parentFirstName}</strong>) يختلف عن اسم والد الطالب (<strong>{addParentNameMismatchInfo.fatherName}</strong>).
-                              <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.9 }}>
-                                إذا كان ولي الأمر عمه أو خاله أو كفيله فهذا طبيعي؛ يرجى فقط التأكد قبل الحفظ.
+                              <strong>ملاحظة للتأكيد:</strong> اسم ولي الأمر
+                              المختار (
+                              <strong>
+                                {addParentNameMismatchInfo.parentFirstName}
+                              </strong>
+                              ) يختلف عن اسم والد الطالب (
+                              <strong>
+                                {addParentNameMismatchInfo.fatherName}
+                              </strong>
+                              ).
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  marginTop: "3px",
+                                  opacity: 0.9,
+                                }}
+                              >
+                                إذا كان ولي الأمر عمه أو خاله أو كفيله فهذا
+                                طبيعي؛ يرجى فقط التأكد قبل الحفظ.
                               </div>
                             </>
                           ) : (
                             <>
-                              <strong>Note:</strong> Selected parent ({addParentNameMismatchInfo.parentFirstName}) differs from student father's name ({addParentNameMismatchInfo.fatherName}).
+                              <strong>Note:</strong> Selected parent (
+                              {addParentNameMismatchInfo.parentFirstName})
+                              differs from student father's name (
+                              {addParentNameMismatchInfo.fatherName}).
                             </>
                           )}
                         </div>
@@ -1524,125 +2112,179 @@ export default function StudentsTab() {
 
                 {/* Sibling / Father Suggestion Helper for Add Student */}
                 {suggestedAddParent && (
-                  <div style={{
-                    marginBottom: '16px',
-                    padding: '10px 14px',
-                    borderRadius: '12px',
-                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    color: '#15803d',
-                    fontSize: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                    flexWrap: 'wrap'
-                  }}>
+                  <div
+                    style={{
+                      marginBottom: "16px",
+                      padding: "10px 14px",
+                      borderRadius: "12px",
+                      backgroundColor: "rgba(34, 197, 94, 0.08)",
+                      border: "1px solid rgba(34, 197, 94, 0.3)",
+                      color: "#15803d",
+                      fontSize: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <div>
-                      💡 {lang === 'ar' ? 'تم العثور على ولي أمر يطابق اسم والد الطالب:' : 'Found parent matching student father:'}{' '}
-                      <strong>{suggestedAddParent.name}</strong> ({suggestedAddParent.nationalId})
+                      💡{" "}
+                      {lang === "ar"
+                        ? "تم العثور على ولي أمر يطابق اسم والد الطالب:"
+                        : "Found parent matching student father:"}{" "}
+                      <strong>{suggestedAddParent.name}</strong> (
+                      {suggestedAddParent.nationalId})
                     </div>
                     <button
                       type="button"
                       style={{
-                        padding: '4px 10px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        backgroundColor: '#16a34a',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer'
+                        padding: "4px 10px",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                        backgroundColor: "#16a34a",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        cursor: "pointer",
                       }}
                       onClick={() => {
-                        setSelectedParentLinkOption(suggestedAddParent.nationalId);
+                        setSelectedParentLinkOption(
+                          suggestedAddParent.nationalId,
+                        );
                         setModalParentNationalId(suggestedAddParent.nationalId);
                         setModalParentName(suggestedAddParent.name);
                         setModalPhone(suggestedAddParent.phone);
-                        setModalParentPhoto(suggestedAddParent.photo || '🧔');
+                        setModalParentPhoto(suggestedAddParent.photo || "🧔");
                       }}
                     >
-                      {lang === 'ar' ? 'ربط بهذا الولي' : 'Link to this parent'}
+                      {lang === "ar" ? "ربط بهذا الولي" : "Link to this parent"}
                     </button>
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-md)' }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr",
+                    gap: "var(--space-md)",
+                  }}
+                >
                   <div className="form-group">
                     <label className="form-label">
-                      {t.formPhoto} (Student) <span style={{ color: 'var(--color-error)' }}>*</span>
+                      {t.formPhoto} (Student){" "}
+                      <span style={{ color: "var(--color-error)" }}>*</span>
                     </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '12px 0' }}>
-                      <input 
-                        type="file" 
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "12px 0",
+                      }}
+                    >
+                      <input
+                        type="file"
                         accept="image/*"
                         id="student-photo-input"
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) {
                             const reader = new FileReader();
-                            reader.onloadend = () => setModalStudentPhoto(reader.result);
+                            reader.onloadend = () =>
+                              setModalStudentPhoto(reader.result);
                             reader.readAsDataURL(file);
                           }
                         }}
-                        style={{ display: 'none' }}
+                        style={{ display: "none" }}
                       />
-                      
-                      <div style={{ position: 'relative' }}>
+
+                      <div style={{ position: "relative" }}>
                         {/* Circle Container */}
-                        <label 
-                          htmlFor="student-photo-input" 
+                        <label
+                          htmlFor="student-photo-input"
                           style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '120px',
-                            height: '120px',
-                            borderRadius: '50%',
-                            border: modalStudentPhoto ? '2px solid var(--color-primary)' : '2px dashed var(--color-border)',
-                            cursor: 'pointer',
-                            overflow: 'hidden',
-                            backgroundColor: 'var(--color-surface)',
-                            transition: 'all 0.2s ease',
-                            position: 'relative',
-                            boxShadow: 'var(--shadow-sm)'
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "120px",
+                            height: "120px",
+                            borderRadius: "50%",
+                            border: modalStudentPhoto
+                              ? "2px solid var(--color-primary)"
+                              : "2px dashed var(--color-border)",
+                            cursor: "pointer",
+                            overflow: "hidden",
+                            backgroundColor: "var(--color-surface)",
+                            transition: "all 0.2s ease",
+                            position: "relative",
+                            boxShadow: "var(--shadow-sm)",
                           }}
                           className="avatar-upload-label"
                         >
                           {modalStudentPhoto ? (
                             <>
-                              <img 
-                                src={modalStudentPhoto} 
-                                alt="Student Preview" 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              <img
+                                src={modalStudentPhoto}
+                                alt="Student Preview"
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
                               />
                               {/* Hover overlay to change image */}
-                              <div style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                backgroundColor: 'rgba(0,0,0,0.5)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                opacity: 0,
-                                transition: 'opacity 0.2s ease',
-                                color: '#ffffff',
-                                fontSize: '11px'
-                              }} className="avatar-hover-overlay">
-                                <Camera size={20} style={{ marginBottom: '4px' }} />
-                                <span>{lang === 'ar' ? 'تغيير الصورة' : 'Change'}</span>
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: 0,
+                                  left: 0,
+                                  width: "100%",
+                                  height: "100%",
+                                  backgroundColor: "rgba(0,0,0,0.5)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  opacity: 0,
+                                  transition: "opacity 0.2s ease",
+                                  color: "#ffffff",
+                                  fontSize: "11px",
+                                }}
+                                className="avatar-hover-overlay"
+                              >
+                                <Camera
+                                  size={20}
+                                  style={{ marginBottom: "4px" }}
+                                />
+                                <span>
+                                  {lang === "ar" ? "تغيير الصورة" : "Change"}
+                                </span>
                               </div>
                             </>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
-                              <User size={36} style={{ strokeWidth: 1.5, marginBottom: '4px', color: 'var(--color-text-tertiary)' }} />
-                              <span style={{ fontSize: '11px', fontWeight: '500' }}>
-                                {lang === 'ar' ? 'رفع الصورة' : 'Upload'}
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                color: "var(--color-text-secondary)",
+                              }}
+                            >
+                              <User
+                                size={36}
+                                style={{
+                                  strokeWidth: 1.5,
+                                  marginBottom: "4px",
+                                  color: "var(--color-text-tertiary)",
+                                }}
+                              />
+                              <span
+                                style={{ fontSize: "11px", fontWeight: "500" }}
+                              >
+                                {lang === "ar" ? "رفع الصورة" : "Upload"}
                               </span>
                             </div>
                           )}
@@ -1654,36 +2296,49 @@ export default function StudentsTab() {
                             type="button"
                             onClick={() => {
                               setModalStudentPhoto(null);
-                              const fileInput = document.getElementById('student-photo-input');
-                              if (fileInput) fileInput.value = '';
+                              const fileInput = document.getElementById(
+                                "student-photo-input",
+                              );
+                              if (fileInput) fileInput.value = "";
                             }}
                             style={{
-                              position: 'absolute',
-                              top: '2px',
-                              right: '2px',
-                              width: '26px',
-                              height: '26px',
-                              borderRadius: '50%',
-                              backgroundColor: '#ef4444',
-                              color: '#ffffff',
-                              border: '2px solid #ffffff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                              position: "absolute",
+                              top: "2px",
+                              right: "2px",
+                              width: "26px",
+                              height: "26px",
+                              borderRadius: "50%",
+                              backgroundColor: "#ef4444",
+                              color: "#ffffff",
+                              border: "2px solid #ffffff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
                               zIndex: 10,
-                              padding: 0
+                              padding: 0,
                             }}
-                            title={lang === 'ar' ? 'إزالة الصورة' : 'Remove Photo'}
+                            title={
+                              lang === "ar" ? "إزالة الصورة" : "Remove Photo"
+                            }
                           >
                             <X size={14} />
                           </button>
                         )}
                       </div>
-                      
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textAlign: 'center', marginTop: '4px' }}>
-                        {lang === 'ar' ? 'صيغ الصور المدعومة: JPG, PNG. الحد الأقصى 5MB.' : 'Supported formats: JPG, PNG. Max 5MB.'}
+
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: "var(--color-text-secondary)",
+                          textAlign: "center",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {lang === "ar"
+                          ? "صيغ الصور المدعومة: JPG, PNG. الحد الأقصى 5MB."
+                          : "Supported formats: JPG, PNG. Max 5MB."}
                       </span>
                     </div>
                   </div>
@@ -1691,22 +2346,26 @@ export default function StudentsTab() {
               </div>
 
               <footer className="modal-footer">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn-elevated"
                   onClick={() => setShowStudentModal(false)}
-                  style={{ height: '48px' }}
+                  style={{ height: "48px" }}
                   disabled={isSaving}
                 >
                   {t.cancel}
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="btn-filled"
-                  style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }}
+                  style={{ height: "48px", opacity: isSaving ? 0.7 : 1 }}
                   disabled={isSaving}
                 >
-                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : t.submit}
+                  {isSaving
+                    ? lang === "ar"
+                      ? "جاري الحفظ..."
+                      : "Saving..."
+                    : t.submit}
                 </button>
               </footer>
             </form>
@@ -1719,11 +2378,16 @@ export default function StudentsTab() {
         <div className="modal-overlay no-print">
           <div className="modal-container">
             <header className="modal-header">
-              <h2 className="headline-small" style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                {lang === 'ar' ? '✏️ تعديل بيانات الطالب' : '✏️ Edit Student Details'}
+              <h2
+                className="headline-small"
+                style={{ fontSize: "18px", fontWeight: "bold" }}
+              >
+                {lang === "ar"
+                  ? "✏️ تعديل بيانات الطالب"
+                  : "✏️ Edit Student Details"}
               </h2>
-              <button 
-                className="btn-text" 
+              <button
+                className="btn-text"
                 onClick={() => setShowEditStudentModal(false)}
                 aria-label="Close modal"
               >
@@ -1732,31 +2396,59 @@ export default function StudentsTab() {
             </header>
 
             <form onSubmit={onEditSubmit}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+              <div
+                className="modal-body"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--space-md)",
+                }}
+              >
                 {editFormError && (
-                  <div style={{ color: 'var(--color-error)', fontSize: '13px', fontWeight: '600', padding: '8px 12px', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: '6px' }}>
+                  <div
+                    style={{
+                      color: "var(--color-error)",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      padding: "8px 12px",
+                      backgroundColor: "rgba(239,68,68,0.1)",
+                      borderRadius: "6px",
+                    }}
+                  >
                     ⚠️ {editFormError}
                   </div>
                 )}
 
                 <div className="form-group">
-                  <label htmlFor="edit-student-name" className="form-label">{t.studentName} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input 
+                  <label htmlFor="edit-student-name" className="form-label">
+                    {t.studentName}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  <input
                     id="edit-student-name"
                     name="name"
-                    type="text" 
+                    type="text"
                     className="text-field"
                     value={editStudentName}
                     onChange={(e) => setEditStudentName(e.target.value)}
-                    placeholder={lang === 'ar' ? 'مثال: ياسر بن محمد الرويلي' : 'e.g. Yasser bin Mohammed'}
+                    placeholder={
+                      lang === "ar"
+                        ? "مثال: ياسر بن محمد الرويلي"
+                        : "e.g. Yasser bin Mohammed"
+                    }
                     required
                     autoComplete="name"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="edit-student-class" className="form-label">{lang === 'ar' ? 'الفصل الدراسي والشعبة' : 'Class & Section'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <select 
+                  <label htmlFor="edit-student-class" className="form-label">
+                    {lang === "ar"
+                      ? "الفصل الدراسي والشعبة"
+                      : "Class & Section"}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  <select
                     id="edit-student-class"
                     name="class_id"
                     className="text-field"
@@ -1764,17 +2456,23 @@ export default function StudentsTab() {
                     onChange={(e) => setEditClassId(e.target.value)}
                     required
                   >
-                    <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
-                    {allowedClasses.map(c => (
+                    <option value="">
+                      {lang === "ar"
+                        ? "-- اختر الفصل --"
+                        : "-- Select Class --"}
+                    </option>
+                    {allowedClasses.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {lang === 'ar' ? c.name : c.nameEn}
+                        {lang === "ar" ? c.name : c.nameEn}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="edit-student-gender" className="form-label">{lang === 'ar' ? 'الجنس' : 'Gender'}</label>
+                  <label htmlFor="edit-student-gender" className="form-label">
+                    {lang === "ar" ? "الجنس" : "Gender"}
+                  </label>
                   <select
                     id="edit-student-gender"
                     name="gender"
@@ -1782,18 +2480,29 @@ export default function StudentsTab() {
                     value={editGender}
                     onChange={(e) => setEditGender(e.target.value)}
                   >
-                    <option value="">{lang === 'ar' ? '— اختر —' : '— Select —'}</option>
-                    <option value="male">{lang === 'ar' ? 'ذكر' : 'Male'}</option>
-                    <option value="female">{lang === 'ar' ? 'أنثى' : 'Female'}</option>
+                    <option value="">
+                      {lang === "ar" ? "— اختر —" : "— Select —"}
+                    </option>
+                    <option value="male">
+                      {lang === "ar" ? "ذكر" : "Male"}
+                    </option>
+                    <option value="female">
+                      {lang === "ar" ? "أنثى" : "Female"}
+                    </option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="edit-student-tuition" className="form-label">{lang === 'ar' ? 'الرسوم الدراسية السنوية (ر.ي)' : 'Annual Tuition Fee (R.Y)'} <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input 
+                  <label htmlFor="edit-student-tuition" className="form-label">
+                    {lang === "ar"
+                      ? "الرسوم الدراسية السنوية (ر.ي)"
+                      : "Annual Tuition Fee (R.Y)"}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  <input
                     id="edit-student-tuition"
                     name="tuition"
-                    type="number" 
+                    type="number"
                     className="text-field"
                     value={editTuitionFee}
                     onChange={(e) => setEditTuitionFee(e.target.value)}
@@ -1801,26 +2510,132 @@ export default function StudentsTab() {
                   />
                 </div>
 
+                <div className="form-group">
+                  <label
+                    htmlFor="edit-student-enrollment-status"
+                    className="form-label"
+                  >
+                    {lang === "ar"
+                      ? "حالة القيد الأكاديمي والانتظام"
+                      : "Academic Enrollment Status"}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  <select
+                    id="edit-student-enrollment-status"
+                    name="enrollment_status"
+                    className="text-field"
+                    value={editEnrollmentStatus}
+                    onChange={(e) => setEditEnrollmentStatus(e.target.value)}
+                    required
+                  >
+                    <option value="active">
+                      {lang === "ar" ? "نشط (مستمر بالدراسة)" : "Active"}
+                    </option>
+                    <option value="supplementary">
+                      {lang === "ar" ? "مكمل (دور ثاني)" : "Supplementary"}
+                    </option>
+                    <option value="graduated">
+                      {lang === "ar" ? "خريج" : "Graduated"}
+                    </option>
+                    <option value="retained">
+                      {lang === "ar" ? "معيد (باقٍ للإعادة)" : "Retained"}
+                    </option>
+                    <option value="withdrawn">
+                      {lang === "ar" ? "منسحب (إيقاف القيد)" : "Withdrawn"}
+                    </option>
+                  </select>
+                  {editEnrollmentStatus === "withdrawn" ? (
+                    <div
+                      style={{
+                        marginTop: "6px",
+                        fontSize: "12px",
+                        color: "#b91c1c",
+                        backgroundColor: "rgba(239,68,68,0.1)",
+                        padding: "6px 10px",
+                        borderRadius: "6px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span>⚠️</span>
+                      <span>
+                        {lang === "ar"
+                          ? "تنبيه: سيتم إيقاف قيد الطالب وتسجيله كمنسحب ولن يظهر في الكشوف النشطة."
+                          : "Warning: Student will be marked as withdrawn and removed from active rosters."}
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        marginTop: "4px",
+                        display: "flex",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setEditEnrollmentStatus("withdrawn")}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#dc2626",
+                          fontSize: "11px",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          padding: "2px 4px",
+                        }}
+                      >
+                        {lang === "ar"
+                          ? "تسجيل انسحاب الطالب"
+                          : "Mark as Withdrawn"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Parent Selection for Edit Student */}
                 <div className="form-group">
-                  <label htmlFor="edit-student-parent-search" className="form-label">
-                    {lang === 'ar' ? 'بحث عن ولي أمر الطالب' : 'Search for Parent'}
+                  <label
+                    htmlFor="edit-student-parent-search"
+                    className="form-label"
+                  >
+                    {lang === "ar"
+                      ? "بحث عن ولي أمر الطالب"
+                      : "Search for Parent"}
                   </label>
-                  <div style={{ position: 'relative', marginBottom: '8px' }}>
-                    <Search size={16} style={{ position: 'absolute', top: '14px', [lang === 'ar' ? 'right' : 'left']: '12px', color: 'var(--color-text-secondary)', pointerEvents: 'none' }} />
+                  <div style={{ position: "relative", marginBottom: "8px" }}>
+                    <Search
+                      size={16}
+                      style={{
+                        position: "absolute",
+                        top: "14px",
+                        [lang === "ar" ? "right" : "left"]: "12px",
+                        color: "var(--color-text-secondary)",
+                        pointerEvents: "none",
+                      }}
+                    />
                     <input
                       id="edit-student-parent-search"
                       type="text"
                       className="text-field"
-                      style={{ paddingInlineStart: '36px' }}
-                      placeholder={lang === 'ar' ? 'ابحث بالاسم أو رقم الهوية الوطنية...' : 'Search by name or National ID...'}
+                      style={{ paddingInlineStart: "36px" }}
+                      placeholder={
+                        lang === "ar"
+                          ? "ابحث بالاسم أو رقم الهوية الوطنية..."
+                          : "Search by name or National ID..."
+                      }
                       value={editParentSearchText}
                       onChange={(e) => setEditParentSearchText(e.target.value)}
                     />
                   </div>
 
-                  <label htmlFor="edit-student-parent-select" className="form-label">
-                    {lang === 'ar' ? 'ولي الأمر المرتبط' : 'Linked Parent'} <span style={{ color: 'var(--color-error)' }}>*</span>
+                  <label
+                    htmlFor="edit-student-parent-select"
+                    className="form-label"
+                  >
+                    {lang === "ar" ? "ولي الأمر المرتبط" : "Linked Parent"}{" "}
+                    <span style={{ color: "var(--color-error)" }}>*</span>
                   </label>
                   <select
                     id="edit-student-parent-select"
@@ -1830,8 +2645,12 @@ export default function StudentsTab() {
                     onChange={(e) => setEditParentNationalId(e.target.value)}
                     required
                   >
-                    <option value="">{lang === 'ar' ? '-- اختر ولي الأمر --' : '-- Select Parent --'}</option>
-                    {filteredEditParentUsers.map(p => (
+                    <option value="">
+                      {lang === "ar"
+                        ? "-- اختر ولي الأمر --"
+                        : "-- Select Parent --"}
+                    </option>
+                    {filteredEditParentUsers.map((p) => (
                       <option key={p.nationalId} value={p.nationalId}>
                         {p.name} ({p.nationalId})
                       </option>
@@ -1840,58 +2659,108 @@ export default function StudentsTab() {
                 </div>
 
                 {selectedEditParentObj && (
-                  <div style={{ 
-                    padding: '14px', 
-                    background: 'rgba(30, 80, 142, 0.03)', 
-                    border: '1px solid var(--color-border)', 
-                    borderRadius: '16px', 
-                    marginBottom: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      padding: "14px",
+                      background: "rgba(30, 80, 142, 0.03)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "16px",
+                      marginBottom: "16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
                       {renderAvatar(selectedEditParentObj.photo, "🧔")}
                       <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{selectedEditParentObj.name}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                          {lang === 'ar' ? 'الرقم الوطني لولي الأمر: ' : 'National ID: '}{selectedEditParentObj.nationalId}
+                        <div style={{ fontWeight: "bold", fontSize: "14px" }}>
+                          {selectedEditParentObj.name}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--color-text-secondary)",
+                          }}
+                        >
+                          {lang === "ar"
+                            ? "الرقم الوطني لولي الأمر: "
+                            : "National ID: "}
+                          {selectedEditParentObj.nationalId}
                         </div>
                       </div>
                     </div>
                     {selectedEditParentObj.phone && (
-                      <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        📞 {lang === 'ar' ? 'رقم الجوال: ' : 'Phone Number: '} {selectedEditParentObj.phone}
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          color: "var(--color-text-secondary)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        📞 {lang === "ar" ? "رقم الجوال: " : "Phone Number: "}{" "}
+                        {selectedEditParentObj.phone}
                       </div>
                     )}
 
                     {/* Real-time Mismatch Advisory Note */}
                     {editParentNameMismatchInfo && (
-                      <div style={{
-                        marginTop: '8px',
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        backgroundColor: 'rgba(234, 179, 8, 0.08)',
-                        border: '1px solid rgba(234, 179, 8, 0.3)',
-                        color: '#854d0e',
-                        fontSize: '12px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '8px',
-                        lineHeight: '1.5'
-                      }}>
-                        <span style={{ fontSize: '14px', marginTop: '1px' }}>ℹ️</span>
+                      <div
+                        style={{
+                          marginTop: "8px",
+                          padding: "10px 14px",
+                          borderRadius: "10px",
+                          backgroundColor: "rgba(234, 179, 8, 0.08)",
+                          border: "1px solid rgba(234, 179, 8, 0.3)",
+                          color: "#854d0e",
+                          fontSize: "12px",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: "8px",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        <span style={{ fontSize: "14px", marginTop: "1px" }}>
+                          ℹ️
+                        </span>
                         <div>
-                          {lang === 'ar' ? (
+                          {lang === "ar" ? (
                             <>
-                              <strong>ملاحظة للتأكيد:</strong> اسم ولي الأمر المختار (<strong>{editParentNameMismatchInfo.parentFirstName}</strong>) يختلف عن اسم والد الطالب (<strong>{editParentNameMismatchInfo.fatherName}</strong>).
-                              <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.9 }}>
-                                إذا كان ولي الأمر عمه أو خاله أو كفيله فهذا طبيعي؛ يرجى فقط التأكد قبل الحفظ.
+                              <strong>ملاحظة للتأكيد:</strong> اسم ولي الأمر
+                              المختار (
+                              <strong>
+                                {editParentNameMismatchInfo.parentFirstName}
+                              </strong>
+                              ) يختلف عن اسم والد الطالب (
+                              <strong>
+                                {editParentNameMismatchInfo.fatherName}
+                              </strong>
+                              ).
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  marginTop: "3px",
+                                  opacity: 0.9,
+                                }}
+                              >
+                                إذا كان ولي الأمر عمه أو خاله أو كفيله فهذا
+                                طبيعي؛ يرجى فقط التأكد قبل الحفظ.
                               </div>
                             </>
                           ) : (
                             <>
-                              <strong>Note:</strong> Selected parent ({editParentNameMismatchInfo.parentFirstName}) differs from student father's name ({editParentNameMismatchInfo.fatherName}).
+                              <strong>Note:</strong> Selected parent (
+                              {editParentNameMismatchInfo.parentFirstName})
+                              differs from student father's name (
+                              {editParentNameMismatchInfo.fatherName}).
                             </>
                           )}
                         </div>
@@ -1902,120 +2771,171 @@ export default function StudentsTab() {
 
                 {/* Sibling / Father Suggestion Helper for Edit Student */}
                 {suggestedEditParent && (
-                  <div style={{
-                    marginBottom: '16px',
-                    padding: '10px 14px',
-                    borderRadius: '12px',
-                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    color: '#15803d',
-                    fontSize: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                    flexWrap: 'wrap'
-                  }}>
+                  <div
+                    style={{
+                      marginBottom: "16px",
+                      padding: "10px 14px",
+                      borderRadius: "12px",
+                      backgroundColor: "rgba(34, 197, 94, 0.08)",
+                      border: "1px solid rgba(34, 197, 94, 0.3)",
+                      color: "#15803d",
+                      fontSize: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <div>
-                      💡 {lang === 'ar' ? 'تم العثور على ولي أمر يطابق اسم والد الطالب:' : 'Found parent matching student father:'}{' '}
-                      <strong>{suggestedEditParent.name}</strong> ({suggestedEditParent.nationalId})
+                      💡{" "}
+                      {lang === "ar"
+                        ? "تم العثور على ولي أمر يطابق اسم والد الطالب:"
+                        : "Found parent matching student father:"}{" "}
+                      <strong>{suggestedEditParent.name}</strong> (
+                      {suggestedEditParent.nationalId})
                     </div>
                     <button
                       type="button"
                       style={{
-                        padding: '4px 10px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        backgroundColor: '#16a34a',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer'
+                        padding: "4px 10px",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                        backgroundColor: "#16a34a",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        cursor: "pointer",
                       }}
                       onClick={() => {
                         setEditParentNationalId(suggestedEditParent.nationalId);
                       }}
                     >
-                      {lang === 'ar' ? 'ربط بهذا الولي' : 'Link to this parent'}
+                      {lang === "ar" ? "ربط بهذا الولي" : "Link to this parent"}
                     </button>
                   </div>
                 )}
 
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-md)' }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr",
+                    gap: "var(--space-md)",
+                  }}
+                >
                   <div className="form-group">
                     <label className="form-label">
-                      {t.formPhoto} (Student) <span style={{ color: 'var(--color-error)' }}>*</span>
+                      {t.formPhoto} (Student){" "}
+                      <span style={{ color: "var(--color-error)" }}>*</span>
                     </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '12px 0' }}>
-                      <input 
-                        type="file" 
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "12px 0",
+                      }}
+                    >
+                      <input
+                        type="file"
                         accept="image/*"
                         id="edit-student-photo-input"
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) {
                             const reader = new FileReader();
-                            reader.onloadend = () => setEditStudentPhoto(reader.result);
+                            reader.onloadend = () =>
+                              setEditStudentPhoto(reader.result);
                             reader.readAsDataURL(file);
                           }
                         }}
-                        style={{ display: 'none' }}
+                        style={{ display: "none" }}
                       />
-                      
-                      <div style={{ position: 'relative' }}>
-                        <label 
-                          htmlFor="edit-student-photo-input" 
+
+                      <div style={{ position: "relative" }}>
+                        <label
+                          htmlFor="edit-student-photo-input"
                           style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '120px',
-                            height: '120px',
-                            borderRadius: '50%',
-                            border: editStudentPhoto ? '2px solid var(--color-primary)' : '2px dashed var(--color-border)',
-                            cursor: 'pointer',
-                            overflow: 'hidden',
-                            backgroundColor: 'var(--color-surface)',
-                            transition: 'all 0.2s ease',
-                            position: 'relative',
-                            boxShadow: 'var(--shadow-sm)'
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "120px",
+                            height: "120px",
+                            borderRadius: "50%",
+                            border: editStudentPhoto
+                              ? "2px solid var(--color-primary)"
+                              : "2px dashed var(--color-border)",
+                            cursor: "pointer",
+                            overflow: "hidden",
+                            backgroundColor: "var(--color-surface)",
+                            transition: "all 0.2s ease",
+                            position: "relative",
+                            boxShadow: "var(--shadow-sm)",
                           }}
                           className="avatar-upload-label"
                         >
                           {editStudentPhoto ? (
                             <>
-                              <img 
-                                src={editStudentPhoto} 
-                                alt="Student Preview" 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              <img
+                                src={editStudentPhoto}
+                                alt="Student Preview"
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
                               />
-                              <div style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                backgroundColor: 'rgba(0,0,0,0.5)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                opacity: 0,
-                                transition: 'opacity 0.2s ease',
-                                color: '#ffffff',
-                                fontSize: '11px'
-                              }} className="avatar-hover-overlay">
-                                <Camera size={20} style={{ marginBottom: '4px' }} />
-                                <span>{lang === 'ar' ? 'تغيير الصورة' : 'Change'}</span>
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: 0,
+                                  left: 0,
+                                  width: "100%",
+                                  height: "100%",
+                                  backgroundColor: "rgba(0,0,0,0.5)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  opacity: 0,
+                                  transition: "opacity 0.2s ease",
+                                  color: "#ffffff",
+                                  fontSize: "11px",
+                                }}
+                                className="avatar-hover-overlay"
+                              >
+                                <Camera
+                                  size={20}
+                                  style={{ marginBottom: "4px" }}
+                                />
+                                <span>
+                                  {lang === "ar" ? "تغيير الصورة" : "Change"}
+                                </span>
                               </div>
                             </>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
-                              <User size={36} style={{ strokeWidth: 1.5, marginBottom: '4px', color: 'var(--color-text-tertiary)' }} />
-                              <span style={{ fontSize: '11px', fontWeight: '500' }}>
-                                {lang === 'ar' ? 'رفع الصورة' : 'Upload'}
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                color: "var(--color-text-secondary)",
+                              }}
+                            >
+                              <User
+                                size={36}
+                                style={{
+                                  strokeWidth: 1.5,
+                                  marginBottom: "4px",
+                                  color: "var(--color-text-tertiary)",
+                                }}
+                              />
+                              <span
+                                style={{ fontSize: "11px", fontWeight: "500" }}
+                              >
+                                {lang === "ar" ? "رفع الصورة" : "Upload"}
                               </span>
                             </div>
                           )}
@@ -2027,22 +2947,28 @@ export default function StudentsTab() {
               </div>
 
               <footer className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn-elevated" 
+                <button
+                  type="button"
+                  className="btn-elevated"
                   onClick={() => setShowEditStudentModal(false)}
-                  style={{ height: '48px' }}
+                  style={{ height: "48px" }}
                   disabled={isSaving}
                 >
                   {t.cancel}
                 </button>
-                <button 
-                  type="submit" 
-                  className="btn-filled" 
-                  style={{ height: '48px', opacity: isSaving ? 0.7 : 1 }}
+                <button
+                  type="submit"
+                  className="btn-filled"
+                  style={{ height: "48px", opacity: isSaving ? 0.7 : 1 }}
                   disabled={isSaving}
                 >
-                  {isSaving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')}
+                  {isSaving
+                    ? lang === "ar"
+                      ? "جاري الحفظ..."
+                      : "Saving..."
+                    : lang === "ar"
+                      ? "حفظ التعديلات"
+                      : "Save Changes"}
                 </button>
               </footer>
             </form>
@@ -2051,14 +2977,30 @@ export default function StudentsTab() {
       )}
       {showExcelModal && (
         <div className="modal-overlay no-print">
-          <div className="modal-container" style={{ maxWidth: '580px', width: '90%' }}>
-            <header className="modal-header" style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#31859C' }}>
+          <div
+            className="modal-container"
+            style={{ maxWidth: "580px", width: "90%" }}
+          >
+            <header
+              className="modal-header"
+              style={{ borderBottom: "1px solid var(--color-border)" }}
+            >
+              <h3
+                className="modal-title"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  color: "#31859C",
+                }}
+              >
                 <Upload size={22} />
-                {lang === 'ar' ? 'الاستيراد والتصدير الذكي (Excel)' : 'Smart Import & Export (Excel)'}
+                {lang === "ar"
+                  ? "الاستيراد والتصدير الذكي (Excel)"
+                  : "Smart Import & Export (Excel)"}
               </h3>
-              <button 
-                className="modal-close-btn" 
+              <button
+                className="modal-close-btn"
                 onClick={() => setShowExcelModal(false)}
                 aria-label="Close Modal"
               >
@@ -2067,52 +3009,84 @@ export default function StudentsTab() {
             </header>
 
             {/* Custom Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', backgroundColor: 'rgba(0,0,0,0.02)' }}>
+            <div
+              style={{
+                display: "flex",
+                borderBottom: "1px solid var(--color-border)",
+                backgroundColor: "rgba(0,0,0,0.02)",
+              }}
+            >
               <button
                 type="button"
-                onClick={() => setExcelModalTab('import')}
+                onClick={() => setExcelModalTab("import")}
                 style={{
                   flex: 1,
-                  padding: '14px',
-                  fontWeight: '600',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  borderBottom: excelModalTab === 'import' ? '3px solid #31859C' : '3px solid transparent',
-                  color: excelModalTab === 'import' ? '#31859C' : 'var(--color-text-secondary)',
-                  transition: 'all 0.2s ease'
+                  padding: "14px",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  border: "none",
+                  backgroundColor: "transparent",
+                  borderBottom:
+                    excelModalTab === "import"
+                      ? "3px solid #31859C"
+                      : "3px solid transparent",
+                  color:
+                    excelModalTab === "import"
+                      ? "#31859C"
+                      : "var(--color-text-secondary)",
+                  transition: "all 0.2s ease",
                 }}
               >
-                {lang === 'ar' ? '📥 استيراد الطلاب' : '📥 Import Students'}
+                {lang === "ar" ? "📥 استيراد الطلاب" : "📥 Import Students"}
               </button>
               <button
                 type="button"
-                onClick={() => setExcelModalTab('export')}
+                onClick={() => setExcelModalTab("export")}
                 style={{
                   flex: 1,
-                  padding: '14px',
-                  fontWeight: '600',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  borderBottom: excelModalTab === 'export' ? '3px solid #31859C' : '3px solid transparent',
-                  color: excelModalTab === 'export' ? '#31859C' : 'var(--color-text-secondary)',
-                  transition: 'all 0.2s ease'
+                  padding: "14px",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  border: "none",
+                  backgroundColor: "transparent",
+                  borderBottom:
+                    excelModalTab === "export"
+                      ? "3px solid #31859C"
+                      : "3px solid transparent",
+                  color:
+                    excelModalTab === "export"
+                      ? "#31859C"
+                      : "var(--color-text-secondary)",
+                  transition: "all 0.2s ease",
                 }}
               >
-                {lang === 'ar' ? '📤 التصدير والنموذج' : '📤 Export & Template'}
+                {lang === "ar" ? "📤 التصدير والنموذج" : "📤 Export & Template"}
               </button>
             </div>
 
-            <div className="modal-body" style={{ padding: '24px' }}>
-              {excelModalTab === 'import' ? (
-                <form onSubmit={handleImportExcel} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                   {/* Select Default Class */}
+            <div className="modal-body" style={{ padding: "24px" }}>
+              {excelModalTab === "import" ? (
+                <form
+                  onSubmit={handleImportExcel}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px",
+                  }}
+                >
+                  {/* Select Default Class */}
                   <div className="form-group">
-                    <label htmlFor="import-target-class" className="form-label" style={{ fontWeight: '600' }}>
-                      {lang === 'ar' ? 'حدد الفصل الدراسي المستهدف للاستيراد:' : 'Target Class for Import:'} <span style={{ color: 'var(--color-error)' }}>*</span>
+                    <label
+                      htmlFor="import-target-class"
+                      className="form-label"
+                      style={{ fontWeight: "600" }}
+                    >
+                      {lang === "ar"
+                        ? "حدد الفصل الدراسي المستهدف للاستيراد:"
+                        : "Target Class for Import:"}{" "}
+                      <span style={{ color: "var(--color-error)" }}>*</span>
                     </label>
                     <select
                       id="import-target-class"
@@ -2122,10 +3096,14 @@ export default function StudentsTab() {
                       onChange={(e) => setExcelDefaultClassId(e.target.value)}
                       required
                     >
-                      <option value="">{lang === 'ar' ? '-- اختر الفصل الدراسي --' : '-- Select Class --'}</option>
-                      {allowedClasses.map(c => (
+                      <option value="">
+                        {lang === "ar"
+                          ? "-- اختر الفصل الدراسي --"
+                          : "-- Select Class --"}
+                      </option>
+                      {allowedClasses.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {lang === 'ar' ? c.name : c.nameEn}
+                          {lang === "ar" ? c.name : c.nameEn}
                         </option>
                       ))}
                     </select>
@@ -2133,59 +3111,110 @@ export default function StudentsTab() {
 
                   {/* Drag-n-drop file container */}
                   <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: '600' }}>
-                      {lang === 'ar' ? 'ملف Excel المراد استيراده (.xlsx)' : 'Excel File to Import (.xlsx)'}
+                    <label className="form-label" style={{ fontWeight: "600" }}>
+                      {lang === "ar"
+                        ? "ملف Excel المراد استيراده (.xlsx)"
+                        : "Excel File to Import (.xlsx)"}
                     </label>
-                    <div 
+                    <div
                       style={{
-                        border: '2px dashed rgba(49, 133, 156, 0.3)',
-                        borderRadius: '16px',
-                        padding: '30px 20px',
-                        textAlign: 'center',
-                        backgroundColor: importFile ? 'rgba(49, 133, 156, 0.02)' : 'rgba(0,0,0,0.01)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        position: 'relative'
+                        border: "2px dashed rgba(49, 133, 156, 0.3)",
+                        borderRadius: "16px",
+                        padding: "30px 20px",
+                        textAlign: "center",
+                        backgroundColor: importFile
+                          ? "rgba(49, 133, 156, 0.02)"
+                          : "rgba(0,0,0,0.01)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        position: "relative",
                       }}
-                      onClick={() => document.getElementById('excel-file-uploader').click()}
-                      onDragOver={(e) => { e.preventDefault(); }}
+                      onClick={() =>
+                        document.getElementById("excel-file-uploader").click()
+                      }
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                      }}
                       onDrop={(e) => {
                         e.preventDefault();
                         const file = e.dataTransfer.files[0];
-                        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+                        if (
+                          file &&
+                          (file.name.endsWith(".xlsx") ||
+                            file.name.endsWith(".xls"))
+                        ) {
                           setImportFile(file);
                         } else {
-                          alert(lang === 'ar' ? 'يرجى اختيار ملف Excel بصيغة xlsx.' : 'Please choose an Excel file with xlsx extension.');
+                          alert(
+                            lang === "ar"
+                              ? "يرجى اختيار ملف Excel بصيغة xlsx."
+                              : "Please choose an Excel file with xlsx extension.",
+                          );
                         }
                       }}
                     >
-                      <input 
-                        type="file" 
-                        id="excel-file-uploader" 
+                      <input
+                        type="file"
+                        id="excel-file-uploader"
                         accept=".xlsx, .xls"
-                        style={{ display: 'none' }}
+                        style={{ display: "none" }}
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) setImportFile(file);
                         }}
                       />
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                        <Upload size={32} style={{ color: '#31859C', opacity: 0.8 }} />
+
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <Upload
+                          size={32}
+                          style={{ color: "#31859C", opacity: 0.8 }}
+                        />
                         {importFile ? (
                           <div>
-                            <div style={{ fontWeight: 'bold', color: 'var(--color-text)', fontSize: '14px' }}>{importFile.name}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                            <div
+                              style={{
+                                fontWeight: "bold",
+                                color: "var(--color-text)",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {importFile.name}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "var(--color-text-secondary)",
+                              }}
+                            >
                               {(importFile.size / 1024).toFixed(1)} KB
                             </div>
                           </div>
                         ) : (
                           <div>
-                            <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                              {lang === 'ar' ? 'اسحب وأفلت الملف هنا أو انقر للتصفح' : 'Drag & drop file here or click to browse'}
+                            <div
+                              style={{ fontWeight: "600", fontSize: "14px" }}
+                            >
+                              {lang === "ar"
+                                ? "اسحب وأفلت الملف هنا أو انقر للتصفح"
+                                : "Drag & drop file here or click to browse"}
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                              {lang === 'ar' ? 'صيغة الملف المدعومة: Excel (.xlsx)' : 'Supported extension: Excel (.xlsx)'}
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "var(--color-text-secondary)",
+                                marginTop: "4px",
+                              }}
+                            >
+                              {lang === "ar"
+                                ? "صيغة الملف المدعومة: Excel (.xlsx)"
+                                : "Supported extension: Excel (.xlsx)"}
                             </div>
                           </div>
                         )}
@@ -2195,48 +3224,112 @@ export default function StudentsTab() {
 
                   {/* Progress & Feedback State */}
                   {(isImporting || importProgress > 0) && (
-                    <div style={{ padding: '16px', background: 'rgba(0,0,0,0.02)', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#31859C' }}>
+                    <div
+                      style={{
+                        padding: "16px",
+                        background: "rgba(0,0,0,0.02)",
+                        borderRadius: "16px",
+                        border: "1px solid var(--color-border)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            color: "#31859C",
+                          }}
+                        >
                           {importStatus}
                         </span>
-                        <span style={{ fontSize: '13px', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "bold",
+                            fontFamily: "var(--font-mono)",
+                          }}
+                        >
                           {importProgress}%
                         </span>
                       </div>
-                      
+
                       {/* Progress Bar Container */}
-                      <div style={{ width: '100%', height: '8px', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: '999px', overflow: 'hidden' }}>
-                        <div 
-                          style={{ 
-                            width: `${importProgress}%`, 
-                            height: '100%', 
-                            backgroundColor: importSuccess ? '#10b981' : '#31859C', 
-                            borderRadius: '999px', 
-                            transition: 'width 0.2s ease-out' 
-                          }} 
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "8px",
+                          backgroundColor: "rgba(0,0,0,0.06)",
+                          borderRadius: "999px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${importProgress}%`,
+                            height: "100%",
+                            backgroundColor: importSuccess
+                              ? "#10b981"
+                              : "#31859C",
+                            borderRadius: "999px",
+                            transition: "width 0.2s ease-out",
+                          }}
                         />
                       </div>
 
                       {/* Warnings / Error list */}
                       {importErrors.length > 0 && (
-                        <div style={{ marginTop: '14px', borderTop: '1px dashed var(--color-border)', paddingTop: '12px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
-                            <span>⚠️ {lang === 'ar' ? 'تنبيهات وتفاصيل الأخطاء:' : 'Warnings & Error Details:'}</span>
+                        <div
+                          style={{
+                            marginTop: "14px",
+                            borderTop: "1px dashed var(--color-border)",
+                            paddingTop: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              color: "var(--color-error)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <span>
+                              ⚠️{" "}
+                              {lang === "ar"
+                                ? "تنبيهات وتفاصيل الأخطاء:"
+                                : "Warnings & Error Details:"}
+                            </span>
                           </div>
-                          <ul style={{ 
-                            maxHeight: '120px', 
-                            overflowY: 'auto', 
-                            paddingInlineStart: '16px', 
-                            margin: 0, 
-                            fontSize: '12px', 
-                            color: 'var(--color-text-secondary)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px'
-                          }}>
+                          <ul
+                            style={{
+                              maxHeight: "120px",
+                              overflowY: "auto",
+                              paddingInlineStart: "16px",
+                              margin: 0,
+                              fontSize: "12px",
+                              color: "var(--color-text-secondary)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
+                            }}
+                          >
                             {importErrors.map((err, i) => (
-                              <li key={i} style={{ direction: 'rtl', textAlign: 'right' }}>{err}</li>
+                              <li
+                                key={i}
+                                style={{ direction: "rtl", textAlign: "right" }}
+                              >
+                                {err}
+                              </li>
                             ))}
                           </ul>
                         </div>
@@ -2244,26 +3337,54 @@ export default function StudentsTab() {
 
                       {/* Warnings list (Yellow/Advisory) */}
                       {importWarnings.length > 0 && (
-                        <div style={{ marginTop: '14px', borderTop: '1px dashed var(--color-border)', paddingTop: '12px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
-                            <span>💡 {lang === 'ar' ? 'تنبيهات تدقيق أولياء الأمور (يرجى مراجعتها):' : 'Parent Audit Advisories (Please review):'}</span>
+                        <div
+                          style={{
+                            marginTop: "14px",
+                            borderTop: "1px dashed var(--color-border)",
+                            paddingTop: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              color: "#b45309",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <span>
+                              💡{" "}
+                              {lang === "ar"
+                                ? "تنبيهات تدقيق أولياء الأمور (يرجى مراجعتها):"
+                                : "Parent Audit Advisories (Please review):"}
+                            </span>
                           </div>
-                          <ul style={{ 
-                            maxHeight: '140px', 
-                            overflowY: 'auto', 
-                            paddingInlineStart: '16px', 
-                            margin: 0, 
-                            fontSize: '12px', 
-                            color: '#92400e',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            backgroundColor: 'rgba(234, 179, 8, 0.05)',
-                            padding: '8px 12px',
-                            borderRadius: '8px'
-                          }}>
+                          <ul
+                            style={{
+                              maxHeight: "140px",
+                              overflowY: "auto",
+                              paddingInlineStart: "16px",
+                              margin: 0,
+                              fontSize: "12px",
+                              color: "#92400e",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
+                              backgroundColor: "rgba(234, 179, 8, 0.05)",
+                              padding: "8px 12px",
+                              borderRadius: "8px",
+                            }}
+                          >
                             {importWarnings.map((warn, i) => (
-                              <li key={i} style={{ direction: 'rtl', textAlign: 'right' }}>{warn}</li>
+                              <li
+                                key={i}
+                                style={{ direction: "rtl", textAlign: "right" }}
+                              >
+                                {warn}
+                              </li>
                             ))}
                           </ul>
                         </div>
@@ -2272,54 +3393,114 @@ export default function StudentsTab() {
                   )}
 
                   {/* Actions */}
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      justifyContent: "flex-end",
+                      marginTop: "10px",
+                    }}
+                  >
                     <button
                       type="button"
                       className="btn-elevated"
                       onClick={() => setShowExcelModal(false)}
                       disabled={isImporting}
-                      style={{ height: '44px', padding: '0 18px' }}
+                      style={{ height: "44px", padding: "0 18px" }}
                     >
-                      {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                      {lang === "ar" ? "إلغاء" : "Cancel"}
                     </button>
                     <button
                       type="submit"
                       className="btn-filled"
                       disabled={isImporting || !importFile}
-                      style={{ height: '44px', padding: '0 24px', backgroundColor: '#31859C', borderColor: '#31859C', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      style={{
+                        height: "44px",
+                        padding: "0 24px",
+                        backgroundColor: "#31859C",
+                        borderColor: "#31859C",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
                     >
                       {isImporting ? (
                         <>
-                          {lang === 'ar' ? 'جاري الاستيراد...' : 'Importing...'}
+                          {lang === "ar" ? "جاري الاستيراد..." : "Importing..."}
                         </>
+                      ) : lang === "ar" ? (
+                        "بدء الاستيراد"
                       ) : (
-                        lang === 'ar' ? 'بدء الاستيراد' : 'Start Import'
+                        "Start Import"
                       )}
                     </button>
                   </div>
                 </form>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "24px",
+                  }}
+                >
                   {/* Download Template Box */}
-                  <div style={{ padding: '20px', border: '1px solid var(--color-border)', borderRadius: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--color-text)' }}>
-                      {lang === 'ar' ? '1. تحميل نموذج Excel فارغ' : '1. Download Empty Excel Template'}
+                  <div
+                    style={{
+                      padding: "20px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "16px",
+                      backgroundColor: "rgba(0,0,0,0.01)",
+                    }}
+                  >
+                    <h4
+                      style={{
+                        margin: "0 0 12px 0",
+                        fontSize: "15px",
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      {lang === "ar"
+                        ? "1. تحميل نموذج Excel فارغ"
+                        : "1. Download Empty Excel Template"}
                     </h4>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: '200px' }}>
-                        <label style={{ fontSize: '12px', display: 'block', marginBottom: '6px', color: 'var(--color-text-secondary)' }}>
-                          {lang === 'ar' ? 'اختر الفصل لتخصيص القالب (اختياري):' : 'Select Class for Custom Template (Optional):'}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "10px",
+                        alignItems: "flex-end",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: "200px" }}>
+                        <label
+                          style={{
+                            fontSize: "12px",
+                            display: "block",
+                            marginBottom: "6px",
+                            color: "var(--color-text-secondary)",
+                          }}
+                        >
+                          {lang === "ar"
+                            ? "اختر الفصل لتخصيص القالب (اختياري):"
+                            : "Select Class for Custom Template (Optional):"}
                         </label>
                         <select
                           className="text-field"
                           value={excelTemplateClassId}
-                          onChange={(e) => setExcelTemplateClassId(e.target.value)}
-                          style={{ height: '42px', padding: '0 12px' }}
+                          onChange={(e) =>
+                            setExcelTemplateClassId(e.target.value)
+                          }
+                          style={{ height: "42px", padding: "0 12px" }}
                         >
-                          <option value="">{lang === 'ar' ? '-- الصف الافتراضي (ثالث ثانوي) --' : '-- Default Class (Grade 3) --'}</option>
-                          {allowedClasses.map(c => (
+                          <option value="">
+                            {lang === "ar"
+                              ? "-- الصف الافتراضي (ثالث ثانوي) --"
+                              : "-- Default Class (Grade 3) --"}
+                          </option>
+                          {allowedClasses.map((c) => (
                             <option key={c.id} value={c.id}>
-                              {lang === 'ar' ? c.name : c.nameEn}
+                              {lang === "ar" ? c.name : c.nameEn}
                             </option>
                           ))}
                         </select>
@@ -2327,39 +3508,85 @@ export default function StudentsTab() {
                       <button
                         type="button"
                         className="btn-accent"
-                        onClick={() => handleDownloadExcelTemplate(excelTemplateClassId)}
+                        onClick={() =>
+                          handleDownloadExcelTemplate(excelTemplateClassId)
+                        }
                         disabled={isLoadingTemplate}
-                        style={{ height: '42px', padding: '0 20px', backgroundColor: '#31859C', borderColor: '#31859C' }}
+                        style={{
+                          height: "42px",
+                          padding: "0 20px",
+                          backgroundColor: "#31859C",
+                          borderColor: "#31859C",
+                        }}
                       >
-                        {isLoadingTemplate ? (
-                          lang === 'ar' ? 'جاري التحميل...' : 'Downloading...'
-                        ) : (
-                          lang === 'ar' ? 'تحميل القالب' : 'Download Template'
-                        )}
+                        {isLoadingTemplate
+                          ? lang === "ar"
+                            ? "جاري التحميل..."
+                            : "Downloading..."
+                          : lang === "ar"
+                            ? "تحميل القالب"
+                            : "Download Template"}
                       </button>
                     </div>
                   </div>
 
                   {/* Export Students Box */}
-                  <div style={{ padding: '20px', border: '1px solid var(--color-border)', borderRadius: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--color-text)' }}>
-                      {lang === 'ar' ? '2. تصدير بيانات الطلاب الحالية' : '2. Export Current Students Data'}
+                  <div
+                    style={{
+                      padding: "20px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "16px",
+                      backgroundColor: "rgba(0,0,0,0.01)",
+                    }}
+                  >
+                    <h4
+                      style={{
+                        margin: "0 0 12px 0",
+                        fontSize: "15px",
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      {lang === "ar"
+                        ? "2. تصدير بيانات الطلاب الحالية"
+                        : "2. Export Current Students Data"}
                     </h4>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: '200px' }}>
-                        <label style={{ fontSize: '12px', display: 'block', marginBottom: '6px', color: 'var(--color-text-secondary)' }}>
-                          {lang === 'ar' ? 'تصدير طلاب فصل محدد أو الكل:' : 'Export Class Students or All:'}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "10px",
+                        alignItems: "flex-end",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: "200px" }}>
+                        <label
+                          style={{
+                            fontSize: "12px",
+                            display: "block",
+                            marginBottom: "6px",
+                            color: "var(--color-text-secondary)",
+                          }}
+                        >
+                          {lang === "ar"
+                            ? "تصدير طلاب فصل محدد أو الكل:"
+                            : "Export Class Students or All:"}
                         </label>
                         <select
                           className="text-field"
                           value={excelExportClassId}
-                          onChange={(e) => setExcelExportClassId(e.target.value)}
-                          style={{ height: '42px', padding: '0 12px' }}
+                          onChange={(e) =>
+                            setExcelExportClassId(e.target.value)
+                          }
+                          style={{ height: "42px", padding: "0 12px" }}
                         >
-                          <option value="">{lang === 'ar' ? '🔍 تصدير كل الطلاب' : '🔍 Export All Students'}</option>
-                          {allowedClasses.map(c => (
+                          <option value="">
+                            {lang === "ar"
+                              ? "🔍 تصدير كل الطلاب"
+                              : "🔍 Export All Students"}
+                          </option>
+                          {allowedClasses.map((c) => (
                             <option key={c.id} value={c.id}>
-                              🏫 {lang === 'ar' ? c.name : c.nameEn}
+                              🏫 {lang === "ar" ? c.name : c.nameEn}
                             </option>
                           ))}
                         </select>
@@ -2369,26 +3596,39 @@ export default function StudentsTab() {
                         className="btn-filled"
                         onClick={() => handleExportExcel(excelExportClassId)}
                         disabled={isExporting}
-                        style={{ height: '42px', padding: '0 20px', backgroundColor: '#31859C', borderColor: '#31859C' }}
+                        style={{
+                          height: "42px",
+                          padding: "0 20px",
+                          backgroundColor: "#31859C",
+                          borderColor: "#31859C",
+                        }}
                       >
-                        {isExporting ? (
-                          lang === 'ar' ? 'جاري التصدير...' : 'Exporting...'
-                        ) : (
-                          lang === 'ar' ? 'تصدير البيانات' : 'Export Data'
-                        )}
+                        {isExporting
+                          ? lang === "ar"
+                            ? "جاري التصدير..."
+                            : "Exporting..."
+                          : lang === "ar"
+                            ? "تصدير البيانات"
+                            : "Export Data"}
                       </button>
                     </div>
                   </div>
 
                   {/* Close Footer button */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      marginTop: "10px",
+                    }}
+                  >
                     <button
                       type="button"
                       className="btn-elevated"
                       onClick={() => setShowExcelModal(false)}
-                      style={{ height: '44px', padding: '0 18px' }}
+                      style={{ height: "44px", padding: "0 18px" }}
                     >
-                      {lang === 'ar' ? 'إغلاق' : 'Close'}
+                      {lang === "ar" ? "إغلاق" : "Close"}
                     </button>
                   </div>
                 </div>
@@ -2399,48 +3639,98 @@ export default function StudentsTab() {
       )}
       {/* ─── Print Roster Modal ─────────────────────────────────────── */}
       {showPrintModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1050,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '16px'
-        }}>
-          <div style={{
-            background: 'var(--color-surface)',
-            borderRadius: '16px',
-            padding: '28px',
-            width: '100%',
-            maxWidth: '480px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.25)'
-          }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1050,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              background: "var(--color-surface)",
+              borderRadius: "16px",
+              padding: "28px",
+              width: "100%",
+              maxWidth: "480px",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+            }}
+          >
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Printer size={20} style={{ color: '#ea580c' }} />
-                {lang === 'ar' ? 'طباعة كشف الطلاب' : 'Print Student Roster'}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "700",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <Printer size={20} style={{ color: "#ea580c" }} />
+                {lang === "ar" ? "طباعة كشف الطلاب" : "Print Student Roster"}
               </h3>
-              <button onClick={() => setShowPrintModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+              <button
+                onClick={() => setShowPrintModal(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px",
+                }}
+              >
                 <X size={20} />
               </button>
             </div>
 
             {/* Class Selector */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'var(--color-text-secondary)' }}>
-                {lang === 'ar' ? 'اختر الصف والشعبة' : 'Select Class'}
+            <div style={{ marginBottom: "20px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  marginBottom: "8px",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                {lang === "ar" ? "اختر الصف والشعبة" : "Select Class"}
               </label>
               <select
                 className="text-field"
                 value={printClassId}
-                onChange={e => setPrintClassId(e.target.value)}
-                style={{ width: '100%', height: '44px', borderRadius: '10px', fontSize: '14px', padding: '0 12px' }}
+                onChange={(e) => setPrintClassId(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: "44px",
+                  borderRadius: "10px",
+                  fontSize: "14px",
+                  padding: "0 12px",
+                }}
               >
-                <option value="">{lang === 'ar' ? '-- اختر الفصل --' : '-- Select Class --'}</option>
-                {(allowedClasses || []).map(cls => {
-                  const numId = typeof cls.id === 'string' && cls.id.startsWith('cls-') ? cls.id.replace('cls-', '') : String(cls.id);
+                <option value="">
+                  {lang === "ar" ? "-- اختر الفصل --" : "-- Select Class --"}
+                </option>
+                {(allowedClasses || []).map((cls) => {
+                  const numId =
+                    typeof cls.id === "string" && cls.id.startsWith("cls-")
+                      ? cls.id.replace("cls-", "")
+                      : String(cls.id);
                   return (
                     <option key={cls.id} value={numId}>
-                      {lang === 'ar' ? cls.name : (cls.nameEn || cls.name)}
+                      {lang === "ar" ? cls.name : cls.nameEn || cls.name}
                     </option>
                   );
                 })}
@@ -2448,67 +3738,121 @@ export default function StudentsTab() {
             </div>
 
             {/* Roster Type */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '12px', color: 'var(--color-text-secondary)' }}>
-                {lang === 'ar' ? 'نوع الكشف' : 'Roster Type'}
+            <div style={{ marginBottom: "24px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  marginBottom: "12px",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                {lang === "ar" ? "نوع الكشف" : "Roster Type"}
               </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
                 {[
-                  { value: 'without_code', ar: 'كشف بأسماء الطلاب بدون الرقم الأكاديمي', en: 'Student roster without academic number' },
-                  { value: 'with_code',    ar: 'كشف أسماء الطلاب مع الرقم الأكاديمي', en: 'Student roster with academic number' }
-                ].map(opt => (
-                  <label key={opt.value} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer',
-                    padding: '12px 14px', borderRadius: '10px', border: `2px solid ${printRosterType === opt.value ? '#ea580c' : 'var(--color-border)'}`,
-                    background: printRosterType === opt.value ? 'rgba(234,88,12,0.06)' : 'transparent',
-                    transition: 'all 0.15s ease'
-                  }}>
+                  {
+                    value: "without_code",
+                    ar: "كشف بأسماء الطلاب بدون الرقم الأكاديمي",
+                    en: "Student roster without academic number",
+                  },
+                  {
+                    value: "with_code",
+                    ar: "كشف أسماء الطلاب مع الرقم الأكاديمي",
+                    en: "Student roster with academic number",
+                  },
+                ].map((opt) => (
+                  <label
+                    key={opt.value}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "10px",
+                      cursor: "pointer",
+                      padding: "12px 14px",
+                      borderRadius: "10px",
+                      border: `2px solid ${printRosterType === opt.value ? "#ea580c" : "var(--color-border)"}`,
+                      background:
+                        printRosterType === opt.value
+                          ? "rgba(234,88,12,0.06)"
+                          : "transparent",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
                     <input
                       type="radio"
                       name="rosterType"
                       value={opt.value}
                       checked={printRosterType === opt.value}
                       onChange={() => setPrintRosterType(opt.value)}
-                      style={{ marginTop: '2px', accentColor: '#ea580c' }}
+                      style={{ marginTop: "2px", accentColor: "#ea580c" }}
                     />
-                    <span style={{ fontSize: '14px', lineHeight: 1.5 }}>{lang === 'ar' ? opt.ar : opt.en}</span>
+                    <span style={{ fontSize: "14px", lineHeight: 1.5 }}>
+                      {lang === "ar" ? opt.ar : opt.en}
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "flex-end",
+              }}
+            >
               <button
                 type="button"
                 className="btn-elevated"
                 onClick={() => setShowPrintModal(false)}
-                style={{ height: '44px', padding: '0 18px' }}
+                style={{ height: "44px", padding: "0 18px" }}
               >
-                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                {lang === "ar" ? "إلغاء" : "Cancel"}
               </button>
               <button
                 type="button"
                 onClick={handlePrintRoster}
                 disabled={!printClassId || isPrintingRoster}
                 style={{
-                  height: '44px', padding: '0 22px', borderRadius: '10px',
-                  background: (!printClassId || isPrintingRoster) ? '#ccc' : '#ea580c',
-                  color: '#fff', border: 'none', cursor: (!printClassId || isPrintingRoster) ? 'not-allowed' : 'pointer',
-                  fontWeight: '600', fontSize: '14px',
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  transition: 'all 0.15s ease'
+                  height: "44px",
+                  padding: "0 22px",
+                  borderRadius: "10px",
+                  background:
+                    !printClassId || isPrintingRoster ? "#ccc" : "#ea580c",
+                  color: "#fff",
+                  border: "none",
+                  cursor:
+                    !printClassId || isPrintingRoster
+                      ? "not-allowed"
+                      : "pointer",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  transition: "all 0.15s ease",
                 }}
               >
                 {isPrintingRoster ? (
                   <>
                     <RefreshCw size={16} className="spin" />
-                    {lang === 'ar' ? 'جاري تجهيز الكشف...' : 'Preparing Roster...'}
+                    {lang === "ar"
+                      ? "جاري تجهيز الكشف..."
+                      : "Preparing Roster..."}
                   </>
                 ) : (
                   <>
-                    <Printer size={16} />
-                    {lang === 'ar' ? 'طباعة' : 'Print'}
+                    <Eye size={16} />
+                    {lang === "ar" ? "معاينة الكشف" : "Preview Roster"}
                   </>
                 )}
               </button>
@@ -2516,6 +3860,13 @@ export default function StudentsTab() {
           </div>
         </div>
       )}
+      <StudentTranscriptModal
+        key={transcriptStudent ? `transcript-${transcriptStudent.id}` : "transcript-closed"}
+        isOpen={Boolean(transcriptStudent)}
+        student={transcriptStudent}
+        onClose={() => setTranscriptStudent(null)}
+        canManage={true}
+      />
     </>
   );
 }

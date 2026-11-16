@@ -1,5 +1,5 @@
 import { api } from "../services/api";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useClasses } from '../contexts/Classes/useClasses';
 import { useAllowedClasses } from '../hooks/useAllowedClasses';
@@ -14,6 +14,10 @@ import GradesDirectPrintModal from '../components/grades/GradesDirectPrintModal'
 import SubjectView from '../components/grades/SubjectView';
 import MonthView from '../components/grades/MonthView';
 import ClassView from '../components/grades/ClassView';
+import MonthlySheetsView from '../components/grades/MonthlySheetsView';
+import { openElementPrintPreview } from '../utils/printPreview';
+import TermTransferView from '../components/grades/TermTransferView';
+import FinalResultsView from '../components/grades/FinalResultsView';
 import SearchableSelect from '../components/SearchableSelect';
 
 // Print Views
@@ -54,13 +58,37 @@ export default function DetailedGradesTab() {
   // State for view controls
   const [viewMode, setViewMode] = useState('class'); // Default to class view for admin reviews
   const [selectedMonth, setSelectedMonth] = useState('m1'); // 'm1', 'm2', 'm3'
+  const [selectedCalendarMonthName, setSelectedCalendarMonthName] = useState('نوفمبر');
+  const [initialPrintSubject, setInitialPrintSubject] = useState('all');
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [showDirectPrintModal, setShowDirectPrintModal] = useState(false);
   const [initialPrintTemplate, setInitialPrintTemplate] = useState('template_1_blank_year');
 
-  // Calculate unique classes list from classes master table
-  const classesList = classes.map(c => `${c.grade} - ${c.section}`).sort();
+  // Calculate unique classes list from classes master table (preserving school logical grade order)
+  const classesList = classes.map(c => `${c.grade} - ${c.section}`);
   const [selectedClass, setSelectedClass] = useState(localStorage.getItem('goto_class') || classesList[0] || '');
+  const [studentFilterClass, setStudentFilterClass] = useState('all');
+
+  const filteredStudentsForPicker = useMemo(() => {
+    if (!students || students.length === 0) return [];
+    if (!studentFilterClass || studentFilterClass === 'all') return students;
+
+    const targetClassObj = (classes || []).find(c =>
+      c.name === studentFilterClass ||
+      `${c.grade} - ${c.section}` === studentFilterClass ||
+      `${c.grade_ar} - ${c.section_ar}` === studentFilterClass
+    );
+    const targetNumericId = targetClassObj
+      ? String(targetClassObj.numericId || String(targetClassObj.id).replace(/\D/g, ''))
+      : null;
+
+    return students.filter(s => {
+      if (targetNumericId && s.class_id != null && String(s.class_id) === targetNumericId) {
+        return true;
+      }
+      return `${s.grade} - ${s.section}` === studentFilterClass;
+    });
+  }, [students, studentFilterClass, classes]);
 
   const selectedClassObj = (classes || []).find(c =>
     c.name === selectedClass ||
@@ -119,9 +147,9 @@ export default function DetailedGradesTab() {
     }
   }, [students, selectedGradeStudentId, setSelectedGradeStudentId]);
 
-  // Auto-load grades from database when selected class changes (class view mode)
+  // Auto-load grades from database when selected class changes (class-level view modes)
   useEffect(() => {
-    if (!selectedClass || viewMode !== 'class') return;
+    if (!selectedClass || !['class', 'monthlySheet', 'termTransfer', 'finalResults'].includes(viewMode)) return;
     // Map class name back to numeric class ID
     const [grade, section] = selectedClass.split(' - ');
     const classObj = classes.find(c =>
@@ -208,31 +236,13 @@ export default function DetailedGradesTab() {
   // Dynamic Print Handler supporting Class (landscape/portrait), Subject sheet, and Monthly sheet
   const handlePrint = (mode = viewMode) => {
     const printMode = mode === 'class' ? 'class' : (mode === 'month' ? 'month' : 'subject');
-    document.body.setAttribute('data-print-mode', printMode);
     const isLandscape = (printMode === 'class' && (classSubject === 'all' || classSubject === 'detailed'));
-    document.body.setAttribute('data-print-orientation', isLandscape ? 'landscape' : 'portrait');
-
-    // Dynamically inject @page orientation style for browser print preview engine
-    const oldStyle = document.getElementById('dynamic-print-page-style');
-    if (oldStyle) oldStyle.remove();
-
-    const styleEl = document.createElement('style');
-    styleEl.id = 'dynamic-print-page-style';
-    styleEl.innerHTML = isLandscape 
-      ? `@page { size: A4 landscape !important; margin: 0.5cm !important; }`
-      : `@page { size: A4 portrait !important; margin: 0.6cm !important; }`;
-    document.head.appendChild(styleEl);
-
-    setTimeout(() => {
-      window.print();
-      const afterPrintCleanup = () => {
-        document.body.removeAttribute('data-print-mode');
-        document.body.removeAttribute('data-print-orientation');
-        const s = document.getElementById('dynamic-print-page-style');
-        if (s) s.remove();
-      };
-      window.addEventListener('afterprint', afterPrintCleanup, { once: true });
-    }, 150);
+    // معاينة كاملة قبل الطباعة (مع التكبير) بدل الطباعة المباشرة
+    const el = document.querySelector('.control-grade-table-container') || document.querySelector('main');
+    openElementPrintPreview(el, {
+      title: lang === 'ar' ? 'معاينة كشف الدرجات' : 'Grades sheet preview',
+      landscape: isLandscape,
+    });
   };
 
   return (
@@ -243,6 +253,35 @@ export default function DetailedGradesTab() {
           📊 {t.detailedGradesTitle}
         </h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              const next = !document.body.classList.contains('freeze-columns');
+              if (next) {
+                document.body.classList.add('freeze-columns');
+                localStorage.setItem('freeze_columns', '1');
+              } else {
+                document.body.classList.remove('freeze-columns');
+                localStorage.setItem('freeze_columns', '0');
+              }
+              window.dispatchEvent(new CustomEvent('freeze_columns_changed', { detail: next }));
+              setToastMessage(next ? '📌 تم تجميد عمود الأسماء' : 'تم إلغاء تجميد عمود الأسماء');
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '38px',
+              padding: '0 12px',
+              borderRadius: '8px',
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+          >
+            📌 {lang === 'ar' ? 'تجميد / تحرير عمود الأسماء' : 'Freeze / Unfreeze Name Column'}
+          </button>
+
           {/* Direct Print Templates Button (beside Import/Export as requested) */}
           <button
             type="button"
@@ -275,7 +314,7 @@ export default function DetailedGradesTab() {
             }}
           >
             <Printer size={16} />
-            {lang === 'ar' ? 'طباعة مباشرة (كشوفات / نتائج / شهادات)' : 'Direct Print (Sheets / Results / Certificates)'}
+            {lang === 'ar' ? 'معاينة وطباعة (كشوفات / نتائج / شهادات)' : 'Preview & Print (Sheets / Results / Certificates)'}
           </button>
 
           {/* Excel Import / Export Button */}
@@ -351,6 +390,7 @@ export default function DetailedGradesTab() {
       {/* Segmented Control / View Mode Tabs */}
       <div className="no-print" style={{
         display: 'flex',
+        flexWrap: 'wrap',
         gap: '8px',
         padding: '4px',
         backgroundColor: 'var(--color-bg-container, #f1f5f9)',
@@ -424,6 +464,75 @@ export default function DetailedGradesTab() {
         >
           🏫 {lang === 'ar' ? 'درجات طلاب الفصل' : 'Class Grade Sheet'}
         </button>
+        <button
+          onClick={() => setViewMode('monthlySheet')}
+          style={{
+            flex: 1,
+            minWidth: '170px',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: viewMode === 'monthlySheet' ? 'var(--color-surface, #ffffff)' : 'transparent',
+            color: viewMode === 'monthlySheet' ? 'var(--color-primary, #1e3a8a)' : 'var(--color-text-secondary, #64748b)',
+            fontWeight: 'bold',
+            boxShadow: viewMode === 'monthlySheet' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          📝 {lang === 'ar' ? 'المحصلات الشهرية (للمعلم)' : 'Monthly Sheets'}
+        </button>
+        <button
+          onClick={() => setViewMode('termTransfer')}
+          style={{
+            flex: 1,
+            minWidth: '180px',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: viewMode === 'termTransfer' ? 'var(--color-surface, #ffffff)' : 'transparent',
+            color: viewMode === 'termTransfer' ? 'var(--color-primary, #1e3a8a)' : 'var(--color-text-secondary, #64748b)',
+            fontWeight: 'bold',
+            boxShadow: viewMode === 'termTransfer' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          🔄 {lang === 'ar' ? 'ترحيل المحصلات والاختبارات' : 'Coursework & Exams'}
+        </button>
+        <button
+          onClick={() => setViewMode('finalResults')}
+          style={{
+            flex: 1,
+            minWidth: '170px',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: viewMode === 'finalResults' ? 'var(--color-surface, #ffffff)' : 'transparent',
+            color: viewMode === 'finalResults' ? 'var(--color-primary, #1e3a8a)' : 'var(--color-text-secondary, #64748b)',
+            fontWeight: 'bold',
+            boxShadow: viewMode === 'finalResults' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          🏆 {lang === 'ar' ? 'النتائج النهائية والأوائل' : 'Final Results & Ranks'}
+        </button>
       </div>
 
       {/* Dynamic Selection Bar */}
@@ -438,19 +547,66 @@ export default function DetailedGradesTab() {
         marginBottom: '20px'
       }} className="no-print">
         
-        {/* Dynamic selector 1: Student or Class */}
-        {viewMode !== 'class' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>{t.selectStudent}</label>
-            <div style={{ position: 'relative', zIndex: 10 }}>
-              <SearchableSelect
-                options={students.map(s => ({ value: s.id, label: `${lang === 'ar' ? s.name : s.nameEn} (${s.id})` }))}
-                value={selectedGradeStudentId}
-                onChange={(val) => setSelectedGradeStudentId(Number(val))}
-                placeholder={t.selectStudent}
-              />
+        {/* Dynamic selector 1: Student (with Class Filter + Search) or Class */}
+        {['subject', 'month'].includes(viewMode) ? (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                {lang === 'ar' ? 'تصفية حسب الفصل' : 'Filter by Class'}
+              </label>
+              <div style={{ position: 'relative', zIndex: 11 }}>
+                <SearchableSelect
+                  options={[
+                    { value: 'all', label: lang === 'ar' ? 'جميع الفصول' : 'All Classes' },
+                    ...classesList.map(c => ({ value: c, label: c }))
+                  ]}
+                  value={studentFilterClass}
+                  onChange={(val) => {
+                    const nextClass = val || 'all';
+                    setStudentFilterClass(nextClass);
+                    if (nextClass !== 'all' && students && students.length > 0) {
+                      const targetClassObj = (classes || []).find(c =>
+                        c.name === nextClass ||
+                        `${c.grade} - ${c.section}` === nextClass ||
+                        `${c.grade_ar} - ${c.section_ar}` === nextClass
+                      );
+                      const targetNumericId = targetClassObj
+                        ? String(targetClassObj.numericId || String(targetClassObj.id).replace(/\D/g, ''))
+                        : null;
+                      const inClass = students.filter(s =>
+                        (targetNumericId && s.class_id != null && String(s.class_id) === targetNumericId) ||
+                        `${s.grade} - ${s.section}` === nextClass
+                      );
+                      if (inClass.length > 0 && !inClass.some(s => s.id === selectedGradeStudentId)) {
+                        setSelectedGradeStudentId(inClass[0].id);
+                      }
+                    }
+                  }}
+                  placeholder={lang === 'ar' ? 'جميع الفصول' : 'All Classes'}
+                />
+              </div>
             </div>
-          </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                {lang === 'ar' ? 'اختر الطالب (بحث بالاسم أو الرقم)' : 'Select Student (Search)'}
+              </label>
+              <div style={{ position: 'relative', zIndex: 10 }}>
+                <SearchableSelect
+                  options={filteredStudentsForPicker.map(s => ({
+                    value: s.id,
+                    label: studentFilterClass === 'all'
+                      ? `${lang === 'ar' ? s.name : (s.nameEn || s.name)} — ${s.grade || ''} ${s.section || ''} (${s.id})`
+                      : `${lang === 'ar' ? s.name : (s.nameEn || s.name)} (${s.id})`
+                  }))}
+                  value={selectedGradeStudentId}
+                  onChange={(val) => {
+                    if (val != null) setSelectedGradeStudentId(Number(val));
+                  }}
+                  placeholder={lang === 'ar' ? 'ابحث باسم الطالب أو رقمه...' : 'Search student name or ID...'}
+                />
+              </div>
+            </div>
+          </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
@@ -529,6 +685,65 @@ export default function DetailedGradesTab() {
           </div>
         )}
 
+        {(viewMode === 'month' || viewMode === 'subject') && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+              {lang === 'ar' ? 'اسم الشهر' : 'Month Name'}
+            </label>
+            <div style={{ position: 'relative', zIndex: 7 }}>
+              <SearchableSelect
+                options={['يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'].map((m) => ({
+                  value: m,
+                  label: m,
+                }))}
+                value={selectedCalendarMonthName}
+                onChange={(val) => setSelectedCalendarMonthName(val)}
+                placeholder={lang === 'ar' ? 'اختر اسم الشهر' : 'Select Month Name'}
+              />
+            </div>
+          </div>
+        )}
+
+        {(viewMode === 'monthlySheet' || viewMode === 'termTransfer') && (
+          <>
+            {viewMode === 'monthlySheet' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                  {lang === 'ar' ? 'المحصلة / الشهر' : 'Month'}
+                </label>
+                <div style={{ position: 'relative', zIndex: 8 }}>
+                  <SearchableSelect
+                    options={[
+                      { value: 'm1', label: t.m1Label || 'المحصلة الأولى' },
+                      { value: 'm2', label: t.m2Label || 'المحصلة الثانية' },
+                      { value: 'm3', label: t.m3Label || 'المحصلة الثالثة' },
+                    ]}
+                    value={selectedMonth}
+                    onChange={(val) => setSelectedMonth(val)}
+                    placeholder={lang === 'ar' ? 'اختر الشهر' : 'Select Month'}
+                  />
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-secondary)' }}>
+                {lang === 'ar' ? 'المادة الدراسية' : 'Subject'}
+              </label>
+              <div style={{ position: 'relative', zIndex: 7 }}>
+                <SearchableSelect
+                  options={(subjects || []).map((s) => {
+                    const sName = s.name || s.name_ar;
+                    return { value: sName, label: lang === 'ar' ? sName : (s.nameEn || sName) };
+                  })}
+                  value={classSubject === 'all' || classSubject === 'detailed' ? ((subjects?.[0]?.name || subjects?.[0]?.name_ar) || '') : classSubject}
+                  onChange={(val) => setClassSubject(val)}
+                  placeholder={lang === 'ar' ? 'اختر المادة' : 'Select Subject'}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
         {viewMode === 'class' && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -601,6 +816,36 @@ export default function DetailedGradesTab() {
                 classSubject={classSubject} 
               />
             )}
+            {viewMode === 'monthlySheet' && (
+              <MonthlySheetsView
+                selectedClass={selectedClass}
+                selectedMonth={selectedMonth}
+                selectedSubject={classSubject}
+                calendarMonthName={selectedCalendarMonthName}
+                onChangeCalendarMonthName={setSelectedCalendarMonthName}
+                onPrintSheet={(opts) => {
+                  setInitialPrintTemplate(opts?.template || 'template_2_monthly_sheet');
+                  setInitialPrintSubject(opts?.subjectName || 'all');
+                  if (opts?.calendarMonthName) setSelectedCalendarMonthName(opts.calendarMonthName);
+                  setShowDirectPrintModal(true);
+                }}
+              />
+            )}
+            {viewMode === 'termTransfer' && (
+              <TermTransferView
+                selectedClass={selectedClass}
+                selectedSubject={classSubject}
+              />
+            )}
+            {viewMode === 'finalResults' && (
+              <FinalResultsView
+                selectedClass={selectedClass}
+                onPrintResults={() => {
+                  setInitialPrintTemplate('template_4_term_final');
+                  setShowDirectPrintModal(true);
+                }}
+              />
+            )}
           </div>
 
           {/* ==================== PRINT UI ORCHESTRATION ==================== */}
@@ -626,11 +871,13 @@ export default function DetailedGradesTab() {
         subjects={subjects}
         selectedClass={selectedClass}
         selectedGradeTerm={selectedGradeTerm}
-        selectedMonth={viewMode === 'month' ? selectedMonth : (['m1', 'm2', 'm3'].includes(classPeriod) ? classPeriod : 'm1')}
+        selectedMonth={viewMode === 'month' || viewMode === 'monthlySheet' ? selectedMonth : (['m1', 'm2', 'm3'].includes(classPeriod) ? classPeriod : 'm1')}
         selectedGradeStudentId={selectedGradeStudentId}
         detailedGrades={detailedGrades}
         fetchClassGrades={fetchClassGrades}
         initialTemplate={initialPrintTemplate}
+        initialMonthName={selectedCalendarMonthName}
+        initialSubjectMode={initialPrintSubject}
       />
 
       {/* Modern Data Mapping & Reconciliation Wizard */}

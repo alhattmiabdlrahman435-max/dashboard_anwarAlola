@@ -50,10 +50,10 @@ export function useAllowedClasses(moduleKey = 'scanner') {
           const stageGrades = new Set();
           scopeIds.forEach(stageId => {
             const sid = Number(stageId);
-            if (sid === 1) ['تمهيدي أول', 'تمهيدي ثاني', 'KG1', 'KG2'].forEach(g => stageGrades.add(g));
+            if (sid === 1) ['تمهيدي', 'تمهيدي أول', 'تمهيدي ثاني', 'KG', 'KG1', 'KG2'].forEach(g => stageGrades.add(g));
             if (sid === 2) ['الصف الأول', 'الصف الثاني', 'الصف الثالث', 'الصف الرابع', 'الصف الخامس', 'الصف السادس'].forEach(g => stageGrades.add(g));
-            if (sid === 3) ['الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط'].forEach(g => stageGrades.add(g));
-            if (sid === 4) ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي'].forEach(g => stageGrades.add(g));
+            if (sid === 3) ['الصف السابع', 'الصف الثامن', 'الصف التاسع', 'الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط'].forEach(g => stageGrades.add(g));
+            if (sid === 4) ['الصف العاشر', 'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي'].forEach(g => stageGrades.add(g));
           });
           return (classes || []).filter(c => stageGrades.has(c.grade) || stageGrades.has(c.gradeEn));
         }

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\StudentController;
+use App\Http\Controllers\Api\StudentTranscriptController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\ParentController;
 use App\Http\Controllers\Api\ClassController;
@@ -63,6 +64,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Students - الطلاب
     Route::apiResource('students', StudentController::class);
     Route::get('/students/{id}/card', [StudentController::class, 'card']);       // بطاقة QR
+    Route::get('/students/{id}/transcript', [StudentTranscriptController::class, 'show']);
+    Route::post('/students/{id}/prior-records', [StudentTranscriptController::class, 'storePriorRecord']);
+    Route::delete('/students/{id}/prior-records/{recordId}', [StudentTranscriptController::class, 'destroyPriorRecord']);
     Route::post('/students/{id}/scan', [StudentController::class, 'scanQr']);    // مسح QR للحضور
 
     // Teachers - المعلمون
@@ -108,6 +112,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/grades/detailed/{studentId}', [GradeController::class, 'detailed']);
     Route::post('/grades/detailed', [GradeController::class, 'saveDetailed']);
     Route::post('/grades/publish-month', [GradeController::class, 'publishMonthGrades']);
+    Route::post('/grades/transfer-coursework', [GradeController::class, 'transferCoursework']);
+    Route::post('/grades/send-results', [GradeController::class, 'sendResultsToParents']);
     Route::get('/grades/class/{classId}/subject/{subjectId}', [GradeController::class, 'getByClassAndSubject']);
     Route::get('/grades/class/{classId}', [GradeController::class, 'getByClass']);
     Route::get('/grades/control', [GradeController::class, 'control']);
@@ -191,9 +197,22 @@ Route::middleware('auth:sanctum')->group(function () {
     // Vice Principals (Supervisors) - وكلاء المدرسة
     Route::apiResource('vice-principals', VicePrincipalController::class);
 
+    // Academic Years Foundation
+    Route::get('/academic-years', [\App\Http\Controllers\Api\AcademicYearController::class, 'index']);
+    Route::get('/academic-years/compare', [\App\Http\Controllers\Api\AcademicYearController::class, 'compare']);
+    Route::post('/academic-years', [\App\Http\Controllers\Api\AcademicYearController::class, 'store']);
+    Route::put('/academic-years/{id}', [\App\Http\Controllers\Api\AcademicYearController::class, 'update']);
+    Route::post('/academic-years/{id}/set-current', [\App\Http\Controllers\Api\AcademicYearController::class, 'setCurrent']);
+    Route::post('/academic-years/{id}/toggle-archive', [\App\Http\Controllers\Api\AcademicYearController::class, 'toggleArchive']);
+    Route::get('/academic-years/promotion/preview', [\App\Http\Controllers\Api\AcademicYearPromotionController::class, 'preview']);
+    Route::post('/academic-years/promotion/execute', [\App\Http\Controllers\Api\AcademicYearPromotionController::class, 'execute']);
+    Route::post('/academic-years/promotion/rollback', [\App\Http\Controllers\Api\AcademicYearPromotionController::class, 'rollback']);
+    Route::post('/academic-years/promotion/second-round', [\App\Http\Controllers\Api\AcademicYearPromotionController::class, 'saveSecondRound']);
+
     // System Backups - إدارة النسخ الاحتياطي (Admin Only)
     Route::get('/backups', [BackupController::class, 'index']);
     Route::post('/backups', [BackupController::class, 'store']);
+    Route::post('/backups/restore', [BackupController::class, 'restore']);
     Route::post('/backups/clean', [BackupController::class, 'clean']);
     Route::delete('/backups/{fileName}', [BackupController::class, 'destroy']);
     Route::post('/backups/academic-year-archive', [BackupController::class, 'exportAcademicYearArchive']);

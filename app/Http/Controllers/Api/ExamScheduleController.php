@@ -33,7 +33,7 @@ class ExamScheduleController extends Controller implements HasMiddleware
         $user = $request->user();
         $scopedClassIds = PermissionService::getScopedClassIds($user, 'examSchedules');
 
-        $query = ExamSchedule::with(['examSubjects.subject', 'schoolClass']);
+        $query = ExamSchedule::with(['examSubjects.subject', 'schoolClass'])->forAcademicYear();
         if ($scopedClassIds !== null) {
             $query->whereIn('class_id', $scopedClassIds);
         }

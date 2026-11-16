@@ -229,7 +229,7 @@ export default function GenderEntryView() {
               <thead>
                 <tr>
                   <th>م</th>
-                  <th>اسم الطالب</th>
+                  <th className="sticky-col-name">اسم الطالب</th>
                   {classId === 'all' && <th>الصف والشعبة</th>}
                   <th>الجنس</th>
                 </tr>
@@ -244,7 +244,7 @@ export default function GenderEntryView() {
                   ...g.list.map((s, i) => (
                     <tr key={s.id} className={!current(s) ? 'ar-row-incomplete' : ''}>
                       <td>{i + 1}</td>
-                      <td className="cb-name">
+                      <td className="cb-name sticky-col-name">
                         {s.name_ar}
                         {suggested[s.id] === 'name' && choice[s.id] && <span className="ar-sug"> مقترح من الاسم</span>}
                         {suggested[s.id] === 'branch' && choice[s.id] && <span className="ar-sug ar-sug-branch"> مقترح من الفرع</span>}

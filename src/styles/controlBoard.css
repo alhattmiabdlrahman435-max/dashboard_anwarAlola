@@ -271,3 +271,24 @@
   gap: 6px;
   cursor: pointer;
 }
+
+/* ===== ترحيل المحصلات ودرجات الاختبارات (ملحق 2 ص7) ===== */
+.ts-section { margin-top: 18px; }
+.ts-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.ts-title {
+  margin: 0; padding: 8px 20px; border-radius: 6px; border: 1px solid #8fb4d9;
+  background: linear-gradient(180deg, #c9dcf0 0%, #9fc1e3 55%, #86afd8 100%); color: #0f2747; font-size: 16px; font-weight: 800;
+}
+.ts-table { font-size: 12px; }
+.ts-table th, .ts-table td { padding: 4px 6px; white-space: nowrap; }
+.ts-table .ts-c-idx { width: 34px; }
+.ts-table .ts-c-num { min-width: 64px; }
+.ts-table .ts-c-name { text-align: right; min-width: 190px; font-weight: 700; position: sticky; right: 0; background: var(--color-surface); z-index: 1; }
+.ts-table .ts-sub { background: rgba(33, 150, 243, 0.10); font-size: 13px; border-inline-start: 2px solid var(--color-border); }
+.ts-table .ts-c-g { min-width: 52px; text-align: center; }
+.ts-table .ts-total { font-weight: 800; background: rgba(0, 0, 0, 0.05); }
+.ts-table tr.ts-max td { font-size: 11px; color: var(--color-text-secondary); background: rgba(0, 0, 0, 0.03); }
+.ts-input { width: 54px; text-align: center; border: 1px solid var(--color-border); border-radius: 6px; padding: 3px 4px; background: var(--color-surface); color: var(--color-text-primary); font: inherit; }
+.ts-input:focus { outline: none; border-color: var(--color-primary-ui); }
+.ts-print-val { display: none; }
+@media print { .ts-print-val { display: inline; } .ts-table { font-size: 9pt; } }

@@ -17,20 +17,45 @@ export default function ClassesProvider({ children }) {
   const stateRef = useRef({ isStale: true, count: 0 });
   stateRef.current = { isStale, count: classes.length };
 
-  // ─── Available grades & sections configuration ────────────────────
-  const [availableGrades, setAvailableGrades] = useState([
-    'تمهيدي أول',
-    'تمهيدي ثاني',
+  // ─── الترتيب الرسمي لصفوف المدرسة ─────────────────────────────────
+  const GRADE_ORDER = [
+    'تمهيدي',
     'الصف الأول',
     'الصف الثاني',
     'الصف الثالث',
     'الصف الرابع',
     'الصف الخامس',
     'الصف السادس',
+    'الصف السابع',
+    'الصف الثامن',
+    'الصف التاسع',
+    'الصف العاشر',
     'الصف الأول المتوسط',
     'الصف الثاني المتوسط',
     'الصف الثالث المتوسط',
     'الصف الأول الثانوي',
+    'الصف الثاني الثانوي',
+    'الصف الثالث الثانوي',
+  ];
+
+  const gradeRank = (g) => {
+    const idx = GRADE_ORDER.indexOf(String(g || '').trim());
+    return idx === -1 ? 99 : idx;
+  };
+
+  // ─── Available grades & sections configuration ────────────────────
+  const [availableGrades, setAvailableGrades] = useState([
+    'تمهيدي',
+    'الصف الأول',
+    'الصف الثاني',
+    'الصف الثالث',
+    'الصف الرابع',
+    'الصف الخامس',
+    'الصف السادس',
+    'الصف السابع',
+    'الصف الثامن',
+    'الصف التاسع',
+    'الصف العاشر',
     'الصف الثاني الثانوي',
     'الصف الثالث الثانوي',
   ]);
@@ -78,21 +103,22 @@ export default function ClassesProvider({ children }) {
               studentsCount: cls.students_count ?? 0,
               branch: cls.branch || '',
             };
+          }).sort((a, b) => {
+            const rDiff = gradeRank(a.grade_ar) - gradeRank(b.grade_ar);
+            if (rDiff !== 0) return rDiff;
+            return String(a.section_ar || '').localeCompare(String(b.section_ar || ''), 'ar');
           });
           setClasses(mapped);
           setIsStale(false);
 
-          // Merge DB grades into availableGrades so all DB grades are selectable
-          const dbGrades = data.classes.map((c) => c.grade_ar).filter(Boolean);
+          // اعتماد الصفوف الموجودة فعلياً في قاعدة البيانات مرتبة بدون صفوف زائدة في الأسفل
+          const dbGrades = Array.from(new Set(mapped.map((c) => c.grade_ar).filter(Boolean)));
           if (dbGrades.length > 0) {
-            setAvailableGrades((prev) => {
-              const merged = new Set([...dbGrades, ...prev]);
-              return Array.from(merged);
-            });
+            setAvailableGrades(dbGrades);
           }
 
           // Merge DB sections into availableSections to prevent deletion
-          const dbSections = data.classes.map((c) => c.section_ar).filter(Boolean);
+          const dbSections = mapped.map((c) => c.section_ar).filter(Boolean);
           if (dbSections.length > 0) {
             setAvailableSections((prev) => {
               const merged = new Set([...prev, ...dbSections]);

@@ -7,8 +7,10 @@ use App\Models\Grade;
 use App\Models\Payment;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\StudentEnrollment;
 use App\Models\Subject;
 use App\Models\User;
+use App\Services\AcademicYearService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -21,8 +23,9 @@ class AcademicYearArchiveService
     /**
      * Build and return all data for the academic year.
      */
-    public function gatherYearData(string $academicYear = '2026-2027م'): array
+    public function gatherYearData(string $academicYear = '2026-2027م', ?int $academicYearId = null): array
     {
+        $yearId = $academicYearId ?? AcademicYearService::resolveId();
         $schoolName = 'رياض ومدارس أنوار العلى الدولية النموذجية';
         $exportDate = Carbon::now()->format('Y/m/d h:i A');
 
@@ -62,30 +65,39 @@ class AcademicYearArchiveService
             ];
         });
 
-        // 4. Students
-        $students = Student::with(['schoolClass', 'parentUser'])->get()->map(function ($st) {
-            $paidSum = Payment::where('student_id', $st->id)->sum('amount');
-            $tuition = (float) ($st->tuition_fee ?? 0);
-            $remaining = max(0, $tuition - $paidSum);
+        // 4. Students (scoped by enrollment if available for this year)
+        $enrollmentsByStudent = $yearId
+            ? StudentEnrollment::with('schoolClass')->where('academic_year_id', $yearId)->get()->keyBy('student_id')
+            : collect();
 
-            return [
-                'id' => $st->id,
-                'student_code' => $st->student_code ?? "STD-{$st->id}",
-                'name_ar' => $st->name_ar,
-                'name_en' => $st->name_en ?? '',
-                'class_id' => $st->class_id,
-                'class_name' => $st->schoolClass ? "{$st->schoolClass->grade_ar} - {$st->schoolClass->section_ar}" : '-',
-                'grade' => $st->schoolClass ? $st->schoolClass->grade_ar : '-',
-                'section' => $st->schoolClass ? $st->schoolClass->section_ar : '-',
-                'parent_id' => $st->parent_id,
-                'parent_name' => $st->parentUser ? ($st->parentUser->name_ar ?: $st->parentUser->name) : '-',
-                'parent_phone' => $st->parentUser ? $st->parentUser->phone : '-',
-                'tuition_fee' => $tuition,
-                'paid_fee' => (float) $paidSum,
-                'remaining_fee' => $remaining,
-                'status' => $st->is_active ? 'منتظم' : 'منقطع',
-            ];
-        });
+        $students = Student::with(['schoolClass', 'parentUser'])
+            ->when($enrollmentsByStudent->isNotEmpty(), fn($q) => $q->whereIn('id', $enrollmentsByStudent->keys()))
+            ->get()
+            ->map(function ($st) use ($yearId, $enrollmentsByStudent) {
+                $enr = $enrollmentsByStudent->get($st->id);
+                $paidSum = Payment::forAcademicYear($yearId)->where('student_id', $st->id)->sum('amount');
+                $tuition = (float) ($enr ? $enr->tuition_fee : ($st->tuition_fee ?? 0));
+                $remaining = max(0, $tuition - $paidSum);
+                $cls = $enr?->schoolClass ?? $st->schoolClass;
+
+                return [
+                    'id' => $st->id,
+                    'student_code' => $st->student_code ?? "STD-{$st->id}",
+                    'name_ar' => $st->name_ar,
+                    'name_en' => $st->name_en ?? '',
+                    'class_id' => $enr ? $enr->class_id : $st->class_id,
+                    'class_name' => $cls ? "{$cls->grade_ar} - {$cls->section_ar}" : '-',
+                    'grade' => $cls ? $cls->grade_ar : '-',
+                    'section' => $cls ? $cls->section_ar : '-',
+                    'parent_id' => $st->parent_id,
+                    'parent_name' => $st->parentUser ? ($st->parentUser->name_ar ?: $st->parentUser->name) : '-',
+                    'parent_phone' => $st->parentUser ? $st->parentUser->phone : '-',
+                    'tuition_fee' => $tuition,
+                    'paid_fee' => (float) $paidSum,
+                    'remaining_fee' => $remaining,
+                    'status' => $enr ? $enr->status : ($st->is_active ? 'منتظم' : 'منقطع'),
+                ];
+            });
 
         // 5. Teachers & Supervisors
         $teachers = User::whereIn('role', ['teacher', 'prep_supervisor', 'supervisor'])->get()->map(function ($t) {
@@ -108,7 +120,7 @@ class AcademicYearArchiveService
         });
 
         // 6. Grades
-        $grades = Grade::all()->map(function ($g) {
+        $grades = Grade::forAcademicYear($yearId)->get()->map(function ($g) {
             $monthTotal = (float) $g->homework + (float) $g->attendance + (float) $g->behavior + (float) $g->oral + (float) $g->written;
             return [
                 'id' => $g->id,
@@ -128,14 +140,95 @@ class AcademicYearArchiveService
         });
 
         // 7. Attendance Summary
-        $attendanceTotal = Attendance::count();
-        $presentTotal = Attendance::where('status', 'present')->count();
-        $absentTotal = Attendance::where('status', 'absent')->count();
+        $attendanceTotal = Attendance::forAcademicYear($yearId)->count();
+        $presentTotal = Attendance::forAcademicYear($yearId)->where('status', 'present')->count();
+        $absentTotal = Attendance::forAcademicYear($yearId)->where('status', 'absent')->count();
 
         // 8. Financial Summary
         $totalTuition = $students->sum('tuition_fee');
         $totalPaid = $students->sum('paid_fee');
         $totalRemaining = $students->sum('remaining_fee');
+
+        // 9. الحضور لكل طالب (ملخص) + الواجبات + جداول الاختبارات + أرقام الكنترول — كلها للعام المحدد
+        $attRows = Attendance::forAcademicYear($yearId)
+            ->selectRaw("student_id, SUM(CASE WHEN status='present' THEN 1 ELSE 0 END) AS present_days, SUM(CASE WHEN status='absent' THEN 1 ELSE 0 END) AS absent_days, COUNT(*) AS days")
+            ->groupBy('student_id')->get()->keyBy('student_id');
+        $attendance = $students->map(function ($st) use ($attRows) {
+            $a = $attRows->get($st['id']);
+            $days = (int) ($a->days ?? 0);
+            return [
+                'student_id' => $st['id'],
+                'name_ar' => $st['name_ar'],
+                'class_name' => $st['class_name'],
+                'present_days' => (int) ($a->present_days ?? 0),
+                'absent_days' => (int) ($a->absent_days ?? 0),
+                'days' => $days,
+                'rate' => $days > 0 ? round(((int) $a->present_days / $days) * 100, 1) : null,
+            ];
+        })->values();
+
+        $assignments = \App\Models\Assignment::forAcademicYear($yearId)
+            ->with(['teacher:id,name_ar,name', 'schoolClass:id,grade_ar,section_ar', 'subject:id,name_ar'])
+            ->withCount(['submissions as total_submissions'])
+            ->withCount(['submissions as done_submissions' => fn($q) => $q->whereIn('status', ['submitted', 'submitted_late'])])
+            ->orderByDesc('id')->get()->map(function ($a) {
+                return [
+                    'id' => $a->id,
+                    'title' => $a->title,
+                    'content' => mb_substr((string) $a->content, 0, 600),
+                    'class_name' => $a->schoolClass ? "{$a->schoolClass->grade_ar} - {$a->schoolClass->section_ar}" : '-',
+                    'subject' => $a->subject?->name_ar ?? '-',
+                    'teacher' => $a->teacher ? ($a->teacher->name_ar ?: $a->teacher->name) : '-',
+                    'date' => $a->date_created ? (string) $a->date_created : substr((string) $a->created_at, 0, 10),
+                    'due_date' => $a->due_date ? substr((string) $a->due_date, 0, 10) : '',
+                    'total' => (int) $a->total_submissions,
+                    'done' => (int) $a->done_submissions,
+                ];
+            })->values();
+
+        $exams = \App\Models\ExamSchedule::forAcademicYear($yearId)
+            ->with(['schoolClass:id,grade_ar,section_ar', 'examSubjects.subject:id,name_ar'])
+            ->orderBy('id')->get()->map(function ($e) {
+                return [
+                    'id' => $e->id,
+                    'title' => $e->title,
+                    'term' => $e->term,
+                    'class_name' => $e->schoolClass ? "{$e->schoolClass->grade_ar} - {$e->schoolClass->section_ar}" : 'كل الشعب',
+                    'subjects' => $e->examSubjects->map(fn($x) => [
+                        'subject' => $x->subject?->name_ar ?? '-',
+                        'date' => $x->exam_date ? substr((string) $x->exam_date, 0, 10) : '',
+                        'time' => $x->exam_time ? substr((string) $x->exam_time, 0, 5) : '',
+                        'note' => $x->note,
+                    ])->values(),
+                ];
+            })->values();
+
+        $control = StudentEnrollment::with('student:id,name_ar')->where('academic_year_id', $yearId)->get()->map(function ($e) use ($students) {
+            $st = $students->firstWhere('id', $e->student_id);
+            return [
+                'name_ar' => $e->student?->name_ar ?? '-',
+                'class_name' => $st['class_name'] ?? '-',
+                'seat_number' => $e->seat_number,
+                'secret_code' => $e->secret_code,
+                'committee_number' => $e->committee_number,
+            ];
+        })->filter(fn($r) => $r['seat_number'] || $r['secret_code'] || $r['committee_number'])->values();
+
+        // 10. الجدول الدراسي وتوزيع المعلمين على المواد كما كانا وقت الأرشفة (لا يرتبطان بعام في قاعدة البيانات، فيُحفظان لقطةً مع أرشيف العام)
+        $dayNames = ['saturday' => 'السبت', 'sunday' => 'الأحد', 'monday' => 'الاثنين', 'tuesday' => 'الثلاثاء', 'wednesday' => 'الأربعاء', 'thursday' => 'الخميس', 'friday' => 'الجمعة'];
+        $schedule = \App\Models\Schedule::with(['schoolClass:id,grade_ar,section_ar', 'subject:id,name_ar'])
+            ->orderBy('class_id')->orderBy('day_of_week')->orderBy('period')->get()->map(fn($r) => [
+                'class_name' => $r->schoolClass ? "{$r->schoolClass->grade_ar} - {$r->schoolClass->section_ar}" : '-',
+                'day' => $dayNames[strtolower((string) $r->day_of_week)] ?? $r->day_of_week,
+                'period' => (int) $r->period,
+                'subject' => $r->subject?->name_ar ?? '-',
+            ])->values();
+        $teaching = \App\Models\TeacherSubject::with(['teacher:id,name_ar,name', 'subject:id,name_ar', 'schoolClass:id,grade_ar,section_ar'])
+            ->get()->map(fn($r) => [
+                'teacher' => $r->teacher ? ($r->teacher->name_ar ?: $r->teacher->name) : '-',
+                'subject' => $r->subject?->name_ar ?? '-',
+                'class_name' => $r->schoolClass ? "{$r->schoolClass->grade_ar} - {$r->schoolClass->section_ar}" : '-',
+            ])->sortBy('teacher')->values();
 
         return [
             'meta' => [
@@ -158,6 +251,12 @@ class AcademicYearArchiveService
             'parents' => $parents,
             'teachers' => $teachers,
             'grades' => $grades,
+            'attendance' => $attendance,
+            'assignments' => $assignments,
+            'exams' => $exams,
+            'control' => $control,
+            'schedule' => $schedule,
+            'teaching' => $teaching,
         ];
     }
 
@@ -480,6 +579,12 @@ class AcademicYearArchiveService
             <button class="nav-btn" onclick="switchTab('teachers')">👨‍🏫 المعلمون والمشرفون</button>
             <button class="nav-btn" onclick="switchTab('classes')">🏫 الفصول والشعب</button>
             <button class="nav-btn" onclick="switchTab('grades')">📝 كشوف الدرجات والكنترول</button>
+            <button class="nav-btn" onclick="switchTab('attendance')">📅 الحضور والغياب</button>
+            <button class="nav-btn" onclick="switchTab('assignments')">📚 الواجبات</button>
+            <button class="nav-btn" onclick="switchTab('exams')">🗓️ جداول الاختبارات</button>
+            <button class="nav-btn" onclick="switchTab('control')">🔢 أرقام الجلوس والسرية واللجان</button>
+            <button class="nav-btn" onclick="switchTab('schedule')">🕘 الجدول الدراسي</button>
+            <button class="nav-btn" onclick="switchTab('teaching')">👨‍🏫 توزيع المعلمين على المواد</button>
             <button class="nav-btn" onclick="switchTab('finance')">💰 السجل المالي</button>
         </nav>
 
@@ -678,6 +783,78 @@ class AcademicYearArchiveService
                 </table>
             </div>
         </section>
+
+        <!-- 8. Attendance Tab -->
+        <section id="tab-attendance" class="tab-panel">
+            <div class="toolbar no-print">
+                <input type="text" id="attendance-search" class="search-input" placeholder="🔍 ابحث باسم الطالب..." oninput="renderAttendance()">
+                <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
+            </div>
+            <div class="table-responsive"><table>
+                <thead><tr><th>#</th><th>اسم الطالب</th><th>الصف والشعبة</th><th>أيام الحضور</th><th>أيام الغياب</th><th>إجمالي الأيام المسجلة</th><th>نسبة الحضور</th></tr></thead>
+                <tbody id="attendance-tbody"></tbody>
+            </table></div>
+        </section>
+
+        <!-- 9. Assignments Tab -->
+        <section id="tab-assignments" class="tab-panel">
+            <div class="toolbar no-print">
+                <input type="text" id="assignments-search" class="search-input" placeholder="🔍 ابحث بعنوان الواجب أو المعلم أو المادة..." oninput="renderAssignments()">
+                <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
+            </div>
+            <div class="table-responsive"><table>
+                <thead><tr><th>#</th><th>التاريخ</th><th>الصف والشعبة</th><th>المادة</th><th>المعلم</th><th>عنوان الواجب</th><th>التسليم</th></tr></thead>
+                <tbody id="assignments-tbody"></tbody>
+            </table></div>
+        </section>
+
+        <!-- 10. Exams Tab -->
+        <section id="tab-exams" class="tab-panel">
+            <div class="toolbar no-print">
+                <input type="text" id="exams-search" class="search-input" placeholder="🔍 ابحث بعنوان الجدول أو الشعبة..." oninput="renderExams()">
+                <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
+            </div>
+            <div class="table-responsive"><table>
+                <thead><tr><th>#</th><th>الجدول</th><th>الصف والشعبة</th><th>المواد والمواعيد</th></tr></thead>
+                <tbody id="exams-tbody"></tbody>
+            </table></div>
+        </section>
+
+        <!-- 11. Control Tab -->
+        <section id="tab-control" class="tab-panel">
+            <div class="toolbar no-print">
+                <input type="text" id="control-search" class="search-input" placeholder="🔍 ابحث باسم الطالب..." oninput="renderControl()">
+                <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
+            </div>
+            <div class="table-responsive"><table>
+                <thead><tr><th>#</th><th>اسم الطالب</th><th>الصف والشعبة</th><th>رقم الجلوس</th><th>الرقم السري</th><th>رقم اللجنة</th></tr></thead>
+                <tbody id="control-tbody"></tbody>
+            </table></div>
+        </section>
+
+        <!-- 12. Schedule Tab -->
+        <section id="tab-schedule" class="tab-panel">
+            <div class="toolbar no-print">
+                <input type="text" id="schedule-search" class="search-input" placeholder="🔍 ابحث بالصف أو المادة أو اليوم..." oninput="renderSchedule()">
+                <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
+            </div>
+            <div class="table-responsive"><table>
+                <thead><tr><th>#</th><th>الصف والشعبة</th><th>اليوم</th><th>الحصة</th><th>المادة</th></tr></thead>
+                <tbody id="schedule-tbody"></tbody>
+            </table></div>
+        </section>
+
+        <!-- 13. Teaching Tab -->
+        <section id="tab-teaching" class="tab-panel">
+            <div class="toolbar no-print">
+                <input type="text" id="teaching-search" class="search-input" placeholder="🔍 ابحث باسم المعلم أو المادة أو الصف..." oninput="renderTeaching()">
+                <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
+            </div>
+            <div class="table-responsive"><table>
+                <thead><tr><th>#</th><th>المعلم</th><th>المادة</th><th>الصف والشعبة</th></tr></thead>
+                <tbody id="teaching-tbody"></tbody>
+            </table></div>
+        </section>
     </main>
 
     <!-- Embedded Offline JSON Database -->
@@ -715,6 +892,12 @@ class AcademicYearArchiveService
             renderClasses();
             renderGrades();
             renderFinance();
+            renderAttendance();
+            renderAssignments();
+            renderExams();
+            renderControl();
+            renderSchedule();
+            renderTeaching();
         }
 
         function switchTab(tabId) {
@@ -878,6 +1061,59 @@ class AcademicYearArchiveService
             }).join('') || '<tr><td colspan="8" style="text-align:center; padding: 20px;">لا توجد نتائج مطابقة</td></tr>';
         }
 
+
+        const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        const emptyRow = n => '<tr><td colspan="' + n + '" style="text-align:center; padding: 20px;">لا توجد بيانات لهذا العام</td></tr>';
+
+        function renderAttendance() {
+            const q = (document.getElementById('attendance-search').value || '').trim().toLowerCase();
+            const rows = (DATA.attendance || []).filter(r => !q || r.name_ar.toLowerCase().includes(q));
+            document.getElementById('attendance-tbody').innerHTML = rows.map((r, i) => `
+                <tr><td>\${i + 1}</td><td><strong>\${esc(r.name_ar)}</strong></td><td>\${esc(r.class_name)}</td>
+                <td>\${r.present_days}</td><td>\${r.absent_days}</td><td>\${r.days}</td>
+                <td>\${r.rate === null ? '-' : r.rate + '%'}</td></tr>`).join('') || emptyRow(7);
+        }
+
+        function renderAssignments() {
+            const q = (document.getElementById('assignments-search').value || '').trim().toLowerCase();
+            const rows = (DATA.assignments || []).filter(r => !q || (r.title + ' ' + r.teacher + ' ' + r.subject + ' ' + r.class_name).toLowerCase().includes(q));
+            document.getElementById('assignments-tbody').innerHTML = rows.map((r, i) => `
+                <tr><td>\${i + 1}</td><td>\${esc(r.date)}</td><td>\${esc(r.class_name)}</td><td>\${esc(r.subject)}</td><td>\${esc(r.teacher)}</td>
+                <td><strong>\${esc(r.title)}</strong><div style="color:#64748b;font-size:12px;">\${esc(r.content)}</div></td>
+                <td>\${r.done} من \${r.total}</td></tr>`).join('') || emptyRow(7);
+        }
+
+        function renderExams() {
+            const q = (document.getElementById('exams-search').value || '').trim().toLowerCase();
+            const rows = (DATA.exams || []).filter(r => !q || (r.title + ' ' + r.class_name).toLowerCase().includes(q));
+            document.getElementById('exams-tbody').innerHTML = rows.map((r, i) => `
+                <tr><td>\${i + 1}</td><td><strong>\${esc(r.title)}</strong></td><td>\${esc(r.class_name)}</td>
+                <td>\${r.subjects.map(s => esc(s.subject) + (s.date ? ' — ' + esc(s.date) : '') + (s.time ? ' ' + esc(s.time) : '')).join('<br>')}</td></tr>`).join('') || emptyRow(4);
+        }
+
+        function renderControl() {
+            const q = (document.getElementById('control-search').value || '').trim().toLowerCase();
+            const rows = (DATA.control || []).filter(r => !q || r.name_ar.toLowerCase().includes(q));
+            document.getElementById('control-tbody').innerHTML = rows.map((r, i) => `
+                <tr><td>\${i + 1}</td><td><strong>\${esc(r.name_ar)}</strong></td><td>\${esc(r.class_name)}</td>
+                <td>\${esc(r.seat_number)}</td><td>\${esc(r.secret_code)}</td><td>\${esc(r.committee_number)}</td></tr>`).join('') || emptyRow(6);
+        }
+
+
+        function renderSchedule() {
+            const q = (document.getElementById('schedule-search').value || '').trim().toLowerCase();
+            const rows = (DATA.schedule || []).filter(r => !q || (r.class_name + ' ' + r.subject + ' ' + r.day).toLowerCase().includes(q));
+            document.getElementById('schedule-tbody').innerHTML = rows.map((r, i) => `
+                <tr><td>\${i + 1}</td><td>\${esc(r.class_name)}</td><td>\${esc(r.day)}</td><td>\${r.period}</td><td><strong>\${esc(r.subject)}</strong></td></tr>`).join('') || emptyRow(5);
+        }
+
+        function renderTeaching() {
+            const q = (document.getElementById('teaching-search').value || '').trim().toLowerCase();
+            const rows = (DATA.teaching || []).filter(r => !q || (r.teacher + ' ' + r.subject + ' ' + r.class_name).toLowerCase().includes(q));
+            document.getElementById('teaching-tbody').innerHTML = rows.map((r, i) => `
+                <tr><td>\${i + 1}</td><td><strong>\${esc(r.teacher)}</strong></td><td>\${esc(r.subject)}</td><td>\${esc(r.class_name)}</td></tr>`).join('') || emptyRow(4);
+        }
+
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
@@ -888,9 +1124,9 @@ HTML;
     /**
      * Build an academic year package (.zip) or single HTML archive file.
      */
-    public function exportArchive(string $academicYear = '2026-2027م', bool $asZip = true): array
+    public function exportArchive(string $academicYear = '2026-2027م', bool $asZip = true, ?int $academicYearId = null): array
     {
-        $yearData = $this->gatherYearData($academicYear);
+        $yearData = $this->gatherYearData($academicYear, $academicYearId);
         $htmlContent = $this->generateHtmlViewer($yearData);
 
         $safeYear = preg_replace('/[^\w\-]/u', '_', $academicYear);

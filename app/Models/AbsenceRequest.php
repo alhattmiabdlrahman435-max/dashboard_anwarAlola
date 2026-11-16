@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAcademicYear;
 use Illuminate\Database\Eloquent\Model;
 
 class AbsenceRequest extends Model
 {
+    use BelongsToAcademicYear;
+
     protected $guarded = [];
 
     public function student()

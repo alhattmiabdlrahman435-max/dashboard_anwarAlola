@@ -365,7 +365,7 @@ export default function SupervisorsTab() {
           <thead>
             <tr>
               <th>{lang === 'ar' ? 'الرقم الوظيفي' : 'Job ID'}</th>
-              <th>{lang === 'ar' ? 'الاسم' : 'Name'}</th>
+              <th className="sticky-col-name">{lang === 'ar' ? 'الاسم' : 'Name'}</th>
               <th>{lang === 'ar' ? 'الجوال' : 'Phone'}</th>
               <th>{lang === 'ar' ? 'الصلاحيات' : 'Permissions'}</th>
               <th>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
@@ -398,7 +398,7 @@ export default function SupervisorsTab() {
             ) : filteredVPs.map(vp => (
               <tr key={vp.id}>
                 <td style={{ fontWeight: '600', fontFamily: 'monospace' }}>{vp.jobId || vp.username}</td>
-                <td>{vp.name}</td>
+                <td className="sticky-col-name">{vp.name}</td>
                 <td dir="ltr">{vp.phone}</td>
                 <td>
                   <span style={{

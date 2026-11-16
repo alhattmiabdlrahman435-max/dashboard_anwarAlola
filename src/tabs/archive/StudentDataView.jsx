@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Printer, Save } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { archiveService } from '../../services/archive/archive.service';
 import { useAllowedClasses } from '../../hooks/useAllowedClasses';
 import { useClasses } from '../../contexts/Classes/useClasses';
+import { openElementPrintPreview } from '../../utils/printPreview';
 import sloganLogo from '../../assets/slogan.jpeg';
 import '../../styles/archive.css';
 
@@ -105,19 +106,23 @@ export default function StudentDataView() {
   };
 
   const [blankPrint, setBlankPrint] = useState(false);
+  const printAreaRef = useRef(null);
   /** blank = نموذج بأسماء الطلاب وخانات فارغة لتعبئته باليد من استمارات التسجيل */
   const printForm = (blank) => {
     setBlankPrint(blank);
     setTimeout(() => {
-      window.print();
+      openElementPrintPreview(printAreaRef.current, {
+        title: blank ? 'معاينة استمارة بيانات الطلاب (فارغة)' : 'معاينة سجل بيانات الطلاب',
+        landscape: true,
+      });
       setBlankPrint(false);
-    }, 50);
+    }, 60);
   };
 
   const hasPrefill = rows.some((r) => Object.values(r.prefilled).some(Boolean));
 
   return (
-    <div className="ar-view">
+    <div ref={printAreaRef} className="ar-view">
       {/* مسار النافذة كما في الملف: «بيانات الطلاب» ← «الصف والشعبة» */}
       <div className="ar-path no-print">
         <span className="cb-tile ar-path-tile">بيانات الطلاب</span>
@@ -183,7 +188,7 @@ export default function StudentDataView() {
               <thead>
                 <tr>
                   <th className="ar-c-idx">م</th>
-                  <th className="ar-c-name">اسم الطالب</th>
+                  <th className="ar-c-name sticky-col-name">اسم الطالب</th>
                   {COLUMNS.map((c) => <th key={c.key} className={c.cls}>{c.label}</th>)}
                 </tr>
               </thead>
@@ -198,7 +203,7 @@ export default function StudentDataView() {
                 {classId && rows.map((r, i) => (
                   <tr key={r.id} className={r.dirty ? 'ar-dirty' : ''}>
                     <td className="ar-c-idx">{i + 1}</td>
-                    <td className="ar-c-name">{r.name_ar}</td>
+                    <td className="ar-c-name sticky-col-name">{r.name_ar}</td>
                     {COLUMNS.map((c) => (
                       <td key={c.key} className={c.cls}>
                         <input

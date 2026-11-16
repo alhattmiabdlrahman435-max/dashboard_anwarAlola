@@ -188,7 +188,7 @@ export default function NumberingView({ field = 'seat' }) {
             <thead>
               <tr>
                 <th scope="col" style={{ width: 56 }}>م</th>
-                <th scope="col">اسم الطالب</th>
+                <th scope="col" className="sticky-col-name">اسم الطالب</th>
                 <th scope="col" style={{ width: 170 }}>{numberHeader}</th>
               </tr>
             </thead>
@@ -196,7 +196,7 @@ export default function NumberingView({ field = 'seat' }) {
               {students.map((s, i) => (
                 <tr key={s.id}>
                   <td>{i + 1}</td>
-                  <td className="cb-name">{s.name_ar}</td>
+                  <td className="cb-name sticky-col-name">{s.name_ar}</td>
                   <td>
                     <input
                       type="number"

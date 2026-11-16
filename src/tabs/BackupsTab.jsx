@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useAcademicYear } from '../contexts/AcademicYear/AcademicYearContext';
 import { backupsService } from '../services/backups/backups.service';
 import {
   Database,
@@ -9,6 +10,8 @@ import {
   Clock,
   CheckCircle2,
   Download,
+  Upload,
+  RotateCcw,
   Trash2,
   RefreshCw,
   FileArchive,
@@ -31,6 +34,7 @@ import './BackupsTab.css';
 export default function BackupsTab() {
   const navigate = useNavigate();
   const { lang, t, setToastMessage, triggerConfirm } = useApp();
+  const { academicYears, selectedYear } = useAcademicYear();
 
   const [backups, setBackups] = useState([]);
   const [stats, setStats] = useState({
@@ -55,9 +59,58 @@ export default function BackupsTab() {
 
   // Academic Year Offline Archive Modal States
   const [showYearModal, setShowYearModal] = useState(false);
+  const [exportYearId, setExportYearId] = useState('');
   const [academicYearInput, setAcademicYearInput] = useState('2026-2027م');
   const [archiveFormat, setArchiveFormat] = useState('excel'); // 'excel' | 'zip' | 'html'
   const [isExportingYear, setIsExportingYear] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restoreFile, setRestoreFile] = useState(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleRestoreFromServer = (backup) => {
+    triggerConfirm?.({
+      title: lang === 'ar' ? 'تأكيد استعادة النسخة الاحتياطية' : 'Confirm Backup Restore',
+      message: lang === 'ar'
+        ? `سيتم استعادة قاعدة البيانات من الملف (${backup.file_name}) مع حفظ نسخة أمان تلقائية قبل الاستبدال. هل تريد المتابعة؟`
+        : `Restore database from ${backup.file_name}? A safety backup will be created first.`,
+      type: 'danger',
+      onConfirm: async () => {
+        setIsRestoring(true);
+        try {
+          const res = await backupsService.restoreBackup({ fileName: backup.file_name });
+          setToastMessage?.(res?.message || (lang === 'ar' ? 'تمت الاستعادة بنجاح' : 'Restored successfully'), 'success');
+          fetchBackups(true);
+        } catch (err) {
+          setToastMessage?.(err?.message || (lang === 'ar' ? 'فشلت استعادة النسخة' : 'Restore failed'), 'error');
+        } finally {
+          setIsRestoring(false);
+        }
+      },
+    });
+  };
+
+  const handleRestoreFromFile = async () => {
+    if (!restoreFile) return;
+    setIsRestoring(true);
+    try {
+      const res = await backupsService.restoreBackup({ file: restoreFile });
+      setToastMessage?.(res?.message || (lang === 'ar' ? 'تمت استعادة النسخة بنجاح' : 'Restored successfully'), 'success');
+      setShowRestoreModal(false);
+      setRestoreFile(null);
+      fetchBackups(true);
+    } catch (err) {
+      setToastMessage?.(err?.message || (lang === 'ar' ? 'فشلت استعادة النسخة' : 'Restore failed'), 'error');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedYear?.id && !exportYearId) {
+      setExportYearId(String(selectedYear.id));
+      setAcademicYearInput(selectedYear.name ? `${selectedYear.name}م` : '2026-2027م');
+    }
+  }, [selectedYear, exportYearId]);
 
   // Fetch backups from API
   const fetchBackups = async (silent = false) => {
@@ -139,7 +192,9 @@ export default function BackupsTab() {
     setIsExportingYear(true);
     const formatToUse = (typeof overrideFormat === 'string' && overrideFormat) ? overrideFormat : archiveFormat;
     try {
-      const res = await backupsService.exportAcademicYearArchive(academicYearInput, formatToUse);
+      const chosenYearObj = academicYears.find((y) => String(y.id) === String(exportYearId));
+      const yearLabel = chosenYearObj?.name ? `${chosenYearObj.name}م` : academicYearInput;
+      const res = await backupsService.exportAcademicYearArchive(yearLabel, formatToUse, exportYearId || selectedYear?.id || null);
       if (res && res.success) {
         const formatLabel =
           formatToUse === 'excel'
@@ -248,6 +303,17 @@ export default function BackupsTab() {
         </div>
 
         <div className="backups-header-actions">
+          <button
+            type="button"
+            className="btn-header-secondary"
+            onClick={() => { setRestoreFile(null); setShowRestoreModal(true); }}
+            style={{ borderColor: '#0f766e', color: '#0f766e' }}
+            title={lang === 'ar' ? 'رفع واستعادة نسخة احتياطية من فلاشة أو جهاز خارجي' : 'Upload & Restore Backup'}
+          >
+            <Upload size={15} />
+            <span>{lang === 'ar' ? 'استعادة من فلاشة / جهاز' : 'Restore from File'}</span>
+          </button>
+
           <button
             type="button"
             className="btn-header-secondary"
@@ -806,6 +872,20 @@ export default function BackupsTab() {
                             <span>{lang === 'ar' ? 'تنزيل' : 'Download'}</span>
                           </button>
 
+                          {backup.file_name?.toLowerCase().endsWith('.zip') && (
+                            <button
+                              type="button"
+                              className="btn-action-download"
+                              style={{ background: 'rgba(15, 118, 110, 0.1)', color: '#0f766e', borderColor: 'rgba(15, 118, 110, 0.3)' }}
+                              disabled={isRestoring}
+                              onClick={() => handleRestoreFromServer(backup)}
+                              title={lang === 'ar' ? 'استعادة قاعدة البيانات من هذه النسخة' : 'Restore from this backup'}
+                            >
+                              <RotateCcw size={13} />
+                              <span>{lang === 'ar' ? 'استعادة' : 'Restore'}</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             className="btn-action-delete"
@@ -929,27 +1009,56 @@ export default function BackupsTab() {
 
             {/* Modal Body */}
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Year Input */}
+              {/* Year Selector */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>
                   {lang === 'ar' ? 'العام الدراسي المرجعي:' : 'Academic Year Reference:'}
                 </label>
-                <input
-                  type="text"
-                  value={academicYearInput}
-                  onChange={(e) => setAcademicYearInput(e.target.value)}
-                  className="text-field"
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 14px',
-                    borderRadius: '8px',
-                    border: '1.5px solid var(--color-border)',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                  }}
-                  placeholder="مثال: 2026-2027م"
-                />
+                {academicYears && academicYears.length > 0 ? (
+                  <select
+                    value={exportYearId || (selectedYear?.id ? String(selectedYear.id) : '')}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      setExportYearId(nextId);
+                      const found = academicYears.find((y) => String(y.id) === nextId);
+                      if (found?.name) setAcademicYearInput(`${found.name}م`);
+                    }}
+                    className="text-field"
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      padding: '0 14px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--color-border)',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      background: 'var(--color-surface)',
+                    }}
+                  >
+                    {academicYears.map((yr) => (
+                      <option key={yr.id} value={String(yr.id)}>
+                        {yr.name} {yr.is_current ? (lang === 'ar' ? '(العام الحالي)' : '(Current)') : yr.status === 'archived' ? (lang === 'ar' ? '(مؤرشف)' : '(Archived)') : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={academicYearInput}
+                    onChange={(e) => setAcademicYearInput(e.target.value)}
+                    className="text-field"
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      padding: '0 14px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--color-border)',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                    }}
+                    placeholder="مثال: 2026-2027م"
+                  />
+                )}
               </div>
 
               {/* Format Choice */}
@@ -1122,6 +1231,80 @@ export default function BackupsTab() {
                     <span>{lang === 'ar' ? 'تصدير وحفظ النسخة المرجعية الآن' : 'Export & Save Archive Now'}</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Backup Upload Modal */}
+      {showRestoreModal && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2500,
+            padding: '16px',
+          }}
+          onClick={() => !isRestoring && setShowRestoreModal(false)}
+        >
+          <div
+            className="glass-panel animate-scale-up"
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              borderRadius: '18px',
+              backgroundColor: 'var(--card-bg, #ffffff)',
+              overflow: 'hidden',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, fontSize: '16px' }}>
+                <Upload size={18} style={{ color: '#0f766e' }} />
+                <span>{lang === 'ar' ? 'استعادة نسخة احتياطية من جهاز / فلاشة' : 'Restore Backup from File'}</span>
+              </div>
+              <button type="button" onClick={() => !isRestoring && setShowRestoreModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: 'rgba(245,158,11,0.12)', color: '#92400e', fontSize: '13px', lineHeight: 1.6 }}>
+                {lang === 'ar'
+                  ? 'عند استعادة نسخة احتياطية (.zip أو .sql)، سيقوم النظام تلقائياً بحفظ نسخة أمان احتياطية للوضع الحالي أولاً قبل استبدال قاعدة البيانات.'
+                  : 'An automatic safety backup will be created before restoring the selected .zip or .sql file.'}
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+                  {lang === 'ar' ? 'اختر ملف النسخة الاحتياطية (.zip أو .sql):' : 'Select backup file (.zip or .sql):'}
+                </label>
+                <input
+                  type="file"
+                  accept=".zip,.sql"
+                  onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+                  style={{ width: '100%', padding: '10px', border: '1.5px dashed var(--color-border)', borderRadius: '10px' }}
+                />
+              </div>
+            </div>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button type="button" className="btn-elevated" onClick={() => setShowRestoreModal(false)} disabled={isRestoring}>
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                className="btn-filled"
+                disabled={!restoreFile || isRestoring}
+                onClick={handleRestoreFromFile}
+                style={{ background: '#0f766e', padding: '10px 20px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <RotateCcw size={15} className={isRestoring ? 'animate-spin' : ''} />
+                <span>{isRestoring ? (lang === 'ar' ? 'جارٍ الاستعادة...' : 'Restoring...') : (lang === 'ar' ? 'بدء الاستعادة الآن' : 'Restore Now')}</span>
               </button>
             </div>
           </div>

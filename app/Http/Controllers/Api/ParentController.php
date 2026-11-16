@@ -338,17 +338,38 @@ class ParentController extends Controller implements HasMiddleware
     /**
      * جلب أبناء ولي الأمر
      */
-    public function children(string $id)
+    public function children(Request $request, string $id)
     {
+        $authUser = $request->user();
+        $isAdmin = $authUser && in_array($authUser->role, ['super_admin', 'admin'], true);
+        if (!$isAdmin && (!$authUser || (string) $authUser->id !== (string) $id)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول لبيانات طلاب هذا الحساب'], 403);
+        }
+
         $parent = User::parents()->find($id);
         if (!$parent) {
             return response()->json(['success' => false, 'message' => 'ولي الأمر غير موجود'], 404);
         }
 
-        $students = Student::where('parent_id', $parent->id)->with('schoolClass')->get();
+        $yearId = \App\Services\AcademicYearService::resolveId($request);
+        $students = Student::where('parent_id', $parent->id)
+            ->with(['schoolClass', 'enrollments' => fn ($q) => $q->with(['academicYear', 'schoolClass'])])
+            ->get()
+            ->map(function ($st) use ($yearId) {
+                $yearEnr = $yearId ? $st->enrollments->firstWhere('academic_year_id', $yearId) : null;
+                if ($yearEnr && $yearEnr->schoolClass) {
+                    $st->setRelation('schoolClass', $yearEnr->schoolClass);
+                    $st->class_id = $yearEnr->class_id;
+                    $st->tuition_fee = $yearEnr->tuition_fee;
+                }
+                return $st;
+            });
+
+        $years = \App\Models\AcademicYear::orderByDesc('is_current')->orderByDesc('name')->get(['id', 'name', 'status', 'is_current']);
 
         return response()->json([
             'success' => true,
+            'academic_years' => $years,
             'students' => $students
         ]);
     }

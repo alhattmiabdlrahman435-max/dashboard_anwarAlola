@@ -21,7 +21,12 @@ import {
   Calendar,
   Sparkles,
   ShieldCheck,
+  HardDrive,
+  Download,
+  Globe,
+  X,
 } from 'lucide-react';
+import { backupsService } from '../services/backups/backups.service';
 import './DashboardTab.css';
 
 export default function DashboardTab() {
@@ -30,9 +35,44 @@ export default function DashboardTab() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [academicYearInput, setAcademicYearInput] = useState('2026-2027');
+  const [archiveFormat, setArchiveFormat] = useState('html');
+  const [isExportingYear, setIsExportingYear] = useState(false);
+  const [archiveStatusMsg, setArchiveStatusMsg] = useState('');
 
   const isAr = lang === 'ar';
   const text = (ar, en) => (isAr ? ar : en);
+
+  const handleExportYearArchive = async (overrideFormat = null) => {
+    setIsExportingYear(true);
+    setArchiveStatusMsg('');
+    const formatToUse = typeof overrideFormat === 'string' && overrideFormat ? overrideFormat : archiveFormat;
+    try {
+      const res = await backupsService.exportAcademicYearArchive(academicYearInput, formatToUse);
+      if (res && res.success) {
+        setArchiveStatusMsg(
+          text(
+            'تم تجهيز نسخة العام الدراسي بنجاح! جاري تنزيل الملف على جهازك لحفظه في اللابتوب أو الفلاش أو الهارد...',
+            'Academic year offline archive prepared! Downloading to your device...'
+          )
+        );
+        if (res.file_name) {
+          await backupsService.downloadBackup(res.file_name);
+        }
+      } else {
+        setArchiveStatusMsg(
+          res?.message || text('حدث خطأ أثناء تصدير نسخة العام الدراسي.', 'Failed to export archive.')
+        );
+      }
+    } catch (err) {
+      setArchiveStatusMsg(
+        err?.message || text('تعذر تصدير نسخة العام الدراسي.', 'Failed to export archive.')
+      );
+    } finally {
+      setIsExportingYear(false);
+    }
+  };
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -108,7 +148,22 @@ export default function DashboardTab() {
           </div>
         </div>
 
-        <div className="db-welcome-actions">
+        <div className="db-welcome-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="db-refresh-btn"
+            onClick={() => setShowArchiveModal(true)}
+            style={{
+              background: 'rgba(16, 185, 129, 0.22)',
+              borderColor: 'rgba(16, 185, 129, 0.5)',
+              color: '#ecfdf5',
+            }}
+            title={text('عمل نسخة احتياطية لنهاية العام الدراسي تعمل بدون إنترنت', 'Offline Academic Year Backup')}
+          >
+            <HardDrive size={15} />
+            <span>{text('نسخة نهاية العام (بدون إنترنت)', 'Offline Year Backup')}</span>
+          </button>
+
           <button
             type="button"
             className="db-refresh-btn"
@@ -249,6 +304,15 @@ export default function DashboardTab() {
         <button type="button" className="db-quick-btn" onClick={() => navigate('/absence-requests')}>
           <Bell size={15} />
           <span>{text('طلبات الاستئذان', 'Absence Requests')}</span>
+        </button>
+        <button
+          type="button"
+          className="db-quick-btn"
+          onClick={() => setShowArchiveModal(true)}
+          style={{ borderColor: '#10b981', color: '#047857', fontWeight: 800 }}
+        >
+          <HardDrive size={15} />
+          <span>{text('نسخة احتياطية لنهاية العام (بدون نت)', 'Offline Year Archive')}</span>
         </button>
       </section>
 
@@ -532,6 +596,256 @@ export default function DashboardTab() {
           </div>
         </div>
       </div>
+
+      {/* Offline Academic Year Archive Modal */}
+      {showArchiveModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => !isExportingYear && setShowArchiveModal(false)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '580px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              direction: isAr ? 'rtl' : 'ltr',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <HardDrive size={20} color="#059669" />
+                <span>{text('نسخة احتياطية لنهاية العام الدراسي (تعمل بدون إنترنت)', 'Offline Academic Year Archive')}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowArchiveModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.7, marginBottom: '16px' }}>
+              {text(
+                'تتيح لك هذه النافذة حفظ نسخة شاملة لكل محتويات البرنامج الخاصة بالعام الدراسي (الطلاب، الدرجات، الحضور، المالية، الكنترول، المعلمين) والاحتفاظ بها في أي قرص في اللابتوب أو فلاشة أو هارد ديسك، مع إمكانية فتحها وتصفحها والبحث فيها وطباعة الكشوفات بدون الحاجة إلى إنترنت.',
+                'Export a complete offline copy of the academic year to store on your laptop, USB flash drive, or external hard drive and browse without internet.'
+              )}
+            </p>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
+                {text('العام الدراسي المراد حفظ مرجعه:', 'Academic Year Label:')}
+              </label>
+              <input
+                type="text"
+                value={academicYearInput}
+                onChange={(e) => setAcademicYearInput(e.target.value)}
+                placeholder="2026-2027"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '8px' }}>
+                {text('اختر صيغة النسخة المرجعية:', 'Select Archive Format:')}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: archiveFormat === 'html' ? '2px solid #059669' : '1px solid #cbd5e1',
+                    background: archiveFormat === 'html' ? '#ecfdf5' : '#f8fafc',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="archiveFormat"
+                    checked={archiveFormat === 'html'}
+                    onChange={() => setArchiveFormat('html')}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '13.5px', color: '#065f46' }}>
+                      {text('تطبيق أرشيف تفاعلي يعمل بدون إنترنت (.HTML) — موصى به', 'Interactive Offline Web App (.HTML) — Recommended')}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#475569' }}>
+                      {text('يُفتح مباشرة في أي متصفح بدون إنترنت، مع بحث فوري وفلترة وطباعة لكافة الأقسام', 'Opens in any browser offline with instant search, filters, and printing')}
+                    </div>
+                  </div>
+                </label>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: archiveFormat === 'zip' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                    background: archiveFormat === 'zip' ? '#eff6ff' : '#f8fafc',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="archiveFormat"
+                    checked={archiveFormat === 'zip'}
+                    onChange={() => setArchiveFormat('zip')}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '13.5px', color: '#1e40af' }}>
+                      {text('الحزمة الشاملة الكاملة (.ZIP): تطبيق بدون نت + ملفات Excel + قاعدة البيانات', 'Complete Bundle (.ZIP): Offline HTML + Excel + SQL')}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#475569' }}>
+                      {text('تشمل صفحة التصفح بدون إنترنت + جداول Excel + نسخة قاعدة البيانات الكاملة', 'Includes offline HTML viewer + Excel sheets + full database backup')}
+                    </div>
+                  </div>
+                </label>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: archiveFormat === 'excel' ? '2px solid #0284c7' : '1px solid #cbd5e1',
+                    background: archiveFormat === 'excel' ? '#f0f9ff' : '#f8fafc',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="archiveFormat"
+                    checked={archiveFormat === 'excel'}
+                    onChange={() => setArchiveFormat('excel')}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '13.5px', color: '#075985' }}>
+                      {text('مصنف إكسل شامل متعدد الأوراق (.XLSX)', 'Multi-Sheet Excel Workbook (.XLSX)')}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#475569' }}>
+                      {text('ملف إكسل واحد يضم أوراق عمل منفصلة لكل قسم من أقسام المدرسة', 'Single Excel workbook with dedicated sheets for each school section')}
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {archiveStatusMsg && (
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  color: '#166534',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  marginBottom: '14px',
+                }}
+              >
+                {archiveStatusMsg}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowArchiveModal(false);
+                  navigate('/backups');
+                }}
+                style={{
+                  padding: '9px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#334155',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Globe size={15} />
+                <span>{text('إدارة جميع النسخ الاحتياطية', 'Manage All Backups')}</span>
+              </button>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveModal(false)}
+                  disabled={isExportingYear}
+                  style={{
+                    padding: '9px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    background: '#fff',
+                    color: '#475569',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {text('إغلاق', 'Close')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportYearArchive()}
+                  disabled={isExportingYear}
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: '#059669',
+                    color: '#ffffff',
+                    fontSize: '13.5px',
+                    fontWeight: 800,
+                    cursor: isExportingYear ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <Download size={16} />
+                  <span>
+                    {isExportingYear
+                      ? text('جاري التجهيز والتنزيل...', 'Preparing & Downloading...')
+                      : text('تصدير وحفظ النسخة على الجهاز', 'Export & Save to Device')}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

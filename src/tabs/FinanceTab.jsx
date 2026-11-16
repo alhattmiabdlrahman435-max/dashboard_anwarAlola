@@ -329,7 +329,7 @@ export default function FinanceTab() {
             <table className="students-table">
               <thead>
                 <tr>
-                  <th>{t.studentName}</th>
+                  <th className="sticky-col-name">{t.studentName}</th>
                   <th>{lang === 'ar' ? 'الرسوم' : 'Tuition'}</th>
                   <th>{lang === 'ar' ? 'المتبقي' : 'Remaining'}</th>
                 </tr>
@@ -351,7 +351,7 @@ export default function FinanceTab() {
                         }}
                         onClick={() => setSelectedFinanceStudentId(s.id)}
                       >
-                        <td>
+                        <td className="sticky-col-name">
                           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
                             {renderAvatar(s.photo, "👨‍🎓")}
                             <div>
