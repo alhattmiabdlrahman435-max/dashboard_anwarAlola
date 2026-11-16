@@ -46,25 +46,26 @@ export function useControlClasses() {
 }
 
 /** تحميل طلاب الكنترول: classId = 'all' أو رقم الشعبة */
-export function useControlStudents(classId) {
+export function useControlStudents(classId, refresh = 0) {
   const [result, setResult] = useState({ key: null, students: [], error: '' });
   const key = String(classId || 'all');
+  const stateKey = `${key}:${refresh}`;
 
   useEffect(() => {
     let cancelled = false;
     controlBoardService.getStudents(key)
       .then((res) => {
         if (cancelled) return;
-        setResult({ key, students: Array.isArray(res?.students) ? res.students : [], error: '' });
+        setResult({ key: stateKey, students: Array.isArray(res?.students) ? res.students : [], error: '' });
       })
       .catch((err) => {
         if (cancelled || err?.name === 'AbortError') return;
-        setResult({ key, students: [], error: err?.message || 'تعذر تحميل الطلاب' });
+        setResult({ key: stateKey, students: [], error: err?.message || 'تعذر تحميل الطلاب' });
       });
     return () => { cancelled = true; };
-  }, [key]);
+  }, [key, refresh, stateKey]);
 
-  const ready = result.key === key;
+  const ready = result.key === stateKey;
   return {
     students: ready ? result.students : [],
     loading: !ready,

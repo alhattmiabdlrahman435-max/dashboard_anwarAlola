@@ -62,6 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
 
     // Students - الطلاب
+    Route::post('/students/photos-bulk', [StudentController::class, 'bulkPhotos'])->middleware('check.permission:students,update');
     Route::apiResource('students', StudentController::class);
     Route::get('/students/{id}/card', [StudentController::class, 'card']);       // بطاقة QR
     Route::get('/students/{id}/transcript', [StudentTranscriptController::class, 'show']);

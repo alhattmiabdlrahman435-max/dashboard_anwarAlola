@@ -16,6 +16,8 @@ export default function AcademicYearPromotionModal({ isOpen, onClose }) {
   const [closeSourceYear, setCloseSourceYear] = useState(true);
   const [setTargetCurrent, setSetTargetCurrent] = useState(true);
   const [carryoverArrears, setCarryoverArrears] = useState(true);
+  // أرقام الكنترول (جلوس/سرية/لجنة) تخص العام: تُحفظ في سجل العام القديم وتُصفَّر للعام الجديد
+  const [resetControlNumbers, setResetControlNumbers] = useState(true);
   const [bulkClassId, setBulkClassId] = useState('');
   const [bulkTuition, setBulkTuition] = useState('');
   const [secondRoundStudent, setSecondRoundStudent] = useState(null);
@@ -168,6 +170,7 @@ export default function AcademicYearPromotionModal({ isOpen, onClose }) {
             close_source_year: closeSourceYear,
             set_target_current: setTargetCurrent,
             carryover_arrears: carryoverArrears,
+            reset_control_numbers: resetControlNumbers,
             items: items.map((it) => ({
               student_id: it.student_id,
               action: it.recommended_action,
@@ -288,6 +291,13 @@ export default function AcademicYearPromotionModal({ isOpen, onClose }) {
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600 }}>
             <input type="checkbox" checked={carryoverArrears} onChange={(e) => setCarryoverArrears(e.target.checked)} />
             <span>{lang === 'ar' ? 'ترحيل المتأخرات المالية تلقائياً' : 'Carryover unpaid arrears'}</span>
+          </label>
+          <label
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600 }}
+            title={lang === 'ar' ? 'تبقى أرقام العام القديم محفوظة في أرشيفه، ويبدأ العام الجديد بلا أرقام جلوس ولا أرقام سرية ولا لجان' : 'Old-year numbers stay in its archive; the new year starts with none'}
+          >
+            <input type="checkbox" checked={resetControlNumbers} onChange={(e) => setResetControlNumbers(e.target.checked)} />
+            <span>{lang === 'ar' ? 'تصفير أرقام الجلوس والأرقام السرية واللجان للعام الجديد' : 'Reset seat / secret / committee numbers'}</span>
           </label>
         </div>
 

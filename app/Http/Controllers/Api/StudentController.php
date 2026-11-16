@@ -175,6 +175,7 @@ class StudentController extends Controller implements HasMiddleware
             'tuition_fee',
             'qr_code',
             'secret_code',
+            'seat_number',
             'is_active',
             'created_at'
         ]);
@@ -219,6 +220,7 @@ class StudentController extends Controller implements HasMiddleware
                 'qrCode' => $student->qr_code,
                 'photo' => $student->photo_url ?: '👨‍🎓',
                 'secret_code' => $student->secret_code,
+                'seat_number' => $student->seat_number,
                 'tuition_fee' => $effectiveTuition,
                 'previous_balance' => $enr ? (float)($enr->previous_balance ?? 0.00) : 0.00,
                 'enrollment_status' => $enr ? $enr->status : ($student->is_active ? 'active' : 'withdrawn'),
@@ -482,6 +484,63 @@ class StudentController extends Controller implements HasMiddleware
             'success' => true,
             'message' => 'تم تحديث بيانات الطالب بنجاح',
             'student' => $student
+        ]);
+    }
+
+    /**
+     * رفع صور الطلاب دفعة واحدة: اسم كل ملف (بدون الامتداد) = رقم القيد أو رقم الجلوس أو اسم الطالب بالكامل.
+     * مثال: 20263120.jpg أو 3001.png أو «احمد علي محمد.jpg». يرجع المطابَق وغير المطابَق للمراجعة.
+     */
+    public function bulkPhotos(Request $request)
+    {
+        $request->validate([
+            'photos' => 'required|array|min:1|max:60',
+            'photos.*' => 'file|mimes:jpg,jpeg,png,webp|max:4096',
+        ]);
+
+        $user = $request->user();
+        $scoped = PermissionService::getScopedClassIds($user, 'students');
+        $dir = public_path('uploads/avatars');
+        if (!file_exists($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $arabicDigits = ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9'];
+        $matched = [];
+        $unmatched = [];
+
+        foreach ($request->file('photos') as $file) {
+            $base = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $key = trim(strtr($base, $arabicDigits));
+            $key = preg_replace('/\s+/u', ' ', $key);
+
+            $find = fn($col, $val) => Student::where($col, $val)
+                ->when($scoped !== null, fn($q) => $q->whereIn('class_id', $scoped))->get();
+
+            $found = $find('student_code', $key);
+            if ($found->count() !== 1) $found = $find('seat_number', $key);
+            if ($found->count() !== 1) $found = $find('name_ar', $key);
+
+            if ($found->count() !== 1) {
+                $unmatched[] = ['file' => $file->getClientOriginalName(), 'reason' => $found->count() > 1 ? 'يطابق أكثر من طالب' : 'لا يطابق أي طالب'];
+                continue;
+            }
+
+            $student = $found->first();
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+            $filename = time() . '_' . uniqid() . '.' . $ext;
+            $file->move($dir, $filename);
+            $student->update(['photo_url' => asset('uploads/avatars/' . $filename)]);
+            $matched[] = ['file' => $file->getClientOriginalName(), 'student' => $student->name_ar];
+        }
+
+        return response()->json([
+            'success' => true,
+            'matched_count' => count($matched),
+            'unmatched_count' => count($unmatched),
+            'matched' => $matched,
+            'unmatched' => $unmatched,
+            'message' => 'تم ربط ' . count($matched) . ' صورة' . (count($unmatched) ? ' وتعذر ربط ' . count($unmatched) : '') . '.',
         ]);
     }
 

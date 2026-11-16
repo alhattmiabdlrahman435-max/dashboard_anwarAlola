@@ -1434,6 +1434,8 @@ export default function GradesDirectPrintModal({
               <div class="student-info-grid">
                 <div><strong>اسم الطالب:</strong> ${st.name || ''}</div>
                 <div><strong>رقم القيد:</strong> ${st.student_code || st.id}</div>
+                ${st.seatNumber ? `<div><strong>رقم الجلوس:</strong> ${st.seatNumber}</div>` : ''}
+                ${st.secretCode ? `<div><strong>الرقم السري:</strong> ${st.secretCode}</div>` : ''}
                 <div><strong>الصف الدراسي:</strong> ${st.grade || ''}</div>
                 <div><strong>الشعبة:</strong> ${st.section || ''}</div>
               </div>

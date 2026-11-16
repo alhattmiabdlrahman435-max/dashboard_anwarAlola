@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, Edit3, Eye } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { openElementPrintPreview } from '../../utils/printPreview';
+import PhotoBulkUpload from './PhotoBulkUpload';
 import { SCHOOL_NAME, cell, classNumericId, useControlClasses, useControlStudents } from './controlPrintShared';
 import '../../styles/controlBoardPrint.css';
 
@@ -34,7 +35,9 @@ export default function CardsView() {
   const [isZoomed, setIsZoomed] = useState(false);
   const printAreaRef = useRef(null);
 
-  const { students, loading, error } = useControlStudents(classId);
+  const [photoTick, setPhotoTick] = useState(0);
+  const { students, loading, error } = useControlStudents(classId, photoTick);
+  const withoutPhoto = students.filter((s) => !s.photo_url || !/^(https?:)?\//.test(String(s.photo_url))).length;
 
   useEffect(() => {
     if (error) setToastMessage?.(error, 'error');
@@ -162,6 +165,8 @@ export default function CardsView() {
           />
         </div>
       )}
+
+      <PhotoBulkUpload withoutPhoto={withoutPhoto} total={students.length} onDone={() => setPhotoTick((t) => t + 1)} />
 
       {loading && <div className="cb-status">جاري التحميل...</div>}
       {!loading && students.length === 0 && <div className="cb-status">لا يوجد طلاب</div>}

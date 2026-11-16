@@ -116,6 +116,8 @@ export default function StudentsProvider({ children }) {
             enrollment_status: st.enrollment_status,
             isActive: st.is_active,
             gender: st.gender || "",
+            seatNumber: st.seat_number || "",
+            secretCode: st.secret_code || "",
           }));
           setRawStudents(mapped);
           setIsStale(false);
