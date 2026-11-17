@@ -23,7 +23,7 @@ class GradeController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('check.permission:detailedGrades,view', only: ['detailed', 'getByClassAndSubject', 'getByClass']),
-            new Middleware('check.permission:detailedGrades,update', only: ['saveDetailed', 'publishMonthGrades', 'clearSheet', 'copySheet']),
+            new Middleware('check.permission:detailedGrades,update', only: ['saveDetailed', 'publishMonthGrades', 'clearSheet', 'copySheet', 'clearGradeLevel']),
             new Middleware('check.permission:control,view', only: ['control']),
             new Middleware('check.permission:control,generateSecretCodes', only: ['generateSecretCodes']),
             new Middleware('check.permission:control,enterGrades', only: ['updateControl']),
@@ -968,15 +968,16 @@ class GradeController extends Controller implements HasMiddleware
         return null;
     }
 
-    /** يجلب معرّفات طلاب الصف في العام الدراسي المحدد (باحترام قيود العام عند وجودها) */
-    private function classStudentIdsForYear(int $classId, ?int $yearId)
+    /** يجلب معرّفات طلاب صف أو مجموعة صفوف في العام الدراسي المحدد (باحترام قيود العام عند وجودها) */
+    private function classStudentIdsForYear(int|array $classIds, ?int $yearId)
     {
+        $ids = is_array($classIds) ? $classIds : [$classIds];
         if ($yearId && StudentEnrollment::where('academic_year_id', $yearId)->exists()) {
             return StudentEnrollment::where('academic_year_id', $yearId)
-                ->where('class_id', $classId)
+                ->whereIn('class_id', $ids)
                 ->pluck('student_id');
         }
-        return Student::where('class_id', $classId)->pluck('id');
+        return Student::whereIn('class_id', $ids)->pluck('id');
     }
 
     /** POST /grades/clear-sheet — مسح كل درجات مادة في صف لشهر وترم محددين */
@@ -1057,6 +1058,43 @@ class GradeController extends Controller implements HasMiddleware
 
         $verb = $request->boolean('move') ? 'نقل' : 'نسخ';
         return response()->json(['success' => true, 'count' => $count, 'message' => "تم $verb درجات $count طالب إلى الكشف الجديد."]);
+    }
+
+    /** POST /grades/clear-grade-level — مسح جميع درجات صف دراسي كامل بكل شعبه ومواده وأشهره (للمدير فقط) */
+    public function clearGradeLevel(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || $user->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'مسح درجات صف دراسي كامل متاح لمدير النظام فقط.'], 403);
+        }
+
+        $request->validate([
+            'grade_ar' => 'required|string|max:120',
+            'include_control' => 'sometimes|boolean',
+        ]);
+
+        $gradeAr = trim((string) $request->input('grade_ar'));
+        $classIds = \App\Models\SchoolClass::where('grade_ar', $gradeAr)->pluck('id')->toArray();
+        if (empty($classIds)) {
+            return response()->json(['success' => false, 'message' => "لم يتم العثور على شعب للصف ({$gradeAr})."], 404);
+        }
+
+        $yearId = AcademicYearService::resolveId($request);
+        $studentIds = $this->classStudentIdsForYear($classIds, $yearId)->unique()->values();
+
+        $query = Grade::forAcademicYear($yearId)->whereIn('student_id', $studentIds);
+        if (!$request->boolean('include_control')) {
+            $query->where('is_control', false);
+        }
+        $deleted = $query->delete();
+
+        return response()->json([
+            'success' => true,
+            'deleted' => $deleted,
+            'students_count' => $studentIds->count(),
+            'grade_ar' => $gradeAr,
+            'message' => "تم مسح {$deleted} سجل درجة لطلاب ({$gradeAr}) في العام الدراسي المحدد.",
+        ]);
     }
 }
 

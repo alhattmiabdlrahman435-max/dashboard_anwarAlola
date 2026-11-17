@@ -116,6 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/grades/transfer-coursework', [GradeController::class, 'transferCoursework']);
     Route::post('/grades/clear-sheet', [GradeController::class, 'clearSheet']);
     Route::post('/grades/copy-sheet', [GradeController::class, 'copySheet']);
+    Route::post('/grades/clear-grade-level', [GradeController::class, 'clearGradeLevel']);
     Route::post('/grades/send-results', [GradeController::class, 'sendResultsToParents']);
     Route::get('/grades/class/{classId}/subject/{subjectId}', [GradeController::class, 'getByClassAndSubject']);
     Route::get('/grades/class/{classId}', [GradeController::class, 'getByClass']);

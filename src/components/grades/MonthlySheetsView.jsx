@@ -85,8 +85,14 @@ const MonthlySheetsView = memo(function MonthlySheetsView({
 
   const [busy, setBusy] = useState(false);
   const [otherSubject, setOtherSubject] = useState('');
+  const [gradeToClear, setGradeToClear] = useState('');
   const canEdit = canAction('detailedGrades', 'update');
   const canManageSheet = canEdit && currentUser?.role !== 'teacher';
+  const isAdmin = currentUser?.role === 'admin';
+  const gradeLevelNames = useMemo(
+    () => Array.from(new Set((classes || []).map((c) => c.grade_ar).filter(Boolean))),
+    [classes]
+  );
   const subjectId = useMemo(() => {
     const s = (subjects || []).find((x) => (x.name || x.name_ar) === subjectName);
     return s ? Number(s.numericId || String(s.id).replace(/\D/g, '')) : null;
@@ -125,6 +131,28 @@ const MonthlySheetsView = memo(function MonthlySheetsView({
       `سيتم ${move ? 'نقل' : 'نسخ'} درجات (${subjectName}) إلى (${otherSubject}) لنفس الصف والشهر والترم.
 أي درجات موجودة في (${otherSubject}) لهؤلاء الطلاب ستُستبدل. هل أنت متأكد؟`
     );
+  };
+
+  const handleClearGradeLevel = async () => {
+    const targetGrade = gradeToClear || targetClassObj?.grade_ar || '';
+    if (!targetGrade) { window.alert('اختر الصف الدراسي أولاً.'); return; }
+    const ok = window.confirm(
+      `تحذير إداري: سيتم مسح جميع الدرجات (لكل المواد والأشهر والترمين في العام الدراسي الحالي) لجميع شعب وطلاب (${targetGrade}).\nلا يمكن التراجع عن هذا الإجراء! هل أنت متأكد؟`
+    );
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const res = await api.post('/api/grades/clear-grade-level', {
+        grade_ar: targetGrade,
+        include_control: true,
+      });
+      window.alert(res?.message || 'تم مسح درجات الصف بنجاح.');
+      if (targetClassId) await fetchClassGrades?.(targetClassId);
+    } catch (e) {
+      window.alert(e?.message || e?.response?.data?.message || 'فشلت عملية مسح درجات الصف.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const [printScope, setPrintScope] = useState('subject');
@@ -349,6 +377,29 @@ const MonthlySheetsView = memo(function MonthlySheetsView({
           </select>
           <button type="button" className="lang-btn" disabled={busy} onClick={() => handleCopySheet(true)} style={{ padding: '6px 12px', fontWeight: 700 }}>✂️ نقل الدرجات إليها</button>
           <button type="button" className="lang-btn" disabled={busy} onClick={() => handleCopySheet(false)} style={{ padding: '6px 12px', fontWeight: 700 }}>📋 نسخ الدرجات إليها</button>
+          {isAdmin && (
+            <>
+              <span style={{ opacity: 0.4 }}>|</span>
+              <select
+                value={gradeToClear || targetClassObj?.grade_ar || ''}
+                onChange={(e) => setGradeToClear(e.target.value)}
+                style={{ padding: '5px 8px', borderRadius: '8px', border: '1px solid rgba(185,28,28,0.35)', fontSize: '13px' }}
+              >
+                {gradeLevelNames.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="lang-btn"
+                disabled={busy}
+                onClick={handleClearGradeLevel}
+                style={{ padding: '6px 12px', fontWeight: 700, color: '#991b1b', borderColor: 'rgba(185,28,28,0.4)' }}
+              >
+                🧹 مسح كل درجات الصف
+              </button>
+            </>
+          )}
         </div>
       )}
 
