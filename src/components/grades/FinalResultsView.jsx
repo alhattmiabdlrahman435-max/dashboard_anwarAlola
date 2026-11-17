@@ -71,20 +71,6 @@ const FinalResultsView = memo(function FinalResultsView({ selectedClass, onPrint
     return () => { cancelled = true; };
   }, [controlClassId]);
 
-  const classSubjects = useMemo(() => {
-    const teacherMap = targetClassObj?.subject_teachers || {};
-    const teacherSubNames = Object.keys(teacherMap);
-    if (teacherSubNames.length > 0) {
-      return subjects.filter((s) => teacherSubNames.includes(s.name || s.name_ar));
-    }
-    return subjects || [];
-  }, [subjects, targetClassObj]);
-
-  const subjectNames = useMemo(
-    () => classSubjects.map((s) => s.name || s.name_ar).filter(Boolean),
-    [classSubjects]
-  );
-
   const classStudents = useMemo(() => {
     if (!selectedClass) return [];
     return students.filter((s) => {
@@ -92,6 +78,37 @@ const FinalResultsView = memo(function FinalResultsView({ selectedClass, onPrint
       return `${s.grade} - ${s.section}` === selectedClass || `${s.grade_ar} - ${s.section_ar}` === selectedClass;
     });
   }, [students, selectedClass, targetClassId]);
+
+  const classSubjects = useMemo(() => {
+    const teacherMap = targetClassObj?.subjectTeachers || targetClassObj?.subject_teachers || {};
+    const allowedNames = new Set([
+      ...(targetClassObj?.subjects || []),
+      ...Object.keys(teacherMap),
+    ]);
+
+    const periodKey = scope === 'yearly' ? 'yearlyTotal' : 'termTotal';
+    const termKey = scope === 'term2' ? 'term2' : 'term1';
+
+    (subjects || []).forEach((s) => {
+      const subName = s.name || s.name_ar;
+      if (!subName || allowedNames.has(subName)) return;
+      const hasRecordedGrade = classStudents.some((st) => {
+        const val = getSubjectPeriodGrade(st.id, subName, termKey, periodKey, getStudentDetailedGrades);
+        return val !== null && val !== undefined && Number(val) > 0;
+      });
+      if (hasRecordedGrade) allowedNames.add(subName);
+    });
+
+    if (allowedNames.size > 0) {
+      return (subjects || []).filter((s) => allowedNames.has(s.name || s.name_ar));
+    }
+    return subjects || [];
+  }, [subjects, targetClassObj, classStudents, scope, getStudentDetailedGrades]);
+
+  const subjectNames = useMemo(
+    () => classSubjects.map((s) => s.name || s.name_ar).filter(Boolean),
+    [classSubjects]
+  );
 
   const maxPerSubject = scope === 'yearly' ? 100 : 50;
   const maxTotal = Math.max(1, subjectNames.length) * maxPerSubject;

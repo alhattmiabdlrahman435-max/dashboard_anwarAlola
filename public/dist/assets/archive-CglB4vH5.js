@@ -1,1 +1,0 @@
-import{et as e}from"./index-Bg_G4Hlo.js";var t={getStatistics:()=>e.get(`/api/archive/statistics`),getStudents:(t,{missingGender:n=!1}={})=>e.get(`/api/archive/students?class_id=${t===`all`?`all`:Number(t)}${n?`&missing_gender=1`:``}`),saveStudents:t=>e.put(`/api/archive/students`,{students:t}),saveGenders:t=>e.put(`/api/archive/genders`,{students:t})};export{t};

@@ -23,7 +23,7 @@ class GradeController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('check.permission:detailedGrades,view', only: ['detailed', 'getByClassAndSubject', 'getByClass']),
-            new Middleware('check.permission:detailedGrades,update', only: ['saveDetailed', 'publishMonthGrades']),
+            new Middleware('check.permission:detailedGrades,update', only: ['saveDetailed', 'publishMonthGrades', 'clearSheet', 'copySheet']),
             new Middleware('check.permission:control,view', only: ['control']),
             new Middleware('check.permission:control,generateSecretCodes', only: ['generateSecretCodes']),
             new Middleware('check.permission:control,enterGrades', only: ['updateControl']),
@@ -942,6 +942,121 @@ class GradeController extends Controller implements HasMiddleware
                 ? "تم إرسال نتائج {$scopeLabel} لـ {$sentCount} ولي أمر بنجاح."
                 : 'لا يوجد أولياء أمور مرتبطون بطلاب هذا الفصل.',
         ]);
+    }
+
+    /** يحوّل مدخلات الترم والشهر إلى القيم الرقمية المخزنة */
+    private function sheetKeys(Request $request): array
+    {
+        $term = ($request->term === 'term2' || $request->term === '2') ? 2 : 1;
+        $month = match ((string) $request->month) {
+            'm1', '1' => 1, 'm2', '2' => 2, 'm3', '3' => 3, default => 0,
+        };
+        return [$term, $month];
+    }
+
+    /** يتحقق من أن المستخدم إدارة مخوّلة بالمسح/النقل وأن الصف ضمن صلاحياته */
+    private function denySheetActionIfUnauthorized(Request $request, int $classId)
+    {
+        $user = $request->user();
+        if (!$user || $user->role === 'teacher') {
+            return response()->json(['success' => false, 'message' => 'مسح أو نقل الكشف متاح للإدارة فقط.'], 403);
+        }
+        $scoped = PermissionService::getScopedClassIds($user, 'detailedGrades');
+        if ($scoped !== null && !in_array($classId, array_map('intval', $scoped), true)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بالتعديل على درجات هذا الصف.'], 403);
+        }
+        return null;
+    }
+
+    /** يجلب معرّفات طلاب الصف في العام الدراسي المحدد (باحترام قيود العام عند وجودها) */
+    private function classStudentIdsForYear(int $classId, ?int $yearId)
+    {
+        if ($yearId && StudentEnrollment::where('academic_year_id', $yearId)->exists()) {
+            return StudentEnrollment::where('academic_year_id', $yearId)
+                ->where('class_id', $classId)
+                ->pluck('student_id');
+        }
+        return Student::where('class_id', $classId)->pluck('id');
+    }
+
+    /** POST /grades/clear-sheet — مسح كل درجات مادة في صف لشهر وترم محددين */
+    public function clearSheet(Request $request)
+    {
+        $request->validate([
+            'class_id' => 'required|integer|exists:classes,id',
+            'subject_id' => 'required|integer|exists:subjects,id',
+            'term' => 'required|string|in:term1,term2,1,2',
+            'month' => 'required|string|in:m1,m2,m3,1,2,3',
+        ]);
+        if ($deny = $this->denySheetActionIfUnauthorized($request, (int) $request->class_id)) {
+            return $deny;
+        }
+        [$term, $month] = $this->sheetKeys($request);
+        $yearId = AcademicYearService::resolveId($request);
+        $studentIds = $this->classStudentIdsForYear((int) $request->class_id, $yearId);
+        $deleted = Grade::forAcademicYear($yearId)
+            ->whereIn('student_id', $studentIds)
+            ->where('subject_id', $request->subject_id)
+            ->where('term', $term)->where('month', $month)
+            ->where('is_control', false)
+            ->delete();
+
+        return response()->json(['success' => true, 'deleted' => $deleted, 'message' => "تم مسح درجات $deleted طالب من الكشف."]);
+    }
+
+    /** POST /grades/copy-sheet — نسخ (أو نقل) درجات كشف مادة إلى كشف مادة أخرى لنفس الصف والشهر والترم */
+    public function copySheet(Request $request)
+    {
+        $request->validate([
+            'class_id' => 'required|integer|exists:classes,id',
+            'from_subject_id' => 'required|integer|exists:subjects,id',
+            'to_subject_id' => 'required|integer|exists:subjects,id|different:from_subject_id',
+            'term' => 'required|string|in:term1,term2,1,2',
+            'month' => 'required|string|in:m1,m2,m3,1,2,3',
+            'move' => 'sometimes|boolean',
+        ]);
+        if ($deny = $this->denySheetActionIfUnauthorized($request, (int) $request->class_id)) {
+            return $deny;
+        }
+        [$term, $month] = $this->sheetKeys($request);
+        $yearId = AcademicYearService::resolveId($request);
+        $studentIds = $this->classStudentIdsForYear((int) $request->class_id, $yearId);
+
+        $sources = Grade::forAcademicYear($yearId)
+            ->whereIn('student_id', $studentIds)
+            ->where('subject_id', $request->from_subject_id)
+            ->where('term', $term)->where('month', $month)
+            ->where('is_control', false)->get();
+
+        $count = 0;
+        \DB::transaction(function () use ($sources, $request, $term, $month, $yearId, &$count) {
+            foreach ($sources as $src) {
+                Grade::updateOrCreate(
+                    [
+                        'academic_year_id' => $yearId,
+                        'student_id' => $src->student_id,
+                        'subject_id' => $request->to_subject_id,
+                        'term' => $term,
+                        'month' => $month,
+                        'is_control' => false,
+                    ],
+                    [
+                        'homework' => $src->homework,
+                        'attendance' => $src->attendance,
+                        'behavior' => $src->behavior,
+                        'oral' => $src->oral,
+                        'written' => $src->written,
+                    ]
+                );
+                $count++;
+                if ($request->boolean('move')) {
+                    $src->delete();
+                }
+            }
+        });
+
+        $verb = $request->boolean('move') ? 'نقل' : 'نسخ';
+        return response()->json(['success' => true, 'count' => $count, 'message' => "تم $verb درجات $count طالب إلى الكشف الجديد."]);
     }
 }
 

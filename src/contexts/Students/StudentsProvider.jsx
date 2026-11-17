@@ -110,6 +110,7 @@ export default function StudentsProvider({ children }) {
             status: st.status,
             time: st.time,
             qrCode: st.qrCode,
+            student_code: st.student_code || st.qrCode || "",
             photo: st.photo,
             parentPhoto: "🧔",
             tuitionFee: st.tuition_fee,
